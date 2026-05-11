@@ -7,9 +7,3 @@ services:
     envVars:
       - key: MISTRAL_API_KEY
         sync: false
-      - key: DATA_DIR
-        value: /data
-    disk:
-      name: french-tutor-data
-      mountPath: /data
-      sizeGB: 1

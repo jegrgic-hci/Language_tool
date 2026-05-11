@@ -16,6 +16,7 @@ def _conn():
 
 
 def init_db():
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
     with _conn() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS events (
