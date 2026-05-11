@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -417,6 +417,114 @@ async def get_analytics(key: str = ""):
     if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
     return _analytics.get_analytics()
+
+
+@app.get("/analytics/dashboard", response_class=HTMLResponse)
+async def analytics_dashboard(key: str = ""):
+    if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    data = _analytics.get_analytics()
+
+    def score_bar(score):
+        if score is None:
+            return '<span style="color:rgba(26,26,26,0.3)">—</span>'
+        pct = int(score * 100)
+        color = "#7A9393" if pct >= 70 else "#BD3E31" if pct < 40 else "#A0A060"
+        return f'<div style="display:flex;align-items:center;gap:8px"><div style="width:80px;height:6px;background:#E8E8E8"><div style="width:{pct}px;max-width:80px;height:6px;background:{color}"></div></div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem">{pct}%</span></div>'
+
+    rows = ""
+    for code, stats in sorted(data.items()):
+        ps = stats.get("phrase_shadowing", {})
+        pa = stats.get("paragraph_shadowing", {})
+        phrase_levels = ps.get("by_level", {})
+        para_levels = pa.get("by_level", {})
+
+        level_rows = ""
+        all_levels = sorted(set(list(phrase_levels.keys()) + list(para_levels.keys())))
+        for lvl in all_levels:
+            ph = phrase_levels.get(lvl, {})
+            pr = para_levels.get(lvl, {})
+            level_rows += f"""
+            <tr style="border-top:1px solid #E8E8E8">
+              <td style="padding:6px 12px;font-size:0.72rem;color:rgba(26,26,26,0.5);padding-left:32px">LEVEL {lvl}</td>
+              <td style="padding:6px 12px;font-size:0.72rem">{ph.get('attempts','—')}</td>
+              <td style="padding:6px 12px">{score_bar(ph.get('avg_score'))}</td>
+              <td style="padding:6px 12px;font-size:0.72rem">{pr.get('chunk_attempts','—')}</td>
+              <td style="padding:6px 12px">{score_bar(pr.get('avg_chunk_score'))}</td>
+              <td style="padding:6px 12px;font-size:0.72rem">{pr.get('sentence_drills','—')}</td>
+              <td style="padding:6px 12px">{score_bar(pr.get('avg_drill_score'))}</td>
+            </tr>"""
+
+        rows += f"""
+        <tr style="border-top:2px solid #1A1A1A;background:#FAFAFA">
+          <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:700;letter-spacing:0.08em">{code.upper()}</td>
+          <td style="padding:10px 12px;font-size:0.8rem">{stats.get('sessions',0)}</td>
+          <td style="padding:10px 12px;font-size:0.8rem">{stats.get('total_shadowing_minutes',0)} min</td>
+          <td style="padding:10px 12px;font-size:0.8rem">{ps.get('total_attempts','—')}</td>
+          <td></td>
+          <td style="padding:10px 12px;font-size:0.8rem">{pa.get('paragraphs_started','—')}</td>
+          <td></td>
+        </tr>
+        {level_rows}"""
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ANALYTICS — FRENCH TUTOR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ font-family: 'IBM Plex Sans', system-ui, sans-serif; background: #F2F2F2; color: #1A1A1A; min-height: 100vh; }}
+    .header {{ background: #1A1A1A; padding: 28px 40px; display: flex; align-items: baseline; gap: 16px; }}
+    .header-title {{ font-family: Impact, 'Arial Black', sans-serif; font-size: 1.6rem; letter-spacing: 0.1em; color: white; }}
+    .header-sub {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.22em; color: rgba(255,255,255,0.35); text-transform: uppercase; }}
+    .container {{ max-width: 1100px; margin: 40px auto; padding: 0 24px; }}
+    .stat-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 2px; margin-bottom: 40px; }}
+    .stat-card {{ background: white; padding: 20px 24px; border-top: 3px solid #7A9393; }}
+    .stat-label {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em; color: rgba(26,26,26,0.4); text-transform: uppercase; margin-bottom: 8px; }}
+    .stat-value {{ font-family: Impact, sans-serif; font-size: 2rem; letter-spacing: 0.05em; color: #1A1A1A; }}
+    .section-label {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: rgba(26,26,26,0.4); text-transform: uppercase; margin-bottom: 12px; }}
+    table {{ width: 100%; border-collapse: collapse; background: white; }}
+    th {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(26,26,26,0.45); padding: 10px 12px; text-align: left; border-bottom: 2px solid #1A1A1A; background: white; }}
+    td {{ padding: 8px 12px; vertical-align: middle; }}
+    .empty {{ text-align: center; padding: 48px; color: rgba(26,26,26,0.3); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; letter-spacing: 0.1em; }}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="header-title">ANALYTICS</span>
+    <span class="header-sub">French Tutor — User Activity</span>
+  </div>
+  <div class="container">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value">{len(data)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Sessions</div>
+        <div class="stat-value">{sum(v.get('sessions',0) for v in data.values())}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Shadowing Time</div>
+        <div class="stat-value">{sum(v.get('total_shadowing_minutes',0) for v in data.values())}<span style="font-family:'IBM Plex Mono',monospace;font-size:0.9rem;margin-left:4px">min</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Phrase Attempts</div>
+        <div class="stat-value">{sum(v.get('phrase_shadowing',{}).get('total_attempts',0) for v in data.values())}</div>
+      </div>
+    </div>
+
+    <div class="section-label">Per User</div>
+    {'<table><thead><tr><th>Access Code</th><th>Sessions</th><th>Shadow Time</th><th>Phrase Attempts</th><th>Avg Phrase Score</th><th>Paragraphs</th><th>Avg Chunk Score</th></tr></thead><tbody>' + rows + '</tbody></table>' if data else '<div class="empty">NO DATA YET</div>'}
+  </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
 
 
 @app.post("/chat", response_model=ChatResponse)
