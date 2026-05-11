@@ -1,4 +1,4 @@
-mistralai>=1.10.0
+mistralai==1.10.0
 pypdf
 python-docx
 python-dotenv
