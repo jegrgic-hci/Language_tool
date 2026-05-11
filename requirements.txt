@@ -1,0 +1,12 @@
+mistralai
+SpeechRecognition
+gTTS
+pygame
+pypdf
+python-docx
+python-dotenv
+rich
+edge-tts
+fastapi
+uvicorn[standard]
+python-multipart
