@@ -196,12 +196,24 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
         for dr in display_results if not dr["matched"]
     ]
 
+    # Compute per-sentence scores using the same normalized token denominator as the overall score
+    sents = _split_sentences(target) if chunk_size > 1 else [target]
+    sentence_scores = []
+    si = 0
+    for sent in sents:
+        sent_words = _normalize(sent, noun_adj_set)
+        n = len(sent_words)
+        sent_matched = sum(1 for wr in word_results[si:si + n] if wr["matched"])
+        sentence_scores.append(round(sent_matched / n, 3) if n > 0 else 1.0)
+        si += n
+
     return {
         "score": round(score, 3),
         "passed": score >= threshold,
         "mismatches": mismatches,
         "word_results": word_results,
         "display_results": display_results,
+        "sentence_scores": sentence_scores,
     }
 
 

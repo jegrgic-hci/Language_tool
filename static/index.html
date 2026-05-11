@@ -1192,7 +1192,7 @@
       gap: 24px;
     }
 
-    /* Card: score ring (left) + paragraph text (right) — all states */
+    /* Card: score ring (left) + paragraph text (right) — desktop default */
     #para-card {
       display: grid;
       grid-template-columns: 120px 1fr;
@@ -1292,13 +1292,6 @@
       transition: filter 0.25s;
     }
 
-    #para-live-transcript {
-      font-family: var(--font-body);
-      font-size: 0.95rem;
-      color: var(--k-text-secondary);
-      padding-top: 20px;
-      border-top: 1px solid var(--k-border-mid);
-    }
     .speech-input-label {
       font-family: var(--font-ui);
       font-size: 0.55rem;
@@ -1580,46 +1573,6 @@
     }
 
     /* ── Feedback section ── */
-    #para-feedback-section {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .para-feedback-hdr {
-      width: 100%;
-      padding: 14px;
-      border: 1px solid var(--k-border-mid);
-      background: transparent;
-      font-family: var(--font-body);
-      font-size: 0.9rem;
-      color: var(--k-text-secondary);
-      cursor: pointer;
-      text-align: center;
-      transition: border-color 0.15s;
-    }
-    .para-feedback-hdr:hover { border-color: var(--k-text-primary); }
-
-    #para-feedback-details {
-      border: 1px solid var(--k-border-mid);
-      border-top: none;
-      padding: 16px;
-    }
-
-    .para-hide-link {
-      font-family: var(--font-ui);
-      font-size: 0.58rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background: none;
-      border: none;
-      color: var(--k-text-muted);
-      padding: 0 0 12px 0;
-      cursor: pointer;
-      display: block;
-      transition: color 0.15s;
-    }
-    .para-hide-link:hover { color: var(--k-teal); }
-
     /* ── Shared button system ── */
     .para-btn {
       font-family: var(--font-ui);
@@ -1648,6 +1601,64 @@
     .para-btn--ghost:hover { border-color: var(--k-text-primary); color: var(--k-text-primary); }
 
     /* ── Para Controls ── */
+    /* ── Bottom tray: flows naturally in the main column on desktop ── */
+    #para-bottom-tray {
+      display: flex;
+      flex-direction: column;
+    }
+
+
+    #para-tray-results {
+      overflow-y: visible;
+      max-height: none;
+    }
+
+    /* Score bar hidden on desktop — ring used instead */
+    #para-tray-score-row { display: none; }
+
+    .para-tray-score-pct {
+      font-family: var(--font-ui);
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      min-width: 48px;
+      flex-shrink: 0;
+    }
+    .para-tray-score-pct.pass { color: var(--k-green); }
+    .para-tray-score-pct.fail { color: var(--k-red); }
+
+    .para-tray-bar-wrap {
+      flex: 1;
+      height: 8px;
+      background: var(--k-border-light);
+      overflow: hidden;
+    }
+    .para-tray-bar-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.5s ease;
+    }
+    .para-tray-bar-fill.pass { background: var(--k-green); }
+    .para-tray-bar-fill.fail { background: var(--k-red); }
+
+    .para-tray-score-label {
+      font-family: var(--font-ui);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .para-tray-score-label.pass { color: var(--k-green); }
+    .para-tray-score-label.fail { color: var(--k-red); }
+
+    #para-live-transcript {
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      color: var(--k-text-secondary);
+      padding-top: 20px;
+      border-top: 1px solid var(--k-border-mid);
+    }
+
     #para-controls {
       display: flex;
       flex-direction: column;
@@ -2486,6 +2497,67 @@
       line-height: 0;
     }
 
+    .mobile-level-select {
+      display: none;
+      font-family: var(--font-ui);
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      background: var(--k-surface);
+      border: 1px solid var(--k-border-mid);
+      color: var(--k-text-primary);
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    .level-chip-dropdown {
+      display: none;
+      position: relative;
+    }
+    .level-chip-trigger {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-ui);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--k-teal);
+      border: 1px solid var(--k-teal);
+      color: #fff;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .level-chip-panel {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      background: var(--k-surface);
+      border: 1px solid var(--k-border-mid);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      z-index: 300;
+      min-width: 140px;
+    }
+    .level-chip-option {
+      font-family: var(--font-ui);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--k-surface);
+      border: 1px solid var(--k-border-mid);
+      color: var(--k-text-primary);
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .level-chip-option.active {
+      background: var(--k-teal);
+      border-color: var(--k-teal);
+      color: #fff;
+    }
+
     @media (max-width: 768px) {
       #panel {
         position: fixed;
@@ -2499,7 +2571,59 @@
       #panel.open { left: 0; }
       #chat-panel { width: 100%; }
       #hamburger { display: block; }
-      #chat-header { padding: 14px 16px 14px 48px; }
+      #chat-header,
+      .sv-header,
+      .pv-header { padding-left: 60px; }
+      .pv-levels { display: none; }
+      .diff-pips { display: none; }
+      .mobile-level-select { display: none; }
+      .level-chip-dropdown { display: block; }
+
+      /* Trays: fixed overlay covering full viewport, above hamburger */
+      #practice-drill-tray,
+      #para-sent-drill-tray {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        width: 100vw;
+        z-index: 300;
+      }
+      #practice-drill-backdrop,
+      #para-drill-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 299;
+      }
+
+      /* ── Paragraph shadow: mobile layout ── */
+      #para-card { display: block; }
+      #para-score-wrapper { display: none; }
+      #para-content { padding: 24px 16px 0; }
+      #para-main-column { gap: 0; }
+      #para-bottom-tray {
+        position: sticky;
+        bottom: 0;
+        z-index: 50;
+        background: var(--k-surface);
+        border-top: 1px solid var(--k-border-light);
+      }
+      #para-tray-results {
+        overflow-y: auto;
+        max-height: 50vh;
+        border-bottom: 1px solid var(--k-border-light);
+      }
+      #para-tray-score-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px 10px;
+      }
+      #para-controls { padding: 14px 16px; padding-top: 14px; }
+      #para-live-transcript {
+        padding: 10px 16px 0;
+        border-top: 1px solid var(--k-border-light);
+      }
     }
   </style>
 </head>
@@ -2690,6 +2814,24 @@
           <div class="diff-pip" data-level="3" onclick="setShadowDifficulty(3)" title="Medium (7–10 words)"></div>
           <div class="diff-pip" data-level="4" onclick="setShadowDifficulty(4)" title="Hard (10+ words)"></div>
         </div>
+        <div class="level-chip-dropdown" id="diff-chip-wrapper">
+          <button class="level-chip-trigger" onclick="toggleDiffChip(event)">
+            <span id="diff-chip-label">Beginner</span>
+            <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="level-chip-panel" id="diff-chip-panel" style="display:none;">
+            <button class="level-chip-option active" onclick="setShadowDifficulty(1);closeDiffChip()">Beginner</button>
+            <button class="level-chip-option" onclick="setShadowDifficulty(2);closeDiffChip()">Easy</button>
+            <button class="level-chip-option" onclick="setShadowDifficulty(3);closeDiffChip()">Medium</button>
+            <button class="level-chip-option" onclick="setShadowDifficulty(4);closeDiffChip()">Hard</button>
+          </div>
+        </div>
+        <select id="diff-select" style="display:none;" onchange="setShadowDifficulty(parseInt(this.value))">
+          <option value="1">Beginner</option>
+          <option value="2">Easy</option>
+          <option value="3">Medium</option>
+          <option value="4">Hard</option>
+        </select>
       </div>
     </div>
 
@@ -2836,13 +2978,35 @@
           <button class="pv-level-btn" data-level="C1" onclick="setParagraphLevel('C1')">C1</button>
           <button class="pv-level-btn" data-level="C2" onclick="setParagraphLevel('C2')">C2</button>
         </div>
+        <div class="level-chip-dropdown" id="pv-chip-wrapper">
+          <button class="level-chip-trigger" onclick="togglePvChip(event)">
+            <span id="pv-chip-label">A1</span>
+            <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="level-chip-panel" id="pv-chip-panel" style="display:none;">
+            <button class="level-chip-option active" onclick="setParagraphLevel('A1');closePvChip()">A1</button>
+            <button class="level-chip-option" onclick="setParagraphLevel('A2');closePvChip()">A2</button>
+            <button class="level-chip-option" onclick="setParagraphLevel('B1');closePvChip()">B1</button>
+            <button class="level-chip-option" onclick="setParagraphLevel('B2');closePvChip()">B2</button>
+            <button class="level-chip-option" onclick="setParagraphLevel('C1');closePvChip()">C1</button>
+            <button class="level-chip-option" onclick="setParagraphLevel('C2');closePvChip()">C2</button>
+          </div>
+        </div>
+        <select id="pv-level-select" style="display:none;" onchange="setParagraphLevel(this.value)">
+          <option value="A1">A1</option>
+          <option value="A2">A2</option>
+          <option value="B1">B1</option>
+          <option value="B2">B2</option>
+          <option value="C1">C1</option>
+          <option value="C2">C2</option>
+        </select>
       </div>
     </div>
 
     <div id="para-content" data-state="idle">
       <div id="para-main-column">
 
-        <!-- Card: score ring (left) + paragraph (right) — visible in all states -->
+        <!-- Card: full-width paragraph text -->
         <div id="para-card">
           <div id="para-score-wrapper">
             <svg class="para-score-ring" viewBox="0 0 120 120" width="120" height="120">
@@ -2897,66 +3061,71 @@
           </div>
         </div>
 
-        <!-- Controls (below card) -->
-        <div id="para-controls">
-          <div id="para-controls-step12" class="para-controls-row">
-            <button class="para-mic-btn" id="para-mic-btn" onclick="toggleParaMic()" disabled>
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-                <rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <span class="para-pass-label" id="para-pass-label"></span>
-          </div>
-          <div id="para-controls-fail" class="para-controls-row" style="display:none;">
-            <button class="para-replay-btn" id="para-replay-btn-fail" onclick="replayParaAudio()" title="Replay audio" disabled>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <polygon points="4,2 13,8 4,14" fill="currentColor"/>
-              </svg>
-            </button>
-            <button class="para-mic-btn" id="para-mic-btn-fail" onclick="toggleParaMic()" disabled>
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-                <rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <span class="para-try-again-label">try again</span>
-            <button class="para-skip-btn" onclick="handleParaSkip()">skip</button>
-          </div>
-          <div id="para-controls-complete" class="para-controls-row" style="display:none;">
-            <button class="para-btn para-btn--primary" onclick="proceedToNextParagraph()">Next Paragraph</button>
-            <button class="para-btn para-btn--ghost" onclick="retryThisParagraph()">Retry This</button>
-          </div>
-          <div id="para-controls-pass" class="para-controls-row" style="display:none;">
-            <button class="para-btn para-btn--ghost" onclick="repeatCurrentChunk()">Repeat</button>
-            <button class="para-btn para-btn--primary" onclick="advanceToNextStage()">Continue →</button>
-          </div>
-        </div>
+        <!-- Bottom tray: controls first, then results (flows on desktop; sticky on mobile) -->
+    <div id="para-bottom-tray">
 
-        <!-- Speech input (listening state only) -->
-        <div id="para-live-transcript" style="display:none;">
-          <span class="speech-input-label">Speech input</span>
-          <span id="para-live-transcript-text">…</span>
-        </div>
+      <!-- Live transcript (listening state) -->
+      <div id="para-live-transcript" style="display:none;">
+        <span class="speech-input-label">Speech input</span>
+        <span id="para-live-transcript-text">…</span>
+      </div>
 
-        <!-- Feedback section (fail/complete states) -->
-        <div id="para-feedback-section" style="display:none;">
-          <button class="para-feedback-hdr" id="para-feedback-toggle" onclick="toggleParaFeedbackDetails()">feedback</button>
-          <div id="para-feedback-details" style="display:none;">
-            <button class="para-hide-link" onclick="toggleParaFeedbackDetails()">▾ hide</button>
-            <div class="feedback-phrase-diff" id="para-phrase-diff"></div>
-            <div class="feedback-items" id="para-feedback-items"></div>
+      <!-- Controls bar (always rendered; rows toggle visibility via setParaState) -->
+      <div id="para-controls">
+        <div id="para-controls-step12" class="para-controls-row">
+          <button class="para-mic-btn" id="para-mic-btn" onclick="toggleParaMic()" disabled>
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+              <rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <span class="para-pass-label" id="para-pass-label"></span>
+        </div>
+        <div id="para-controls-fail" class="para-controls-row" style="display:none;">
+          <button class="para-replay-btn" id="para-replay-btn-fail" onclick="replayParaAudio()" title="Replay audio" disabled>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <polygon points="4,2 13,8 4,14" fill="currentColor"/>
+            </svg>
+          </button>
+          <button class="para-mic-btn" id="para-mic-btn-fail" onclick="toggleParaMic()" disabled>
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+              <rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <span class="para-try-again-label">try again</span>
+          <button class="para-skip-btn" onclick="handleParaSkip()">skip</button>
+        </div>
+        <div id="para-controls-complete" class="para-controls-row" style="display:none;">
+          <button class="para-btn para-btn--primary" onclick="proceedToNextParagraph()">Next Paragraph</button>
+          <button class="para-btn para-btn--ghost" onclick="retryThisParagraph()">Retry This</button>
+        </div>
+        <div id="para-controls-pass" class="para-controls-row" style="display:none;">
+          <button class="para-btn para-btn--ghost" onclick="repeatCurrentChunk()">Repeat</button>
+          <button class="para-btn para-btn--primary" onclick="advanceToNextStage()">Continue →</button>
+        </div>
+      </div>
+
+      <!-- Results section: score bar + sentence scores + feedback (shown after scoring) -->
+      <div id="para-tray-results" style="display:none;">
+        <div id="para-tray-score-row">
+          <span class="para-tray-score-pct" id="para-tray-score-pct"></span>
+          <div class="para-tray-bar-wrap">
+            <div class="para-tray-bar-fill" id="para-tray-bar-fill" style="width:0%"></div>
           </div>
+          <span class="para-tray-score-label" id="para-tray-score-label"></span>
         </div>
-
-        <!-- Per-sentence scores (shown after multi-sentence chunk attempt) -->
+        <!-- Per-sentence scores -->
         <div id="para-sentence-scores" style="display:none;">
           <div class="pss-header">Per-sentence scores</div>
           <div id="pss-rows"></div>
         </div>
-
       </div>
-    </div>
+
+    </div><!-- /#para-bottom-tray -->
+
+      </div><!-- /#para-main-column -->
+    </div><!-- /#para-content -->
 
     <!-- Backdrop for sentence drill tray -->
     <div id="para-drill-backdrop" onclick="exitSentenceDrill()"></div>
@@ -3157,6 +3326,27 @@
     document.getElementById('panel').classList.remove('open');
     document.getElementById('panel-overlay').classList.remove('open');
   }
+
+  // ── Level chip dropdowns ───────────────────────────────────────────────────
+  function toggleDiffChip(e) {
+    e.stopPropagation();
+    const panel = document.getElementById('diff-chip-panel');
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  }
+  function closeDiffChip() {
+    const panel = document.getElementById('diff-chip-panel');
+    if (panel) panel.style.display = 'none';
+  }
+  function togglePvChip(e) {
+    e.stopPropagation();
+    const panel = document.getElementById('pv-chip-panel');
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  }
+  function closePvChip() {
+    const panel = document.getElementById('pv-chip-panel');
+    if (panel) panel.style.display = 'none';
+  }
+  document.addEventListener('click', () => { closeDiffChip(); closePvChip(); });
 
   // ── Access Code / Welcome ──────────────────────────────────────────────────
   async function submitApiKey() {
@@ -3547,6 +3737,22 @@
   let userStoppedRecognition = false;  // true only when user explicitly stops
   let errorWantedRestart = false;     // true when onerror fires while mic was active
 
+  // Android Chrome requires an explicit getUserMedia call before webkitSpeechRecognition works,
+  // even after the user grants permission through the SR dialog.
+  let micPermissionGranted = false;
+  async function ensureMicPermission() {
+    if (micPermissionGranted) return true;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      micPermissionGranted = true;
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   if (SR) {
     recognition = new SR();
     recognition.lang = 'fr-FR';
@@ -3748,13 +3954,15 @@
     micBtn.style.opacity = '0.4';
   }
 
-  micBtn.addEventListener('click', () => {
+  micBtn.addEventListener('click', async () => {
     if (!recognition) return;
     if (micBtn.classList.contains('listening')) {
       if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
       userStoppedRecognition = true;
       recognition.stop();
     } else {
+      const ok = await ensureMicPermission();
+      if (!ok) { addSys('Microphone access denied. Check your browser settings.'); return; }
       textInput.value = '';
       lastTranscriptSubmitted = ''; finalTranscriptBuffer = '';
       micBtn.classList.add('listening');
@@ -3818,11 +4026,12 @@
   }
 
   // ── Confidence bar actions ─────────────────────────────────────────────────
-  document.getElementById('confidence-retry').addEventListener('click', () => {
+  document.getElementById('confidence-retry').addEventListener('click', async () => {
     lastSpeechConfidence = null;
     hideConfidenceWarning();
     textInput.value = '';
     if (recognition) {
+      await ensureMicPermission();
       micBtn.classList.add('listening');
       recognition.start();
     }
@@ -4185,11 +4394,7 @@
     setParaState('idle');
     const passLabel = document.getElementById('para-pass-label');
     if (passLabel) passLabel.textContent = '';
-    const ringFill = document.getElementById('para-score-ring-fill');
-    if (ringFill) { ringFill.style.strokeDashoffset = '314.16'; ringFill.className = 'para-score-ring__fill'; }
-    const scoreEl0 = document.getElementById('para-score');
-    scoreEl0.textContent = '';
-    scoreEl0.style.display = '';
+    resetParaScoreBar();
     paragraphChunkScores = [];
     paragraphMismatches = [];
     document.getElementById('para-full-text').textContent = 'Loading…';
@@ -4264,6 +4469,14 @@
     document.querySelectorAll('.diff-pip').forEach(p =>
       p.classList.toggle('active', parseInt(p.dataset.level) <= shadowDifficulty)
     );
+    const sel = document.getElementById('diff-select');
+    if (sel) sel.value = shadowDifficulty;
+    const diffLabels = { 1: 'Beginner', 2: 'Easy', 3: 'Medium', 4: 'Hard' };
+    const chipLabel = document.getElementById('diff-chip-label');
+    if (chipLabel) chipLabel.textContent = diffLabels[shadowDifficulty] || 'Beginner';
+    document.querySelectorAll('#diff-chip-panel .level-chip-option').forEach(b =>
+      b.classList.toggle('active', b.textContent === diffLabels[shadowDifficulty])
+    );
   }
 
   async function fetchNextPhrase() {
@@ -4333,7 +4546,7 @@
     document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = 'Tap mic to repeat';
   }
 
-  function toggleShadowMic() {
+  async function toggleShadowMic() {
     if (!recognition) { return; }
     const btn = document.getElementById('shadow-mic-btn');
     if (btn.classList.contains('listening')) {
@@ -4341,6 +4554,8 @@
       userStoppedRecognition = true;
       recognition.stop();
     } else {
+      const ok = await ensureMicPermission();
+      if (!ok) return;
       lastTranscriptSubmitted = ''; finalTranscriptBuffer = '';
       btn.classList.add('listening');
       document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = '…';
@@ -4922,7 +5137,6 @@
     const controlsFail = document.getElementById('para-controls-fail');
     const controlsComplete = document.getElementById('para-controls-complete');
     const controlsPass = document.getElementById('para-controls-pass');
-    const feedbackSection = document.getElementById('para-feedback-section');
     const liveTranscript = document.getElementById('para-live-transcript');
     const sentenceScores = document.getElementById('para-sentence-scores');
 
@@ -4934,41 +5148,40 @@
     controlsFail.style.display = 'none';
     controlsComplete.style.display = 'none';
     controlsPass.style.display = 'none';
-    feedbackSection.style.display = 'none';
     liveTranscript.style.display = 'none';
+
+    const trayResults = document.getElementById('para-tray-results');
 
     if (state === 'context') {
       if (contextBtn) contextBtn.style.display = 'flex';
+      if (trayResults) trayResults.style.display = 'none';
     } else if (state === 'idle') {
       if (chunkBtn) chunkBtn.style.display = 'flex';
       controlsStep12.style.display = 'flex';
       sentenceScores.style.display = 'none';
+      if (trayResults) trayResults.style.display = 'none';
       closeDrillTray();
     } else if (state === 'listening') {
       if (chunkBtn) chunkBtn.style.display = 'flex';
       controlsStep12.style.display = 'flex';
       liveTranscript.style.display = 'block';
+      if (trayResults) trayResults.style.display = 'none';
     } else if (state === 'feedback-pass') {
       if (chunkBtn) chunkBtn.style.display = 'flex';
       controlsPass.style.display = 'flex';
-      if (paraStage === 1) {
-        feedbackSection.style.display = 'block';
-        document.getElementById('para-feedback-details').style.display = '';
-      }
+      if (trayResults) trayResults.style.display = 'block';
       // sentence scores rendered by handleParaResult after this state is set
     } else if (state === 'feedback-fail') {
       if (chunkBtn) chunkBtn.style.display = 'flex';
       controlsFail.style.display = 'flex';
       document.getElementById('para-mic-btn-fail').disabled = false;
       document.getElementById('para-replay-btn-fail').disabled = false;
-      feedbackSection.style.display = 'block';
-      document.getElementById('para-feedback-details').style.display = 'none';
+      if (trayResults) trayResults.style.display = 'block';
       // sentence scores rendered by handleParaResult after this state is set
     } else if (state === 'complete') {
       controlsComplete.style.display = 'flex';
-      feedbackSection.style.display = 'block';
-      document.getElementById('para-feedback-details').style.display = '';
       sentenceScores.style.display = 'none';
+      if (trayResults) trayResults.style.display = 'block';
       closeDrillTray();
     }
   }
@@ -4984,8 +5197,37 @@
     document.querySelectorAll('.pss-practice-btn.active').forEach(b => b.classList.remove('active'));
   }
 
+  function updateParaScoreBar(pct, passed) {
+    // Mobile: bar
+    const fill  = document.getElementById('para-tray-bar-fill');
+    const pctEl = document.getElementById('para-tray-score-pct');
+    const lbl   = document.getElementById('para-tray-score-label');
+    if (fill)  { fill.style.width = pct + '%'; fill.className = 'para-tray-bar-fill ' + (passed ? 'pass' : 'fail'); }
+    if (pctEl) { pctEl.textContent = pct + '%'; pctEl.className = 'para-tray-score-pct ' + (passed ? 'pass' : 'fail'); }
+    if (lbl)   { lbl.textContent = passed ? 'Passed' : 'Try again'; lbl.className = 'para-tray-score-label ' + (passed ? 'pass' : 'fail'); }
+    // Desktop: ring
+    updateParaScoreRing('para-score-ring-fill', pct, passed);
+    const scoreEl = document.getElementById('para-score');
+    if (scoreEl) { scoreEl.textContent = pct + '%'; scoreEl.style.display = 'inline'; }
+  }
+
+  function resetParaScoreBar() {
+    // Mobile: bar
+    const fill  = document.getElementById('para-tray-bar-fill');
+    const pctEl = document.getElementById('para-tray-score-pct');
+    const lbl   = document.getElementById('para-tray-score-label');
+    if (fill)  { fill.style.transition = 'none'; fill.style.width = '0%'; fill.className = 'para-tray-bar-fill'; requestAnimationFrame(() => { fill.style.transition = ''; }); }
+    if (pctEl) { pctEl.textContent = ''; pctEl.className = 'para-tray-score-pct'; }
+    if (lbl)   { lbl.textContent = ''; lbl.className = 'para-tray-score-label'; }
+    // Desktop: ring
+    const rf = document.getElementById('para-score-ring-fill');
+    if (rf) { rf.style.transition = 'none'; rf.style.strokeDashoffset = '314.16'; rf.className = 'para-score-ring__fill'; requestAnimationFrame(() => { rf.style.transition = ''; }); }
+    const scoreEl = document.getElementById('para-score');
+    if (scoreEl) { scoreEl.textContent = ''; scoreEl.style.display = ''; }
+  }
+
   function updateParaScoreRing(fillId, pct, passed) {
-    const circumference = 314.16; // 2 * π * r=50
+    const circumference = 314.16;
     const offset = circumference - (pct / 100) * circumference;
     const el = document.getElementById(fillId);
     if (!el) return;
@@ -5068,16 +5310,18 @@
     advanceToNextStage();
   }
 
-  function toggleParaFeedbackDetails() {
-    const details = document.getElementById('para-feedback-details');
-    details.style.display = details.style.display === 'none' ? '' : 'none';
-  }
-
   function setParagraphLevel(level) {
     paragraphLevel = level;
     paraPassCount = 0;
     document.querySelectorAll('.pv-level-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.level === level)
+    );
+    const sel = document.getElementById('pv-level-select');
+    if (sel) sel.value = level;
+    const pvChipLabel = document.getElementById('pv-chip-label');
+    if (pvChipLabel) pvChipLabel.textContent = level;
+    document.querySelectorAll('#pv-chip-panel .level-chip-option').forEach(b =>
+      b.classList.toggle('active', b.textContent === level)
     );
     fetchNextParagraph();
   }
@@ -5091,11 +5335,7 @@
     setParaState('idle');
     const passLabel = document.getElementById('para-pass-label');
     if (passLabel) passLabel.textContent = '';
-    const ringFill = document.getElementById('para-score-ring-fill');
-    if (ringFill) { ringFill.style.strokeDashoffset = '314.16'; ringFill.className = 'para-score-ring__fill'; }
-    const scoreEl0 = document.getElementById('para-score');
-    scoreEl0.textContent = '';
-    scoreEl0.style.display = '';
+    resetParaScoreBar();
     isSummaryMistakesExpanded = false;
     paragraphChunkScores = [];
     paragraphMismatches = [];
@@ -5208,18 +5448,7 @@
     document.getElementById('para-mic-btn').disabled = false;
 
     setParaState('idle');  // also shows chunkBtn via setParaState
-
-    // Reset ring instantly (no transition) right as the new chunk audio starts
-    const rf = document.getElementById('para-score-ring-fill');
-    if (rf) {
-      rf.style.transition = 'none';
-      rf.style.strokeDashoffset = '314.16';
-      rf.className = 'para-score-ring__fill';
-      requestAnimationFrame(() => { rf.style.transition = ''; });
-    }
-    const se = document.getElementById('para-score');
-    se.textContent = '';
-    se.style.display = '';
+    resetParaScoreBar();
 
     // Auto-play on first presentation; show pause icon while playing
     playAudio(paraAudioUrl);
@@ -5250,18 +5479,7 @@
   }
 
   function repeatCurrentChunk() {
-    const rf = document.getElementById('para-score-ring-fill');
-    if (rf) {
-      rf.style.transition = 'none';
-      rf.style.strokeDashoffset = '314.16';
-      rf.className = 'para-score-ring__fill';
-      requestAnimationFrame(() => { rf.style.transition = ''; });
-    }
-    const se = document.getElementById('para-score');
-    se.textContent = '';
-    se.style.display = '';
-    document.getElementById('para-phrase-diff').innerHTML = '';
-    document.getElementById('para-feedback-items').innerHTML = '';
+    resetParaScoreBar();
     setParaState('idle');
     setParaPlayBtnState(false);
     // No auto-play on repeat — user clicks play manually
@@ -5504,46 +5722,7 @@
       : 0;
     const percent = Math.round(finalScore * 100);
 
-    // Update score ring with final attempt
-    const scoreElFinal = document.getElementById('para-score');
-    scoreElFinal.textContent = percent + '%';
-    scoreElFinal.style.display = 'inline';
-    updateParaScoreRing('para-score-ring-fill', percent, finalScore >= 0.75);
-
-    // Populate feedback items with patterns and mistakes
-    const itemsEl = document.getElementById('para-feedback-items');
-    itemsEl.innerHTML = '';
-
-    // Add patterns first if available
-    if (window.para_patterns && window.para_patterns.rule_based && window.para_patterns.rule_based.length > 0) {
-      window.para_patterns.rule_based.forEach(p => {
-        const item = document.createElement('div');
-        item.className = 'feedback-item';
-        item.innerHTML = `
-          <div style="font-weight:500; margin-bottom:4px;">${esc(p.pattern)}</div>
-          <div style="font-size:0.85rem; color:var(--k-text-secondary); margin-bottom:4px;">${esc(p.explanation)}</div>
-          <div style="font-size:0.8rem; color:var(--k-text-muted);">Examples: ${p.examples.slice(0,2).map(esc).join(', ')}</div>
-        `;
-        itemsEl.appendChild(item);
-      });
-    }
-
-    // Add missed words from last attempt
-    if (paragraphMismatches && paragraphMismatches.length > 0) {
-      const title = document.createElement('div');
-      title.style.cssText = 'font-weight:500; margin-top:16px; margin-bottom:8px; padding-top:12px; border-top:1px solid var(--k-border-light);';
-      title.textContent = 'Last attempt mismatches:';
-      itemsEl.appendChild(title);
-
-      // Show last attempt's mismatches only
-      const lastAttemptMismatches = paragraphMismatches.slice(-10); // Recent mismatches
-      lastAttemptMismatches.forEach(m => {
-        const row = document.createElement('div');
-        row.className = 'para-summary-word-row';
-        row.innerHTML = `<strong>${esc(m.target_word)}</strong> — you said: <em>${esc(m.said || '(missing)')}</em>`;
-        itemsEl.appendChild(row);
-      });
-    }
+    updateParaScoreBar(percent, finalScore >= 0.75);
 
     setParaState('complete');
   }
@@ -5603,7 +5782,7 @@
     }
   }
 
-  function toggleParaMic() {
+  async function toggleParaMic() {
     if (!recognition) return;
     const btn = document.getElementById('para-mic-btn');
     const btnFail = document.getElementById('para-mic-btn-fail');
@@ -5613,6 +5792,8 @@
       userStoppedRecognition = true;
       recognition.stop();
     } else {
+      const ok = await ensureMicPermission();
+      if (!ok) return;
       // Stop any playing audio before starting mic
       if (currentAudio) {
         currentAudio.pause();
@@ -5661,15 +5842,10 @@
         paragraphMismatches.push(...data.mismatches);
       }
 
-      // Compute and render per-sentence scores when chunk has multiple sentences
-      if (chunkSize > 1) {
-        lastSentenceScores = computeSentenceScores(paragraphSentences.slice(start, end), data.display_results || []);
-        lastSentenceStart = start;
-        renderSentenceScores();
-      } else {
-        lastSentenceScores = [];
-        document.getElementById('para-sentence-scores').style.display = 'none';
-      }
+      // Compute and render per-sentence scores for all chunks
+      lastSentenceScores = computeSentenceScores(paragraphSentences.slice(start, end), data.display_results || [], data.sentence_scores || []);
+      lastSentenceStart = start;
+      renderSentenceScores();
 
     } catch (err) {
       console.error('handleParaResult failed:', err);
@@ -5678,14 +5854,18 @@
 
   // ── Sentence drill helpers ───────────────────────────────────────────────────
 
-  function computeSentenceScores(sentences, displayResults) {
+  function computeSentenceScores(sentences, displayResults, backendScores) {
     const scores = [];
     let wordIdx = 0;
-    for (const sent of sentences) {
-      const wordCount = sent.trim().split(/\s+/).filter(w => w.length > 0).length;
+    for (let i = 0; i < sentences.length; i++) {
+      // Skip punct-only tokens so our slice window matches display_results (which skips them too)
+      const wordCount = sentences[i].trim().split(/\s+/).filter(w => /\w/.test(w)).length;
       const wordSlice = displayResults.slice(wordIdx, wordIdx + wordCount);
-      const matched = wordSlice.filter(w => w.matched).length;
-      scores.push({ score: wordSlice.length > 0 ? matched / wordSlice.length : 0, wordSlice });
+      // Prefer backend score — it uses the correct normalized-token denominator
+      const score = (backendScores && backendScores[i] != null)
+        ? backendScores[i]
+        : (wordSlice.length > 0 ? wordSlice.filter(w => w.matched).length / wordSlice.length : 0);
+      scores.push({ score, wordSlice });
       wordIdx += wordCount;
     }
     return scores;
@@ -5698,7 +5878,7 @@
     const end = Math.min(start + chunkSize, paragraphSentences.length);
     const sentences = paragraphSentences.slice(start, end);
 
-    if (sentences.length <= 1) {
+    if (sentences.length === 0) {
       section.style.display = 'none';
       return;
     }
@@ -5877,7 +6057,7 @@
     }
   }
 
-  function toggleDrillMic() {
+  async function toggleDrillMic() {
     if (!recognition) return;
     const btn = document.getElementById('para-drill-mic-btn');
     if (btn.classList.contains('listening')) {
@@ -5885,6 +6065,8 @@
       userStoppedRecognition = true;
       recognition.stop();
     } else {
+      const ok = await ensureMicPermission();
+      if (!ok) return;
       lastTranscriptSubmitted = ''; finalTranscriptBuffer = '';
       btn.classList.add('listening');
       document.getElementById('psdp-live-transcript').style.display = 'block';
@@ -6173,7 +6355,7 @@
     }
   }
 
-  function togglePracticeDrillMic() {
+  async function togglePracticeDrillMic() {
     if (!recognition) return;
     const btn = document.getElementById('practice-para-drill-mic-btn');
     if (btn.classList.contains('listening')) {
@@ -6181,6 +6363,8 @@
       userStoppedRecognition = true;
       recognition.stop();
     } else {
+      const ok = await ensureMicPermission();
+      if (!ok) return;
       lastTranscriptSubmitted = ''; finalTranscriptBuffer = '';
       btn.classList.add('listening');
       document.getElementById('practice-psdp-live-transcript').style.display = 'block';
@@ -6193,102 +6377,7 @@
     const pct    = Math.round(data.score * 100);
     const passed = data.passed;
 
-    // Update score ring — set display inline explicitly so the 100% case
-    // isn't silently hidden by stacking-context differences with the rotated SVG
-    const scoreEl = document.getElementById('para-score');
-    scoreEl.textContent = pct + '%';
-    scoreEl.style.display = 'inline';
-    updateParaScoreRing('para-score-ring-fill', pct, passed);
-
-    // Build phrase diff (visual feedback on which words matched)
-    const phraseDiff = document.getElementById('para-phrase-diff');
-    phraseDiff.innerHTML = '';
-    (data.display_results || []).forEach(dr => {
-      const cls = dr.matched ? 'correct' : (dr.said ? 'wrong' : 'missing');
-      const span = document.createElement('span');
-      span.className = 'diff-word ' + cls;
-      span.textContent = dr.word;
-      phraseDiff.appendChild(span);
-      phraseDiff.appendChild(document.createTextNode(' '));
-    });
-
-    // Build feedback items
-    const itemsEl = document.getElementById('para-feedback-items');
-    itemsEl.innerHTML = '';
-
-    if (passed) {
-      const allMatched = (data.display_results || []).every(dr => dr.matched);
-      if (allMatched || (data.feedback || []).length === 0) {
-        const ok = document.createElement('div');
-        ok.style.cssText = 'padding:16px 0; font-family:var(--font-body); color:var(--k-green); font-size:0.9rem;';
-        ok.textContent = allMatched ? 'Parfait — every word matched.' : 'Bien joué !';
-        itemsEl.appendChild(ok);
-      }
-    }
-
-    (data.feedback || []).forEach(f => {
-      const item = document.createElement('div');
-      item.className = 'feedback-item';
-
-      const wordsRow = document.createElement('div');
-      wordsRow.className = 'feedback-item-words';
-      wordsRow.innerHTML =
-        `<span class="fi-target">${esc(f.target_word)}</span>` +
-        `<span class="fi-arrow">←</span>` +
-        `<span class="fi-said">you said: ${esc(f.said || '(missing)')}</span>`;
-
-      const playBtn = document.createElement('button');
-      playBtn.className = 'fi-play-btn';
-      playBtn.title = `Hear "${f.target_word}"`;
-      playBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,0 10,5 1,10"/></svg>`;
-      playBtn.addEventListener('click', async () => {
-        playBtn.classList.add('loading');
-        try {
-          const res = await fetch('/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: f.target_word }),
-          });
-          const data = await res.json();
-          playAudio(data.audio_url);
-        } finally {
-          playBtn.classList.remove('loading');
-        }
-      });
-      wordsRow.appendChild(playBtn);
-      item.appendChild(wordsRow);
-
-      const tipEl = document.createElement('div');
-      tipEl.className = 'feedback-tip';
-      item.appendChild(tipEl);
-      populateFeedbackTip(tipEl, f.target_word, f.tip || '');
-
-      if (f.is_grammar && f.grammar_note) {
-        const note = document.createElement('div');
-        note.className = 'feedback-grammar-note';
-        note.textContent = f.grammar_note;
-        item.appendChild(note);
-      }
-
-      const addBtn = document.createElement('button');
-      addBtn.className = 'add-to-practice-btn';
-      addBtn.textContent = '+ Save to practice list';
-      addBtn.addEventListener('click', async () => {
-        await addToPracticeList(f.target_word, tipEl.textContent || f.tip || '', '');
-        addBtn.textContent = '✓ Saved';
-        addBtn.classList.add('added');
-        updatePracticeCount();
-      });
-
-      const micBtn = attachWordCheckToFeedbackItem(item, f.target_word);
-      const actionsRow = document.createElement('div');
-      actionsRow.className = 'feedback-item-actions';
-      actionsRow.appendChild(micBtn);
-      actionsRow.appendChild(addBtn);
-      item.appendChild(actionsRow);
-
-      itemsEl.appendChild(item);
-    });
+    updateParaScoreBar(pct, passed);
 
     // Update status label and set state
     const statusLbl = document.getElementById('para-pass-label');

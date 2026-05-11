@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRONOS LABORATORY v4.0 | Master Design Specification</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================================================
+           00_DESIGN_TOKENS
+           ========================================================================== */
+        :root {
+            /* Color */
+            --k-bg:           #F7F7F7;
+            --k-surface:      #FFFFFF;
+            --k-sidebar:      #1A1A1A;
+            --k-text-primary: #1A1A1A;
+            --k-text-secondary: #6B6B6B;
+            --k-text-muted:   #A0A0A0;
+            --k-teal:         #7A9393;
+            --k-teal-dark:    #4A6363;
+            --k-red:          #BD3E31;
+            --k-green:        #2D6A4F;
+            --k-border-heavy: #1A1A1A;
+            --k-border-mid:   #C8C8C8;
+            --k-border-light: #E8E8E8;
+
+            /* Typography */
+            --font-display: Impact, 'Arial Black', sans-serif;
+            --font-ui:      'IBM Plex Mono', 'Courier New', monospace;
+            --font-body:    'IBM Plex Sans', system-ui, sans-serif;
+
+            /* Spacing — 8px base scale */
+            --s-1:  4px;
+            --s-2:  8px;
+            --s-3:  12px;
+            --s-4:  16px;
+            --s-5:  24px;
+            --s-6:  32px;
+            --s-7:  48px;
+            --s-8:  64px;
+            --s-9:  96px;
+            --s-10: 128px;
+
+            /* Layout */
+            --sidebar-width: 280px;
+            --content-max:   900px;
+            --col-gap:       32px;
+        }
+
+        /* Reset — uppercase is NOT global */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--k-bg);
+            color: var(--k-text-primary);
+            font-family: var(--font-body);
+            font-size: 16px;
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ==========================================================================
+           SIDEBAR NAVIGATION
+           ========================================================================== */
+        aside.master-nav {
+            width: var(--sidebar-width);
+            background: var(--k-sidebar);
+            border-right: 1px solid var(--k-border-heavy);
+            padding: var(--s-8) 0;
+            position: fixed;
+            height: 100vh;
+            color: white;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .sys-info {
+            padding: 0 var(--s-5) var(--s-5);
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            margin-bottom: var(--s-5);
+        }
+
+        .sys-info .version {
+            font-family: var(--font-ui);
+            font-size: 0.625rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.45);
+            margin-bottom: var(--s-2);
+        }
+
+        .sys-info .wordmark {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            letter-spacing: 0.1em;
+            color: white;
+        }
+
+        .nav-group-label {
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            padding: var(--s-6) var(--s-5) var(--s-2);
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--s-3);
+            padding: var(--s-3) var(--s-5);
+            color: rgba(255,255,255,0.65);
+            text-decoration: none;
+            font-family: var(--font-ui);
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: color 0.15s, background 0.15s;
+        }
+
+        .nav-item:hover {
+            color: white;
+            background: rgba(255,255,255,0.06);
+        }
+
+        /* Active: left accent bar on teal, text goes white */
+        .nav-item.active {
+            color: white;
+            background: rgba(122,147,147,0.18);
+            border-left: 3px solid var(--k-teal);
+            padding-left: calc(var(--s-5) - 3px);
+        }
+
+        /* ==========================================================================
+           MAIN CONTENT
+           ========================================================================== */
+        main.master-content {
+            margin-left: var(--sidebar-width);
+            width: 100%;
+        }
+
+        .spec-container {
+            padding: var(--s-9) var(--s-9);
+            max-width: calc(var(--content-max) + var(--s-9) * 2);
+        }
+
+        /* ==========================================================================
+           TYPOGRAPHY SYSTEM
+           ========================================================================== */
+
+        /* Display — Impact only for brand/hero moments */
+        .type-display {
+            font-family: var(--font-display);
+            font-size: 3.5rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--k-text-primary);
+            line-height: 1.05;
+        }
+
+        /* UI headings — mono, uppercase, tight */
+        .type-h1 {
+            font-family: var(--font-ui);
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--k-text-primary);
+            line-height: 1.2;
+        }
+
+        .type-h2 {
+            font-family: var(--font-ui);
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--k-text-primary);
+            line-height: 1.3;
+        }
+
+        .type-h3 {
+            font-family: var(--font-ui);
+            font-size: 0.9rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--k-text-primary);
+        }
+
+        /* Label — small mono, always uppercase */
+        .type-label {
+            font-family: var(--font-ui);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--k-text-secondary);
+            display: block;
+        }
+
+        /* Body — sans, sentence case, readable */
+        .type-p {
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 400;
+            line-height: 1.75;
+            color: var(--k-text-secondary);
+            max-width: 60ch;
+        }
+
+        /* Caption / metadata */
+        .type-caption {
+            font-family: var(--font-ui);
+            font-size: 0.65rem;
+            color: var(--k-text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .type-link {
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-decoration: none;
+            color: var(--k-text-primary);
+            border-bottom: 1px solid var(--k-border-heavy);
+            padding-bottom: 1px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .type-link:hover {
+            color: var(--k-teal);
+            border-color: var(--k-teal);
+        }
+
+        /* Section divider label */
+        .type-section-header {
+            font-family: var(--font-ui);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--k-text-muted);
+            display: flex;
+            align-items: center;
+            gap: var(--s-4);
+            margin-top: var(--s-9);
+            margin-bottom: var(--s-6);
+        }
+
+        .type-section-header::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--k-border-light);
+        }
+
+        /* Major section break */
+        .major-section {
+            font-family: var(--font-display);
+            font-size: 0.75rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--k-text-muted);
+            margin-top: var(--s-10);
+            padding-top: var(--s-5);
+            border-top: 4px solid var(--k-border-heavy);
+        }
+
+        /* ==========================================================================
+           BUTTONS
+           ========================================================================== */
+        .k-btn {
+            font-family: var(--font-ui);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--s-3);
+            transition: background 0.12s, color 0.12s, border-color 0.12s;
+            border: none;
+            outline: none;
+        }
+
+        /* Primary: solid dark */
+        .k-btn-primary {
+            background: var(--k-text-primary);
+            color: white;
+            padding: var(--s-3) var(--s-5);
+            border: 1px solid var(--k-text-primary);
+        }
+        .k-btn-primary:hover {
+            background: var(--k-teal-dark);
+            border-color: var(--k-teal-dark);
+        }
+
+        /* Secondary: outlined */
+        .k-btn-secondary {
+            background: transparent;
+            color: var(--k-text-primary);
+            padding: var(--s-3) var(--s-5);
+            border: 1px solid var(--k-border-heavy);
+        }
+        .k-btn-secondary:hover {
+            background: var(--k-text-primary);
+            color: white;
+        }
+
+        /* Ghost: no border, underline only */
+        .k-btn-ghost {
+            background: transparent;
+            color: var(--k-text-primary);
+            padding: var(--s-3) 0;
+            border-bottom: 1px solid var(--k-border-heavy);
+        }
+        .k-btn-ghost:hover {
+            color: var(--k-teal);
+            border-color: var(--k-teal);
+        }
+
+        /* Icon-only: square */
+        .k-btn-icon {
+            background: var(--k-text-primary);
+            color: white;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            justify-content: center;
+            border: 1px solid var(--k-text-primary);
+        }
+
+        /* Disabled state */
+        .k-btn:disabled,
+        .k-btn-disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* ==========================================================================
+           ICONS (SVG inline — clean at all zoom levels)
+           ========================================================================== */
+        .icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        /* ==========================================================================
+           INPUTS
+           ========================================================================== */
+        .input-atom {
+            font-family: var(--font-ui);
+            font-size: 0.8rem;
+            letter-spacing: 0.04em;
+            color: var(--k-text-primary);
+            background: var(--k-surface);
+            border: 1px solid var(--k-border-mid);
+            padding: var(--s-3) var(--s-4);
+            width: 100%;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .input-atom::placeholder {
+            color: var(--k-text-muted);
+        }
+        .input-atom:focus {
+            border-color: var(--k-text-primary);
+        }
+
+        /* States */
+        .input-error {
+            border-color: var(--k-red) !important;
+        }
+        .input-error:focus {
+            border-color: var(--k-red) !important;
+        }
+        .state-error { color: var(--k-red) !important; }
+
+        .input-disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: var(--k-bg);
+        }
+
+        /* Checkbox */
+        .checkbox-molecule {
+            display: flex;
+            align-items: center;
+            gap: var(--s-3);
+            cursor: pointer;
+        }
+        .checkbox-molecule span {
+            font-family: var(--font-ui);
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--k-text-primary);
+        }
+        .checkbox-atom {
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--k-border-heavy);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .checkbox-atom.checked {
+            background: var(--k-text-primary);
+        }
+
+        /* ==========================================================================
+           MEDIA
+           ========================================================================== */
+        .img-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--k-bg);
+            border: 1px solid var(--k-border-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-ui);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--k-text-muted);
+        }
+
+        .avatar {
+            width: 72px;
+            height: 72px;
+            background: var(--k-teal);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--k-text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-ui);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* ==========================================================================
+           SPEC LAYOUT UTILITIES
+           ========================================================================== */
+        .spec-box {
+            background: var(--k-surface);
+            border: 1px solid var(--k-border-light);
+            padding: var(--s-7);
+            margin-bottom: var(--s-7);
+        }
+
+        /* Annotation: small label + divider for spec use */
+        .spec-annotation {
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--k-text-muted);
+            margin-top: var(--s-4);
+        }
+
+        /* ==========================================================================
+           COLOR TOKENS
+           ========================================================================== */
+        .token-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: var(--s-4);
+        }
+
+        .token-swatch {
+            border: 1px solid var(--k-border-light);
+            background: white;
+            overflow: hidden;
+        }
+        .color-fill { height: 72px; }
+        .color-meta {
+            padding: var(--s-3) var(--s-4);
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--k-text-secondary);
+            border-top: 1px solid var(--k-border-light);
+        }
+        .color-hex {
+            font-weight: 700;
+            color: var(--k-text-primary);
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* ==========================================================================
+           MOLECULES
+           ========================================================================== */
+
+        /* Tag / badge */
+        .tag {
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--k-text-primary);
+            background: var(--k-bg);
+            border: 1px solid var(--k-border-mid);
+            padding: var(--s-1) var(--s-3);
+            display: inline-block;
+        }
+
+        .tag-teal {
+            color: var(--k-teal-dark);
+            background: rgba(122,147,147,0.08);
+            border-color: var(--k-teal);
+        }
+
+        /* Form field */
+        .mol-form-field {
+            display: flex;
+            flex-direction: column;
+            gap: var(--s-2);
+        }
+
+        /* Section header molecule */
+        .mol-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding-bottom: var(--s-4);
+            border-bottom: 1px solid var(--k-border-heavy);
+            margin-bottom: var(--s-6);
+        }
+
+        /* Search bar */
+        .mol-search {
+            display: flex;
+            border: 1px solid var(--k-border-heavy);
+            max-width: 400px;
+            background: var(--k-surface);
+        }
+        .mol-search input {
+            border: none;
+            flex: 1;
+            padding: var(--s-3) var(--s-4);
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            letter-spacing: 0.04em;
+            outline: none;
+            background: transparent;
+        }
+        .mol-search button {
+            background: var(--k-text-primary);
+            color: white;
+            border: none;
+            padding: 0 var(--s-4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ==========================================================================
+           ORGANISMS
+           ========================================================================== */
+
+        /* Global nav */
+        .org-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--k-surface);
+            border-bottom: 1px solid var(--k-border-heavy);
+            padding: var(--s-4) var(--s-7);
+        }
+
+        .org-nav-links {
+            display: flex;
+            gap: var(--s-6);
+        }
+
+        .org-nav-link {
+            font-family: var(--font-ui);
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--k-text-secondary);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+
+        .org-nav-link:hover { color: var(--k-text-primary); }
+        .org-nav-link.active { color: var(--k-text-primary); border-bottom: 2px solid var(--k-text-primary); padding-bottom: 2px; }
+
+        /* Project card */
+        .org-project-card {
+            background: var(--k-surface);
+            border: 1px solid var(--k-border-light);
+            max-width: 380px;
+            transition: border-color 0.15s;
+        }
+        .org-project-card:hover { border-color: var(--k-border-heavy); }
+        .org-project-card-body {
+            padding: var(--s-5);
+            display: flex;
+            flex-direction: column;
+            gap: var(--s-4);
+        }
+
+        /* Hero */
+        .org-hero {
+            background: var(--k-surface);
+            border: 1px solid var(--k-border-light);
+            padding: var(--s-9) var(--s-7);
+            display: flex;
+            align-items: center;
+            gap: var(--s-7);
+        }
+
+        /* Contact form */
+        .org-contact {
+            background: var(--k-surface);
+            border: 1px solid var(--k-border-light);
+            padding: var(--s-7);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--s-5);
+        }
+
+        /* Footer */
+        .org-footer {
+            background: var(--k-text-primary);
+            color: white;
+            padding: var(--s-8) var(--s-7);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .org-footer-wordmark {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            letter-spacing: 0.12em;
+            margin-bottom: var(--s-2);
+        }
+        .org-footer-caption {
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.35);
+            text-transform: uppercase;
+        }
+
+        /* Grid */
+        .org-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: var(--s-5);
+        }
+
+        /* ==========================================================================
+           INTERACTIVE STATE DOCUMENTATION
+           ========================================================================== */
+        .state-demo-row {
+            display: flex;
+            gap: var(--s-5);
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+        .state-demo-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--s-2);
+        }
+
+        /* ==========================================================================
+           PAGE HEADER
+           ========================================================================== */
+        .page-header {
+            border-bottom: 4px solid var(--k-border-heavy);
+            padding-bottom: var(--s-5);
+            margin-bottom: var(--s-9);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================
+     SIDEBAR
+     ============================================================ -->
+<aside class="master-nav">
+    <div class="sys-info">
+        <div class="version">PROTOCOL_V4.0</div>
+        <div class="wordmark">KRONOS_LAB</div>
+    </div>
+
+    <div class="nav-group-label">01_Atoms</div>
+    <a href="#typography" class="nav-item active">Typography</a>
+    <a href="#buttons" class="nav-item">Buttons</a>
+    <a href="#icons" class="nav-item">Icons</a>
+    <a href="#brand" class="nav-item">Brand</a>
+    <a href="#inputs" class="nav-item">Inputs</a>
+    <a href="#media" class="nav-item">Media</a>
+    <a href="#colors" class="nav-item">Colors</a>
+    <a href="#spacing" class="nav-item">Spacing</a>
+
+    <div class="nav-group-label">02_Molecules</div>
+    <a href="#mol-nav" class="nav-item">Nav Link</a>
+    <a href="#mol-tags" class="nav-item">Tags</a>
+    <a href="#mol-search" class="nav-item">Search Bar</a>
+    <a href="#mol-form" class="nav-item">Form Field</a>
+    <a href="#mol-section" class="nav-item">Section Header</a>
+
+    <div class="nav-group-label">03_Organisms</div>
+    <a href="#org-nav" class="nav-item">Global Nav</a>
+    <a href="#org-project" class="nav-item">Project Card</a>
+    <a href="#org-hero" class="nav-item">Hero</a>
+    <a href="#org-contact" class="nav-item">Contact Form</a>
+    <a href="#org-footer" class="nav-item">Footer</a>
+    <a href="#org-grid" class="nav-item">Grid Gallery</a>
+
+    <div class="nav-group-label">04_States</div>
+    <a href="#states" class="nav-item">All States</a>
+</aside>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<main class="master-content">
+<div class="spec-container">
+
+    <header class="page-header">
+        <p class="type-label" style="margin-bottom: 12px;">Design System</p>
+        <div class="type-display">Master Spec</div>
+        <p class="type-caption" style="margin-top: 12px;">Version 4.0 — IBM Plex Mono / IBM Plex Sans — 8px Grid</p>
+    </header>
+
+
+    <!-- ==================== 01 ATOMS ==================== -->
+
+    <section id="typography">
+        <div class="type-section-header">01.1 — Typography System</div>
+        <div class="spec-box">
+
+            <!-- Display — Impact, uppercase -->
+            <div class="type-display" style="margin-bottom: 32px;">Display / Hero</div>
+            <p class="spec-annotation">font-family: Impact — Use only for wordmark and hero moments</p>
+
+            <hr style="border: none; border-top: 1px solid var(--k-border-light); margin: 32px 0;">
+
+            <!-- UI Headings — mono, uppercase -->
+            <h1 class="type-h1" style="margin-bottom: 20px;">H1 — Section Title</h1>
+            <h2 class="type-h2" style="margin-bottom: 20px;">H2 — Subsection Title</h2>
+            <h3 class="type-h3" style="margin-bottom: 32px;">H3 — Component Label</h3>
+            <p class="spec-annotation">IBM Plex Mono — UI headings, navigation, labels. Always uppercase.</p>
+
+            <hr style="border: none; border-top: 1px solid var(--k-border-light); margin: 32px 0;">
+
+            <!-- Body — sans, sentence case -->
+            <p class="type-p" style="margin-bottom: 8px;">
+                Body text uses IBM Plex Sans at sentence case. Designed for readability at paragraph
+                length — not uppercase. This is where the user reads, not scans.
+            </p>
+            <p class="type-p" style="margin-bottom: 32px;">
+                Secondary body copy renders at the same size and line-height.
+                <a href="#" class="type-link">Inline link style</a> uses underline, not color alone.
+            </p>
+            <p class="spec-annotation">IBM Plex Sans — Body, descriptions, paragraph content. Sentence case.</p>
+
+            <hr style="border: none; border-top: 1px solid var(--k-border-light); margin: 32px 0;">
+
+            <!-- Label + Caption -->
+            <span class="type-label" style="margin-bottom: 12px; display: block;">Label / Metadata — 0.65rem mono</span>
+            <span class="type-caption">Caption · Component ID: 01.1 · Build 4.0.0</span>
+        </div>
+    </section>
+
+    <section id="buttons">
+        <div class="type-section-header">01.2 — Button Variants</div>
+        <div class="spec-box">
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 32px;">
+                <button class="k-btn k-btn-primary">
+                    <svg class="icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Primary Action
+                </button>
+                <button class="k-btn k-btn-secondary">Secondary Access</button>
+                <button class="k-btn k-btn-ghost">Ghost / Text</button>
+                <button class="k-btn k-btn-icon" aria-label="Menu">
+                    <svg class="icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 4H14M2 8H14M2 12H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button class="k-btn k-btn-primary k-btn-disabled" disabled>Disabled</button>
+            </div>
+            <p class="spec-annotation">
+                Primary: fill + hover → teal-dark&nbsp;&nbsp;·&nbsp;&nbsp;
+                Secondary: outline + hover → fill&nbsp;&nbsp;·&nbsp;&nbsp;
+                Ghost: underline only&nbsp;&nbsp;·&nbsp;&nbsp;
+                Disabled: 35% opacity
+            </p>
+        </div>
+    </section>
+
+    <section id="icons">
+        <div class="type-section-header">01.3 — Icon System (SVG Inline)</div>
+        <div class="spec-box">
+            <div style="display: flex; gap: 48px; flex-wrap: wrap;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span class="type-caption">Arrow</span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 4H14M2 8H14M2 12H14" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span class="type-caption">Menu</span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4L12 12M12 4L4 12" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span class="type-caption">Close</span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="7" cy="7" r="4" stroke="#1A1A1A" stroke-width="1.5"/>
+                        <path d="M11 11L14 14" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span class="type-caption">Search</span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <svg width="24" height="24" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 3H13V6M13 3L9 7M6 5H4C3.44772 5 3 5.44772 3 6V12C3 12.5523 3.44772 13 4 13H10C10.5523 13 11 12.5523 11 12V10" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span class="type-caption">External</span>
+                </div>
+            </div>
+            <p class="spec-annotation" style="margin-top: 24px;">SVG inline — 16px base size, 1.5px stroke, round linecap/join. Scales cleanly at all zoom levels.</p>
+        </div>
+    </section>
+
+    <section id="brand">
+        <div class="type-section-header">01.4 — Brand Elements</div>
+        <div class="spec-box">
+            <div style="display: flex; gap: 64px; align-items: center; flex-wrap: wrap;">
+                <!-- Primary wordmark: Impact + heavy border-left accent -->
+                <div>
+                    <div style="font-family: var(--font-display); font-size: 2rem; letter-spacing: 0.12em; border-left: 5px solid var(--k-text-primary); padding-left: 20px; text-transform: uppercase;">KRONOS_LAB</div>
+                    <p class="spec-annotation" style="margin-top: 8px;">Primary: dark bg or white bg</p>
+                </div>
+                <!-- Inverse: on dark bg -->
+                <div style="background: var(--k-text-primary); padding: 24px 32px;">
+                    <div style="font-family: var(--font-display); font-size: 2rem; letter-spacing: 0.12em; border-left: 5px solid var(--k-teal); padding-left: 20px; color: white; text-transform: uppercase;">KRONOS_LAB</div>
+                    <p class="spec-annotation" style="margin-top: 8px; color: rgba(255,255,255,0.35);">Inverse: teal accent on dark</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="inputs">
+        <div class="type-section-header">01.5 — Inputs &amp; Validation</div>
+        <div class="spec-box">
+            <div style="max-width: 420px; display: flex; flex-direction: column; gap: 28px;">
+                <!-- Default -->
+                <div class="mol-form-field">
+                    <label class="type-label">Default Field</label>
+                    <input type="text" class="input-atom" placeholder="Enter value...">
+                    <span class="type-caption">Helper text appears below the field.</span>
+                </div>
+                <!-- Focus (simulated) -->
+                <div class="mol-form-field">
+                    <label class="type-label">Focus State</label>
+                    <input type="text" class="input-atom" style="border-color: var(--k-border-heavy);" value="Active input">
+                </div>
+                <!-- Error -->
+                <div class="mol-form-field">
+                    <label class="type-label state-error">Error State</label>
+                    <input type="text" class="input-atom input-error" value="invalid@">
+                    <span class="type-caption state-error">Invalid format — use name@domain.com</span>
+                </div>
+                <!-- Disabled -->
+                <div class="mol-form-field">
+                    <label class="type-label" style="opacity:0.4;">Disabled</label>
+                    <input type="text" class="input-atom input-disabled" disabled value="Read only">
+                </div>
+                <!-- Checkbox -->
+                <label class="checkbox-molecule">
+                    <div class="checkbox-atom checked">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 5L4 7L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <span>Acknowledge Protocol</span>
+                </label>
+                <label class="checkbox-molecule">
+                    <div class="checkbox-atom"></div>
+                    <span>Unchecked State</span>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <section id="media">
+        <div class="type-section-header">01.6 — Media Atoms</div>
+        <div class="spec-box" style="display: grid; grid-template-columns: 2fr 1fr; gap: 32px; align-items: start;">
+            <div>
+                <div class="img-placeholder">Image Container</div>
+                <p class="spec-annotation" style="margin-top: 8px;">16:9 — 1px border-light — bg: var(--k-bg)</p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
+                <div class="avatar"></div>
+                <span class="type-caption">Avatar — 72px — teal bg — circle</span>
+            </div>
+            <div class="video-placeholder" style="grid-column: span 2;">Video Buffering</div>
+        </div>
+    </section>
+
+    <section id="colors">
+        <div class="type-section-header">01.7 — Color Palette</div>
+        <div class="spec-box">
+            <div class="token-grid">
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #1A1A1A;"></div>
+                    <div class="color-meta">Primary (Heavy)<span class="color-hex">#1A1A1A</span></div>
+                </div>
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #7A9393;"></div>
+                    <div class="color-meta">Teal (Mid)<span class="color-hex">#7A9393</span></div>
+                </div>
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #4A6363;"></div>
+                    <div class="color-meta">Teal (Dark)<span class="color-hex">#4A6363</span></div>
+                </div>
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #F7F7F7; border-bottom: 1px solid var(--k-border-light);"></div>
+                    <div class="color-meta">Background<span class="color-hex">#F7F7F7</span></div>
+                </div>
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #FFFFFF; border-bottom: 1px solid var(--k-border-light);"></div>
+                    <div class="color-meta">Surface<span class="color-hex">#FFFFFF</span></div>
+                </div>
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #6B6B6B;"></div>
+                    <div class="color-meta">Text Secondary<span class="color-hex">#6B6B6B</span></div>
+                </div>
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #BD3E31;"></div>
+                    <div class="color-meta color-meta">Semantic Error<span class="color-hex state-error">#BD3E31</span></div>
+                </div>
+                <div class="token-swatch">
+                    <div class="color-fill" style="background: #2D6A4F;"></div>
+                    <div class="color-meta">Semantic Success<span class="color-hex" style="color: #2D6A4F;">#2D6A4F</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="spacing">
+        <div class="type-section-header">01.8 — Spacing Scale</div>
+        <div class="spec-box">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- s-1 through s-10 visualized as bars -->
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-1</span>
+                    <div style="width: 4px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">4px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-2</span>
+                    <div style="width: 8px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">8px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-3</span>
+                    <div style="width: 12px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">12px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-4</span>
+                    <div style="width: 16px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">16px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-5</span>
+                    <div style="width: 24px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">24px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-6</span>
+                    <div style="width: 32px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">32px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-7</span>
+                    <div style="width: 48px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">48px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-8</span>
+                    <div style="width: 64px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">64px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-9</span>
+                    <div style="width: 96px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">96px</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="type-caption" style="width: 60px;">--s-10</span>
+                    <div style="width: 128px; height: 16px; background: var(--k-teal);"></div>
+                    <span class="type-caption">128px</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ==================== 02 MOLECULES ==================== -->
+    <div class="major-section">02 — Molecules</div>
+
+    <section id="mol-nav">
+        <div class="type-section-header">02.1 — Nav Link</div>
+        <div class="spec-box">
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <a href="#" class="org-nav-link active" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <svg class="icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Active Link
+                </a>
+                <a href="#" class="org-nav-link" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <svg class="icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Default Link
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section id="mol-tags">
+        <div class="type-section-header">02.2 — Tags &amp; Badges</div>
+        <div class="spec-box">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <span class="tag">UX Research</span>
+                <span class="tag">Product Design</span>
+                <span class="tag tag-teal">Featured</span>
+                <span class="tag" style="color: var(--k-red); border-color: var(--k-red); background: rgba(189,62,49,0.06);">Deprecated</span>
+            </div>
+        </div>
+    </section>
+
+    <section id="mol-search">
+        <div class="type-section-header">02.3 — Search Bar</div>
+        <div class="spec-box">
+            <div class="mol-search">
+                <input type="text" placeholder="Query system...">
+                <button aria-label="Search">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="7" cy="7" r="4" stroke="white" stroke-width="1.5"/>
+                        <path d="M11 11L14 14" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section id="mol-form">
+        <div class="type-section-header">02.4 — Form Field</div>
+        <div class="spec-box">
+            <div class="mol-form-field" style="max-width: 400px;">
+                <label class="type-label">Access Code</label>
+                <input type="text" class="input-atom" placeholder="Enter code...">
+                <span class="type-caption">Verification required for level-4 access.</span>
+            </div>
+        </div>
+    </section>
+
+    <section id="mol-section">
+        <div class="type-section-header">02.5 — Section Header Molecule</div>
+        <div class="spec-box">
+            <div class="mol-section-header">
+                <h2 class="type-h2">Latest Projects</h2>
+                <a href="#" class="type-link">View All</a>
+            </div>
+            <p class="spec-annotation">Heavy 1px bottom border separates section header from content. Label left, link right.</p>
+        </div>
+    </section>
+
+
+    <!-- ==================== 03 ORGANISMS ==================== -->
+    <div class="major-section">03 — Organisms</div>
+
+    <section id="org-nav">
+        <div class="type-section-header">03.1 — Global Navigation</div>
+        <div class="spec-box" style="padding: 0;">
+            <nav class="org-nav">
+                <div style="font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 0.1em; text-transform: uppercase;">K_LOGO</div>
+                <div class="org-nav-links">
+                    <a href="#" class="org-nav-link active">Work</a>
+                    <a href="#" class="org-nav-link">About</a>
+                    <a href="#" class="org-nav-link">Writings</a>
+                </div>
+                <button class="k-btn k-btn-primary">Contact</button>
+            </nav>
+        </div>
+    </section>
+
+    <section id="org-project">
+        <div class="type-section-header">03.2 — Project Card</div>
+        <div class="spec-box">
+            <div class="org-project-card">
+                <div class="img-placeholder"></div>
+                <div class="org-project-card-body">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span class="tag">UX Research</span>
+                        <span class="tag tag-teal">2024</span>
+                    </div>
+                    <h3 class="type-h2">Project Title</h3>
+                    <p class="type-p" style="font-size: 0.9rem;">
+                        Brief description of the research methodology and key outcomes.
+                    </p>
+                    <button class="k-btn k-btn-ghost" style="width: fit-content;">
+                        View Case Study
+                        <svg class="icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="org-hero">
+        <div class="type-section-header">03.3 — Hero Section</div>
+        <div class="spec-box" style="padding: 0;">
+            <div class="org-hero">
+                <div class="avatar" style="width: 88px; height: 88px;"></div>
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div>
+                        <p class="type-label" style="margin-bottom: 8px;">Senior UX Designer</p>
+                        <div class="type-display" style="font-size: 2.5rem;">Joseph Grgic</div>
+                    </div>
+                    <p class="type-p">
+                        Specializing in human-AI interaction and systems design.
+                        Currently building at the intersection of data and product.
+                    </p>
+                    <div style="display: flex; gap: 16px;">
+                        <button class="k-btn k-btn-primary">View Work</button>
+                        <button class="k-btn k-btn-secondary">Contact</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="org-contact">
+        <div class="type-section-header">03.4 — Contact Form</div>
+        <div class="spec-box" style="padding: 0;">
+            <div class="org-contact">
+                <div class="mol-form-field">
+                    <label class="type-label">Name</label>
+                    <input type="text" class="input-atom">
+                </div>
+                <div class="mol-form-field">
+                    <label class="type-label">Email</label>
+                    <input type="text" class="input-atom">
+                </div>
+                <div class="mol-form-field" style="grid-column: span 2;">
+                    <label class="type-label">Message</label>
+                    <textarea class="input-atom" style="height: 120px; resize: vertical;"></textarea>
+                </div>
+                <div style="grid-column: span 2;">
+                    <button class="k-btn k-btn-primary">
+                        Send Message
+                        <svg class="icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="org-footer">
+        <div class="type-section-header">03.5 — Footer</div>
+        <div class="spec-box" style="padding: 0; overflow: hidden;">
+            <footer class="org-footer">
+                <div>
+                    <div class="org-footer-wordmark">KRONOS_LAB</div>
+                    <p class="org-footer-caption">© 2026 — All rights reserved</p>
+                </div>
+                <div style="display: flex; gap: 24px; align-items: center;">
+                    <a href="#" style="color: rgba(255,255,255,0.5); transition: color 0.15s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">
+                        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M8 1C4.13401 1 1 4.13401 1 8C1 11.1006 3.02391 13.7286 5.82638 14.6369C6.17638 14.7003 6.30596 14.4883 6.30596 14.3054C6.30596 14.1408 6.30008 13.6737 6.2969 13.0565C4.43004 13.4766 4.02204 12.1676 4.02204 12.1676C3.70345 11.3725 3.24489 11.1616 3.24489 11.1616C2.61165 10.7303 3.29229 10.7391 3.29229 10.7391C3.99168 10.789 4.35939 11.4596 4.35939 11.4596C4.98203 12.5186 5.9899 12.2125 6.31862 12.035C6.38101 11.5849 6.56219 11.279 6.76233 11.1065C5.28435 10.932 3.73001 10.3522 3.73001 7.80895C3.73001 7.05656 4.00453 6.44389 4.37294 5.96499C4.30381 5.79038 4.06131 5.09468 4.43827 4.15233C4.43827 4.15233 5.02565 3.96671 6.28956 4.85572C6.78957 4.70181 7.33261 4.62485 7.87247 4.62218C8.41233 4.62485 8.95537 4.70181 9.45538 4.85572C10.7181 3.96671 11.3045 4.15233 11.3045 4.15233C11.6825 5.09468 11.44 5.79038 11.3709 5.96499C11.7402 6.44389 12.0138 7.05656 12.0138 7.80895C12.0138 10.359 10.4562 10.9299 8.97413 11.1008C9.22117 11.3155 9.44189 11.7402 9.44189 12.3898C9.44189 13.3175 9.43306 14.0684 9.43306 14.3054C9.43306 14.4895 9.5609 14.7033 9.91686 14.636C12.7175 13.7267 14.74 11.0996 14.74 8C14.74 4.13401 11.606 1 8 1Z" fill="currentColor"/>
+                        </svg>
+                    </a>
+                    <a href="#" style="color: rgba(255,255,255,0.5); transition: color 0.15s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">
+                        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 4.5C2 3.11929 3.11929 2 4.5 2H11.5C12.8807 2 14 3.11929 14 4.5V11.5C14 12.8807 12.8807 14 11.5 14H4.5C3.11929 14 2 12.8807 2 11.5V4.5Z" stroke="currentColor" stroke-width="1.5"/>
+                            <circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+                            <circle cx="11.5" cy="4.5" r="0.5" fill="currentColor"/>
+                        </svg>
+                    </a>
+                </div>
+            </footer>
+        </div>
+    </section>
+
+    <section id="org-grid">
+        <div class="type-section-header">03.6 — Grid Gallery</div>
+        <div class="spec-box">
+            <div class="org-grid">
+                <div class="org-project-card">
+                    <div class="img-placeholder"></div>
+                    <div class="org-project-card-body">
+                        <span class="tag">UX Research</span>
+                        <h4 class="type-h3">Project 01</h4>
+                    </div>
+                </div>
+                <div class="org-project-card">
+                    <div class="img-placeholder"></div>
+                    <div class="org-project-card-body">
+                        <span class="tag">Product Design</span>
+                        <h4 class="type-h3">Project 02</h4>
+                    </div>
+                </div>
+                <div class="org-project-card">
+                    <div class="img-placeholder"></div>
+                    <div class="org-project-card-body">
+                        <span class="tag tag-teal">Featured</span>
+                        <h4 class="type-h3">Project 03</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ==================== 04 STATES ==================== -->
+    <div class="major-section">04 — States</div>
+
+    <section id="states">
+        <div class="type-section-header">04.1 — All Interactive States</div>
+        <div class="spec-box">
+            <p class="type-h3" style="margin-bottom: 32px;">Buttons</p>
+            <div class="state-demo-row" style="margin-bottom: 40px;">
+                <div class="state-demo-item">
+                    <button class="k-btn k-btn-primary">Default</button>
+                    <span class="type-caption">Default</span>
+                </div>
+                <div class="state-demo-item">
+                    <button class="k-btn k-btn-primary" style="background: var(--k-teal-dark); border-color: var(--k-teal-dark);">Hover</button>
+                    <span class="type-caption">Hover</span>
+                </div>
+                <div class="state-demo-item">
+                    <button class="k-btn k-btn-primary" style="outline: 2px solid var(--k-teal); outline-offset: 2px;">Focus</button>
+                    <span class="type-caption">Focus</span>
+                </div>
+                <div class="state-demo-item">
+                    <button class="k-btn k-btn-primary k-btn-disabled" disabled>Disabled</button>
+                    <span class="type-caption">Disabled</span>
+                </div>
+                <div class="state-demo-item">
+                    <button class="k-btn k-btn-primary" style="opacity: 0.7; cursor: wait;">
+                        <svg class="icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation: spin 1s linear infinite;">
+                            <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" stroke-dasharray="20 18" stroke-linecap="round"/>
+                        </svg>
+                        Loading
+                    </button>
+                    <span class="type-caption">Loading</span>
+                </div>
+            </div>
+
+            <p class="type-h3" style="margin-bottom: 32px;">Inputs</p>
+            <div class="state-demo-row" style="flex-wrap: wrap;">
+                <div class="state-demo-item" style="width: 180px;">
+                    <input type="text" class="input-atom" placeholder="Default...">
+                    <span class="type-caption">Default</span>
+                </div>
+                <div class="state-demo-item" style="width: 180px;">
+                    <input type="text" class="input-atom" style="border-color: var(--k-border-heavy);" value="Focused">
+                    <span class="type-caption">Focus</span>
+                </div>
+                <div class="state-demo-item" style="width: 180px;">
+                    <input type="text" class="input-atom input-error" value="Error value">
+                    <span class="type-caption state-error">Error</span>
+                </div>
+                <div class="state-demo-item" style="width: 180px;">
+                    <input type="text" class="input-atom input-disabled" disabled value="Disabled">
+                    <span class="type-caption">Disabled</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+</main>
+
+<style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+</body>
+</html>

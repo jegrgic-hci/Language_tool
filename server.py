@@ -346,6 +346,7 @@ class ParagraphAnalyzeResponse(BaseModel):
     feedback: list[ShadowFeedbackItem]
     word_results: list[WordResult]
     display_results: list[WordResult]
+    sentence_scores: list[float] = []
 
 
 class PatternItem(BaseModel):
@@ -730,6 +731,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
         feedback=feedback,
         word_results=word_results,
         display_results=display_results,
+        sentence_scores=result.get("sentence_scores", []),
     )
 
 
