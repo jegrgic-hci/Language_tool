@@ -1,0 +1,7 @@
+words not processing correctly:
+    week-end vs weekend
+    vrai and vraie
+    
+remove proper nouns? saint-joseph
+para-stage-level: not accurate.  chunk 1 of x, chunk 2 of x
+on mobile, fastspeechapi shows all the probabilities of words. 

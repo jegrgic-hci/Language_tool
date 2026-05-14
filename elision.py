@@ -1,5 +1,54 @@
 import re
 
+# === Number normalization ===
+# Maps digit strings to their French spoken equivalents.
+# Used so target text like "3" matches STT output "trois" during scoring.
+
+def _build_number_words() -> dict:
+    ones = [
+        "zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept",
+        "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze",
+        "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf",
+    ]
+    tens = ["", "", "vingt", "trente", "quarante", "cinquante", "soixante"]
+
+    def word(n):
+        if n < 20:
+            return ones[n]
+        if n < 70:
+            t, o = divmod(n, 10)
+            if o == 0:
+                return tens[t] + ("s" if t == 8 else "")
+            if o == 1 and t != 8:
+                return tens[t] + " et un"
+            return tens[t] + "-" + ones[o]
+        if n < 80:
+            o = n - 60
+            if o == 11:
+                return "soixante et onze"
+            return "soixante-" + ones[o]
+        if n < 90:
+            o = n - 80
+            return "quatre-vingts" if o == 0 else "quatre-vingt-" + ones[o]
+        if n == 100:
+            return "cent"
+        # 90-99
+        return "quatre-vingt-" + ones[n - 80]
+
+    result = {str(i): word(i) for i in range(101)}
+    result["1000"] = "mille"
+    return result
+
+FRENCH_NUMBER_WORDS = _build_number_words()
+
+
+def normalize_numbers(text: str) -> str:
+    """Replace digit sequences with their French word equivalents."""
+    def replace(m):
+        return FRENCH_NUMBER_WORDS.get(m.group(), m.group())
+    return re.sub(r'\b\d+\b', replace, text)
+
+
 FRENCH_ELISION_RULES = [
     # === 1. je + verb ===
     (r'\bje ai\b', "j'ai"),
@@ -70,7 +119,39 @@ FRENCH_ELISION_RULES = [
 ]
 
 
+# Hyphenated loanwords where STT returns a single merged token.
+# Must be applied before the hyphen→space replacement in _normalize().
+FRENCH_HYPHEN_MERGES = [
+    "week-end",
+    "check-in",
+    "check-out",
+    "fast-food",
+    "self-service",
+    "t-shirt",
+    "wi-fi",
+    "cd-rom",
+    "dvd-rom",
+    "pop-corn",
+    "milk-shake",
+    "best-of",
+    "far-west",
+    "free-lance",
+    "knock-out",
+    "play-back",
+    "stand-by",
+]
+
+
 def normalize_french(text: str) -> str:
+    text = normalize_numbers(text)
+    # î→i and û→u: circumflex on these vowels is purely orthographic (1990 reform);
+    # STT never produces the circumflex form, so strip it before scoring.
+    text = text.replace("î", "i").replace("Î", "I")
+    text = text.replace("û", "u").replace("Û", "U")
+    # Merge hyphenated loanwords before the hyphen→space step in _normalize()
+    # so "week-end" scores as one token matching STT output "weekend".
+    for word in FRENCH_HYPHEN_MERGES:
+        text = re.sub(re.escape(word), word.replace("-", ""), text, flags=re.IGNORECASE)
     for pattern, replacement in FRENCH_ELISION_RULES:
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     return text
@@ -105,6 +186,25 @@ FRENCH_HOMOPHONES = {
 
 def normalize_homophones(words: list) -> list:
     return [FRENCH_HOMOPHONES.get(w, w) for w in words]
+
+
+# Vowels that can precede a silent feminine -e.
+_FR_VOWELS = frozenset("aeiouéèêëàâîïôùûüæœ")
+
+
+def normalize_mute_feminine_e(words: list) -> list:
+    """Strip a silent final -e when preceded by a vowel (vraie→vrai, jolie→joli, gaie→gai).
+
+    Applied symmetrically to both target and transcription so the scoring
+    comparison stays valid even when target words also end in -e.
+    """
+    result = []
+    for w in words:
+        if len(w) >= 2 and w[-1] == "e" and w[-2] in _FR_VOWELS:
+            result.append(w[:-1])
+        else:
+            result.append(w)
+    return result
 
 
 # Words where terminal -s IS pronounced — exempt from silent-s stripping.

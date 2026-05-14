@@ -5,7 +5,7 @@ import time
 import difflib
 from mistralai import Mistral
 from dotenv import load_dotenv
-from elision import normalize_french, normalize_homophones, strip_terminal_s
+from elision import normalize_french, normalize_homophones, normalize_mute_feminine_e, strip_terminal_s
 
 load_dotenv()
 
@@ -114,6 +114,7 @@ def _normalize(text: str, noun_adj_set=None) -> list[str]:
     words = [_EUSE_RE.sub("euse", w) for w in words]
     words = [_U_RE.sub("u", w) for w in words]
     words = normalize_homophones(words)
+    words = normalize_mute_feminine_e(words)
     if noun_adj_set:
         words = [strip_terminal_s(w, noun_adj_set) for w in words]
     return words

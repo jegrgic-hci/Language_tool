@@ -4,13 +4,18 @@ import json
 import time
 import difflib
 import unicodedata
+from collections import deque
 from mistralai import Mistral
 from dotenv import load_dotenv
-from elision import normalize_french, normalize_homophones, strip_terminal_s
+from elision import normalize_french, normalize_homophones, normalize_mute_feminine_e, strip_terminal_s
 
 load_dotenv()
 
 _client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY", "unset"))
+
+# Rolling window of recently generated phrases per (difficulty, topic) to avoid repeats.
+_recent_phrases: dict = {}
+_RECENT_MAX = 20
 
 def set_api_key(key: str):
     global _client
@@ -109,6 +114,7 @@ def _normalize(text: str, noun_adj_set=None) -> list[str]:
     words = [_EUSE_RE.sub("euse", w) for w in words]
     words = [_U_RE.sub("u", w) for w in words]
     words = normalize_homophones(words)
+    words = normalize_mute_feminine_e(words)
     if noun_adj_set:
         words = [strip_terminal_s(w, noun_adj_set) for w in words]
     return words
@@ -177,13 +183,21 @@ def generate_phrase(difficulty: int = 1, topic: str = None) -> dict:
     """Returns {"phrase": str, "noun_adj_tokens": list[str]}."""
     difficulty = max(1, min(4, difficulty))
     topic_clause = f" about {topic}" if topic else ""
+
+    key = (difficulty, topic)
+    recent = _recent_phrases.get(key, deque())
+    avoid_clause = ""
+    if recent:
+        listed = "; ".join(f'"{p}"' for p in recent)
+        avoid_clause = f" Do NOT generate any of these recently used phrases: {listed}."
+
     for attempt in range(3):
         try:
             resp = _client.chat.complete(
                 model="mistral-small-latest",
                 messages=[
                     {"role": "system", "content": _PHRASE_SYSTEM},
-                    {"role": "user", "content": f"Generate a difficulty-{difficulty} French shadowing phrase{topic_clause}."},
+                    {"role": "user", "content": f"Generate a difficulty-{difficulty} French shadowing phrase{topic_clause}.{avoid_clause}"},
                 ],
                 temperature=0.9,
                 max_tokens=120,
@@ -195,7 +209,13 @@ def generate_phrase(difficulty: int = 1, topic: str = None) -> dict:
                     raw = raw[5:]
                 raw = raw.rstrip()
             data = json.loads(raw)
-            return {"phrase": data["phrase"], "noun_adj_tokens": data.get("noun_adj_tokens", [])}
+            phrase = data["phrase"]
+
+            if key not in _recent_phrases:
+                _recent_phrases[key] = deque(maxlen=_RECENT_MAX)
+            _recent_phrases[key].append(phrase)
+
+            return {"phrase": phrase, "noun_adj_tokens": data.get("noun_adj_tokens", [])}
         except Exception as e:
             if attempt < 2 and "429" in str(e):
                 time.sleep(2 ** attempt)
