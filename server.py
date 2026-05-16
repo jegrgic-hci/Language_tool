@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -263,14 +263,14 @@ class TTSRequest(BaseModel):
 
 
 class ShadowPhraseRequest(BaseModel):
-    difficulty: int = 1
+    level: str = 'A1'
     topic: Optional[str] = None
 
 
 class ShadowPhraseResponse(BaseModel):
     phrase: str
     audio_url: str
-    difficulty: int
+    level: str
     noun_adj_tokens: list = []
 
 
@@ -282,7 +282,7 @@ class ShadowAnalyzeRequest(BaseModel):
     # analytics fields
     session_id: Optional[str] = None
     access_code: Optional[str] = None
-    difficulty: Optional[int] = None
+    level: Optional[str] = None
     topic: Optional[str] = None
     attempt_number: Optional[int] = None
 
@@ -370,6 +370,7 @@ class PracticeWordRequest(BaseModel):
     tip: str
     source_phrase: Optional[str] = None
     article: Optional[str] = None
+    entry_type: Optional[str] = None
 
 
 class CustomSaveRequest(BaseModel):
@@ -419,11 +420,42 @@ async def get_analytics(key: str = ""):
     return _analytics.get_analytics()
 
 
+@app.get("/analytics/word-accuracy/download")
+async def download_word_accuracy(key: str = "", access_code: str = ""):
+    if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    words = _analytics.get_word_accuracy(access_code)
+    lines = ["word,attempts,accuracy_pct"]
+    for w in words:
+        lines.append(f"{w['word']},{w['attempts']},{round(w['accuracy'] * 100, 1)}")
+    csv_content = "\n".join(lines)
+    filename = f"struggles_{access_code}.csv"
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/analytics/reset")
+async def reset_analytics(key: str = "", access_code: str = ""):
+    if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    deleted = _analytics.delete_events(access_code)
+    return {"deleted_events": deleted}
+
+
 @app.get("/analytics/dashboard", response_class=HTMLResponse)
 async def analytics_dashboard(key: str = ""):
     if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
     data = _analytics.get_analytics()
+    word_accuracy = {code: _analytics.get_word_accuracy(code) for code in data}
+    drill_breakdown = {code: _analytics.get_sentence_drill_breakdown(code) for code in data}
 
     def score_bar(score):
         if score is None:
@@ -467,6 +499,85 @@ async def analytics_dashboard(key: str = ""):
         </tr>
         {level_rows}"""
 
+    coach_sections = ""
+    all_codes = sorted(set(list(word_accuracy.keys()) + list(drill_breakdown.keys())))
+    for code in all_codes:
+        words = word_accuracy.get(code, [])
+        drills = drill_breakdown.get(code, [])
+        if not words and not drills:
+            continue
+
+        # ── Word accuracy tab content ──────────────────────────────────────────
+        if words:
+            word_rows = ""
+            for w in words:
+                pct = int(w["accuracy"] * 100)
+                color = "#BD3E31" if pct < 40 else "#A0A060" if pct < 70 else "#7A9393"
+                bar = f'<div style="display:flex;align-items:center;gap:8px"><div style="width:80px;height:6px;background:#E8E8E8"><div style="width:{pct}px;max-width:80px;height:6px;background:{color}"></div></div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem">{pct}%</span></div>'
+                word_rows += f"""
+                <tr data-attempts="{w['attempts']}" data-accuracy="{w['accuracy']}" style="border-top:1px solid #E8E8E8">
+                  <td style="padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:500">{w['word']}</td>
+                  <td style="padding:8px 12px;font-size:0.75rem;color:rgba(26,26,26,0.5)">{w['attempts']}</td>
+                  <td style="padding:8px 12px">{bar}</td>
+                </tr>"""
+            word_tab_content = f"""
+            <table>
+              <thead><tr>
+                <th>Word</th>
+                <th data-col="attempts" data-dir="" onclick="sortStruggleTable(this)" style="cursor:pointer;user-select:none">Attempts <span class="sort-ind"></span></th>
+                <th data-col="accuracy" data-dir="asc" onclick="sortStruggleTable(this)" style="cursor:pointer;user-select:none">Accuracy <span class="sort-ind">▲</span></th>
+              </tr></thead>
+              <tbody>{word_rows}</tbody>
+            </table>"""
+        else:
+            word_tab_content = '<div class="empty">NO WORD DATA YET — min. 5 attempts required</div>'
+
+        # ── Sentence drill tab content ─────────────────────────────────────────
+        if drills:
+            drill_rows = ""
+            for d in drills:
+                avg_att = f"{d['avg_attempts']:.1f}" if d["avg_attempts"] is not None else "—"
+                status = '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;letter-spacing:0.1em;padding:3px 7px;background:#BD3E31;color:white">STRUGGLING</span>' if d["struggling"] else '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;letter-spacing:0.1em;padding:3px 7px;background:#7A9393;color:white">PROGRESSING</span>'
+                drill_rows += f"""
+                <tr style="border-top:1px solid #E8E8E8">
+                  <td style="padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.75rem">LEVEL {d['level']}</td>
+                  <td style="padding:8px 12px;font-size:0.75rem;color:rgba(26,26,26,0.6)">{d['sentences_practiced']}</td>
+                  <td style="padding:8px 12px;font-size:0.75rem;color:rgba(26,26,26,0.6)">{avg_att}</td>
+                  <td style="padding:8px 12px">{score_bar(d['avg_score'])}</td>
+                  <td style="padding:8px 12px">{status}</td>
+                </tr>"""
+            drill_tab_content = f"""
+            <table>
+              <thead><tr>
+                <th>Level</th><th>Sentences Practiced</th><th>Avg Attempts</th><th>Avg Score</th><th>Status</th>
+              </tr></thead>
+              <tbody>{drill_rows}</tbody>
+            </table>"""
+        else:
+            drill_tab_content = '<div class="empty">NO SENTENCE DRILL DATA YET</div>'
+
+        coach_sections += f"""
+        <div class="coach-card">
+          <div class="coach-header">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;color:rgba(26,26,26,0.4);text-transform:uppercase">COACHING</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:700;letter-spacing:0.08em">{code.upper()}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab(this,'{code}-word')">WORD ACCURACY</button>
+                <button class="tab-btn" onclick="switchTab(this,'{code}-drill')">SENTENCE DRILLS</button>
+              </div>
+              <div style="display:flex;gap:8px">
+                <a href="/analytics/word-accuracy/download?key={key}&access_code={code}" class="action-btn">DOWNLOAD CSV</a>
+                <button onclick="resetCode('{code}')" class="action-btn danger">RESET DATA</button>
+              </div>
+            </div>
+          </div>
+          <div id="{code}-word" class="tab-panel">{word_tab_content}</div>
+          <div id="{code}-drill" class="tab-panel" style="display:none">{drill_tab_content}</div>
+        </div>"""
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -492,7 +603,48 @@ async def analytics_dashboard(key: str = ""):
     th {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(26,26,26,0.45); padding: 10px 12px; text-align: left; border-bottom: 2px solid #1A1A1A; background: white; }}
     td {{ padding: 8px 12px; vertical-align: middle; }}
     .empty {{ text-align: center; padding: 48px; color: rgba(26,26,26,0.3); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; letter-spacing: 0.1em; }}
+    .coach-card {{ background: white; margin-bottom: 24px; }}
+    .coach-header {{ background: #FAFAFA; border-bottom: 2px solid #1A1A1A; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }}
+    .tab-bar {{ display: flex; border: 1px solid #E8E8E8; }}
+    .tab-btn {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 7px 14px; background: transparent; border: none; cursor: pointer; color: rgba(26,26,26,0.4); border-bottom: 2px solid transparent; margin-bottom: -1px; }}
+    .tab-btn.active {{ color: #1A1A1A; border-bottom: 2px solid #7A9393; }}
+    .tab-panel {{ padding: 0; }}
+    .action-btn {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 12px; background: #7A9393; color: white; text-decoration: none; border: none; cursor: pointer; display: inline-block; }}
+    .action-btn.danger {{ background: #BD3E31; }}
   </style>
+  <script>
+    async function resetCode(code) {{
+      if (!confirm('Delete all analytics data for "' + code + '"? This cannot be undone.')) return;
+      const res = await fetch('/analytics/reset?key={key}&access_code=' + code, {{method:'POST'}});
+      if (res.ok) {{ location.reload(); }} else {{ alert('Reset failed'); }}
+    }}
+    function switchTab(btn, panelId) {{
+      const card = btn.closest('.coach-card');
+      card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      card.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+      btn.classList.add('active');
+      document.getElementById(panelId).style.display = '';
+    }}
+    function sortStruggleTable(th) {{
+      const col = th.dataset.col;
+      const dir = th.dataset.dir === 'asc' ? 'desc' : 'asc';
+      const table = th.closest('table');
+      table.querySelectorAll('th[data-col]').forEach(h => {{
+        h.dataset.dir = '';
+        h.querySelector('.sort-ind').textContent = '';
+      }});
+      th.dataset.dir = dir;
+      th.querySelector('.sort-ind').textContent = dir === 'asc' ? ' ▲' : ' ▼';
+      const tbody = table.querySelector('tbody');
+      Array.from(tbody.querySelectorAll('tr'))
+        .sort((a, b) => {{
+          const av = parseFloat(a.dataset[col]);
+          const bv = parseFloat(b.dataset[col]);
+          return dir === 'asc' ? av - bv : bv - av;
+        }})
+        .forEach(r => tbody.appendChild(r));
+    }}
+  </script>
 </head>
 <body>
   <div class="header">
@@ -521,6 +673,8 @@ async def analytics_dashboard(key: str = ""):
 
     <div class="section-label">Per User</div>
     {'<table><thead><tr><th>Access Code</th><th>Sessions</th><th>Shadow Time</th><th>Phrase Attempts</th><th>Avg Phrase Score</th><th>Paragraphs</th><th>Avg Chunk Score</th></tr></thead><tbody>' + rows + '</tbody></table>' if data else '<div class="empty">NO DATA YET</div>'}
+
+    {('<div style="margin-top:48px"><div class="section-label" style="margin-bottom:24px">Coaching Breakdown</div>' + coach_sections + '</div>') if coach_sections else ''}
   </div>
 </body>
 </html>"""
@@ -705,12 +859,12 @@ def _build_noun_adj_set(tokens):
 @app.post("/shadow/phrase", response_model=ShadowPhraseResponse)
 async def shadow_phrase(req: ShadowPhraseRequest):
     try:
-        data = await asyncio.to_thread(lambda: generate_phrase(req.difficulty, req.topic))
+        data = await asyncio.to_thread(lambda: generate_phrase(req.level, req.topic))
         audio_url = f"/audio/{await generate_audio(data['phrase'])}"
         return ShadowPhraseResponse(
             phrase=data["phrase"],
             audio_url=audio_url,
-            difficulty=req.difficulty,
+            level=req.level,
             noun_adj_tokens=data.get("noun_adj_tokens", []),
         )
     except Exception as e:
@@ -723,10 +877,11 @@ async def shadow_analyze(req: ShadowAnalyzeRequest):
     result = score_attempt(req.target, req.transcription, noun_adj_set)
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
-            "difficulty": req.difficulty,
+            "level": req.level,
             "topic": req.topic,
             "score": result["score"],
             "attempt_number": req.attempt_number,
+            "word_results": [[wr["word"], wr["matched"]] for wr in result["word_results"]],
         })
     feedback_raw = await asyncio.to_thread(
         lambda: analyze_shadow_mismatches(req.target, req.transcription, result["mismatches"])
@@ -802,6 +957,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
                 "level": req.level,
                 "score": result["score"],
                 "attempt_number": req.attempt_number,
+                "word_results": [[wr["word"], wr["matched"]] for wr in result["word_results"]],
             })
         else:
             _analytics.track(req.session_id, req.access_code, "chunk_attempted", {
@@ -811,6 +967,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
                 "level": req.level,
                 "score": result["score"],
                 "attempt_number": req.attempt_number,
+                "word_results": [[wr["word"], wr["matched"]] for wr in result["word_results"]],
             })
     feedback_raw = await asyncio.to_thread(
         lambda: analyze_mismatches(req.target, req.transcription, result.get("mismatches", []))
@@ -979,7 +1136,8 @@ async def get_practice_list():
 
 @app.post("/practice-list")
 async def add_to_practice_list(req: PracticeWordRequest):
-    entry = pl.add_word(req.word, req.tip, req.source_phrase, req.article)
+    entry_type = req.entry_type if req.entry_type in ("word", "phrase", "paragraph") else "word"
+    entry = pl.add_word(req.word, req.tip, req.source_phrase, req.article, entry_type)
     return {"status": "ok", "item": entry}
 
 
@@ -1016,11 +1174,43 @@ async def get_word_pronunciation(word: str):
     return {"tip": tip, "article": article}
 
 
+@app.get("/practice-list/context-phrase")
+async def get_context_phrase(word: str):
+    prompt = (
+        f'Generate one short, natural French sentence (8–14 words) that includes the word or phrase "{word}". '
+        'The sentence should be conversational and help a learner hear the word in real flow. '
+        'Return a JSON object with two fields: "phrase" (the French sentence) and "translation" (English translation). '
+        'Example: {"phrase": "Le boulanger pétrit le pain chaque matin.", "translation": "The baker kneads the bread every morning."}\n'
+        'Return only the JSON object. No extra text.'
+    )
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="API key not configured")
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=120,
+    ))
+    content = resp.choices[0].message.content.strip()
+    try:
+        data = json.loads(content)
+        return {"phrase": data.get("phrase", "").strip(), "translation": data.get("translation", "").strip()}
+    except Exception:
+        return {"phrase": content, "translation": ""}
+
+
 @app.delete("/practice-list/{word}")
 async def remove_from_practice_list(word: str):
     removed = pl.remove_word(word)
     if not removed:
         raise HTTPException(status_code=404, detail="Word not found")
+    return {"status": "deleted"}
+
+
+@app.delete("/practice-list/id/{entry_id}")
+async def remove_practice_entry(entry_id: str):
+    removed = pl.remove_entry(entry_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Entry not found")
     return {"status": "deleted"}
 
 

@@ -21,15 +21,16 @@ def set_api_key(key: str):
     global _client
     _client = Mistral(api_key=key)
 
-# Difficulty levels: 1 = beginner (3-5 words), 2 = easy (5-7 words), 3 = medium (7-10 words), 4 = hard (10+)
 _PHRASE_SYSTEM = """You are generating French sentences for a shadowing exercise.
 
 Rules:
-- Generate ONE natural spoken French sentence appropriate for the given difficulty level.
-- Difficulty 1: 3–5 words, present tense, common vocabulary (greetings, objects, simple actions).
-- Difficulty 2: 5–7 words, common tenses, contractions (j'ai, c'est, il y a).
-- Difficulty 3: 7–10 words, mix of tenses, liaison-heavy phrases, natural speech patterns.
-- Difficulty 4: 10+ words, complex sentences, idiomatic expressions, southern/Marseille flavor welcome.
+- Generate ONE natural spoken French sentence appropriate for the given CEFR level.
+- A1: 3–4 words, present tense only, high-frequency vocabulary (bonjour, merci, je suis, c'est).
+- A2: 4–6 words, simple present/past, common contractions (j'ai, c'est, il y a, on va).
+- B1: 6–9 words, mix of tenses, everyday idioms, liaison-heavy phrases, natural rhythm.
+- B2: 9–12 words, complex clauses, subjunctive or conditional, richer vocabulary.
+- C1: 12–15 words, sophisticated sentence structure, idiomatic expressions, southern/Marseille flavor welcome.
+- C2: 15+ words, literary or highly idiomatic French, complex embedded clauses, register variation.
 - The sentence must be something a native French speaker would actually say in conversation.
 
 Return ONLY valid JSON in this exact shape (no markdown, no extra text):
@@ -179,12 +180,15 @@ def score_attempt(target: str, transcription: str, noun_adj_set=None) -> dict:
     }
 
 
-def generate_phrase(difficulty: int = 1, topic: str = None) -> dict:
+_VALID_LEVELS = {"A1", "A2", "B1", "B2", "C1", "C2"}
+
+def generate_phrase(level: str = 'A1', topic: str = None) -> dict:
     """Returns {"phrase": str, "noun_adj_tokens": list[str]}."""
-    difficulty = max(1, min(4, difficulty))
+    if level not in _VALID_LEVELS:
+        level = 'A1'
     topic_clause = f" about {topic}" if topic else ""
 
-    key = (difficulty, topic)
+    key = (level, topic)
     recent = _recent_phrases.get(key, deque())
     avoid_clause = ""
     if recent:
@@ -197,7 +201,7 @@ def generate_phrase(difficulty: int = 1, topic: str = None) -> dict:
                 model="mistral-small-latest",
                 messages=[
                     {"role": "system", "content": _PHRASE_SYSTEM},
-                    {"role": "user", "content": f"Generate a difficulty-{difficulty} French shadowing phrase{topic_clause}.{avoid_clause}"},
+                    {"role": "user", "content": f"Generate a {level}-level French shadowing phrase{topic_clause}.{avoid_clause}"},
                 ],
                 temperature=0.9,
                 max_tokens=120,

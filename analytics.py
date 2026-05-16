@@ -40,6 +40,77 @@ def track(session_id: str, access_code: str, event_type: str, payload: dict = No
         )
 
 
+def get_sentence_drill_breakdown(access_code: str) -> list:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT payload FROM events WHERE access_code=? AND event_type='sentence_drilled'",
+            (access_code,),
+        ).fetchall()
+    # per unique sentence: track max attempt_number and all scores
+    sentence_max_attempt: dict = defaultdict(int)   # key -> max attempt
+    sentence_scores: dict = defaultdict(list)        # key -> [score, ...]
+    sentence_level: dict = {}                        # key -> level
+    for row in rows:
+        p = json.loads(row["payload"])
+        key = (p.get("paragraph_id", ""), p.get("chunk_index", 0), p.get("sentence_index", 0))
+        attempt = p.get("attempt_number", 1)
+        score = p.get("score")
+        level = str(p.get("level", "?"))
+        sentence_max_attempt[key] = max(sentence_max_attempt[key], attempt)
+        if score is not None:
+            sentence_scores[key].append(score)
+        sentence_level[key] = level
+    # aggregate by level
+    by_level: dict = defaultdict(lambda: {"sentences": [], "attempts": [], "scores": []})
+    for key, max_att in sentence_max_attempt.items():
+        lvl = sentence_level[key]
+        by_level[lvl]["sentences"].append(key)
+        by_level[lvl]["attempts"].append(max_att)
+        by_level[lvl]["scores"].extend(sentence_scores.get(key, []))
+    results = []
+    for lvl in sorted(by_level.keys()):
+        d = by_level[lvl]
+        avg_att = _avg(d["attempts"])
+        avg_score = _avg(d["scores"])
+        results.append({
+            "level": lvl,
+            "sentences_practiced": len(d["sentences"]),
+            "avg_attempts": avg_att,
+            "avg_score": avg_score,
+            "struggling": avg_att is not None and avg_att >= 3,
+        })
+    return results
+
+
+def delete_events(access_code: str) -> int:
+    with _conn() as conn:
+        cur = conn.execute("DELETE FROM events WHERE access_code=?", (access_code,))
+        return cur.rowcount
+
+
+def get_word_accuracy(access_code: str, min_attempts: int = 5) -> list:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT payload FROM events WHERE access_code=? AND event_type IN ('phrase_attempted','sentence_drilled')",
+            (access_code,),
+        ).fetchall()
+    word_stats: dict = defaultdict(lambda: {"attempts": 0, "misses": 0})
+    for row in rows:
+        p = json.loads(row["payload"])
+        for entry in p.get("word_results", []):
+            word = entry[0].lower()
+            matched = entry[1]
+            word_stats[word]["attempts"] += 1
+            if not matched:
+                word_stats[word]["misses"] += 1
+    results = []
+    for word, stats in word_stats.items():
+        if stats["attempts"] >= min_attempts:
+            accuracy = round(1 - stats["misses"] / stats["attempts"], 3)
+            results.append({"word": word, "attempts": stats["attempts"], "accuracy": accuracy})
+    return sorted(results, key=lambda x: x["accuracy"])
+
+
 def get_analytics() -> dict:
     with _conn() as conn:
         codes = [

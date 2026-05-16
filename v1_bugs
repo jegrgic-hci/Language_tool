@@ -1,7 +1,14 @@
 words not processing correctly:
-    week-end vs weekend
-    vrai and vraie
+    ~~week-end vs weekend~~
+    ~~vrai and vraie~~
     
 remove proper nouns? saint-joseph
+xx 
+xx on mobile, fastspeechapi shows all the probabilities of words. 
+
+xx mistral no duplicates for lower levels (A1/A2)
+
+for paragraph- when fail a chunk and hit try again, automatically starts recording
 para-stage-level: not accurate.  chunk 1 of x, chunk 2 of x
-on mobile, fastspeechapi shows all the probabilities of words. 
+fastspeechapi - show the last two phrases (scrolling transcript) with max height two lines of text
+how are we measuring time? can we measure listing and speaking as a measure?
