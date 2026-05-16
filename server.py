@@ -44,7 +44,9 @@ _ACCESS_CODES: set = {
     c.strip() for c in os.environ.get("ACCESS_CODES", "").split(",") if c.strip()
 }
 
-_ANALYTICS_KEY: str = os.environ.get("ANALYTICS_KEY", "")
+_ANALYTICS_KEYS: set = {
+    k.strip() for k in os.environ.get("ANALYTICS_KEY", "").split(",") if k.strip()
+}
 
 _analytics.init_db()
 
@@ -154,7 +156,7 @@ Given the recent conversation and the transcription:
 3. Write one short, practical pronunciation tip for that word
 
 Return ONLY valid JSON in this exact shape:
-{"suspected_word": "<garbled transcription>", "likely_intended": "<correct French word>", "tip": "<one pronunciation tip, max 12 words>"}
+{"suspected_word": "<garbled transcription>", "likely_intended": "<correct French word>", "tip": "<word> /<IPA>/ — <one body-mechanics cue: lip/tongue/nasal, max 15 words total>"}
 
 If the entire message is too garbled to recover any meaning, return: {"garbled": true}"""
 
@@ -178,7 +180,7 @@ async def analyze_pronunciation_error(transcription: str, history: list[dict]) -
                     {"role": "user",   "content": user_payload},
                 ],
                 temperature=0.0,
-                max_tokens=80,
+                max_tokens=120,
             ).choices[0].message.content.strip()
         )
         return json.loads(raw)
@@ -415,14 +417,14 @@ async def track_event(req: TrackRequest):
 
 @app.get("/analytics")
 async def get_analytics(key: str = ""):
-    if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
+    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
         raise HTTPException(status_code=403, detail="Forbidden")
     return _analytics.get_analytics()
 
 
 @app.get("/analytics/word-accuracy/download")
 async def download_word_accuracy(key: str = "", access_code: str = ""):
-    if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
+    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
         raise HTTPException(status_code=403, detail="Forbidden")
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
@@ -441,7 +443,7 @@ async def download_word_accuracy(key: str = "", access_code: str = ""):
 
 @app.post("/analytics/reset")
 async def reset_analytics(key: str = "", access_code: str = ""):
-    if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
+    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
         raise HTTPException(status_code=403, detail="Forbidden")
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
@@ -451,7 +453,7 @@ async def reset_analytics(key: str = "", access_code: str = ""):
 
 @app.get("/analytics/dashboard", response_class=HTMLResponse)
 async def analytics_dashboard(key: str = ""):
-    if not _ANALYTICS_KEY or key != _ANALYTICS_KEY:
+    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
         raise HTTPException(status_code=403, detail="Forbidden")
     data = _analytics.get_analytics()
     word_accuracy = {code: _analytics.get_word_accuracy(code) for code in data}
@@ -1145,13 +1147,14 @@ async def add_to_practice_list(req: PracticeWordRequest):
 async def get_word_pronunciation(word: str):
     prompt = (
         f'For the French word or phrase "{word}", return a JSON object with two fields:\n'
-        '- "tip": phonetic spelling with the stressed syllable in CAPS, em-dash, one brief tip (max 12 words)\n'
+        '- "tip": the word followed by its IPA transcription in slashes, em-dash, one body-mechanics cue '
+        '(lip position, tongue placement, nasal vs. oral airflow, or silent letter). Max 20 words total.\n'
         '- "article": the correct definite article — le, la, l\', or les. '
         'For a verb use "je". For a fixed phrase with no natural article use "".\n\n'
         'Examples:\n'
-        '{"tip": "ka-teh-DRAL — stress the final syllable", "article": "la"}\n'
-        '{"tip": "LEH-pahn — nasal vowel, silent N", "article": "le"}\n'
-        '{"tip": "sa-LYAY — silent R", "article": "je"}\n\n'
+        '{"tip": "cathédrale /ka.te.dʁal/ — uvular \'r\', final \'e\' is silent", "article": "la"}\n'
+        '{"tip": "pain /pɛ̃/ — nasal vowel, mouth slightly open, no N sound at the end", "article": "le"}\n'
+        '{"tip": "m\'appelle /ma.pɛl/ — lips forward on the \'a\', final \'l\' is light", "article": "je"}\n\n'
         'Return only the JSON object. No extra text.'
     )
     if _mistral is None:
@@ -1159,7 +1162,7 @@ async def get_word_pronunciation(word: str):
     resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
         model="mistral-small-latest",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=80,
+        max_tokens=120,
     ))
     content = resp.choices[0].message.content.strip()
     try:

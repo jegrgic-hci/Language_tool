@@ -46,16 +46,15 @@ The student was asked to repeat a French phrase exactly. You are given:
 - A list of mismatched word pairs (target_word vs transcribed_word)
 
 For each mismatch, provide:
-1. A pronunciation tip in EXACTLY this format: "[What to fix] — [correct syllables], not [wrong syllables]"
-   - Start with what to fix: "Pronounce the 'X' clearly", "Stress the last syllable", "The 'X' is silent", etc.
-   - After the em-dash: write the correct word split into syllables with hyphens, CAPITALISE the stressed syllable
-   - After "not": write how it sounded, also syllabified, no caps needed
+1. A pronunciation tip in EXACTLY this format: "<target_word> /<IPA>/ — <body-mechanics cue>"
+   - Write the target word exactly as given, then its IPA transcription between slashes
+   - After the em-dash: one short body-mechanics cue — lip position, tongue placement, nasal vs. oral airflow, silent letter, etc.
    - Examples:
-     "Pronounce the 'l' clearly — es-ca-LIERS, not es-ca-RAIRS"
-     "Stress the final syllable — vou-DRAIS, not vou-LAY"
-     "The 's' is silent — vou-DRAI, not vou-DRAIS-s"
-     "Round your lips for 'u' — LU-ne, not LOO-ne"
-   - Max 15 words total. Never deviate from this format.
+     "escaliers /ɛs.ka.lje/ — tongue tip behind upper teeth on the 'l', final 's' silent"
+     "voudrais /vu.dʁɛ/ — lips rounded for 'ou', uvular 'r' at the back of the throat"
+     "lune /lyn/ — lips pursed forward in a tight circle for the French 'u'"
+     "m'appelle /ma.pɛl/ — lips forward on the 'a', final 'l' is light, not silent"
+   - Max 20 words total. Never deviate from this format.
 2. Whether this is a grammar/tense distinction (e.g. j'ai vs je, elision vs full form)
 3. If it IS a grammar distinction, a one-sentence grammar note
 
@@ -70,7 +69,7 @@ Return ONLY valid JSON in this exact shape:
     {
       "target_word": "voudrais",
       "said": "voulait",
-      "tip": "Stress the final syllable — vou-DRAIS, not vou-LAY",
+      "tip": "voudrais /vu.dʁɛ/ — lips rounded for 'ou', uvular 'r' at the back of the throat",
       "is_grammar": false,
       "grammar_note": ""
     }

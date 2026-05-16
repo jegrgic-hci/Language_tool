@@ -93,34 +93,6 @@
       margin-bottom: 14px;
     }
 
-    /* Session status */
-    .session-mode-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-    #mode-tag {
-      font-family: var(--font-ui);
-      font-size: 0.6rem;
-      font-weight: 700;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      border: 1px solid var(--k-teal);
-      color: var(--k-teal);
-      background: rgba(122,147,147,0.12);
-    }
-    #topic-label {
-      font-family: var(--font-ui);
-      font-size: 0.65rem;
-      color: rgba(255,255,255,0.4);
-      letter-spacing: 0.03em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
     /* Nav mode buttons */
     .mode-btn {
       display: flex;
@@ -390,44 +362,6 @@
     }
     .bubble-reveal:hover { border-color: var(--k-teal); color: var(--k-teal); }
     .bubble-reveal.hidden { display: none; }
-
-    /* Listening mode toggle in panel */
-    #listening-toggle {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-      background: none;
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.45);
-      padding: 7px 10px;
-      font-family: var(--font-ui);
-      font-size: 0.62rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: all 0.15s;
-    }
-    #listening-toggle:hover {
-      border-color: rgba(255,255,255,0.3);
-      color: rgba(255,255,255,0.8);
-    }
-    #listening-toggle.active {
-      border-color: var(--k-teal);
-      color: var(--k-teal);
-      background: rgba(122,147,147,0.1);
-    }
-    #listening-toggle .toggle-dot {
-      width: 7px; height: 7px;
-      border: 1px solid currentColor;
-      border-radius: 50%;
-      flex-shrink: 0;
-      transition: background 0.15s;
-    }
-    #listening-toggle.active .toggle-dot {
-      background: var(--k-teal);
-    }
 
     /* Typing indicator */
     .typing-dots {
@@ -3017,19 +2951,6 @@
     <div class="wordmark">Français</div>
   </div>
 
-  <!-- Session status -->
-  <div class="panel-section">
-    <div class="panel-section-label">Session</div>
-    <div class="session-mode-row">
-      <div id="mode-tag">Chat</div>
-    </div>
-    <div id="topic-label">General conversation</div>
-    <button id="listening-toggle" onclick="toggleListeningMode()" style="display:none;">
-      <span class="toggle-dot"></span>
-      Listening mode
-    </button>
-  </div>
-
   <!-- Mode switcher -->
   <div class="panel-section">
     <div class="panel-section-label">Mode</div>
@@ -3855,8 +3776,6 @@
   const textInput    = document.getElementById('text-input');
   const sendBtn      = document.getElementById('send-btn');
   const micBtn       = document.getElementById('mic-btn');
-  const modeTag      = document.getElementById('mode-tag');
-  const topicLabel   = document.getElementById('topic-label');
   const headerStatus = document.getElementById('header-status');
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -3981,9 +3900,6 @@
 
   function updateMode(mode, topic) {
     currentMode = mode;
-    modeTag.textContent = mode;
-    topicLabel.textContent = topic || 'General conversation';
-
     document.querySelectorAll('.mode-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.mode === mode);
     });
@@ -6160,6 +6076,8 @@
 
   function renderPatternCard(pattern) {
     const categoryMap = {
+      'phonème': 'PHONÈME',
+      'phoneme': 'PHONÈME',
       'grammar': 'GRAMMAR',
       'pronunciation': 'PRONUNCIATION',
       'flow': 'FLOW',

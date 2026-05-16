@@ -46,16 +46,15 @@ The student was asked to repeat a French phrase/chunk exactly. You are given:
 - A list of mismatched word pairs (target_word vs transcribed_word)
 
 For each mismatch, provide:
-1. A pronunciation tip in EXACTLY this format: "[What to fix] — [correct syllables], not [wrong syllables]"
-   - Start with what to fix: "Pronounce the 'X' clearly", "Stress the last syllable", "The 'X' is silent", etc.
-   - After the em-dash: write the correct word split into syllables with hyphens, CAPITALISE the stressed syllable
-   - After "not": write how it sounded, also syllabified, no caps needed
+1. A pronunciation tip in EXACTLY this format: "<target_word> /<IPA>/ — <body-mechanics cue>"
+   - Write the target word exactly as given, then its IPA transcription between slashes
+   - After the em-dash: one short body-mechanics cue — lip position, tongue placement, nasal vs. oral airflow, silent letter, etc.
    - Examples:
-     "Pronounce the 'l' clearly — es-ca-LIERS, not es-ca-RAIRS"
-     "Stress the final syllable — vou-DRAIS, not vou-LAY"
-     "The 's' is silent — vou-DRAI, not vou-DRAIS-s"
-     "Round your lips for 'u' — LU-ne, not LOO-ne"
-   - Max 15 words total. Never deviate from this format.
+     "escaliers /ɛs.ka.lje/ — tongue tip behind upper teeth on the 'l', final 's' silent"
+     "voudrais /vu.dʁɛ/ — lips rounded for 'ou', uvular 'r' at the back of the throat"
+     "lune /lyn/ — lips pursed forward in a tight circle for the French 'u'"
+     "m'appelle /ma.pɛl/ — lips forward on the 'a', final 'l' is light, not silent"
+   - Max 20 words total. Never deviate from this format.
 2. Whether this is a grammar/tense distinction (e.g. j'ai vs je, elision vs full form)
 3. If it IS a grammar distinction, a one-sentence grammar note
 
@@ -70,7 +69,7 @@ Return ONLY valid JSON in this exact shape:
     {
       "target_word": "voudrais",
       "said": "voulait",
-      "tip": "Stress the final syllable — vou-DRAIS, not vou-LAY",
+      "tip": "voudrais /vu.dʁɛ/ — lips rounded for 'ou', uvular 'r' at the back of the throat",
       "is_grammar": false,
       "grammar_note": ""
     }
@@ -305,19 +304,23 @@ _PATTERN_ANALYSIS_SYSTEM = """You are analyzing a French learner's pronunciation
 
 You are given a list of word-level mismatches (what they said vs. what they should have said).
 
-Identify 2–3 KEY PATTERNS that show up consistently, focusing on:
-- Pronunciation challenges (specific sounds they struggle with, rhythm/intonation issues)
+Identify 2–3 KEY PATTERNS that show up consistently. Look for:
+- IPA-level phoneme substitutions — e.g. replacing French /y/ with /u/ (très courant pour les anglophones), /ø/ with /e/, nasal vowels /ɛ̃/ /ɑ̃/ /ɔ̃/ spoken as oral + N, /ʁ/ dropped or anglicised
 - Connected speech (liaisons, elisions in spoken French)
-- Accent or prosody patterns (where they're rushing, slowing down, or changing pitch)
-- Any nuanced speech-level issues that aren't strictly grammar
+- Accent or prosody patterns (rushing, slowing, pitch changes)
 
-Avoid patterns that are one-off errors. Focus on recurring issues that would benefit from targeted practice.
+For phoneme confusion patterns, use this format:
+- pattern: "Phonème /X/ → /Y/" (e.g. "Phonème /y/ → /u/")
+- explanation: one sentence in French with the IPA symbols and a brief body-mechanics cue, max 20 words
+- examples: word pairs showing the substitution ("lune → loon", "du → dou")
+
+Avoid one-off errors. Only surface patterns with 2+ occurrences.
 
 Return ONLY valid JSON in this exact shape:
 {
   "patterns": [
     {
-      "pattern": "Short name of pattern (e.g. 'R sound pronunciation')",
+      "pattern": "Short name of pattern (e.g. 'Phonème /y/ → /u/')",
       "explanation": "1–2 sentence explanation in French, conversational tone, max 20 words",
       "examples": ["example 1", "example 2"]
     }
@@ -374,6 +377,74 @@ def _detect_rule_based_patterns(mismatches: list[dict]) -> list[dict]:
     # Combine all pattern definitions
     all_pairs = {**elision_pairs, **tense_pairs, **gender_number_pairs, **sound_pairs}
 
+    # ── Phoneme confusion table ─────────────────────────────────────────────────
+    # Each entry: (label, target_ipa, substituted_ipa, body_cue, target_fn, said_fn)
+    # target_fn / said_fn: callable(word: str) -> bool
+    _PHONEME_CONFUSION_TABLE = [
+        (
+            "Phonème /y/ → /u/",
+            "/y/", "/u/",
+            "lèvres arrondies et avancées pour le 'u' français — pas comme le 'ou'",
+            # target word has standalone 'u' (not part of ou/au/eau/eu/œ/gu/qu)
+            lambda t: bool(re.search(r'(?<![aoegq])u(?![ieoaê])', t)),
+            # said word has 'ou', 'oo', or ends in a pure /u/ spelling
+            lambda s: bool(re.search(r'ou|oo', s)),
+        ),
+        (
+            "Phonème /ø/ → /e/",
+            "/ø/", "/e/",
+            "bouche mi-ouverte, lèvres arrondies pour le 'eu'",
+            lambda t: bool(re.search(r'eu|œu', t)),
+            lambda s: bool(re.search(r'\be\b|ay|ey', s)) and not bool(re.search(r'eu|œu', s)),
+        ),
+        (
+            "Voyelle nasale /ɛ̃/ → /in/",
+            "/ɛ̃/", "/in/",
+            "le son nasal — bouche ouverte, air par le nez, pas de 'n' final",
+            lambda t: bool(re.search(r'in\b|ain\b|ein\b|ien\b|yn\b', t)),
+            lambda s: bool(re.search(r'in\b|ine\b|een\b', s)),
+        ),
+        (
+            "Voyelle nasale /ɑ̃/ → /an/",
+            "/ɑ̃/", "/an/",
+            "son nasal ouvert — mâchoire basse, air par le nez, pas de 'n' détaché",
+            lambda t: bool(re.search(r'an\b|en\b|am\b|em\b|ang\b|ant\b|and\b|ent\b|enc\b', t)),
+            lambda s: bool(re.search(r'an\b|ane\b|ann\b', s)),
+        ),
+        (
+            "Voyelle nasale /ɔ̃/ → /on/",
+            "/ɔ̃/", "/on/",
+            "son nasal arrondi — lèvres en avant, air par le nez",
+            lambda t: bool(re.search(r'on\b|om\b|ond\b|ont\b', t)),
+            lambda s: bool(re.search(r'on\b|one\b|own\b', s)) and not bool(re.search(r'on\b|om\b', t) and re.search(r'^on$', s)),
+        ),
+    ]
+
+    phoneme_patterns: dict[str, dict] = {}
+    for label, t_ipa, s_ipa, cue, t_fn, s_fn in _PHONEME_CONFUSION_TABLE:
+        for mismatch in mismatches:
+            target = mismatch["target_word"].lower()
+            said   = mismatch["said"].lower()
+            if t_fn(target) and s_fn(said):
+                if label not in phoneme_patterns:
+                    phoneme_patterns[label] = {
+                        "t_ipa": t_ipa, "s_ipa": s_ipa, "cue": cue, "examples": [],
+                    }
+                ex = f"{mismatch['target_word']} → {mismatch['said']}"
+                if ex not in phoneme_patterns[label]["examples"]:
+                    phoneme_patterns[label]["examples"].append(ex)
+
+    phoneme_results = []
+    for label, data in phoneme_patterns.items():
+        if len(data["examples"]) >= 2:
+            phoneme_results.append({
+                "pattern": label,
+                "explanation": f"Tu remplaces {data['t_ipa']} par {data['s_ipa']} — {data['cue']}.",
+                "examples": data["examples"][:3],
+                "count": len(data["examples"]),
+            })
+    # ────────────────────────────────────────────────────────────────────────────
+
     for mismatch in mismatches:
         target = mismatch["target_word"].lower()
         said = mismatch["said"].lower()
@@ -393,11 +464,14 @@ def _detect_rule_based_patterns(mismatches: list[dict]) -> list[dict]:
             result.append({
                 "pattern": pattern_name,
                 "explanation": f"You said this {len(data['examples'])} times",
-                "examples": data["examples"][:3],  # Limit to 3 examples
+                "examples": data["examples"][:3],
                 "count": len(data["examples"]),
             })
 
-    return sorted(result, key=lambda x: x["count"], reverse=True)[:3]  # Top 3
+    # Merge phoneme confusions (highest priority — surface them first)
+    combined = sorted(phoneme_results, key=lambda x: x["count"], reverse=True)
+    combined += sorted(result, key=lambda x: x["count"], reverse=True)
+    return combined[:3]
 
 
 def analyze_patterns(all_mismatches: list[dict]) -> dict:
