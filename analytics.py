@@ -157,7 +157,7 @@ def _aggregate(rows) -> dict:
             total_shadow_seconds += float(p.get("duration_seconds", 0))
 
         elif t == "phrase_attempted":
-            level = str(p.get("difficulty", "?"))
+            level = str(p.get("level", "?"))
             phrase_scores_by_level[level].append(p.get("score", 0))
 
         elif t == "paragraph_started":
