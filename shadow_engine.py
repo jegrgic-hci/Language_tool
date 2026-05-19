@@ -197,7 +197,7 @@ def generate_phrase(level: str = 'A1', topic: str = None) -> dict:
     for attempt in range(3):
         try:
             resp = _client.chat.complete(
-                model="mistral-small-latest",
+                model="mistral-large-latest",
                 messages=[
                     {"role": "system", "content": _PHRASE_SYSTEM},
                     {"role": "user", "content": f"Generate a {level}-level French shadowing phrase{topic_clause}.{avoid_clause}"},
