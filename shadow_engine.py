@@ -31,7 +31,10 @@ Rules:
 - B2: 9–12 words, complex clauses, subjunctive or conditional, richer vocabulary.
 - C1: 12–15 words, sophisticated sentence structure, idiomatic expressions, southern/Marseille flavor welcome.
 - C2: 15+ words, literary or highly idiomatic French, complex embedded clauses, register variation.
-- The sentence must be something a native French speaker would actually say in conversation.
+- The sentence must sound like natural spoken French.
+- STYLE "story": a narrative fragment — a character, a moment, an action, an opinion on the subject. Conversational and personal.
+- STYLE "educational": an informative statement that teaches a real fact about the subject (history, science, geography, culture, how things work). The learner should walk away knowing something true about the subject.
+- STYLE "howto": a practical instruction or step in a process. Use imperative, infinitive, or instructional phrasing. The learner should walk away knowing how to do or use something related to the subject.
 
 Return ONLY valid JSON in this exact shape (no markdown, no extra text):
 {"phrase": "...", "noun_adj_tokens": ["word1", "word2"]}
@@ -181,13 +184,34 @@ def score_attempt(target: str, transcription: str, noun_adj_set=None) -> dict:
 
 _VALID_LEVELS = {"A1", "A2", "B1", "B2", "C1", "C2"}
 
-def generate_phrase(level: str = 'A1', topic: str = None) -> dict:
+_VALID_STYLES = {"story", "educational", "howto"}
+
+def generate_phrase(level: str = 'A1', topic: str = None, style: str = 'story', sound_focus: str = None, focus_word: str = None) -> dict:
     """Returns {"phrase": str, "noun_adj_tokens": list[str]}."""
     if level not in _VALID_LEVELS:
         level = 'A1'
+    if style not in _VALID_STYLES:
+        style = 'story'
     topic_clause = f" about {topic}" if topic else ""
+    if style == 'educational':
+        style_clause = " Style: EDUCATIONAL — teach the learner one concrete, true fact about the subject (history, science, geography, culture, how things work). The sentence must convey real information, not just a personal anecdote."
+    elif style == 'howto':
+        style_clause = " Style: HOW-TO — a practical instruction or step in a process related to the subject (e.g. 'Pour prendre le métro, il faut d'abord acheter un ticket.'). Use imperative, infinitive, or instructional phrasing. The learner should walk away knowing how to do or use something."
+    else:
+        style_clause = " Style: STORY — a short narrative or conversational fragment about the subject, as a native speaker would mention it in real life."
 
-    key = (level, topic)
+    _SOUND_FOCUS_DESCRIPTIONS = {
+        "liaison":     "many mandatory liaison opportunities (e.g. les‿enfants, vous‿avez, ils‿ont)",
+        "nasal":       "multiple nasal vowels /ɑ̃/ /ɛ̃/ /ɔ̃/ (an/en, in/ein, on)",
+        "u_vowel":     "multiple words with the French /y/ vowel (tu, lune, sur, pur, du, une)",
+        "r_sound":     "multiple words with the uvular /ʁ/ sound (regarder, vraiment, partir, parler)",
+        "open_vowels": "contrast between closed /e/ and open /ɛ/ (é vs è/ai/ê: j'ai été, après, fête)",
+        "rhythm":      "3–4 clear rhythm groups of 2–4 words each with natural enchaînement",
+    }
+    sound_clause = f" Sound focus: the phrase must feature {_SOUND_FOCUS_DESCRIPTIONS[sound_focus]}." if sound_focus in _SOUND_FOCUS_DESCRIPTIONS else ""
+    focus_clause = f' The phrase MUST naturally include the word "{focus_word}" — use it the way a native speaker would in conversation.' if focus_word else ""
+
+    key = (level, topic, style, sound_focus, focus_word)
     recent = _recent_phrases.get(key, deque())
     avoid_clause = ""
     if recent:
@@ -200,7 +224,7 @@ def generate_phrase(level: str = 'A1', topic: str = None) -> dict:
                 model="mistral-large-latest",
                 messages=[
                     {"role": "system", "content": _PHRASE_SYSTEM},
-                    {"role": "user", "content": f"Generate a {level}-level French shadowing phrase{topic_clause}.{avoid_clause}"},
+                    {"role": "user", "content": f"Generate a {level}-level French shadowing phrase{topic_clause}.{style_clause}{sound_clause}{focus_clause}{avoid_clause}"},
                 ],
                 temperature=0.9,
                 max_tokens=120,

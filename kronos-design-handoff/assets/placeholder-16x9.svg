@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#F7F7F7"></rect>
+  <rect x="0.5" y="0.5" width="639" height="359" fill="none" stroke="#E8E8E8"></rect>
+  <text x="320" y="184" text-anchor="middle" font-family="&#39;IBM Plex Mono&#39;, monospace" font-size="13" letter-spacing="2" fill="#A0A0A0">IMAGE CONTAINER</text>
+</svg>

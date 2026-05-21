@@ -30,8 +30,15 @@ _LEVEL_CONSTRAINTS = {
 _PARAGRAPH_SYSTEM = """You are generating French paragraphs for a shadowing exercise.
 
 Rules:
-- Generate a natural, conversational French paragraph at the specified CEFR level.
+- Generate a natural French paragraph at the specified CEFR level.
 - Each sentence should be distinct, grammatically correct, and naturally spoken.
+- STYLE "story": a short narrative about the subject — characters, scenes, opinions, or lived experience. Conversational tone.
+- STYLE "educational": informative prose that teaches the learner real facts about the subject (history, science, geography, culture, how things work). The learner should finish the paragraph having actually learned something true about the subject. Still natural to read aloud, but expository rather than narrative.
+- STYLE "howto": practical instructions explaining how to do or use something related to the subject. Use imperative, infinitive, or step-by-step phrasing (D'abord… Ensuite… Enfin…). Natural to read aloud and genuinely useful.
+- STYLE "vocabulary": each sentence is a dictionary-style definition of a different word or concept related to the subject, written entirely in French (no translations). Use the pattern "Un/Une [word] est [definition]." or "Le/La [word] désigne [definition]." Cover diverse nouns, verbs, and adjectives within the subject area. Definitions should be factually correct, clear, and at a level appropriate for the CEFR band.
+- STYLE "proverbs": each sentence is a French proverb, idiom, or fixed expression related to the subject, followed immediately in the same sentence by a short French explanation of its meaning (e.g. "On dit 'avoir le cafard' quand on se sent triste ou déprimé."). Expressions should be authentic and in common use. The explanation must be in French only.
+- STYLE "dialogue": a short two-person conversation (6–8 turns) related to the subject, written as continuous prose with em-dash speaker turns (— …). Natural spoken register. Both speakers' lines flow as a single readable passage for shadowing aloud.
+- STYLE "opinion": a persuasive monologue expressing a clear point of view on something related to the subject. Use argumentative connectors (certes, néanmoins, en revanche, c'est pourquoi, il faut reconnaître que…). The speaker takes a position, develops it with reasons, and concludes. Natural to read aloud, opinionated in tone.
 
 Return ONLY valid JSON in this exact shape (no markdown, no extra text):
 {"paragraph": "...", "noun_adj_tokens": ["word1", "word2"]}
@@ -217,7 +224,7 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
     }
 
 
-def generate_paragraph(level: str, topic: str) -> dict:
+def generate_paragraph(level: str, topic: str, style: str = "story") -> dict:
     """
     Generate a French paragraph at the specified CEFR level on the given topic.
     Returns dict with: paragraph (full text), sentences (list), topic, level.
@@ -225,8 +232,24 @@ def generate_paragraph(level: str, topic: str) -> dict:
     level = level.upper() if level else "A1"
     if level not in _LEVEL_CONSTRAINTS:
         level = "A1"
+    if style not in ("story", "educational", "howto", "vocabulary", "proverbs", "dialogue", "opinion"):
+        style = "story"
 
     constraints = _LEVEL_CONSTRAINTS[level]
+    if style == "educational":
+        style_clause = "Style: EDUCATIONAL — teach the learner real facts about the subject (history, science, geography, culture, how things work). Convey concrete, true information. Build new vocabulary tied to the subject."
+    elif style == "howto":
+        style_clause = "Style: HOW-TO — a practical guide explaining how to do or use something related to the subject. Use imperative, infinitive, or step-by-step instructional phrasing (e.g. 'D'abord... Ensuite... Enfin...'). The learner should finish the paragraph knowing how to do something real and useful."
+    elif style == "vocabulary":
+        style_clause = "Style: VOCABULARY — each sentence is a French-language definition of a different word or concept related to the subject. Pattern: 'Un/Une [word] est [definition].' or 'Le/La [word] désigne [definition].' Cover a mix of nouns, verbs, and adjectives. All definitions in French only — no translations. Factually correct and calibrated to the CEFR level."
+    elif style == "proverbs":
+        style_clause = "Style: PROVERBS & EXPRESSIONS — each sentence presents one authentic French proverb, idiom, or fixed expression related to the subject, followed immediately by a short French explanation of its meaning in the same sentence. Format: 'On dit [expression] quand/pour [explanation].' or '[Expression] signifie [explanation].' Authentic expressions in common use. All French, no translations."
+    elif style == "dialogue":
+        style_clause = "Style: DIALOGUE — write a short two-person conversation (6-8 turns) related to the subject using em-dash speaker turns (— …). Natural spoken register, no speaker names or labels. Both speakers' lines form a single continuous passage suitable for reading aloud as one text."
+    elif style == "opinion":
+        style_clause = "Style: OPINION — a persuasive monologue expressing a clear point of view on something related to the subject. Use argumentative connectors (certes, néanmoins, en revanche, c'est pourquoi, il faut reconnaître que…). The speaker takes a position, develops it with reasons, and concludes with conviction. Natural to read aloud, opinionated in tone."
+    else:
+        style_clause = "Style: STORY — write a short narrative or conversational passage about the subject, as a native speaker might tell it."
 
     for attempt in range(3):
         try:
@@ -234,10 +257,10 @@ def generate_paragraph(level: str, topic: str) -> dict:
                 model="mistral-large-latest",
                 messages=[
                     {"role": "system", "content": _PARAGRAPH_SYSTEM},
-                    {"role": "user", "content": f"Generate a CEFR {level} French paragraph about {topic}. {constraints}"},
+                    {"role": "user", "content": f"Generate a CEFR {level} French paragraph about {topic}. {constraints}. {style_clause}"},
                 ],
                 temperature=0.9,
-                max_tokens=400,
+                max_tokens=900,
             )
             raw = resp.choices[0].message.content.strip()
             if raw.startswith("```"):

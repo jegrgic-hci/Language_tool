@@ -1,0 +1,242 @@
+/* ==========================================================================
+   Kronos v3 — TOKENS (consolidated, canonical)
+   Cerulean direction promoted out of v2.5's picker.
+   Carries forward: 11-step neutral scale, elevation tokens, density modes,
+   named motion tokens, focus-ring system.
+   Namespace: --k3-*
+   ========================================================================== */
+
+/* ==========================================================================
+   Kronos v2.5 — SHARED tokens
+   Direction-agnostic: neutrals, type, spacing, motion, elevation, density.
+   Accent + complement + semantic-info live in tokens-teal.css / tokens-cerulean.css.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* ------------------------------------------------------------------
+     NEUTRAL SCALE — 11 steps, cool 1° tint (~210° hue at 2% sat)
+     Replaces v2's 4-grey system. Aliases below keep --k2-* compat.
+     ------------------------------------------------------------------ */
+  --k3-n-50:  #FAFBFB;
+  --k3-n-100: #F2F3F4;
+  --k3-n-200: #E4E6E8;
+  --k3-n-300: #CDD0D3;
+  --k3-n-400: #A8ACB0;
+  --k3-n-500: #80858A;
+  --k3-n-600: #5C6166;
+  --k3-n-700: #44484C;
+  --k3-n-800: #2E3134;
+  --k3-n-900: #1C1E20;
+  --k3-n-950: #0F1012;
+
+  /* Surfaces */
+  --k3-bg:        var(--k3-n-50);
+  --k3-surface:   #FFFFFF;
+  --k3-surface-2: var(--k3-n-100);    /* sunken / nested surface */
+  --k3-sidebar:   var(--k3-n-900);
+
+  /* Foreground roles (alias into scale) */
+  --k3-fg-1:      var(--k3-n-900);    /* primary text — 16:1 */
+  --k3-fg-2:      var(--k3-n-700);    /* secondary    — 10:1 */
+  --k3-fg-3:      var(--k3-n-600);    /* muted        — 6.4:1 */
+  --k3-fg-4:      var(--k3-n-500);    /* hint         — 4.6:1 */
+  --k3-fg-inverse: #FFFFFF;
+
+  /* On dark */
+  --k3-fg-on-dark-1: #FFFFFF;
+  --k3-fg-on-dark-2: rgba(255,255,255,0.78);
+  --k3-fg-on-dark-3: rgba(255,255,255,0.56);
+
+  /* Borders (alias into neutral scale, NTC-safe) */
+  --k3-border-heavy: var(--k3-n-900);
+  --k3-border-mid:   var(--k3-n-300);
+  --k3-border-light: var(--k3-n-200);
+  --k3-border-hover: var(--k3-n-600);
+
+  /* Disabled */
+  --k3-disabled-fg:     var(--k3-n-400);
+  --k3-disabled-bg:     var(--k3-n-100);
+  --k3-disabled-border: var(--k3-n-300);
+
+  /* ------------------------------------------------------------------
+     SEMANTIC (per-direction can override --k3-blue)
+     ------------------------------------------------------------------ */
+  --k3-red:          #A8281C;
+  --k3-red-bg:       #FBEBE9;
+  --k3-red-border:   #E5A5A0;
+  --k3-green:        #1F5A40;
+  --k3-green-bg:     #E6F0EB;
+  --k3-green-border: #A7C9B7;
+  --k3-amber:        #8A5A00;
+  --k3-amber-bg:     #FBF1D9;
+  --k3-amber-border: #E0BE6E;
+  --k3-blue:         #1F4D8E;          /* OVERRIDDEN in cerulean direction */
+  --k3-blue-bg:      #E7EEF8;
+  --k3-blue-border:  #A6BCDC;
+
+  /* ------------------------------------------------------------------
+     TYPE
+     ------------------------------------------------------------------ */
+  --k3-font-display: 'Anton', 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
+  --k3-font-ui:      'IBM Plex Mono', 'Courier New', monospace;
+  --k3-font-body:    'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Scale (12px floor) */
+  --k3-text-2xs:  0.75rem;
+  --k3-text-xs:   0.8125rem;
+  --k3-text-sm:   0.875rem;
+  --k3-text-base: 1rem;
+  --k3-text-md:   1.125rem;
+  --k3-text-lg:   1.375rem;
+  --k3-text-xl:   1.75rem;
+  --k3-text-2xl:  2.5rem;
+  --k3-text-3xl:  3.5rem;
+  --k3-text-4xl:  4.5rem;     /* Anton workhorse */
+  --k3-text-5xl:  6rem;
+
+  /* Tracking */
+  --k3-track-tight:   0.04em;
+  --k3-track-ui:      0.08em;
+  --k3-track-label:   0.10em;
+  --k3-track-display: 0.04em;
+
+  /* ------------------------------------------------------------------
+     SPACING — 8px grid (kept from v2)
+     ------------------------------------------------------------------ */
+  --k3-s-1:   4px;
+  --k3-s-2:   8px;
+  --k3-s-3:  12px;
+  --k3-s-4:  16px;
+  --k3-s-5:  24px;
+  --k3-s-6:  32px;
+  --k3-s-7:  48px;
+  --k3-s-8:  64px;
+  --k3-s-9:  96px;
+  --k3-s-10: 128px;
+
+  --k3-sidebar-width: 244px;
+  --k3-content-max:   1120px;
+
+  /* ------------------------------------------------------------------
+     MOTION — named tokens (NEW in v2.5)
+     ------------------------------------------------------------------ */
+  --k3-ease:             cubic-bezier(0.4, 0, 0.2, 1);
+  --k3-ease-out:         cubic-bezier(0, 0, 0.2, 1);
+  --k3-motion-quick:     80ms;
+  --k3-motion-base:     150ms;
+  --k3-motion-emphasis: 240ms;
+  --k3-motion-enter:    320ms;
+
+  /* ------------------------------------------------------------------
+     ELEVATION — TWO tokens. Floating UI ONLY (NEW)
+     Cards/buttons stay flat. Dropdowns/popovers/toasts/modals lift.
+     ------------------------------------------------------------------ */
+  --k3-elev-1:
+    0 1px 0 var(--k3-border-mid),
+    0 4px 12px -2px rgba(15, 16, 18, 0.10),
+    0 1px 3px rgba(15, 16, 18, 0.06);
+  --k3-elev-2:
+    0 1px 0 var(--k3-border-mid),
+    0 16px 32px -8px rgba(15, 16, 18, 0.18),
+    0 4px 8px rgba(15, 16, 18, 0.08);
+
+  /* ------------------------------------------------------------------
+     DENSITY — multiplier (NEW)
+     Default = cozy. Set [data-density="compact"] to tighten rows/lists.
+     ------------------------------------------------------------------ */
+  --k3-density-pad-y:  10px;
+  --k3-density-pad-x:  14px;
+  --k3-density-row-y:  12px;
+  --k3-density-gap:    var(--k3-s-3);
+  --k3-density-text:   var(--k3-text-sm);
+}
+
+[data-density="compact"] {
+  --k3-density-pad-y:  6px;
+  --k3-density-pad-x:  10px;
+  --k3-density-row-y:  6px;
+  --k3-density-gap:    8px;
+  --k3-density-text:   var(--k3-text-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --k3-motion-quick:    0ms;
+    --k3-motion-base:     0ms;
+    --k3-motion-emphasis: 0ms;
+    --k3-motion-enter:    0ms;
+  }
+}
+
+/* ------------------------------------------------------------------
+   FOCUS RING — accent-aware, defined here as a black halo + accent ring
+   ------------------------------------------------------------------ */
+:root {
+  --k3-focus-ring:
+    0 0 0 2px var(--k3-surface),
+    0 0 0 4px var(--k3-accent, var(--k3-fg-1));
+  --k3-focus-ring-inverse:
+    0 0 0 2px var(--k3-sidebar),
+    0 0 0 4px var(--k3-accent-light, #fff);
+}
+
+
+/* ==========================================================================
+   Kronos v2.5 — CERULEAN direction
+   - Primary accent: cerulean #137CB6 at 11 steps, engineer voice
+   - Complement: warm rust (true complement to cerulean ~199°)
+   - Semantic info-blue recolored to grey-blue to avoid two-blues conflict
+   ========================================================================== */
+
+:root {
+  /* Accent — Cerulean 11-step (#137CB6 at step 500) */
+  --k3-accent-50:  #E6F2F9;
+  --k3-accent-100: #C6E0F0;
+  --k3-accent-200: #9BCAE6;
+  --k3-accent-300: #6FAFD8;
+  --k3-accent-400: #4794C7;
+  --k3-accent-500: #137CB6;   /* user's wireframe blue */
+  --k3-accent-600: #1068A0;
+  --k3-accent-700: #0E5582;   /* text-safe — 8.6:1 on white */
+  --k3-accent-800: #0A4366;
+  --k3-accent-900: #07334D;
+  --k3-accent-950: #052336;
+
+  /* Accent semantic aliases — note text default is 700 (not 500)
+     because 500 is only 4.6:1 — barely AA on body text */
+  --k3-accent:         var(--k3-accent-700);  /* text use */
+  --k3-accent-text:    var(--k3-accent-700);
+  --k3-accent-rail:    var(--k3-accent-500);  /* the brand-mark blue */
+  --k3-accent-deco:    var(--k3-accent-300);
+  --k3-accent-bg:      var(--k3-accent-50);
+  --k3-accent-bg-2:    var(--k3-accent-100);
+  --k3-accent-surface: var(--k3-accent-700);  /* loud surfaces — use 700 for contrast against white type */
+  --k3-accent-light:   var(--k3-accent-300);
+
+  /* Complement — Warm rust 11-step (~20° hue, blueprint-pencil warm) */
+  --k3-comp-50:   #FBEEE6;
+  --k3-comp-100:  #F7DCC9;
+  --k3-comp-200:  #EFB994;
+  --k3-comp-300:  #E59465;
+  --k3-comp-400:  #D26035;
+  --k3-comp-500:  #B14826;
+  --k3-comp-600:  #93371D;
+  --k3-comp-700:  #762B17;
+  --k3-comp-800:  #582012;
+  --k3-comp-900:  #3D170D;
+  --k3-comp-950:  #240D07;
+
+  --k3-comp:       var(--k3-comp-600);
+  --k3-comp-text:  var(--k3-comp-600);
+  --k3-comp-rail:  var(--k3-comp-500);
+  --k3-comp-bg:    var(--k3-comp-50);
+  --k3-comp-bg-2:  var(--k3-comp-100);
+  --k3-comp-deco:  var(--k3-comp-300);
+
+  /* RECOLOR semantic info to grey-blue — avoids two-blues conflict */
+  --k3-blue:        #3D556E;
+  --k3-blue-bg:     #ECEFF3;
+  --k3-blue-border: #B4BFCC;
+}

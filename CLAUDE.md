@@ -93,11 +93,15 @@ All elision rules live in **one place**: `elision.py` (`FRENCH_ELISION_RULES` li
 - Rules are applied in order; put specific patterns (e.g. `je ai`) before their generic catch-all (e.g. `je + any vowel-word`)
 - The `tu + avoir/être` colloquial contractions (`tu as` → `t'as`) are in section 6b — these are spoken French only and not standard written elisions
 
-## Design rules (Kronos)
-- No border-radius anywhere
-- Font families: `--font-display: Impact`, `--font-ui: 'IBM Plex Mono'`, `--font-body: 'IBM Plex Sans'`
+## Design rules (Kronos v3)
+Design spec lives in `kronos-design-handoff/`. Token source of truth: `tokens-v3.css`. Component patterns: `components-v3.css`.
+- No border-radius anywhere (avatars are the only exception, not used here)
+- No shadows on cards/buttons — borders only. Elevation (`--k3-elev-1/2`) reserved for floating UI (dropdowns, modals, toasts)
+- Font families: `--font-display: 'Anton', Impact, 'Arial Black', 'Helvetica Neue'` · `--font-ui: 'IBM Plex Mono'` · `--font-body: 'IBM Plex Sans'`
 - Sidebar: `#1A1A1A` background, white text at 0.3–0.55 opacity for secondary labels
-- Teal accent: `#7A9393` (dark variant `#4A6363`)
-- Red: `#BD3E31` (destructive actions only)
-- All buttons: uppercase, letter-spacing, monospace font
-- Active state: teal left border + subtle teal background tint
+- **Accent (cerulean)**: `--k-teal: #137CB6` (rail/badge fills) · `--k-teal-dark: #0E5582` (text-safe dark, hover fills)
+- Red: `#A8281C` (destructive actions only)
+- Score bars / status badges: green `#1F5A40` (≥70%) · amber `#8A5A00` (40–70%) · red `#A8281C` (<40%)
+- All buttons: uppercase, letter-spacing, monospace font; primary fill `#1A1A1A`, hover swaps to `--k-teal-dark`
+- Active state: cerulean left border + subtle `rgba(19,124,182,0.06–0.08)` background tint
+- Motion: 80–150ms `cubic-bezier(0.4,0,0.2,1)` — transitions on `color`, `background`, `border-color` only

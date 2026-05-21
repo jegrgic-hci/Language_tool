@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kronos v3 — Cerulean canonical</title>
+<link rel="stylesheet" href="tokens-v3.css">
+<link rel="stylesheet" href="components-v3.css">
+<style>
+  /* ---------- Page chrome (this index only) ---------- */
+  .hero {
+    background: var(--k3-sidebar);
+    color: var(--k3-fg-on-dark-1);
+    padding: var(--k3-s-8) var(--k3-s-7) var(--k3-s-7);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 5px;
+    background: var(--k3-accent-rail);
+  }
+  .stamp-row {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+    color: var(--k3-fg-on-dark-3);
+    margin-bottom: var(--k3-s-4);
+  }
+  .stamp-row .pill {
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 4px 10px;
+    color: var(--k3-fg-on-dark-2);
+  }
+  .stamp-row .pill.is-rail {
+    border-color: var(--k3-accent-rail);
+    color: var(--k3-accent-200);
+  }
+  .hero h1 {
+    font-family: var(--k3-font-display);
+    font-size: clamp(64px, 11vw, 140px);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    line-height: 0.9;
+    margin: 0 0 var(--k3-s-4);
+  }
+  .hero h1 .ver {
+    color: var(--k3-accent-300);
+  }
+  .hero .lede {
+    font-family: var(--k3-font-body);
+    font-size: var(--k3-text-md);
+    line-height: 1.6;
+    color: var(--k3-fg-on-dark-2);
+    max-width: 64ch;
+    margin: 0;
+  }
+  .hero .navrow {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: var(--k3-s-6);
+    padding-top: var(--k3-s-4);
+    border-top: 1px solid rgba(255,255,255,0.12);
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: var(--k3-track-ui);
+    text-transform: uppercase;
+  }
+  .hero .navrow a {
+    color: var(--k3-fg-on-dark-2);
+    text-decoration: none;
+    padding-bottom: 4px;
+    border-bottom: 1px solid transparent;
+    transition: color var(--k3-motion-quick) var(--k3-ease),
+                border-color var(--k3-motion-quick) var(--k3-ease);
+  }
+  .hero .navrow a:hover {
+    color: #fff;
+    border-bottom-color: var(--k3-accent-rail);
+  }
+
+  /* ---------- Section scaffold ---------- */
+  .section {
+    padding: var(--k3-s-7) var(--k3-s-7);
+    border-bottom: 1px solid var(--k3-border-light);
+  }
+  .section.is-tight { padding-top: var(--k3-s-6); padding-bottom: var(--k3-s-6); }
+  .section-h {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: var(--k3-s-3);
+  }
+  .section-h .num {
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+    color: var(--k3-fg-4);
+  }
+  .section-h h2 {
+    font-family: var(--k3-font-body);
+    font-weight: 600;
+    font-size: var(--k3-text-lg);
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  .section > .section-l {
+    font-family: var(--k3-font-body);
+    font-size: var(--k3-text-base);
+    line-height: 1.6;
+    color: var(--k3-fg-3);
+    max-width: 70ch;
+    margin: 0 0 var(--k3-s-5);
+  }
+
+  /* ---------- v3 charter (inherits row) ---------- */
+  .inherits {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 1000px) { .inherits { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .inherits { grid-template-columns: 1fr; } }
+  .inherits .card {
+    background: var(--k3-surface);
+    border: 1px solid var(--k3-border-light);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .inherits .card .lbl {
+    font-family: var(--k3-font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+    color: var(--k3-accent);
+  }
+  .inherits .card .h {
+    font-family: var(--k3-font-body);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--k3-fg-1);
+  }
+  .inherits .card p {
+    font-family: var(--k3-font-body);
+    font-size: 13px;
+    color: var(--k3-fg-3);
+    margin: 0;
+    line-height: 1.55;
+  }
+  .inherits .card code {
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    background: var(--k3-n-100);
+    border: 1px solid var(--k3-border-light);
+    padding: 1px 5px;
+  }
+
+  /* ---------- Color scales ---------- */
+  .scale-grid {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 2px;
+  }
+  .scale-grid .step {
+    aspect-ratio: 1;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: var(--k3-font-ui);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .scale-grid .step .num { font-size: 10px; }
+  .scale-grid .step .hex { font-size: 8.5px; opacity: 0.7; }
+  @media (max-width: 700px) {
+    .scale-grid .step .hex { display: none; }
+  }
+  .scale-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: var(--k3-s-5) 0 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .scale-label:first-child { margin-top: 0; }
+  .scale-label .name {
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+    color: var(--k3-fg-1);
+  }
+  .scale-label .meta {
+    font-family: var(--k3-font-ui);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--k3-fg-4);
+  }
+  .sem-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: var(--k3-s-5);
+  }
+  @media (max-width: 700px) { .sem-row { grid-template-columns: 1fr 1fr; } }
+  .sem-card {
+    border: 1px solid var(--k3-border-light);
+    padding: 12px;
+    background: var(--k3-surface);
+  }
+  .sem-card .sw {
+    width: 100%;
+    height: 36px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    color: #fff;
+    font-family: var(--k3-font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+  }
+  .sem-card .name {
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: var(--k3-track-ui);
+    text-transform: uppercase;
+    color: var(--k3-fg-1);
+  }
+  .sem-card .role {
+    font-family: var(--k3-font-body);
+    font-size: 12px;
+    color: var(--k3-fg-3);
+    margin-top: 2px;
+  }
+
+  /* ---------- Components in context ---------- */
+  .ctx-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 900px) { .ctx-grid { grid-template-columns: 1fr; } }
+  .ctx-block {
+    background: var(--k3-surface);
+    border: 1px solid var(--k3-border-light);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .ctx-block h3 {
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+    color: var(--k3-fg-3);
+    margin: 0 0 4px;
+  }
+  .kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ---------- Charter / open questions ---------- */
+  .charter {
+    background: var(--k3-n-100);
+  }
+  .charter-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--k3-border-mid);
+    border: 1px solid var(--k3-border-mid);
+  }
+  @media (max-width: 800px) { .charter-grid { grid-template-columns: 1fr; } }
+  .charter-grid .item {
+    background: var(--k3-surface);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .charter-grid .item .ix {
+    font-family: var(--k3-font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+    color: var(--k3-accent);
+  }
+  .charter-grid .item .h {
+    font-family: var(--k3-font-body);
+    font-weight: 600;
+    font-size: var(--k3-text-md);
+    color: var(--k3-fg-1);
+    margin: 0;
+  }
+  .charter-grid .item p {
+    font-family: var(--k3-font-body);
+    font-size: 13px;
+    color: var(--k3-fg-3);
+    line-height: 1.6;
+    margin: 0;
+    max-width: 50ch;
+  }
+  .charter-grid .item .qs {
+    font-family: var(--k3-font-body);
+    font-size: 13px;
+    color: var(--k3-fg-2);
+    line-height: 1.6;
+    margin: 4px 0 0;
+    padding-left: 18px;
+  }
+  .charter-grid .item .qs li { margin-bottom: 2px; }
+  .charter-grid .item .meta {
+    font-family: var(--k3-font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: var(--k3-track-label);
+    text-transform: uppercase;
+    color: var(--k3-fg-4);
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px dashed var(--k3-border-light);
+  }
+
+  /* footer */
+  .footnav {
+    background: var(--k3-sidebar);
+    color: var(--k3-fg-on-dark-1);
+    padding: var(--k3-s-6) var(--k3-s-7);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .footnav .left {
+    font-family: var(--k3-font-body);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--k3-fg-on-dark-2);
+    max-width: 60ch;
+  }
+  .footnav .links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .footnav a {
+    font-family: var(--k3-font-ui);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: var(--k3-track-ui);
+    text-transform: uppercase;
+    color: var(--k3-fg-on-dark-1);
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 8px 14px;
+    text-decoration: none;
+    transition: background var(--k3-motion-quick) var(--k3-ease),
+                border-color var(--k3-motion-quick) var(--k3-ease);
+  }
+  .footnav a:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--k3-accent-rail);
+  }
+  .footnav a.is-primary {
+    border-color: var(--k3-accent-rail);
+    color: var(--k3-accent-200);
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero" data-screen-label="00 Hero">
+  <div class="stamp-row">
+    <span class="pill is-rail">Kronos · v3.0</span>
+    <span class="pill">Cerulean · canonical</span>
+    <span class="pill">17 May 2026</span>
+    <span class="pill">Sprint 00 · charter</span>
+  </div>
+  <h1>Kronos <span class="ver">v3</span></h1>
+  <p class="lede">
+    The Cerulean direction is canonical. The "pick A or B" picker is retired.
+    v2.5's three experimental upgrades — 11-step neutrals, elevation tokens,
+    density modes — are no longer experiments; they're the foundation. The
+    namespace moves to <code style="font-family: var(--k3-font-ui); background: rgba(255,255,255,0.08); padding: 1px 6px; font-size: 13px;">--k3-*</code>
+    so downstream consumers know they've moved off the picker.
+  </p>
+  <nav class="navrow">
+    <a href="#inherits">01 · What v3 inherits</a>
+    <a href="#colors">02 · Color foundations</a>
+    <a href="#components">03 · Components</a>
+    <a href="#charter">04 · v3 charter — open</a>
+    <a href="../Kronos v2.5/index.html" style="margin-left: auto; color: var(--k3-fg-on-dark-3);">← v2.5 picker</a>
+  </nav>
+</header>
+
+<!-- ============ 01 · INHERITS ============ -->
+<section class="section" id="inherits">
+  <div class="section-h"><span class="num">01</span><h2>What v3 inherits from v2.5</h2></div>
+  <p class="section-l">
+    No regressions — every v2.5 token resolves under the new namespace. The four
+    additions below are now load-bearing, not experimental.
+  </p>
+  <div class="inherits">
+    <div class="card">
+      <span class="lbl">Foundation</span>
+      <span class="h">11-step neutral scale</span>
+      <p>Cool 1° tint. <code>--k3-n-50</code> through <code>--k3-n-950</code>. Aliases <code>--k3-fg-1..4</code> resolve into the scale.</p>
+    </div>
+    <div class="card">
+      <span class="lbl">Foundation</span>
+      <span class="h">Elevation, 2 tokens</span>
+      <p><code>--k3-elev-1</code> for popovers/toasts. <code>--k3-elev-2</code> for modals. Cards and buttons stay flat.</p>
+    </div>
+    <div class="card">
+      <span class="lbl">Foundation</span>
+      <span class="h">Density modes</span>
+      <p>Default = cozy. <code>data-density="compact"</code> tightens rows, lists, inputs. Buttons and cards opt out.</p>
+    </div>
+    <div class="card">
+      <span class="lbl">Foundation</span>
+      <span class="h">Named motion</span>
+      <p>Quick 80ms / base 150ms / emphasis 240ms / enter 320ms. Single easing curve. <code>prefers-reduced-motion</code> respected.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 · COLORS ============ -->
+<section class="section" id="colors">
+  <div class="section-h"><span class="num">02</span><h2>Color foundations</h2></div>
+  <p class="section-l">
+    Three scales, eleven steps each, plus four semantic. Accent stays mostly
+    invisible (rails, hover, tag tints). Complement appears in attention
+    moments. Neutrals do the heavy lifting.
+  </p>
+
+  <div class="scale-label">
+    <span class="name">Accent · Cerulean</span>
+    <span class="meta">Brand-mark 500 #137CB6 · Text-safe 700 #0E5582 · 8.6:1 AAA</span>
+  </div>
+  <div class="scale-grid">
+    <div class="step" style="background: var(--k3-accent-50);  color: var(--k3-accent-800);"><span class="num">50</span><span class="hex">E6F2F9</span></div>
+    <div class="step" style="background: var(--k3-accent-100); color: var(--k3-accent-800);"><span class="num">100</span><span class="hex">C6E0F0</span></div>
+    <div class="step" style="background: var(--k3-accent-200); color: var(--k3-accent-800);"><span class="num">200</span><span class="hex">9BCAE6</span></div>
+    <div class="step" style="background: var(--k3-accent-300); color: var(--k3-accent-900);"><span class="num">300</span><span class="hex">6FAFD8</span></div>
+    <div class="step" style="background: var(--k3-accent-400); color: #fff;"><span class="num">400</span><span class="hex">4794C7</span></div>
+    <div class="step" style="background: var(--k3-accent-500); color: #fff;"><span class="num">500</span><span class="hex">137CB6</span></div>
+    <div class="step" style="background: var(--k3-accent-600); color: #fff;"><span class="num">600</span><span class="hex">1068A0</span></div>
+    <div class="step" style="background: var(--k3-accent-700); color: #fff;"><span class="num">700</span><span class="hex">0E5582</span></div>
+    <div class="step" style="background: var(--k3-accent-800); color: #fff;"><span class="num">800</span><span class="hex">0A4366</span></div>
+    <div class="step" style="background: var(--k3-accent-900); color: #fff;"><span class="num">900</span><span class="hex">07334D</span></div>
+    <div class="step" style="background: var(--k3-accent-950); color: #fff;"><span class="num">950</span><span class="hex">052336</span></div>
+  </div>
+
+  <div class="scale-label">
+    <span class="name">Complement · Warm rust</span>
+    <span class="meta">~180° from cerulean · blueprint-pencil warm · attention only</span>
+  </div>
+  <div class="scale-grid">
+    <div class="step" style="background: var(--k3-comp-50);  color: var(--k3-comp-700);"><span class="num">50</span><span class="hex">FBEEE6</span></div>
+    <div class="step" style="background: var(--k3-comp-100); color: var(--k3-comp-700);"><span class="num">100</span><span class="hex">F7DCC9</span></div>
+    <div class="step" style="background: var(--k3-comp-200); color: var(--k3-comp-800);"><span class="num">200</span><span class="hex">EFB994</span></div>
+    <div class="step" style="background: var(--k3-comp-300); color: var(--k3-comp-900);"><span class="num">300</span><span class="hex">E59465</span></div>
+    <div class="step" style="background: var(--k3-comp-400); color: #fff;"><span class="num">400</span><span class="hex">D26035</span></div>
+    <div class="step" style="background: var(--k3-comp-500); color: #fff;"><span class="num">500</span><span class="hex">B14826</span></div>
+    <div class="step" style="background: var(--k3-comp-600); color: #fff;"><span class="num">600</span><span class="hex">93371D</span></div>
+    <div class="step" style="background: var(--k3-comp-700); color: #fff;"><span class="num">700</span><span class="hex">762B17</span></div>
+    <div class="step" style="background: var(--k3-comp-800); color: #fff;"><span class="num">800</span><span class="hex">582012</span></div>
+    <div class="step" style="background: var(--k3-comp-900); color: #fff;"><span class="num">900</span><span class="hex">3D170D</span></div>
+    <div class="step" style="background: var(--k3-comp-950); color: #fff;"><span class="num">950</span><span class="hex">240D07</span></div>
+  </div>
+
+  <div class="scale-label">
+    <span class="name">Neutrals · cool grey</span>
+    <span class="meta">11 steps · 1° cool hue · all AA-compliant against #FAFBFB</span>
+  </div>
+  <div class="scale-grid">
+    <div class="step" style="background: var(--k3-n-50);  color: var(--k3-n-800);"><span class="num">50</span><span class="hex">FAFBFB</span></div>
+    <div class="step" style="background: var(--k3-n-100); color: var(--k3-n-800);"><span class="num">100</span><span class="hex">F2F3F4</span></div>
+    <div class="step" style="background: var(--k3-n-200); color: var(--k3-n-800);"><span class="num">200</span><span class="hex">E4E6E8</span></div>
+    <div class="step" style="background: var(--k3-n-300); color: var(--k3-n-800);"><span class="num">300</span><span class="hex">CDD0D3</span></div>
+    <div class="step" style="background: var(--k3-n-400); color: var(--k3-n-900);"><span class="num">400</span><span class="hex">A8ACB0</span></div>
+    <div class="step" style="background: var(--k3-n-500); color: #fff;"><span class="num">500</span><span class="hex">80858A</span></div>
+    <div class="step" style="background: var(--k3-n-600); color: #fff;"><span class="num">600</span><span class="hex">5C6166</span></div>
+    <div class="step" style="background: var(--k3-n-700); color: #fff;"><span class="num">700</span><span class="hex">44484C</span></div>
+    <div class="step" style="background: var(--k3-n-800); color: #fff;"><span class="num">800</span><span class="hex">2E3134</span></div>
+    <div class="step" style="background: var(--k3-n-900); color: #fff;"><span class="num">900</span><span class="hex">1C1E20</span></div>
+    <div class="step" style="background: var(--k3-n-950); color: #fff;"><span class="num">950</span><span class="hex">0F1012</span></div>
+  </div>
+
+  <div class="sem-row">
+    <div class="sem-card"><div class="sw" style="background: var(--k3-red);">#A8281C</div><div class="name">Error</div><div class="role">Destructive · invalid</div></div>
+    <div class="sem-card"><div class="sw" style="background: var(--k3-green);">#1F5A40</div><div class="name">Success</div><div class="role">Completed · shipped</div></div>
+    <div class="sem-card"><div class="sw" style="background: var(--k3-amber);">#8A5A00</div><div class="name">Warning</div><div class="role">Caution · approaching</div></div>
+    <div class="sem-card"><div class="sw" style="background: var(--k3-blue);">#3D556E</div><div class="name">Info</div><div class="role">Grey-blue · retuned (no 2-blues)</div></div>
+  </div>
+</section>
+
+<!-- ============ 03 · COMPONENTS ============ -->
+<section class="section" id="components">
+  <div class="section-h"><span class="num">03</span><h2>Components — sanity check</h2></div>
+  <p class="section-l">
+    Same component sheet as v2.5, renamed. KPI / tag / button / banner spot-check
+    under the new namespace.
+  </p>
+
+  <div class="ctx-grid">
+    <div class="ctx-block">
+      <h3>KPI tiles · Anton workhorse</h3>
+      <div class="kpi-row">
+        <div class="k3-kpi">
+          <span class="label">Active projects</span>
+          <span class="num is-accent">12<span class="delta is-up">+2</span></span>
+          <span class="meta">this quarter</span>
+        </div>
+        <div class="k3-kpi">
+          <span class="label">Open RFIs</span>
+          <span class="num is-comp">23<span class="delta is-down">−5</span></span>
+          <span class="meta">7 awaiting reply</span>
+        </div>
+        <div class="k3-kpi">
+          <span class="label">Hours logged</span>
+          <span class="num">142</span>
+          <span class="meta">this week</span>
+        </div>
+        <div class="k3-kpi">
+          <span class="label">Punch items</span>
+          <span class="num">08</span>
+          <span class="meta">3 overdue</span>
+        </div>
+      </div>
+
+      <h3>Tags &amp; badges</h3>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <span class="k3-tag">UX research</span>
+        <span class="k3-tag is-accent">Featured</span>
+        <span class="k3-tag is-comp">In progress</span>
+        <span class="k3-tag is-info">In review</span>
+        <span class="k3-tag is-warning">Beta</span>
+        <span class="k3-tag is-success">Shipped</span>
+        <span class="k3-tag is-error">Deprecated</span>
+      </div>
+
+      <h3>Buttons</h3>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <button class="k3-btn k3-btn-primary">Primary action</button>
+        <button class="k3-btn k3-btn-accent">Accent action</button>
+        <button class="k3-btn k3-btn-secondary">Secondary</button>
+        <button class="k3-btn k3-btn-ghost">Ghost →</button>
+      </div>
+    </div>
+
+    <div class="ctx-block">
+      <h3>Accent moment · promo block</h3>
+      <div class="k3-promo">
+        <div class="pre">Phase 03 · Pour week</div>
+        <div class="h">Critical path</div>
+        <p>Concrete pour scheduled for Tue–Thu. Inspector confirmed.</p>
+      </div>
+
+      <h3>Banner · warning</h3>
+      <div class="k3-banner is-warning">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0; margin-top: 2px;"><path d="M8 2L14.5 13.5H1.5L8 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7V10M8 11.5V11.51" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <div class="k3-banner-body">
+          <div class="k3-banner-title">Approaching deadline</div>
+          <div class="k3-banner-msg">Substantial completion in 90 days — 4 punch items pending.</div>
+        </div>
+      </div>
+
+      <h3>Inline link</h3>
+      <p class="k3-body" style="font-size: 13px;">
+        Specifications follow <a href="#" class="k3-link">PROTOCOL_V4.0</a>, with
+        Cerulean now serving as the brand-mark blue across all product surfaces.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 · CHARTER ============ -->
+<section class="section charter" id="charter">
+  <div class="section-h"><span class="num">04</span><h2>v3 charter — open for this sprint</h2></div>
+  <p class="section-l">
+    Four candidate workstreams. v3 doesn't need all four to ship — but we
+    should pick the ones we commit to before building. Each card lists the
+    questions I'd want answered before starting.
+  </p>
+
+  <div class="charter-grid">
+
+    <div class="item">
+      <span class="ix">A · Surface</span>
+      <h3 class="h">Dark mode</h3>
+      <p>
+        Inverse surface scale + on-dark text alphas exist already (sidebar uses
+        them). A full dark mode means committing to dark-equivalent values for
+        every component surface, not just chrome.
+      </p>
+      <ul class="qs">
+        <li>Pure inversion, or a separate cool-grey-on-near-black palette?</li>
+        <li>Cerulean 500 vs 400 on dark — which reads more "brand"?</li>
+        <li>Warm-rust complement keeps its hue, or shifts cooler on dark?</li>
+        <li>Auto via <code>prefers-color-scheme</code>, or explicit class toggle?</li>
+      </ul>
+      <span class="meta">Effort · Medium · ~3 days</span>
+    </div>
+
+    <div class="item">
+      <span class="ix">B · Data</span>
+      <h3 class="h">Data-viz palette</h3>
+      <p>
+        Charts in the dashboard currently improvise — they reach for accent,
+        complement, then neutrals. A real series palette would let us label up
+        to 8 categories without aesthetic drift.
+      </p>
+      <ul class="qs">
+        <li>Categorical (qualitative) only, or also sequential + diverging?</li>
+        <li>Anchor the first three series to accent / complement / neutral?</li>
+        <li>Color-blind safe (deuteranopia + protanopia) — required or nice-to-have?</li>
+        <li>Do we ship pattern fills for B&W print?</li>
+      </ul>
+      <span class="meta">Effort · Small · ~1.5 days</span>
+    </div>
+
+    <div class="item">
+      <span class="ix">C · Motion</span>
+      <h3 class="h">Motion maturity</h3>
+      <p>
+        v2.5 added named durations. v3 could codify the <em>where</em> — which
+        components move, which never do, and how multi-element transitions
+        coordinate (stagger? cascade? respect reduced-motion to what degree?).
+      </p>
+      <ul class="qs">
+        <li>Stagger token (e.g. <code>--k3-stagger-base: 40ms</code>) — yes/no?</li>
+        <li>Allowed transforms — still none, or add a single 2px lift?</li>
+        <li>Page transitions — view-transitions API, or stay static?</li>
+      </ul>
+      <span class="meta">Effort · Small · ~1 day · low risk</span>
+    </div>
+
+    <div class="item">
+      <span class="ix">D · Forms</span>
+      <h3 class="h">Form patterns</h3>
+      <p>
+        Single inputs are documented; multi-field forms are not. Layout, error
+        summary, inline validation timing, helper-text positioning, required
+        markers — none of it is standardised. Construction product needs this
+        immediately.
+      </p>
+      <ul class="qs">
+        <li>Label position — top, left, or context-dependent?</li>
+        <li>Error summary at top, inline per field, or both?</li>
+        <li>Required marker — asterisk, "(required)", or "(optional)" inverse?</li>
+        <li>Save behavior — explicit submit, autosave, or per-field commit?</li>
+      </ul>
+      <span class="meta">Effort · Medium · ~2.5 days</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ FOOTER NAV ============ -->
+<footer class="footnav">
+  <div class="left">
+    Next step: confirm which charter items are in scope for the v3 sprint, and
+    I'll build the first one end-to-end (tokens → components → demo) before
+    moving to the next.
+  </div>
+  <div class="links">
+    <a href="#charter" class="is-primary">Confirm scope →</a>
+    <a href="../Kronos v2.5/Cerulean.html">v2.5 Cerulean source</a>
+    <a href="../Kronos v2.5/index.html">v2.5 picker</a>
+  </div>
+</footer>
+
+</body>
+</html>
