@@ -142,12 +142,7 @@ def generate_prosody_phrase(sound_target: str, level: str = "B1") -> dict:
                 temperature=0.85,
                 max_tokens=1200,
             )
-            raw = resp.choices[0].message.content.strip()
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
-                if raw.startswith("json\n"):
-                    raw = raw[5:]
-                raw = raw.rstrip()
+            raw = _strip_md_fence(resp.choices[0].message.content)
             data = json.loads(raw)
             phrase = data["phrase"]
 
@@ -188,11 +183,7 @@ def analyze_prosody_mismatches(
         ).choices[0].message.content.strip()
         if not raw:
             return _fallback(mismatches)
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json\n"):
-                raw = raw[5:]
-            raw = raw.rstrip()
+        raw = _strip_md_fence(raw)
         return json.loads(raw).get("feedback", [])
     except Exception:
         return _fallback(mismatches)
@@ -220,6 +211,15 @@ STRICT RULES:
 - IPA: broad transcription, | for rhythm group boundaries, ‿ for liaison"""
 
 
+def _strip_md_fence(raw: str) -> str:
+    """Strip markdown code fences from an LLM response."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```[a-z]*\n?", "", raw)
+        raw = re.sub(r"\n?```$", "", raw)
+    return raw.strip()
+
+
 def annotate_phrase_rhythm(phrase: str) -> dict:
     """Annotate an existing phrase with syllabification, rhythm groups, liaisons, and IPA."""
     for attempt in range(3):
@@ -231,14 +231,9 @@ def annotate_phrase_rhythm(phrase: str) -> dict:
                     {"role": "user", "content": f"Annotate this French phrase: {phrase}"},
                 ],
                 temperature=0.0,
-                max_tokens=800,
+                max_tokens=1600,
             )
-            raw = resp.choices[0].message.content.strip()
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
-                if raw.startswith("json\n"):
-                    raw = raw[5:]
-                raw = raw.rstrip()
+            raw = _strip_md_fence(resp.choices[0].message.content)
             return json.loads(raw)
         except json.JSONDecodeError:
             if attempt < 2:

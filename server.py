@@ -1181,7 +1181,8 @@ async def shadow_rhythm(req: ShadowRhythmRequest):
         data = await asyncio.to_thread(lambda: annotate_phrase_rhythm(req.phrase))
         return data
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Rhythm annotation failed: {e}")
+        print(f"[shadow/rhythm] ERROR for phrase={req.phrase!r}: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Rhythm annotation failed: {e}")
 
 
 # ── Prosody routes ────────────────────────────────────────────────────────────
