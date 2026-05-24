@@ -6,7 +6,7 @@ from document_engine import get_tutor_context
 load_dotenv()
 
 _client = Mistral(api_key=os.environ.get("MISTRAL_API_KEY", "unset"))
-_MODEL = "mistral-large-latest"
+_MODEL = "mistral-small-latest"
 
 def set_api_key(key: str):
     global _client

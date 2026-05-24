@@ -6,6 +6,7 @@ from collections import deque
 from mistralai import Mistral
 from dotenv import load_dotenv
 from shadow_engine import score_attempt
+from pos_tagger import tag_nouns_adjs
 
 load_dotenv()
 
@@ -67,8 +68,7 @@ Return ONLY valid JSON — no markdown, no extra text — in this exact shape:
   ],
   "enchaînements": [
     {"from_word": "cette", "to_word": "année", "sound": "t"}
-  ],
-  "noun_adj_tokens": ["enfants", "jardin"]
+  ]
 }
 
 STRICT RULES:
@@ -134,7 +134,7 @@ def generate_prosody_phrase(sound_target: str, level: str = "B1") -> dict:
     for attempt in range(3):
         try:
             resp = _client.chat.complete(
-                model="mistral-large-latest",
+                model="mistral-small-latest",
                 messages=[
                     {"role": "system", "content": _PHRASE_SYSTEM},
                     {"role": "user", "content": f"Sound focus: {focus}\nCEFR level: {level}{avoid}"},
@@ -145,6 +145,7 @@ def generate_prosody_phrase(sound_target: str, level: str = "B1") -> dict:
             raw = _strip_md_fence(resp.choices[0].message.content)
             data = json.loads(raw)
             phrase = data["phrase"]
+            data["noun_adj_tokens"] = tag_nouns_adjs(phrase)
 
             if key not in _recent:
                 _recent[key] = deque(maxlen=_RECENT_MAX)

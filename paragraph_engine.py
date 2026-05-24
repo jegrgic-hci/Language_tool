@@ -5,6 +5,7 @@ import time
 from mistralai import Mistral
 from dotenv import load_dotenv
 from score_utils import normalize as _normalize, build_display_results, run_sequence_match, analyze_mismatches as _analyze_mismatches
+from pos_tagger import tag_nouns_adjs
 
 load_dotenv()
 
@@ -40,9 +41,7 @@ Rules:
 - STYLE "opinion": a persuasive monologue expressing a clear point of view on something related to the subject. Use argumentative connectors (certes, néanmoins, en revanche, c'est pourquoi, il faut reconnaître que…). The speaker takes a position, develops it with reasons, and concludes. Natural to read aloud, opinionated in tone.
 
 Return ONLY valid JSON in this exact shape (no markdown, no extra text):
-{"paragraph": "...", "noun_adj_tokens": ["word1", "word2"]}
-
-noun_adj_tokens must list every noun and adjective in the paragraph exactly as written."""
+{"paragraph": "..."}"""
 
 
 
@@ -169,7 +168,7 @@ def generate_paragraph(level: str, topic: str, style: str = "story") -> dict:
                 "sentences": sentences,
                 "topic": topic,
                 "level": level,
-                "noun_adj_tokens": data.get("noun_adj_tokens", []),
+                "noun_adj_tokens": tag_nouns_adjs(paragraph),
             }
         except Exception as e:
             if attempt < 2 and "429" in str(e):

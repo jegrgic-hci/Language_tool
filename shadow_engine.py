@@ -6,6 +6,7 @@ from collections import deque
 from mistralai import Mistral
 from dotenv import load_dotenv
 from score_utils import normalize as _normalize, build_display_results, run_sequence_match, analyze_mismatches as _analyze_mismatches
+from pos_tagger import tag_nouns_adjs
 
 load_dotenv()
 
@@ -35,9 +36,7 @@ Rules:
 - STYLE "howto": a practical instruction or step in a process. Use imperative, infinitive, or instructional phrasing. The learner should walk away knowing how to do or use something related to the subject.
 
 Return ONLY valid JSON in this exact shape (no markdown, no extra text):
-{"phrase": "...", "noun_adj_tokens": ["word1", "word2"]}
-
-noun_adj_tokens must list every noun and adjective in the phrase exactly as written."""
+{"phrase": "..."}"""
 
 
 
@@ -110,7 +109,7 @@ def generate_phrase(level: str = 'A1', topic: str = None, style: str = 'story', 
     for attempt in range(3):
         try:
             resp = _client.chat.complete(
-                model="mistral-large-latest",
+                model="mistral-small-latest",
                 messages=[
                     {"role": "system", "content": _PHRASE_SYSTEM},
                     {"role": "user", "content": f"Generate a {level}-level French shadowing phrase{topic_clause}.{style_clause}{sound_clause}{focus_clause}{avoid_clause}"},
@@ -131,7 +130,7 @@ def generate_phrase(level: str = 'A1', topic: str = None, style: str = 'story', 
                 _recent_phrases[key] = deque(maxlen=_RECENT_MAX)
             _recent_phrases[key].append(phrase)
 
-            return {"phrase": phrase, "noun_adj_tokens": data.get("noun_adj_tokens", [])}
+            return {"phrase": phrase, "noun_adj_tokens": tag_nouns_adjs(phrase)}
         except Exception as e:
             if attempt < 2 and "429" in str(e):
                 time.sleep(2 ** attempt)
