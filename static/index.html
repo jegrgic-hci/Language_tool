@@ -616,7 +616,7 @@
     .bubble-stop:hover { opacity: 0.7; }
 
     /* ── Shadow & Practice views ── */
-    #shadow-view, #practice-view {
+    #phrase-view, #practice-view {
       flex: 1;
       flex-direction: column;
       overflow: hidden;
@@ -642,7 +642,7 @@
     .diff-pip.active { background: var(--k-teal); }
     .diff-pip:hover { background: var(--k-teal-dark); }
 
-    #shadow-content {
+    #phrase-content {
       flex: 1;
       overflow-y: auto;
       padding: 32px 24px;
@@ -651,10 +651,10 @@
       align-items: center;
       gap: 24px;
     }
-    #shadow-content::-webkit-scrollbar { width: 4px; }
-    #shadow-content::-webkit-scrollbar-thumb { background: var(--k-border-mid); }
+    #phrase-content::-webkit-scrollbar { width: 4px; }
+    #phrase-content::-webkit-scrollbar-thumb { background: var(--k-border-mid); }
 
-    #shadow-phrase-card {
+    #phrase-card {
       width: 100%;
       max-width: 640px;
       background: var(--k-surface);
@@ -693,7 +693,7 @@
     }
     #phrase-save-btn:hover { border-color: var(--k-teal); color: var(--k-teal); }
     #phrase-save-btn.saved { border-color: var(--k-green); color: var(--k-green); }
-    #shadow-phrase-text {
+    #phrase-text {
       font-family: var(--font-body);
       font-size: 1.55rem;
       font-weight: 500;
@@ -701,7 +701,7 @@
       color: var(--k-text-primary);
       transition: filter 0.25s;
     }
-    #shadow-phrase-card.blurred #shadow-phrase-text {
+    #phrase-card.blurred #phrase-text {
       filter: blur(9px);
       user-select: none;
     }
@@ -732,7 +732,7 @@
     }
     #phrase-syllable-btn:hover { border-color: var(--k-teal); color: var(--k-teal); }
     #phrase-syllable-btn.active { border-color: var(--k-teal); color: var(--k-teal); background: rgba(19,124,182,0.08); }
-    #shadow-syllable-line {
+    #phrase-syllable-line {
       margin-top: 10px;
       font-family: var(--font-body);
       font-size: 1rem;
@@ -752,7 +752,7 @@
       opacity: 0.45;
       margin: 0 4px;
     }
-    .shadow-replay-btn {
+    .phrase-replay-btn {
       width: 40px; height: 40px;
       display: flex; align-items: center; justify-content: center;
       background: transparent;
@@ -762,15 +762,19 @@
       transition: all 0.15s;
       padding: 0;
     }
-    .shadow-replay-btn:hover { border-color: var(--k-teal); color: var(--k-teal); }
-    .shadow-replay-btn:disabled { opacity: 0.3; pointer-events: none; }
+    .phrase-replay-btn:hover { border-color: var(--k-teal); color: var(--k-teal); }
+    .phrase-replay-btn:disabled { opacity: 0.3; pointer-events: none; }
 
-    #shadow-actions {
+    #phrase-actions {
       display: flex;
       gap: 16px;
       align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 640px;
+      position: relative;
     }
-    .shadow-mic-btn {
+    .phrase-mic-btn {
       width: 56px; height: 56px;
       background: var(--k-sidebar);
       color: white;
@@ -781,13 +785,20 @@
       cursor: pointer;
       transition: background 0.15s;
     }
-    .shadow-mic-btn:hover { background: var(--k-teal-dark); border-color: var(--k-teal-dark); }
-    .shadow-mic-btn.listening {
+    .phrase-mic-btn:hover { background: var(--k-teal-dark); border-color: var(--k-teal-dark); }
+    .phrase-mic-btn.listening {
       background: var(--k-red);
       border-color: var(--k-red);
       animation: micPulse 1.2s infinite;
     }
-    .shadow-skip-btn {
+    .phrase-retry-hint {
+      font-family: var(--font-ui);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--k-teal);
+    }
+    .phrase-skip-btn {
       font-family: var(--font-ui);
       font-size: 0.62rem;
       letter-spacing: 0.1em;
@@ -800,8 +811,8 @@
       transition: all 0.15s;
       height: 40px;
     }
-    .shadow-skip-btn:hover { border-color: var(--k-text-secondary); color: var(--k-text-primary); }
-    .shadow-attempt-label {
+    .phrase-skip-btn:hover { border-color: var(--k-text-secondary); color: var(--k-text-primary); }
+    .phrase-attempt-label {
       font-family: var(--font-ui);
       font-size: 0.62rem;
       letter-spacing: 0.08em;
@@ -810,7 +821,7 @@
       max-width: 640px;
       text-align: center;
     }
-    #shadow-attempt-prefix {
+    #phrase-attempt-prefix {
       font-size: 0.55rem;
       letter-spacing: 0.18em;
       text-transform: uppercase;
@@ -819,7 +830,7 @@
     }
 
     /* Feedback card */
-    #shadow-feedback {
+    #phrase-feedback {
       width: 100%;
       max-width: 640px;
       background: var(--k-surface);
@@ -847,21 +858,6 @@
       background: var(--k-border-light);
       cursor: pointer;
     }
-    .feedback-expand-btn {
-      font-family: var(--font-ui);
-      font-size: 0.58rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background: none;
-      border: 1px solid var(--k-border-mid);
-      color: var(--k-text-muted);
-      padding: 4px 10px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.15s;
-      flex-shrink: 0;
-    }
-    .feedback-expand-btn:hover { border-color: var(--k-teal); color: var(--k-teal); }
     .feedback-score-fill {
       height: 100%;
       background: var(--k-teal);
@@ -875,6 +871,9 @@
       font-size: 1.05rem;
       line-height: 2;
       border-bottom: 1px solid var(--k-border-light);
+      word-break: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
     }
     .diff-word.correct { color: var(--k-green); }
     .diff-word.wrong {
@@ -887,6 +886,39 @@
       text-decoration: line-through;
     }
     .feedback-items { padding: 4px 0; }
+    .word-exercise {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--k-border-light);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .word-exercise:last-child { border-bottom: none; }
+    .word-exercise-drill,
+    .word-practice-panel {
+      display: none;
+      background: rgba(19,124,182,0.07);
+      border: 1px solid rgba(19,124,182,0.2);
+      padding: 12px 14px;
+      gap: 10px;
+      flex-direction: column;
+    }
+    .word-exercise-drill.open,
+    .word-practice-panel.active { display: flex; }
+    .wd-transcript {
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      color: var(--k-text-secondary);
+      min-height: 1.4em;
+      line-height: 1.4;
+    }
+    .wd-meta {
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      color: var(--k-text-muted);
+    }
+    /* legacy alias — kept for feedback-item usages outside renderFeedback */
     .feedback-item {
       padding: 12px 20px;
       border-bottom: 1px solid var(--k-border-light);
@@ -915,9 +947,9 @@
       cursor: pointer;
       padding: 0;
       flex-shrink: 0;
-      transition: all 0.15s;
+      transition: color 80ms cubic-bezier(0.4,0,0.2,1), background 80ms cubic-bezier(0.4,0,0.2,1), border-color 80ms cubic-bezier(0.4,0,0.2,1);
     }
-    .fi-play-btn:hover { border-color: var(--k-teal); color: var(--k-teal); }
+    .fi-play-btn:hover { border-color: var(--k-teal-dark); color: var(--k-teal-dark); }
     .fi-play-btn.loading { opacity: 0.5; pointer-events: none; }
     .feedback-tip {
       font-family: var(--font-body);
@@ -937,24 +969,37 @@
     .add-to-practice-btn {
       align-self: flex-start;
       font-family: var(--font-ui);
-      font-size: 0.56rem;
-      letter-spacing: 0.12em;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       background: transparent;
       border: 1px solid var(--k-border-mid);
       color: var(--k-text-muted);
       padding: 4px 10px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: color 80ms cubic-bezier(0.4,0,0.2,1), background 80ms cubic-bezier(0.4,0,0.2,1), border-color 80ms cubic-bezier(0.4,0,0.2,1);
     }
-    .add-to-practice-btn:hover { border-color: var(--k-teal); color: var(--k-teal); }
-    .add-to-practice-btn.added { border-color: var(--k-green); color: var(--k-green); pointer-events: none; }
+    .add-to-practice-btn:hover { border-color: var(--k-teal-dark); color: var(--k-teal-dark); }
+    .practice-save-btn {
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent;
+      border: 1px solid var(--k-border-mid);
+      color: var(--k-text-muted);
+      padding: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 80ms cubic-bezier(0.4,0,0.2,1), background 80ms cubic-bezier(0.4,0,0.2,1), border-color 80ms cubic-bezier(0.4,0,0.2,1);
+    }
+    .practice-save-btn:hover { border-color: var(--k-teal-dark); color: var(--k-teal-dark); }
+    .practice-save-btn.added { border-color: var(--k-green); color: var(--k-green); pointer-events: none; }
     .feedback-item-actions {
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    .feedback-item-actions .word-check-mic { margin-top: 0; }
+    .feedback-item-actions .word-check-mic,
+    .word-exercise .feedback-item-actions .word-check-mic { margin-top: 0; }
     .feedback-footer {
       padding: 14px 20px;
       display: flex;
@@ -1373,15 +1418,15 @@
     .practice-del-btn:hover { border-color: var(--k-red); color: var(--k-red); }
     .word-check-mic {
       font-family: var(--font-ui);
-      font-size: 0.55rem;
+      font-size: 0.75rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       background: transparent;
       border: 1px solid var(--k-border-mid);
       color: var(--k-text-muted);
-      padding: 3px 8px;
+      padding: 4px 10px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: color 80ms cubic-bezier(0.4,0,0.2,1), background 80ms cubic-bezier(0.4,0,0.2,1), border-color 80ms cubic-bezier(0.4,0,0.2,1);
       margin-top: 4px;
       display: flex;
       align-items: center;
@@ -1389,9 +1434,10 @@
     }
     .practice-btn.word-check-mic { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
     .practice-btn.word-check-mic:hover { background: var(--k-teal-dark); border-color: var(--k-teal-dark); color: #fff; }
-    .word-check-mic:hover { border-color: var(--k-teal); color: var(--k-teal); }
+    .word-check-mic:hover { border-color: var(--k-teal-dark); color: var(--k-teal-dark); }
     .word-check-mic.listening { background: var(--k-red); border-color: var(--k-red); color: #fff; animation: micPulse 1s ease-in-out infinite; }
-    #practice-psdp-word-check-btn { height: 44px; margin-top: 0; padding: 0 12px; }
+    .practice-btn.word-check-mic.listening { background: var(--k-red); border-color: var(--k-red); color: #fff; }
+    #practice-psdp-word-check-btn, #practice-psdp-drill-btn { height: 44px; margin-top: 0; padding: 0 12px; }
     .word-check-interim {
       display: none;
       font-family: var(--font-ui);
@@ -1415,19 +1461,22 @@
       font-family: var(--font-ui);
       font-size: 0.65rem;
       letter-spacing: 0.02em;
-      padding: 3px 6px;
+      padding: 4px 6px;
       border-left: 2px solid var(--k-border-mid);
       display: flex;
+      flex-direction: row;
+      align-items: baseline;
       flex-wrap: wrap;
-      align-items: center;
-      gap: 3px;
+      gap: 2px 8px;
       color: var(--k-text-secondary);
     }
     .word-check-entry.hit { border-left-color: #4caf50; background: rgba(76,175,80,0.07); }
-    .word-check-entry.hit .wce-alt { color: #4caf50; }
-    .wce-alt { color: var(--k-text-primary); }
-    .wce-pct { color: var(--k-text-muted); font-size: 0.6rem; }
-    .wce-sep { color: var(--k-border-mid); margin: 0 2px; }
+    .wce-row { display: flex; align-items: baseline; gap: 4px; }
+    .wce-rank { color: var(--k-text-muted); font-size: 0.58rem; min-width: 12px; flex-shrink: 0; }
+    .wce-rank-1 .wce-alt { color: var(--k-text-primary); font-weight: 500; }
+    .word-check-entry.hit .wce-rank-1 .wce-alt { color: #4caf50; }
+    .wce-alt { color: var(--k-text-secondary); }
+    .wce-pct { color: var(--k-text-muted); font-size: 0.6rem; margin-left: auto; }
     .word-check-summary {
       font-family: var(--font-ui);
       font-size: 0.65rem;
@@ -2449,7 +2498,7 @@
     }
 
     /* ── Shadowing Hub ── */
-    #shadowing-hub {
+    #phrase-hub {
       flex: 1;
       flex-direction: column;
       overflow: hidden;
@@ -3586,6 +3635,82 @@
         border-top: 1px solid var(--k-border-light);
       }
     }
+
+    /* ── Unified Drill Tray ── */
+    #drill-tray-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 199;
+    }
+    #drill-tray-backdrop.open { display: block; }
+
+    #drill-tray {
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 50vw;
+      min-width: 320px;
+      max-width: 760px;
+      background: var(--k-surface);
+      border-left: 2px solid var(--k-teal);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 200;
+    }
+    #drill-tray.open { transform: translateX(0); }
+
+    #dt-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--k-border-light);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+    #dt-title {
+      font-family: var(--font-ui);
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--k-text-secondary);
+    }
+    #dt-header-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    #dt-close-btn {
+      background: none;
+      border: none;
+      color: var(--k-text-muted);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.12s;
+      flex-shrink: 0;
+    }
+    #dt-close-btn:hover { color: var(--k-red); }
+
+    #dt-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    #dt-content::-webkit-scrollbar { width: 4px; }
+    #dt-content::-webkit-scrollbar-thumb { background: var(--k-border-mid); }
   </style>
 </head>
 <body>
@@ -3662,7 +3787,7 @@
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" stroke="currentColor" stroke-width="1.5"/><path d="M2 4l6 5 6-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Free Conversation
     </button>
-    <button class="mode-btn active" data-view="shadowing-hub" onclick="switchView('shadowing-hub')">
+    <button class="mode-btn active" data-view="phrase-hub" onclick="switchView('phrase-hub')">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 8h2M5 5v6M8 3v10M11 5v6M14 8h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Exercises
     </button>
@@ -3760,12 +3885,12 @@
   </div>
 
   <!-- ── Shadow view ── -->
-  <div id="shadow-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+  <div id="phrase-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
     <div class="sv-header">
       <span class="header-title">Phrases</span>
       <div style="display:flex; align-items:center; gap:10px;">
         <span class="header-status">LEVEL</span>
-        <div class="pv-levels" id="shadow-levels">
+        <div class="pv-levels" id="phrase-levels">
           <button class="pv-level-btn active" data-level="A1" onclick="setShadowLevel('A1')">A1</button>
           <button class="pv-level-btn" data-level="A2" onclick="setShadowLevel('A2')">A2</button>
           <button class="pv-level-btn" data-level="B1" onclick="setShadowLevel('B1')">B1</button>
@@ -3787,7 +3912,7 @@
             <button class="level-chip-option" onclick="setShadowLevel('C2');closeDiffChip()">C2</button>
           </div>
         </div>
-        <div class="speed-btns" id="shadow-speed-btns">
+        <div class="speed-btns" id="phrase-speed-btns">
           <button class="speed-btn" data-rate="0.75" onclick="setPlaybackSpeed(0.75)">×0.75</button>
           <button class="speed-btn active" data-rate="1" onclick="setPlaybackSpeed(1)">×1</button>
           <button class="speed-btn" data-rate="1.25" onclick="setPlaybackSpeed(1.25)">×1.25</button>
@@ -3795,7 +3920,7 @@
       </div>
     </div>
 
-    <div id="shadow-content">
+    <div id="phrase-content">
       <div id="coach-focus-banner" style="display:none; align-items:center; justify-content:space-between; gap:12px; padding:8px 16px; border-left:3px solid #137CB6; background:rgba(19,124,182,0.06); margin-bottom:12px; flex-wrap:wrap;">
         <div style="display:flex; align-items:baseline; gap:8px;">
           <span style="font-family:var(--font-ui); font-size:0.58rem; letter-spacing:0.1em; font-weight:700; color:#137CB6;">COACH FOCUS</span>
@@ -3806,7 +3931,7 @@
           <button onclick="coachFocusSkipWord()" style="padding:3px 10px; background:transparent; border:1px solid rgba(26,26,26,0.2); font-family:var(--font-ui); font-size:0.6rem; letter-spacing:0.07em; color:rgba(26,26,26,0.5); cursor:pointer;">SKIP WORD</button>
         </div>
       </div>
-      <div id="shadow-phrase-card">
+      <div id="phrase-card">
         <div class="phrase-card-toolbar">
           <button id="phrase-save-btn" title="Save phrase to library">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
@@ -3831,49 +3956,44 @@
             </svg>
           </button>
         </div>
-        <div id="shadow-phrase-text">—</div>
-        <div id="shadow-syllable-line" style="display:none;"></div>
+        <div id="phrase-text">—</div>
+        <div id="phrase-syllable-line" style="display:none;"></div>
       </div>
 
-      <div class="shadow-attempt-label" id="shadow-attempt-label">
-        <span id="shadow-attempt-prefix" style="display:none;">Speech input&nbsp;</span><span id="shadow-attempt-text">Loading…</span>
+      <div class="phrase-attempt-label" id="phrase-attempt-label">
+        <span id="phrase-attempt-prefix" style="display:none;">Speech input&nbsp;</span><span id="phrase-attempt-text">Loading…</span>
       </div>
 
-      <div id="shadow-actions">
-        <button class="shadow-skip-btn" onclick="fetchNextPhrase()">Skip</button>
-        <button class="shadow-replay-btn" id="shadow-replay-btn" onclick="toggleShadowAudio()" title="Play / Pause" disabled>
-          <svg id="shadow-play-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <div id="phrase-actions">
+        <button class="phrase-skip-btn" onclick="fetchNextPhrase()" style="position:absolute; right:0;">Skip</button>
+        <button class="phrase-replay-btn" id="phrase-replay-btn" onclick="toggleShadowAudio()" title="Play / Pause" disabled>
+          <svg id="phrase-play-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
             <polygon points="4,2 13,8 4,14" fill="currentColor"/>
           </svg>
-          <svg id="shadow-pause-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none">
+          <svg id="phrase-pause-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none">
             <rect x="3" y="2" width="4" height="12" rx="1" fill="currentColor"/>
             <rect x="9" y="2" width="4" height="12" rx="1" fill="currentColor"/>
           </svg>
         </button>
-        <button class="shadow-mic-btn" id="shadow-mic-btn" onclick="toggleShadowMic()" title="Repeat the phrase">
+        <button class="phrase-mic-btn" id="phrase-mic-btn" onclick="toggleShadowMic()" title="Repeat the phrase">
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
             <rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/>
             <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </button>
+        <span id="phrase-retry-hint" style="display:none;" class="phrase-retry-hint">Try again</span>
       </div>
 
-      <div id="shadow-feedback" style="display:none; width:100%; max-width:640px;">
+      <div id="phrase-feedback" style="display:none; width:100%; max-width:640px;">
         <div class="feedback-header">
-          <span class="feedback-score" id="feedback-score">—</span>
+          <span class="feedback-score">—</span>
           <div class="feedback-score-bar">
-            <div class="feedback-score-fill" id="feedback-score-fill" style="width:0%"></div>
+            <div class="feedback-score-fill" style="width:0%"></div>
           </div>
-          <button class="feedback-expand-btn" id="feedback-expand-btn" onclick="toggleFeedbackDetails()">▾ Details</button>
         </div>
-        <div id="feedback-details" style="display:none">
-          <div class="feedback-phrase-diff" id="feedback-phrase-diff"></div>
-          <div id="feedback-transcript" style="font-family:var(--font-ui); font-size:0.72rem; color:rgba(255,255,255,0.4); padding:4px 2px 8px; letter-spacing:0.02em;"></div>
-          <div class="feedback-items" id="feedback-items"></div>
-        </div>
-        <div class="feedback-footer" id="feedback-footer">
-          <button class="feedback-next-btn" onclick="fetchNextPhrase()">Next phrase</button>
-          <button class="feedback-retry-btn" onclick="retryPhrase()">Try again</button>
+        <div class="feedback-details">
+          <div class="feedback-phrase-diff"></div>
+          <div class="feedback-items"></div>
         </div>
       </div>
     </div>
@@ -3892,7 +4012,7 @@
     </div>
     <button id="pl-add-fab" title="Add word or phrase">+</button>
     <div id="practice-content">
-      <div class="practice-empty">No saved words yet.<br>Complete a shadow exercise and save difficult words.</div>
+      <div class="practice-empty">No saved words yet.<br>Complete a phrase exercise and save difficult words.</div>
     </div>
 
     <div id="practice-guide">
@@ -3901,7 +4021,7 @@
         <button id="practice-guide-dismiss" onclick="const g=document.getElementById('practice-guide');g.style.display='none';g.dataset.dismissed='true'">Dismiss</button>
       </div>
       <ul>
-        <li><strong>Active Listening</strong> opens a 30-second session. Say the word repeatedly — the tool shows what it hears and a confidence percentage, so you can adjust your pronunciation in real time.</li>
+        <li><strong>Practice</strong> opens a 30-second session. Say the word repeatedly — the tool shows what it hears and a confidence percentage, so you can adjust your pronunciation in real time.</li>
         <li><strong>Short phrases:</strong> single-syllable words like <em>pain</em> or <em>mot</em> are difficult for speech APIs to detect in isolation. When a word is short, the tool suggests a carrier phrase — say that, and it still scores on the target word only.</li>
         <li><strong>Accuracy:</strong> the tool isn't perfect — French is French — but it's consistent enough to help you build reliable pronunciation habits.</li>
       </ul>
@@ -3933,6 +4053,7 @@
           </button>
           <!-- Word mode only -->
           <button class="word-check-mic practice-btn" id="practice-psdp-word-check-btn" disabled style="display:none"></button>
+          <button class="add-to-practice-btn" id="practice-psdp-drill-btn" disabled style="display:none">Drill</button>
           <!-- Phrase mode only -->
           <button class="para-mic-btn" id="practice-para-drill-mic-btn" title="Practise" disabled style="display:none">
             <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
@@ -3941,8 +4062,11 @@
             </svg>
           </button>
         </div>
-        <div id="practice-psdp-word-interim" class="word-check-interim"></div>
-        <div id="practice-psdp-word-log" class="word-check-log"></div>
+        <div id="practice-psdp-practice-panel" class="word-practice-panel">
+          <div id="practice-psdp-word-interim" class="word-check-interim"></div>
+          <div id="practice-psdp-word-log" class="word-check-log"></div>
+        </div>
+        <div id="practice-psdp-drill-panel" class="word-exercise-drill"></div>
 
         <div id="practice-psdp-context-block" style="display:none; border-top: 1px solid var(--k-border-light); margin-top: 16px; padding-top: 4px;">
           <div class="psdp-section-label">In context</div>
@@ -4216,7 +4340,7 @@
   </div>
 
   <!-- ── Shadowing Hub ── -->
-  <div id="shadowing-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+  <div id="phrase-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
     <div class="sv-header">
       <span class="header-title">Exercises</span>
     </div>
@@ -4322,7 +4446,7 @@
   <div id="prosody-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
     <div class="sv-header">
       <span class="header-title">Prosody</span>
-      <button class="shadow-skip-btn" style="font-size:0.58rem;" onclick="switchView('shadowing-hub')">← Back</button>
+      <button class="phrase-skip-btn" style="font-size:0.58rem;" onclick="switchView('phrase-hub')">← Back</button>
     </div>
     <div id="prosody-content">
 
@@ -4564,7 +4688,7 @@
       localStorage.setItem('ft_access_code', code);
       document.getElementById('welcome-overlay').classList.add('hidden');
       trackEvent('session_start', { session_id: sessionId });
-      switchView('shadowing-hub');
+      switchView('phrase-hub');
     } catch (e) {
       errEl.textContent = e.message;
       btn.disabled = false;
@@ -4596,7 +4720,7 @@
         if (res.ok) {
           document.getElementById('welcome-overlay').classList.add('hidden');
           trackEvent('session_start', { session_id: sessionId });
-          setTimeout(() => switchView('shadowing-hub'), 0);
+          setTimeout(() => switchView('phrase-hub'), 0);
           return;
         }
       } catch (_) {}
@@ -4715,6 +4839,29 @@
     return String(s)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;')
       .replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+
+  // Shared scored-token renderer — single source of truth for word-level coloring across all modes.
+  function buildScoredToken(word, matched, said) {
+    const cls = matched ? 'correct' : (said ? 'wrong' : 'missing');
+    const span = document.createElement('span');
+    span.className = 'diff-word ' + cls;
+    span.textContent = word;
+    return span;
+  }
+
+  // Apply scored-token state to an existing element (used by paragraph prosody mode).
+  function applyScoredToken(el, matched, said) {
+    el.classList.remove('prg-word--matched', 'prg-word--wrong', 'prg-word--missing');
+    if (matched)     el.classList.add('prg-word--matched');
+    else if (said)   el.classList.add('prg-word--wrong');
+    else             el.classList.add('prg-word--missing');
+  }
+
+  // Shared score bar updater for div-based bars.
+  function updateScoreBar(fillEl, pct, passed, baseClass) {
+    fillEl.style.width = pct + '%';
+    fillEl.className = baseClass + ' ' + (passed ? 'pass' : 'fail');
   }
 
   function scrollDown() { chatEl.scrollTop = chatEl.scrollHeight; }
@@ -4866,7 +5013,7 @@
     if (latest) { latest.classList.add('playing'); activeBubbleStop = latest; }
 
     // Stop speech recognition while audio is playing (prevents picking up speaker audio)
-    const wasListening = recognition && document.getElementById('shadow-mic-btn')?.classList.contains('listening');
+    const wasListening = recognition && document.getElementById('phrase-mic-btn')?.classList.contains('listening');
     const wasParaListening = recognition && document.getElementById('para-mic-btn')?.classList.contains('listening');
     if (recognition && (wasListening || wasParaListening)) {
       userStoppedRecognition = true;
@@ -4876,17 +5023,17 @@
     currentAudio = new Audio(url);
     currentAudio.playbackRate = audioPlaybackRate;
     currentAudio.play().catch(() => {});
-    if (currentView === 'shadow') setShadowPlayBtnState(true);
+    if (currentView === 'phrase' || phraseInTray) setShadowPlayBtnState(true);
     currentAudio.addEventListener('ended', () => {
       if (activeBubbleStop) { activeBubbleStop.classList.remove('playing'); activeBubbleStop = null; }
       currentAudio = null;
       // Update attempt label when audio finishes
-      if (currentView === 'shadow') {
+      if (currentView === 'phrase' || phraseInTray) {
         setShadowPlayBtnState(false);
-        document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = 'Tap mic to repeat';
+        document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Tap mic to repeat';
       }
       // Re-enable mic after audio ends if it was previously listening
-      if (recognition && wasListening && document.getElementById('shadow-mic-btn')?.classList.contains('listening')) {
+      if (recognition && wasListening && document.getElementById('phrase-mic-btn')?.classList.contains('listening')) {
         userStoppedRecognition = false;
         recognition.start();
       } else if (recognition && wasParaListening && document.getElementById('para-mic-btn')?.classList.contains('listening')) {
@@ -5051,8 +5198,8 @@
       // Always stop recognition after submission
       if (recognition) { userStoppedRecognition = true; recognition.stop(); }
 
-      if (view === 'shadow') {
-        document.getElementById('shadow-mic-btn').classList.remove('listening');
+      if (view === 'phrase') {
+        document.getElementById('phrase-mic-btn').classList.remove('listening');
         handleShadowResult(text, confidence);
       } else if (view === 'paragraph') {
         document.getElementById('para-mic-btn').classList.remove('listening');
@@ -5096,13 +5243,13 @@
       const lastResult = e.results[e.results.length - 1];
       const silenceDelay = lastResult.isFinal ? 2500 : 4000;
 
-      if (currentView === 'shadow') {
-        document.getElementById('shadow-attempt-prefix').style.display = 'inline';
-        document.getElementById('shadow-attempt-text').textContent = t || '…';
+      if (currentView === 'phrase' || phraseInTray) {
+        document.getElementById('phrase-attempt-prefix').style.display = 'inline';
+        document.getElementById('phrase-attempt-text').textContent = t || '…';
         silenceTimeoutId = setTimeout(() => {
-          if (document.getElementById('shadow-mic-btn').classList.contains('listening')) {
+          if (document.getElementById('phrase-mic-btn').classList.contains('listening')) {
             const conf = lastResult[0].confidence || 0.9;
-            submitTranscript(t, conf, 'shadow');
+            submitTranscript(t, conf, 'phrase');
           }
         }, silenceDelay);
         return;
@@ -5163,7 +5310,7 @@
       // before onend, so we must record restart intent here or onend will miss it.
       const micActiveAtError = !userStoppedRecognition && (
         micBtn.classList.contains('listening') ||
-        document.getElementById('shadow-mic-btn')?.classList.contains('listening') ||
+        document.getElementById('phrase-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-mic-btn-fail')?.classList.contains('listening') ||
         document.getElementById('para-drill-mic-btn')?.classList.contains('listening') ||
@@ -5174,7 +5321,7 @@
       if (micActiveAtError && recoverableError) errorWantedRestart = true;
 
       micBtn.classList.remove('listening');
-      document.getElementById('shadow-mic-btn')?.classList.remove('listening');
+      document.getElementById('phrase-mic-btn')?.classList.remove('listening');
       document.getElementById('para-mic-btn')?.classList.remove('listening');
       document.getElementById('para-mic-btn-fail')?.classList.remove('listening');
       document.getElementById('para-drill-mic-btn')?.classList.remove('listening');
@@ -5191,9 +5338,9 @@
         document.getElementById('practice-psdp-live-transcript').style.display = 'none';
       }
       if (e.error !== 'no-speech') {
-        if (currentView === 'shadow') {
-          document.getElementById('shadow-attempt-prefix').style.display = 'none';
-          document.getElementById('shadow-attempt-text').textContent = 'Mic error: ' + e.error;
+        if (currentView === 'phrase') {
+          document.getElementById('phrase-attempt-prefix').style.display = 'none';
+          document.getElementById('phrase-attempt-text').textContent = 'Mic error: ' + e.error;
         } else if (currentView === 'paragraph') {
           document.getElementById('para-live-transcript-text').textContent = 'Mic error: ' + e.error;
         } else {
@@ -5205,7 +5352,7 @@
       // Check if any mic was active before clearing state — needed for auto-restart
       const micWasActive = !userStoppedRecognition && (
         micBtn.classList.contains('listening') ||
-        document.getElementById('shadow-mic-btn')?.classList.contains('listening') ||
+        document.getElementById('phrase-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-mic-btn-fail')?.classList.contains('listening') ||
         document.getElementById('para-drill-mic-btn')?.classList.contains('listening') ||
@@ -5223,7 +5370,7 @@
       }
 
       micBtn.classList.remove('listening');
-      document.getElementById('shadow-mic-btn')?.classList.remove('listening');
+      document.getElementById('phrase-mic-btn')?.classList.remove('listening');
       document.getElementById('para-mic-btn')?.classList.remove('listening');
       document.getElementById('para-mic-btn-fail')?.classList.remove('listening');
       document.getElementById('para-drill-mic-btn')?.classList.remove('listening');
@@ -5344,7 +5491,7 @@
   let currentView = 'chat';
 
   // Sub-views that keep the "Generate" nav button active
-  const GENERATE_SUBVIEWS = new Set(['shadowing-hub', 'shadow', 'paragraph']);
+  const GENERATE_SUBVIEWS = new Set(['phrase-hub', 'phrase', 'paragraph']);
 
   function switchView(view) {
     closeMobilePanel();
@@ -5358,10 +5505,10 @@
 
     currentView = view;
     const inChat      = view === 'chat';
-    const inShadow    = view === 'shadow';
+    const inShadow    = view === 'phrase';
     const inPractice  = view === 'practice';
     const inParagraph = view === 'paragraph';
-    const inHub       = view === 'shadowing-hub';
+    const inHub       = view === 'phrase-hub';
     const inCustom    = view === 'custom';
     const inCoach     = view === 'coach';
 
@@ -5375,17 +5522,17 @@
     document.getElementById('confidence-bar').style.display = inChat ? '' : 'none';
     document.getElementById('input-bar').style.display      = inChat ? '' : 'none';
 
-    document.getElementById('shadow-view').style.display    = inShadow    ? 'flex' : 'none';
+    document.getElementById('phrase-view').style.display    = inShadow    ? 'flex' : 'none';
     document.getElementById('practice-view').style.display  = inPractice  ? 'flex' : 'none';
     document.getElementById('paragraph-view').style.display = inParagraph ? 'flex' : 'none';
-    document.getElementById('shadowing-hub').style.display  = inHub       ? 'flex' : 'none';
+    document.getElementById('phrase-hub').style.display  = inHub       ? 'flex' : 'none';
     document.getElementById('custom-view').style.display    = inCustom    ? 'flex' : 'none';
     document.getElementById('coach-view').style.display     = inCoach     ? 'flex' : 'none';
 
     document.querySelectorAll('[data-view]').forEach(b => {
       const isActive =
         b.dataset.view === view ||
-        (b.dataset.view === 'shadowing-hub' && GENERATE_SUBVIEWS.has(view)) ||
+        (b.dataset.view === 'phrase-hub' && GENERATE_SUBVIEWS.has(view)) ||
         (b.dataset.view === 'custom' && inCustom);
       b.classList.toggle('active', isActive);
     });
@@ -5537,7 +5684,7 @@
       customPhraseIndex  = 0;
       currentPhrase = '';
       setShadowLevel(shadowingLevel);
-      switchView('shadow');
+      switchView('phrase');
     } else if (mode === 'paragraphs') {
       paragraphSentences = [];
       setParagraphLevel(shadowingLevel);
@@ -5715,7 +5862,7 @@
       shadowLevel        = 'A1';
       shadowPassStreak   = 0;
       currentPhrase      = '';
-      switchView('shadow');
+      switchView('phrase');
     } catch (err) {
       console.error('startCustomPhrasePractice failed:', err);
     }
@@ -6079,10 +6226,9 @@
           wordEls[key] = wordEls[key] || [];
           wordEls[key].push(el);
         });
-        // Reset all
+        // Reset all — strip score state and restore muted opacity for prior steps
         textEl.querySelectorAll('.prg-word').forEach(el => {
           el.classList.remove('prg-word--matched', 'prg-word--wrong', 'prg-word--missing');
-          // Keep muted styling for prior steps
           if (parseInt(el.dataset.chunk) < prosodyStep) el.style.opacity = '0.45';
           else el.style.opacity = '';
         });
@@ -6097,9 +6243,7 @@
           const el = currentWordEls[i];
           if (!el) return;
           el.style.opacity = '';
-          if (dr.matched)     el.classList.add('prg-word--matched');
-          else if (dr.said)   el.classList.add('prg-word--wrong');
-          else                el.classList.add('prg-word--missing');
+          applyScoredToken(el, dr.matched, dr.said);
         });
       }
 
@@ -6135,7 +6279,7 @@
       const badge    = document.getElementById('prg-additive-done-badge');
       if (scoreRow) scoreRow.style.display = '';
       if (pctEl) { pctEl.textContent = pct + '%'; pctEl.className = 'prg-score-pct ' + (passed ? 'pass' : 'fail'); }
-      if (fillEl) { fillEl.style.width = pct + '%'; fillEl.className = 'prg-score-bar-fill ' + (passed ? 'pass' : 'fail'); }
+      if (fillEl) updateScoreBar(fillEl, pct, passed, 'prg-score-bar-fill');
 
       if (passed) {
         if (statusEl) statusEl.textContent = '';
@@ -6177,7 +6321,7 @@
     coachFocusWords = words;
     coachFocusIndex = 0;
     coachWordRound  = 1;
-    switchView('shadow');
+    switchView('phrase');
     updateCoachFocusBanner();
     fetchNextPhrase();
   }
@@ -6223,13 +6367,14 @@
   }
 
   function scheduleNextPhrase(delayMs) {
+    if (phraseInTray) return;
     if (phraseAdvanceTimer) clearTimeout(phraseAdvanceTimer);
     phraseAdvanceTimer = setTimeout(() => { phraseAdvanceTimer = null; fetchNextPhrase(); }, delayMs);
   }
 
   function togglePhraseBlur() {
     isBlurred = !isBlurred;
-    const card = document.getElementById('shadow-phrase-card');
+    const card = document.getElementById('phrase-card');
     const btn  = document.getElementById('phrase-blur-btn');
     card.classList.toggle('blurred', isBlurred);
     btn.classList.toggle('blurred', isBlurred);
@@ -6261,7 +6406,7 @@
 
   function toggleRhythmPanel() {
     const btn      = document.getElementById('phrase-rhythm-btn');
-    const phraseEl = document.getElementById('shadow-phrase-text');
+    const phraseEl = document.getElementById('phrase-text');
 
     if (rhythmOn) {
       rhythmOn = false;
@@ -6290,7 +6435,7 @@
 
   function toggleSyllableLine() {
     const btn     = document.getElementById('phrase-syllable-btn');
-    const lineEl  = document.getElementById('shadow-syllable-line');
+    const lineEl  = document.getElementById('phrase-syllable-line');
 
     if (syllableOn) {
       syllableOn = false;
@@ -6331,8 +6476,8 @@
   }
 
   function setShadowPlayBtnState(playing) {
-    document.getElementById('shadow-play-icon').style.display  = playing ? 'none' : '';
-    document.getElementById('shadow-pause-icon').style.display = playing ? '' : 'none';
+    document.getElementById('phrase-play-icon').style.display  = playing ? 'none' : '';
+    document.getElementById('phrase-pause-icon').style.display = playing ? '' : 'none';
   }
 
   function toggleShadowAudio() {
@@ -6351,21 +6496,13 @@
     if (currentAudioUrl) playAudio(currentAudioUrl);
   }
 
-  function toggleFeedbackDetails() {
-    const details = document.getElementById('feedback-details');
-    const btn     = document.getElementById('feedback-expand-btn');
-    const opening = details.style.display === 'none';
-    details.style.display = opening ? '' : 'none';
-    btn.textContent = opening ? '▴ Hide' : '▾ Details';
-  }
-
-  const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function setShadowLevel(level) {
     if (!_SHADOW_LEVELS.includes(level)) level = 'A1';
     shadowLevel = level;
     shadowPassStreak = 0;
-    document.querySelectorAll('#shadow-levels .pv-level-btn').forEach(b =>
+    document.querySelectorAll('#phrase-levels .pv-level-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.level === shadowLevel)
     );
     const chipLabel = document.getElementById('diff-chip-label');
@@ -6380,10 +6517,11 @@
     if (isPhraseLoading) return;
     isPhraseLoading = true;
     phraseAttemptNumber = 0;
+    document.getElementById('phrase-retry-hint').style.display = 'none';
 
-    document.getElementById('shadow-feedback').style.display = 'none';
-    document.getElementById('shadow-phrase-text').textContent = '…';
-    document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = 'Loading…';
+    document.getElementById('phrase-feedback').style.display = 'none';
+    document.getElementById('phrase-text').textContent = '…';
+    document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Loading…';
     rhythmOn = false;
     syllableOn = false;
     rhythmPlainPhrase = '';
@@ -6393,15 +6531,15 @@
     rhythmDataFetch = null;
     document.getElementById('phrase-rhythm-btn').classList.remove('active');
     document.getElementById('phrase-syllable-btn').classList.remove('active');
-    document.getElementById('shadow-syllable-line').style.display = 'none';
+    document.getElementById('phrase-syllable-line').style.display = 'none';
     setShadowPlayBtnState(false);
 
     try {
       if (isCustomPhraseMode) {
         if (customPhraseIndex >= customPhraseQueue.length) {
-          document.getElementById('shadow-phrase-text').textContent = '✓ All phrases complete';
-          document.getElementById('shadow-attempt-prefix').style.display = 'none';
-          document.getElementById('shadow-attempt-text').textContent = 'Return to My Content to practice again';
+          document.getElementById('phrase-text').textContent = '✓ All phrases complete';
+          document.getElementById('phrase-attempt-prefix').style.display = 'none';
+          document.getElementById('phrase-attempt-text').textContent = 'Return to My Content to practice again';
           isPhraseLoading = false;
           return;
         }
@@ -6416,11 +6554,11 @@
         currentPhrase        = phrase;
         currentAudioUrl      = ttsData.audio_url;
         currentNounAdjTokens = [];
-        document.getElementById('shadow-phrase-text').textContent = phrase;
-        document.getElementById('shadow-phrase-card').classList.toggle('blurred', isBlurred);
-        document.getElementById('shadow-replay-btn').disabled = false;
-        document.getElementById('shadow-attempt-prefix').style.display = 'none';
-        document.getElementById('shadow-attempt-text').textContent = 'Tap mic to repeat';
+        document.getElementById('phrase-text').textContent = phrase;
+        document.getElementById('phrase-card').classList.toggle('blurred', isBlurred);
+        document.getElementById('phrase-replay-btn').disabled = false;
+        document.getElementById('phrase-attempt-prefix').style.display = 'none';
+        document.getElementById('phrase-attempt-text').textContent = 'Tap mic to repeat';
         playAudio(ttsData.audio_url);
       } else {
         const activeFocusWord = coachFocusWords.length && coachFocusIndex < coachFocusWords.length
@@ -6435,15 +6573,15 @@
         currentPhrase        = data.phrase;
         currentAudioUrl      = data.audio_url;
         currentNounAdjTokens = data.noun_adj_tokens || [];
-        document.getElementById('shadow-phrase-text').textContent = data.phrase;
-        document.getElementById('shadow-phrase-card').classList.toggle('blurred', isBlurred);
-        document.getElementById('shadow-replay-btn').disabled = false;
-        document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = 'Tap mic to repeat';
+        document.getElementById('phrase-text').textContent = data.phrase;
+        document.getElementById('phrase-card').classList.toggle('blurred', isBlurred);
+        document.getElementById('phrase-replay-btn').disabled = false;
+        document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Tap mic to repeat';
         playAudio(data.audio_url);
       }
     } catch (err) {
-      document.getElementById('shadow-phrase-text').textContent = 'Error — tap skip to retry';
-      document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = '';
+      document.getElementById('phrase-text').textContent = 'Error — tap skip to retry';
+      document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = '';
       console.error('fetchNextPhrase failed:', err);
     } finally {
       isPhraseLoading = false;
@@ -6451,13 +6589,18 @@
   }
 
   function retryPhrase() {
-    document.getElementById('shadow-feedback').style.display = 'none';
-    document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = 'Tap mic to repeat';
+    document.getElementById('phrase-feedback').style.display = 'none';
+    document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Tap mic to repeat';
+    document.getElementById('phrase-retry-hint').style.display = 'none';
+  }
+
+  function handlePhraseSkip() {
+    if (phraseInTray) { closeDrillTray(); } else { fetchNextPhrase(); }
   }
 
   async function toggleShadowMic() {
     if (!recognition) { return; }
-    const btn = document.getElementById('shadow-mic-btn');
+    const btn = document.getElementById('phrase-mic-btn');
     if (btn.classList.contains('listening')) {
       if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
       userStoppedRecognition = true;
@@ -6467,7 +6610,7 @@
       if (!ok) return;
       lastTranscriptSubmitted = ''; finalTranscriptBuffer = '';
       btn.classList.add('listening');
-      document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = '…';
+      document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = '…';
       recognition.start();
     }
   }
@@ -6515,8 +6658,8 @@
   }
 
   async function handleShadowResult(text, confidence) {
-    document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = 'Analyzing…';
-    document.getElementById('shadow-feedback').style.display = 'none';
+    document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Analyzing…';
+    document.getElementById('phrase-feedback').style.display = 'none';
 
     try {
       phraseAttemptNumber++;
@@ -6546,47 +6689,29 @@
         shadowPassStreak = 0;
       }
     } catch {
-      document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = 'Error — try again';
+      document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Error — try again';
     }
   }
 
-  function renderFeedback(data, userText) {
+  function renderFeedback(data, userText, container) {
+    if (!container) container = document.getElementById('phrase-feedback');
     const pct    = Math.round(data.score * 100);
     const passed = data.passed;
 
-    // Always start collapsed
-    document.getElementById('feedback-details').style.display = 'none';
-    document.getElementById('feedback-expand-btn').textContent = '▾ Details';
-    // Hide expand button on clean pass (nothing to show)
-    document.getElementById('feedback-expand-btn').style.display =
-      (passed && data.feedback.length === 0) ? 'none' : '';
 
-    const scoreEl = document.getElementById('feedback-score');
+    const scoreEl = container.querySelector('.feedback-score');
     scoreEl.textContent = pct + '%';
     scoreEl.className = 'feedback-score ' + (passed ? 'pass' : 'fail');
+    updateScoreBar(container.querySelector('.feedback-score-fill'), pct, passed, 'feedback-score-fill');
 
-    const fill = document.getElementById('feedback-score-fill');
-    fill.style.width = pct + '%';
-    fill.className = 'feedback-score-fill ' + (passed ? 'pass' : 'fail');
-
-    // Show raw submitted transcription for debugging
-    const transcriptEl = document.getElementById('feedback-transcript');
-    if (transcriptEl) transcriptEl.textContent = userText ? `heard: ${userText}` : '';
-
-    // Word-level diff using display_results (aligned to original phrase tokens, elisions merged back)
-    const phraseDiff = document.getElementById('feedback-phrase-diff');
+    const phraseDiff = container.querySelector('.feedback-phrase-diff');
     phraseDiff.innerHTML = '';
     (data.display_results || []).forEach(dr => {
-      const cls  = dr.matched ? 'correct' : (dr.said ? 'wrong' : 'missing');
-      const span = document.createElement('span');
-      span.className = 'diff-word ' + cls;
-      span.textContent = dr.word;
-      phraseDiff.appendChild(span);
+      phraseDiff.appendChild(buildScoredToken(dr.word, dr.matched, dr.said));
       phraseDiff.appendChild(document.createTextNode(' '));
     });
 
-    // Feedback items from backend
-    const itemsEl = document.getElementById('feedback-items');
+    const itemsEl = container.querySelector('.feedback-items');
     itemsEl.innerHTML = '';
 
     if (passed && data.feedback.length === 0) {
@@ -6597,74 +6722,205 @@
     }
 
     data.feedback.forEach(f => {
-      const item = document.createElement('div');
-      item.className = 'feedback-item';
-
-      const wordsRow = document.createElement('div');
-      wordsRow.className = 'feedback-item-words';
-      wordsRow.innerHTML =
-        `<span class="fi-target">${esc(f.target_word)}</span>` +
-        `<span class="fi-arrow">←</span>` +
-        `<span class="fi-said">you said: ${esc(f.said || '(missing)')}</span>`;
-
-      const playBtn = document.createElement('button');
-      playBtn.className = 'fi-play-btn';
-      playBtn.title = `Hear "${f.target_word}"`;
-      playBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,0 10,5 1,10"/></svg>`;
-      playBtn.addEventListener('click', async () => {
-        playBtn.classList.add('loading');
-        try {
-          const res = await fetch('/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: f.target_word }),
-          });
-          const data = await res.json();
-          playAudio(data.audio_url);
-        } finally {
-          playBtn.classList.remove('loading');
-        }
-      });
-      wordsRow.appendChild(playBtn);
-      item.appendChild(wordsRow);
-
-      const tipEl = document.createElement('div');
-      tipEl.className = 'feedback-tip';
-      item.appendChild(tipEl);
-      populateFeedbackTip(tipEl, f.target_word, f.tip || '');
-
-      if (f.is_grammar && f.grammar_note) {
-        const note = document.createElement('div');
-        note.className = 'feedback-grammar-note';
-        note.textContent = f.grammar_note;
-        item.appendChild(note);
-      }
-
-      const addBtn = document.createElement('button');
-      addBtn.className = 'add-to-practice-btn';
-      addBtn.textContent = '+ Save to practice list';
-      addBtn.addEventListener('click', async () => {
-        await addToPracticeList(f.target_word, tipEl.textContent || f.tip || '', currentPhrase);
-        addBtn.textContent = '✓ Saved';
-        addBtn.classList.add('added');
-        updatePracticeCount();
-      });
-
-      const micBtn = attachWordCheckToFeedbackItem(item, f.target_word);
-      const actionsRow = document.createElement('div');
-      actionsRow.className = 'feedback-item-actions';
-      actionsRow.appendChild(micBtn);
-      actionsRow.appendChild(addBtn);
-      item.appendChild(actionsRow);
-
-      itemsEl.appendChild(item);
+      itemsEl.appendChild(buildWordExercise(f.target_word, f.said, f.tip, currentPhrase, f.is_grammar, f.grammar_note, itemsEl));
     });
 
-    document.getElementById('shadow-feedback').style.display = '';
-    document.getElementById('shadow-attempt-prefix').style.display = 'none'; document.getElementById('shadow-attempt-text').textContent = passed ? 'Passed ✓' : 'Try again';
+    document.getElementById('phrase-feedback').style.display = '';
+    document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = passed ? 'Passed ✓' : '';
+    document.getElementById('phrase-retry-hint').style.display = passed ? 'none' : '';
     // On pass: hide footer (auto-advance fires). On fail: show next + retry.
-    document.getElementById('feedback-footer').style.display = passed ? 'none' : '';
-    document.getElementById('shadow-content').scrollTop = 9999;
+  }
+
+  // ── Word exercise atom ────────────────────────────────────────────────────
+  // Builds the canonical word-level feedback + practice element.
+  // Used in phrase feedback; designed to be reused anywhere a missed word needs display + actions.
+  function buildWordExercise(word, said, tip, sourcePhrase, isGrammar, grammarNote, siblingContainer) {
+    const el = document.createElement('div');
+    el.className = 'word-exercise';
+
+    // Header: target | said | play
+    const wordsRow = document.createElement('div');
+    wordsRow.className = 'feedback-item-words';
+    wordsRow.innerHTML =
+      `<span class="fi-target">${esc(word)}</span>` +
+      `<span class="fi-arrow">←</span>` +
+      `<span class="fi-said">you said: ${esc(said || '(missing)')}</span>`;
+
+    const playBtn = document.createElement('button');
+    playBtn.className = 'fi-play-btn';
+    playBtn.title = `Hear "${word}"`;
+    playBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,0 10,5 1,10"/></svg>`;
+    playBtn.addEventListener('click', async () => {
+      playBtn.classList.add('loading');
+      try {
+        const res = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: word }) });
+        playAudio((await res.json()).audio_url);
+      } finally { playBtn.classList.remove('loading'); }
+    });
+    wordsRow.appendChild(playBtn);
+    el.appendChild(wordsRow);
+
+    // Pronunciation tip
+    const tipEl = document.createElement('div');
+    tipEl.className = 'feedback-tip';
+    populateFeedbackTip(tipEl, word, tip || '');
+    el.appendChild(tipEl);
+
+    // Grammar note (optional)
+    if (isGrammar && grammarNote) {
+      const note = document.createElement('div');
+      note.className = 'feedback-grammar-note';
+      note.textContent = grammarNote;
+      el.appendChild(note);
+    }
+
+    // Inline 10× drill panel
+    const drillPanel = document.createElement('div');
+    drillPanel.className = 'word-exercise-drill';
+
+    // Actions: Practice | Drill | + Save
+    const { micBtn, practicePanel } = attachWordCheckToFeedbackItem(el, word);
+
+    const drillBtn = document.createElement('button');
+    drillBtn.className = 'add-to-practice-btn';
+    drillBtn.textContent = 'Drill';
+    drillBtn.addEventListener('click', () => {
+      if (drillPanel.classList.contains('open')) {
+        stopWordDrill();
+        drillBtn.classList.remove('recording');
+        drillPanel.classList.remove('open');
+        drillPanel.innerHTML = '';
+        drillBtn.textContent = 'Drill';
+      } else {
+        // Close practice panel if open
+        stopWordCheck();
+        practicePanel.classList.remove('active');
+        // Close any other open drill panels in the same list
+        if (siblingContainer) {
+          siblingContainer.querySelectorAll('.word-exercise-drill.open').forEach(p => {
+            p.classList.remove('open');
+            p.innerHTML = '';
+            const actRow = p.previousElementSibling;
+            if (actRow) actRow.querySelectorAll('.add-to-practice-btn').forEach(b => {
+              if (b.textContent.includes('✕')) { b.textContent = 'Drill'; b.classList.remove('recording'); }
+            });
+          });
+        }
+        drillPanel.classList.add('open');
+        drillBtn.textContent = '✕ Drill';
+        startWordDrill(word, drillPanel, drillBtn);
+      }
+    });
+
+    // Close drill panel when Practice is activated
+    micBtn.addEventListener('click', () => {
+      if (drillPanel.classList.contains('open')) {
+        stopWordDrill();
+        drillBtn.classList.remove('recording');
+        drillPanel.classList.remove('open');
+        drillPanel.innerHTML = '';
+        drillBtn.textContent = 'Drill';
+      }
+    });
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'practice-save-btn';
+    saveBtn.title = 'Save to practice list';
+    saveBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    saveBtn.addEventListener('click', async () => {
+      await addToPracticeList(word, tipEl.textContent || tip || '', sourcePhrase || '');
+      saveBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2h10v13l-5-3-5 3V2z"/></svg>`;
+      saveBtn.classList.add('added');
+      updatePracticeCount();
+    });
+
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'feedback-item-actions';
+    actionsRow.appendChild(micBtn);
+    actionsRow.appendChild(drillBtn);
+    actionsRow.appendChild(saveBtn);
+    el.appendChild(actionsRow);
+    el.appendChild(practicePanel);
+    el.appendChild(drillPanel);
+
+    return el;
+  }
+
+  // ── Word drill (10× repeated attempts + Mistral analysis) ─────────────────
+  let _wordDrillSR = null;
+  let _wordDrillAttempts = [];
+  const _WORD_DRILL_MAX = 10;
+
+  function stopWordDrill() {
+    if (_wordDrillSR) { try { _wordDrillSR.stop(); } catch(e){} _wordDrillSR = null; }
+  }
+
+  function startWordDrill(word, container, triggerBtn) {
+    _wordDrillAttempts = [];
+    _renderWordDrillState(word, container, triggerBtn);
+    _recordWordDrillAttempt(word, container, triggerBtn);
+  }
+
+  function _renderWordDrillState(word, container, triggerBtn) {
+    const count = _wordDrillAttempts.length;
+    const done = count >= _WORD_DRILL_MAX;
+    container.innerHTML = done
+      ? `<div id="wd-analysis" class="wd-transcript">Analyzing…</div>`
+      : `<div class="wd-meta">Attempt ${count + 1} / ${_WORD_DRILL_MAX}</div>
+         <div class="wd-transcript" id="wd-transcript">…</div>
+         ${_wordDrillAttempts.map((a, i) => `<div class="wd-meta">attempt ${i+1}: ${esc(a)}</div>`).join('')}`;
+    if (done) _analyzeWordDrillAttempts(word, container, triggerBtn);
+  }
+
+  function _recordWordDrillAttempt(word, container, triggerBtn) {
+    stopWordDrill();
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Rec) return;
+    _wordDrillSR = new Rec();
+    _wordDrillSR.lang = 'fr-FR';
+    _wordDrillSR.interimResults = true;
+    _wordDrillSR.continuous = false;
+    triggerBtn.classList.add('recording');
+    _wordDrillSR.onresult = (e) => {
+      let interim = '', final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      const t = container.querySelector('#wd-transcript');
+      if (t) t.textContent = final || interim || '…';
+      if (final) {
+        _wordDrillAttempts.push(final.trim());
+        triggerBtn.classList.remove('recording');
+        _renderWordDrillState(word, container, triggerBtn);
+        if (_wordDrillAttempts.length < _WORD_DRILL_MAX) {
+          setTimeout(() => _recordWordDrillAttempt(word, container, triggerBtn), 400);
+        }
+      }
+    };
+    _wordDrillSR.onerror = (e) => {
+      if (e.error !== 'no-speech' && e.error !== 'aborted') triggerBtn.classList.remove('recording');
+    };
+    _wordDrillSR.onend = () => triggerBtn.classList.remove('recording');
+    _wordDrillSR.start();
+  }
+
+  async function _analyzeWordDrillAttempts(word, container, triggerBtn) {
+    try {
+      const resp = await fetch('/analyze_word_drill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word, attempts: _wordDrillAttempts, session_id: localStorage.getItem('session_id') || '' }),
+      });
+      const data = await resp.json();
+      const el = container.querySelector('#wd-analysis');
+      if (el) el.textContent = data.feedback || 'No feedback available.';
+    } catch(e) {
+      const el = container.querySelector('#wd-analysis');
+      if (el) el.textContent = 'Analysis unavailable.';
+    }
+    triggerBtn.classList.remove('recording');
+    triggerBtn.textContent = '✕ Drill';
   }
 
   // ── Practice list ──────────────────────────────────────────────────────────
@@ -7000,7 +7256,7 @@
         if (isParagraph) {
           practiceBtn.addEventListener('click', () => practiceCustomContent(item.word, 'paragraphs'));
         } else {
-          practiceBtn.addEventListener('click', () => enterWordDrill(item.word, '', 'Phrase Drill'));
+          practiceBtn.addEventListener('click', () => openDrillTray(item.word, 'standalone'));
         }
         btns.appendChild(practiceBtn);
 
@@ -7084,7 +7340,7 @@
 
 
   function resetCheckBtn(micBtn) {
-    micBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Active Listening`;
+    micBtn.textContent = 'Practice';
   }
 
   function attachWordCheckToFeedbackItem(item, word) {
@@ -7096,6 +7352,11 @@
     interimEl.className = 'word-check-interim';
     const logEl = document.createElement('div');
     logEl.className = 'word-check-log';
+
+    const practicePanel = document.createElement('div');
+    practicePanel.className = 'word-practice-panel';
+    practicePanel.appendChild(interimEl);
+    practicePanel.appendChild(logEl);
 
     let resolvedArticle = null;
     let articleFetched = false;
@@ -7109,12 +7370,10 @@
           if (d.article) resolvedArticle = d.article;
         } catch {}
       }
-      startWordCheck(word, item, micBtn, interimEl, logEl, resolvedArticle);
+      startWordCheck(word, item, micBtn, interimEl, logEl, resolvedArticle, practicePanel);
     });
 
-    item.appendChild(interimEl);
-    item.appendChild(logEl);
-    return micBtn;
+    return { micBtn, practicePanel };
   }
 
   function stopWordCheck() {
@@ -7122,7 +7381,7 @@
     if (activeCheckCard?.timerInterval) clearInterval(activeCheckCard.timerInterval);
     if (wordCheckRecognition) { try { wordCheckRecognition.stop(); } catch {} wordCheckRecognition = null; }
     if (activeCheckCard) {
-      const { micBtn, interimEl, logEl, hitCount, totalCount } = activeCheckCard;
+      const { micBtn, interimEl, logEl, practicePanel, hitCount, totalCount } = activeCheckCard;
       micBtn.classList.remove('listening');
       interimEl.classList.remove('active');
       interimEl.textContent = '';
@@ -7135,15 +7394,17 @@
           <span class="wcs-score">${hitCount}/${totalCount}</span> attempts recognized correctly
         </div>`;
         logEl.classList.add('active');
+        if (practicePanel) practicePanel.classList.add('active');
       } else {
         logEl.classList.remove('active');
+        if (practicePanel) practicePanel.classList.remove('active');
       }
 
       activeCheckCard = null;
     }
   }
 
-  function startWordCheck(word, card, micBtn, interimEl, logEl, article) {
+  function startWordCheck(word, card, micBtn, interimEl, logEl, article, practicePanel) {
     if (activeCheckCard && activeCheckCard.card === card) { stopWordCheck(); return; }
     stopWordCheck();
 
@@ -7155,11 +7416,12 @@
     const carrierPhrase = article
       ? (article.endsWith("'") ? article + word : article + ' ' + word)
       : null;
-    activeCheckCard = { card, micBtn, interimEl, logEl, timerInterval: null, hitCount: 0, totalCount: 0, userStopped: false };
+    activeCheckCard = { card, micBtn, interimEl, logEl, practicePanel, timerInterval: null, hitCount: 0, totalCount: 0, userStopped: false };
 
     micBtn.classList.add('listening');
+    if (practicePanel) practicePanel.classList.add('active');
     interimEl.classList.add('active');
-    interimEl.textContent = carrierPhrase ? `Dis : "${carrierPhrase}"` : '…';
+    interimEl.textContent = carrierPhrase ? `Dis : "${carrierPhrase}"` : `Essaie : "le ${word}", "la ${word}", "je ${word}"…`;
     logEl.innerHTML = '';
     logEl.classList.add('active');
 
@@ -7181,7 +7443,7 @@
       sr.lang = 'fr-FR';
       sr.continuous = true;
       sr.interimResults = true;
-      sr.maxAlternatives = 5;
+      sr.maxAlternatives = 3;
 
       sr.onresult = e => {
         for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -7199,19 +7461,19 @@
 
             const entry = document.createElement('div');
             entry.className = 'word-check-entry' + (hit ? ' hit' : '');
-            entry.innerHTML = allAlts
-              .filter(a => a.text)
+            const visAlts = allAlts.filter(a => a.text).slice(0, 3);
+            entry.innerHTML = visAlts
               .map((a, idx) => {
-                const sep = idx > 0 ? '<span class="wce-sep">·</span>' : '';
-                const pct = a.conf > 0 ? `<span class="wce-pct"> ${(a.conf*100).toFixed(0)}%</span>` : '';
-                return `${sep}<span class="wce-alt">"${a.text}"</span>${pct}`;
-              }).join('') || `<span class="wce-alt">"${topText}"</span>`;
+                const rankCls = idx === 0 ? ' wce-rank-1' : '';
+                const pct = a.conf > 0 ? `<span class="wce-pct">${(a.conf*100).toFixed(0)}%</span>` : '';
+                return `<span class="wce-row${rankCls}"><span class="wce-rank">${idx + 1}.</span><span class="wce-alt">"${a.text}"</span>${pct}</span>`;
+              }).join('') || `<span class="wce-row wce-rank-1"><span class="wce-rank">1.</span><span class="wce-alt">"${topText}"</span></span>`;
             logEl.appendChild(entry);
             logEl.scrollTop = logEl.scrollHeight;
             interimEl.textContent = '…';
           } else {
             lastInterim = r[0].transcript.trim();
-            interimEl.textContent = lastInterim || (carrierPhrase ? `Dis : "${carrierPhrase}"` : '…');
+            interimEl.textContent = lastInterim || (carrierPhrase ? `Dis : "${carrierPhrase}"` : `Essaie : "le ${word}", "la ${word}", "je ${word}"…`);
           }
         }
       };
@@ -7229,7 +7491,7 @@
           const match = normalizeForCheck(lastInterim).includes(targetNorm);
           const entry = document.createElement('div');
           entry.className = 'word-check-entry' + (match ? ' hit' : '');
-          entry.innerHTML = `<span class="wce-alt">"${lastInterim}"</span><span class="wce-pct" style="opacity:0.5"> ?%</span>`;
+          entry.innerHTML = `<span class="wce-row wce-rank-1"><span class="wce-rank">1.</span><span class="wce-alt">"${lastInterim}"</span><span class="wce-pct" style="opacity:0.5">?%</span></span>`;
           logEl.appendChild(entry);
           logEl.scrollTop = logEl.scrollHeight;
           activeCheckCard.totalCount++;
@@ -7323,23 +7585,13 @@
     }
   }
 
-  function closeDrillTray() {
-    if (isSentenceDrill) {
-      isSentenceDrill = false;
-      drillAudioUrl = '';
-    }
-    document.getElementById('para-sent-drill-tray').classList.remove('open');
-    document.getElementById('para-drill-backdrop').classList.remove('open');
-    // Clear active state on practice buttons
-    document.querySelectorAll('.pss-practice-btn.active').forEach(b => b.classList.remove('active'));
-  }
 
   function updateParaScoreBar(pct, passed) {
     // Mobile: bar
     const fill  = document.getElementById('para-tray-bar-fill');
     const pctEl = document.getElementById('para-tray-score-pct');
     const lbl   = document.getElementById('para-tray-score-label');
-    if (fill)  { fill.style.width = pct + '%'; fill.className = 'para-tray-bar-fill ' + (passed ? 'pass' : 'fail'); }
+    if (fill)  updateScoreBar(fill, pct, passed, 'para-tray-bar-fill');
     if (pctEl) { pctEl.textContent = pct + '%'; pctEl.className = 'para-tray-score-pct ' + (passed ? 'pass' : 'fail'); }
     if (lbl)   { lbl.textContent = passed ? 'Passed' : 'Try again'; lbl.className = 'para-tray-score-label ' + (passed ? 'pass' : 'fail'); }
     // Desktop: ring
@@ -8061,65 +8313,15 @@
     section.style.display = 'block';
   }
 
-  async function enterSentenceDrill(idx, btn) {
-    // Mark the active practice button
+  function enterSentenceDrill(idx, btn) {
     document.querySelectorAll('.pss-practice-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
-
-    sentenceDrillIdx = idx;
-    isSentenceDrill = true;
-    drillAudioUrl = '';
-    if (!(idx in sentenceAttemptNumbers)) sentenceAttemptNumbers[idx] = 0;
-
-    const sentence = paragraphSentences[idx];
-    const tray = document.getElementById('para-sent-drill-tray');
-
-    // Reset tray content
-    document.getElementById('psdp-sentence-text').textContent = sentence;
-    document.getElementById('psdp-score-area').style.display = 'none';
-    document.getElementById('psdp-phrase-diff').innerHTML = '';
-    document.getElementById('psdp-feedback-items').innerHTML = '';
-    document.getElementById('psdp-live-transcript').style.display = 'none';
-    document.getElementById('para-drill-replay-btn').disabled = true;
-    document.getElementById('para-drill-mic-btn').disabled = true;
-
-    // Open tray and backdrop
-    tray.classList.add('open');
-    document.getElementById('para-drill-backdrop').classList.add('open');
-
-    // Fetch TTS for this sentence
-    try {
-      const res = await fetch('/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: sentence }),
-      });
-      const data = await res.json();
-      drillAudioUrl = data.audio_url;
-      document.getElementById('para-drill-replay-btn').disabled = false;
-      document.getElementById('para-drill-mic-btn').disabled = false;
-    } catch (err) {
-      console.error('enterSentenceDrill TTS failed:', err);
-    }
+    openDrillTray(paragraphSentences[idx], 'paragraph');
   }
 
   function exitSentenceDrill() {
-    isSentenceDrill = false;
-    isWordDrill = false;
-    drillAudioUrl = '';
-    sentenceDrillIdx = 0;
-    wordDrillWord = '';
-    document.querySelector('.psdp-title').textContent = 'Sentence Drill';
-    document.getElementById('para-sent-drill-tray').classList.remove('open');
-    document.getElementById('para-drill-backdrop').classList.remove('open');
+    closeDrillTray();
     document.querySelectorAll('.pss-practice-btn.active').forEach(b => b.classList.remove('active'));
-    // Stop recognition if drill mic was active
-    const drillMic = document.getElementById('para-drill-mic-btn');
-    if (drillMic && drillMic.classList.contains('listening')) {
-      if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
-      userStoppedRecognition = true;
-      recognition && recognition.stop();
-    }
   }
 
   async function enterWordDrill(word, tip, title, article, isWordEntry) {
@@ -8175,9 +8377,18 @@
       wordCheckBtn.disabled = true;
       phraseMicBtn.disabled = true;
 
+      const drillBtn = document.getElementById('practice-psdp-drill-btn');
+      const drillPanel = document.getElementById('practice-psdp-drill-panel');
+      drillBtn.style.display = isWordEntry ? '' : 'none';
+      drillBtn.disabled = true;
+      drillBtn.textContent = 'Drill';
+      drillPanel.classList.remove('open');
+      drillPanel.innerHTML = '';
+
       wordInterim.className = 'word-check-interim';
       wordLog.className = 'word-check-log';
       wordLog.innerHTML = '';
+      document.getElementById('practice-psdp-practice-panel').classList.remove('active');
       if (isWordEntry) resetCheckBtn(wordCheckBtn);
 
       wordDrillContextPhrase = '';
@@ -8209,8 +8420,37 @@
           const wordCheckBtn = document.getElementById('practice-psdp-word-check-btn');
           const wordInterim = document.getElementById('practice-psdp-word-interim');
           const wordLog = document.getElementById('practice-psdp-word-log');
+          const practicePanel = document.getElementById('practice-psdp-practice-panel');
+          const drillBtn = document.getElementById('practice-psdp-drill-btn');
+          const drillPanel = document.getElementById('practice-psdp-drill-panel');
+
           wordCheckBtn.disabled = false;
-          wordCheckBtn.onclick = () => startWordCheck(word, wordLog, wordCheckBtn, wordInterim, wordLog, article);
+          wordCheckBtn.onclick = () => {
+            if (drillPanel.classList.contains('open')) {
+              stopWordDrill();
+              drillBtn.textContent = 'Drill';
+              drillPanel.classList.remove('open');
+              drillPanel.innerHTML = '';
+            }
+            startWordCheck(word, practicePanel, wordCheckBtn, wordInterim, wordLog, article, practicePanel);
+          };
+
+          drillBtn.disabled = false;
+          drillBtn.onclick = () => {
+            if (drillPanel.classList.contains('open')) {
+              stopWordDrill();
+              drillBtn.textContent = 'Drill';
+              drillPanel.classList.remove('open');
+              drillPanel.innerHTML = '';
+            } else {
+              stopWordCheck();
+              resetCheckBtn(wordCheckBtn);
+              practicePanel.classList.remove('active');
+              drillPanel.classList.add('open');
+              drillBtn.textContent = '✕ Drill';
+              startWordDrill(word, drillPanel, drillBtn);
+            }
+          };
         } else {
           const phraseMicBtn = document.getElementById('practice-para-drill-mic-btn');
           phraseMicBtn.disabled = false;
@@ -8382,8 +8622,7 @@
     scoreEl.className = 'psdp-score-pct ' + (passed ? 'pass' : 'fail');
 
     const barFill = document.getElementById(scoreBarFillId);
-    barFill.style.width = pct + '%';
-    barFill.className = 'psdp-score-bar-fill ' + (passed ? 'pass' : 'fail');
+    updateScoreBar(barFill, pct, passed, 'psdp-score-bar-fill');
 
     document.getElementById(resultLabelId).textContent = passed ? 'Passed ✓' : 'Try again';
     document.getElementById(scoreAreaId).style.display = 'block';
@@ -8393,11 +8632,7 @@
     const diff = document.getElementById(phraseDiffId);
     diff.innerHTML = '';
     (data.display_results || []).forEach(dr => {
-      const cls = dr.matched ? 'correct' : (dr.said ? 'wrong' : 'missing');
-      const span = document.createElement('span');
-      span.className = 'diff-word ' + cls;
-      span.textContent = dr.word;
-      diff.appendChild(span);
+      diff.appendChild(buildScoredToken(dr.word, dr.matched, dr.said));
       diff.appendChild(document.createTextNode(' '));
     });
 
@@ -8441,11 +8676,12 @@
         item.appendChild(note);
       }
 
-      const micBtn = attachWordCheckToFeedbackItem(item, f.target_word);
+      const { micBtn, practicePanel } = attachWordCheckToFeedbackItem(item, f.target_word);
       const actionsRow = document.createElement('div');
       actionsRow.className = 'feedback-item-actions';
       actionsRow.appendChild(micBtn);
       item.appendChild(actionsRow);
+      item.appendChild(practicePanel);
 
       itemsEl.appendChild(item);
     });
@@ -8478,8 +8714,7 @@
     scoreEl.className = 'psdp-score-pct ' + (passed ? 'pass' : 'fail');
 
     const barFill = document.getElementById('psdp-score-bar-fill');
-    barFill.style.width = pct + '%';
-    barFill.className = 'psdp-score-bar-fill ' + (passed ? 'pass' : 'fail');
+    updateScoreBar(barFill, pct, passed, 'psdp-score-bar-fill');
 
     document.getElementById('psdp-result-label').textContent = passed ? 'Passed ✓' : 'Try again';
     document.getElementById('psdp-score-area').style.display = 'block';
@@ -8489,11 +8724,7 @@
     const diff = document.getElementById('psdp-phrase-diff');
     diff.innerHTML = '';
     (data.display_results || []).forEach(dr => {
-      const cls = dr.matched ? 'correct' : (dr.said ? 'wrong' : 'missing');
-      const span = document.createElement('span');
-      span.className = 'diff-word ' + cls;
-      span.textContent = dr.word;
-      diff.appendChild(span);
+      diff.appendChild(buildScoredToken(dr.word, dr.matched, dr.said));
       diff.appendChild(document.createTextNode(' '));
     });
 
@@ -8531,21 +8762,23 @@
       populateFeedbackTip(tipEl, f.target_word, f.tip || '');
 
       const addBtn = document.createElement('button');
-      addBtn.className = 'add-to-practice-btn';
-      addBtn.textContent = '+ Save to practice list';
+      addBtn.className = 'practice-save-btn';
+      addBtn.title = 'Save to practice list';
+      addBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
       addBtn.addEventListener('click', async () => {
         await addToPracticeList(f.target_word, tipEl.textContent || f.tip || '', paragraphSentences[sentenceDrillIdx] || '');
-        addBtn.textContent = '✓ Saved';
+        addBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2h10v13l-5-3-5 3V2z"/></svg>`;
         addBtn.classList.add('added');
         updatePracticeCount();
       });
 
-      const micBtn = attachWordCheckToFeedbackItem(item, f.target_word);
+      const { micBtn, practicePanel } = attachWordCheckToFeedbackItem(item, f.target_word);
       const actionsRow = document.createElement('div');
       actionsRow.className = 'feedback-item-actions';
       actionsRow.appendChild(micBtn);
       actionsRow.appendChild(addBtn);
       item.appendChild(actionsRow);
+      item.appendChild(practicePanel);
 
       itemsEl.appendChild(item);
     });
@@ -8575,8 +8808,13 @@
         recognition && recognition.stop();
       }
     });
-    // Stop active word-check if running
+    // Stop active word-check or drill if running
     if (activeCheckCard) stopWordCheck();
+    stopWordDrill();
+    const drillPanel = document.getElementById('practice-psdp-drill-panel');
+    if (drillPanel) { drillPanel.classList.remove('open'); drillPanel.innerHTML = ''; }
+    const drillBtn = document.getElementById('practice-psdp-drill-btn');
+    if (drillBtn) drillBtn.textContent = 'Drill';
   }
 
   function setPracticeDrillPlayBtnState(playing) {
@@ -8721,7 +8959,7 @@
           ? `The word <strong>${hardWords[0].word}</strong> keeps coming up wrong. It's showing up consistently across your attempts but hasn't clicked yet.`
           : `These ${hardWords.length} words keep coming up wrong across multiple sessions. They're your biggest opportunity right now.`,
         chips: hardWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: focusBtn('Practice these in shadow mode', wordList),
+        btn: focusBtn('Practice these in the phrase exercise', wordList),
       });
     }
 
@@ -8747,7 +8985,7 @@
         label: 'NOTICE THIS',
         message: 'The microphone keeps missing these words. The sound is likely there but needs more definition — usually more energy on the first consonant.',
         chips: acousticWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: focusBtn('Practice these in shadow mode', acousticWords.map(w => w.word)),
+        btn: focusBtn('Practice these in the phrase exercise', acousticWords.map(w => w.word)),
       });
     }
 
@@ -8778,7 +9016,7 @@
         label: 'PATTERNS',
         message: 'These words are consistently coming out wrong in a recognisable way. Each group points to a different fix.',
         chips: patternSections.join(''),
-        btn: focusBtn('Practice these in shadow mode', allPatternWords.map(w => w.word)),
+        btn: focusBtn('Practice these in the phrase exercise', allPatternWords.map(w => w.word)),
       });
     }
 
@@ -8791,7 +9029,7 @@
         label: 'INCONSISTENT',
         message: `You get ${inconsistentWords.length === 1 ? 'this word' : 'these words'} sometimes but not reliably. The sound is in there — it just hasn't locked in yet. More reps in context will close this gap.`,
         chips: inconsistentWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: focusBtn('Focus on these in shadow mode', inconsistentWords.map(w => w.word)),
+        btn: focusBtn('Focus on these in the phrase exercise', inconsistentWords.map(w => w.word)),
       });
     }
 
@@ -8913,6 +9151,130 @@
   updatePracticeCount();
   addSys("Session started — select a mode or type what you'd like to work on");
   textInput.focus();
+
+
+</script>
+
+<!-- ── Unified Drill Tray ── -->
+<div id="drill-tray-backdrop" onclick="closeDrillTray()"></div>
+<div id="drill-tray">
+  <div id="dt-header">
+    <span id="dt-title">Phrase</span>
+    <div id="dt-header-tools">
+      <div class="speed-btns" id="dt-speed-btns">
+        <button class="speed-btn" data-rate="0.75" onclick="setPlaybackSpeed(0.75)">×0.75</button>
+        <button class="speed-btn active" data-rate="1" onclick="setPlaybackSpeed(1)">×1</button>
+        <button class="speed-btn" data-rate="1.25" onclick="setPlaybackSpeed(1.25)">×1.25</button>
+      </div>
+    </div>
+    <button id="dt-close-btn" onclick="closeDrillTray()" title="Close">✕</button>
+  </div>
+  <div id="dt-content"></div>
+</div>
+
+<script>
+  /* ── Drill Tray ── */
+
+  let phraseInTray = false;
+
+  function openDrillTray(sentence, context) {
+    // Stop any in-flight phrase audio/mic
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if (recognition) { try { recognition.stop(); } catch(e){} }
+    document.getElementById('phrase-mic-btn').classList.remove('listening');
+
+    // Header
+    document.getElementById('dt-title').textContent = context === 'paragraph' ? 'Sentence Drill' : 'Phrase';
+    document.getElementById('dt-header-tools').style.display = context === 'paragraph' ? 'none' : '';
+
+    // Move phrase-content into tray
+    const phraseContent = document.getElementById('phrase-content');
+    document.getElementById('dt-content').appendChild(phraseContent);
+    phraseInTray = true;
+
+    // Hide skip — not applicable when drilling a specific sentence
+    const skipBtn = phraseContent.querySelector('.phrase-skip-btn');
+    if (skipBtn) skipBtn.style.display = 'none';
+
+    // Open tray
+    document.getElementById('drill-tray-backdrop').classList.add('open');
+    document.getElementById('drill-tray').classList.add('open');
+
+    // Load the sentence
+    loadPhraseForDrill(sentence);
+  }
+
+  function closeDrillTray() {
+    const phraseContent = document.getElementById('phrase-content');
+    if (phraseContent && phraseInTray) {
+      // Restore skip button
+      const skipBtn = phraseContent.querySelector('.phrase-skip-btn');
+      if (skipBtn) skipBtn.style.display = '';
+
+      document.getElementById('phrase-view').appendChild(phraseContent);
+    }
+    phraseInTray = false;
+
+    // Stop audio/mic
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if (recognition) { try { recognition.stop(); } catch(e){} }
+    document.getElementById('phrase-mic-btn')?.classList.remove('listening');
+
+    // Clear PSS active state
+    document.querySelectorAll('.pss-practice-btn.active').forEach(b => b.classList.remove('active'));
+
+    // Close tray
+    document.getElementById('drill-tray').classList.remove('open');
+    document.getElementById('drill-tray-backdrop').classList.remove('open');
+  }
+
+  async function loadPhraseForDrill(text) {
+    if (phraseAdvanceTimer) { clearTimeout(phraseAdvanceTimer); phraseAdvanceTimer = null; }
+    phraseAttemptNumber = 0;
+    currentPhrase = text;
+    currentAudioUrl = '';
+    currentNounAdjTokens = [];
+
+    // Hide coach focus banner — not relevant in drill context
+    document.getElementById('coach-focus-banner').style.display = 'none';
+
+    // Reset exercise state
+    document.getElementById('phrase-feedback').style.display = 'none';
+    document.getElementById('phrase-retry-hint').style.display = 'none';
+    document.getElementById('phrase-text').textContent = text;
+    document.getElementById('phrase-attempt-prefix').style.display = 'none';
+    document.getElementById('phrase-attempt-text').textContent = 'Tap mic to repeat';
+    document.getElementById('phrase-card').classList.toggle('blurred', isBlurred);
+    rhythmOn = false;
+    syllableOn = false;
+    rhythmPlainPhrase = '';
+    rhythmAnnotatedHTML = '';
+    syllableAnnotatedHTML = '';
+    rhythmDataCache = null;
+    rhythmDataFetch = null;
+    document.getElementById('phrase-rhythm-btn').classList.remove('active');
+    document.getElementById('phrase-syllable-btn').classList.remove('active');
+    document.getElementById('phrase-syllable-line').style.display = 'none';
+    setShadowPlayBtnState(false);
+    document.getElementById('phrase-replay-btn').disabled = true;
+
+    // Fetch TTS for this specific sentence
+    try {
+      const res = await fetch('/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (!phraseInTray) return;
+      currentAudioUrl = data.audio_url;
+      document.getElementById('phrase-replay-btn').disabled = false;
+      playAudio(data.audio_url);
+    } catch(e) {
+      console.error('loadPhraseForDrill TTS failed:', e);
+    }
+  }
+
 </script>
 </body>
 </html>

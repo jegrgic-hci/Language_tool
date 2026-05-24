@@ -1185,6 +1185,77 @@ async def shadow_rhythm(req: ShadowRhythmRequest):
         raise HTTPException(status_code=500, detail=f"Rhythm annotation failed: {e}")
 
 
+class WordDrillAnalyzeRequest(BaseModel):
+    word: str
+    attempts: list
+    session_id: Optional[str] = None
+
+
+_WORD_DRILL_SYSTEM_STRUGGLING = """You are a French pronunciation coach analyzing a student's repeated attempts to say a single word.
+
+You are given:
+- The target word (what they should have said)
+- A list of transcribed attempts (what speech recognition captured each time)
+- A hit rate: the fraction of attempts where speech recognition matched the target
+
+Identify the consistent pattern across attempts — what phoneme or feature is the student struggling with.
+
+Return a concise coaching note (2-4 sentences) covering:
+1. The specific sound or pattern they're missing
+2. One body-mechanics cue (lip/tongue/nasal position)
+3. One practical tip to improve
+
+Be direct and specific. No preamble. Plain text, no markdown."""
+
+_WORD_DRILL_SYSTEM_SOLID = """You are a French pronunciation coach reviewing a student's drill results for a single word.
+
+You are given:
+- The target word
+- A list of transcribed attempts
+- A hit rate: the fraction of attempts where speech recognition matched the target
+
+The student got this word right most of the time. Give brief, encouraging feedback that:
+1. Confirms what they're doing well (1 sentence)
+2. Notes any minor inconsistency worth watching, or a refinement tip if all attempts were perfect
+
+Keep it to 2 sentences max. Be specific to the word. No preamble. Plain text, no markdown."""
+
+
+def _word_drill_hit_rate(word: str, attempts: list) -> float:
+    target = re.sub(r"[^\w]", "", word.lower())
+    hits = sum(1 for a in attempts if re.sub(r"[^\w]", "", a.lower()) == target)
+    return hits / len(attempts) if attempts else 0.0
+
+
+@app.post("/analyze_word_drill")
+async def analyze_word_drill(req: WordDrillAnalyzeRequest):
+    if not req.word or not req.attempts:
+        return {"feedback": "No attempts to analyze."}
+
+    hit_rate = _word_drill_hit_rate(req.word, req.attempts)
+    system = _WORD_DRILL_SYSTEM_SOLID if hit_rate >= 0.6 else _WORD_DRILL_SYSTEM_STRUGGLING
+    attempts_text = "\n".join(f"- {a}" for a in req.attempts)
+    prompt = f"Target word: {req.word}\nHit rate: {hit_rate:.0%}\n\nAttempts:\n{attempts_text}"
+
+    try:
+        def _call():
+            client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+            resp = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+            )
+            return resp.choices[0].message.content.strip()
+        feedback = await asyncio.to_thread(_call)
+        return {"feedback": feedback}
+    except Exception as e:
+        print(f"[analyze_word_drill] ERROR: {e}")
+        return {"feedback": "Analysis unavailable."}
+
+
 # ── Prosody routes ────────────────────────────────────────────────────────────
 
 @app.get("/prosody/targets")
