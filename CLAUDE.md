@@ -79,9 +79,9 @@ python server.py
 - **Fix**: elisions are now kept as single tokens end-to-end. `elision.py` holds the canonical rule list (`FRENCH_ELISION_RULES`) — it contracts expanded forms (e.g. `"je ai"` → `"j'ai"`) rather than expanding them. Both `shadow_engine.py` and `paragraph_engine.py` import `normalize_french()` from it. The frontend `contractElisions()` in `static/index.html` mirrors the same rules in JS so the live transcript display and what gets sent to the backend are already in contracted form.
 - **Scoring**: `_normalize()` no longer expands elisions. `_norm_parts()` and the dropout correction pass have been removed. `display_results` is now a clean 1:1 mapping between original tokens and normalized tokens.
 
-## Hyphenated words in scoring (in progress)
-Hyphenated compounds like `sous-estimé` are a single visual token in the target text but the Web Speech API returns them as two separate words (`su estime`). Current approach:
-- `_normalize()` in both `shadow_engine.py` and `paragraph_engine.py` replaces `-` with a space before stripping punctuation, so `sous-estimé` → `["sous", "estimé"]` (2 scoring tokens)
+## Hyphenated and underscore-linked words in scoring
+Hyphenated compounds like `sous-estimé` and liaison-marked tokens like `Mes_enfants` are single visual tokens but the Web Speech API returns them as separate words. Current approach:
+- `normalize()` in `score_utils.py` replaces both `-` and `_` with a space before stripping punctuation, so `Mes_enfants` → `["mes", "enfants"]` and `sous-estimé` → `["sous", "estimé"]` (2 scoring tokens each)
 - The speech API output (`su estime`) also normalizes to 2 tokens, giving SequenceMatcher two near-miss pairs to score rather than one total mismatch
 - `display_results` and `mismatches` are built from the merged view — consuming `len(_normalize(orig_token))` entries per original token — so the display still shows `sous-estimé` as one word
 - **Known limitation**: `sous`/`su` is still an exact-token mismatch; phonetic proximity is not yet handled. SequenceMatcher gives partial credit for the `estimé`/`estime` pair but none for `sous`/`su`. A future fix could add `su` → `sous` to `FRENCH_HOMOPHONES` or introduce fuzzy/phonetic matching at the token level.

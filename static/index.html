@@ -865,6 +865,40 @@
     }
     .feedback-score-fill.pass { background: var(--k-green); }
     .feedback-score-fill.fail { background: var(--k-red); }
+    .phrase-attempt-meta {
+      font-family: var(--font-ui);
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      color: var(--k-text-muted);
+      margin-top: 4px;
+    }
+    .phrase-limit-msg {
+      width: 100%;
+      max-width: 640px;
+      padding: 10px 16px;
+      border: 1px solid var(--k-border-light);
+      border-left: 3px solid var(--k-teal);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      color: var(--k-text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .phrase-limit-skip {
+      font-family: var(--font-ui);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: none;
+      border: 1px solid var(--k-border-light);
+      color: var(--k-text);
+      padding: 4px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .phrase-limit-skip:hover { background: var(--k-teal-dark); color: #fff; border-color: var(--k-teal-dark); }
     .feedback-phrase-diff {
       padding: 16px 20px;
       font-family: var(--font-body);
@@ -2383,6 +2417,14 @@
     .conf-badge.conf-high { color: rgba(255,255,255,0.3); }
     .conf-badge.conf-mid  { color: rgba(255,255,255,0.55); }
     .conf-badge.conf-low  { color: #C8922A; }
+
+    .conf-low-note {
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      color: #C8922A;
+      margin-top: 6px;
+      padding: 4px 0;
+    }
 
     /* ── Confidence warning bar ── */
     #confidence-bar {
@@ -3962,6 +4004,11 @@
 
       <div class="phrase-attempt-label" id="phrase-attempt-label">
         <span id="phrase-attempt-prefix" style="display:none;">Speech input&nbsp;</span><span id="phrase-attempt-text">Loading…</span>
+        <div id="phrase-attempt-meta" class="phrase-attempt-meta" style="display:none;"></div>
+      </div>
+      <div id="phrase-limit-msg" style="display:none;" class="phrase-limit-msg">
+        Nice effort — save this phrase to your list and try a new one.
+        <button class="phrase-limit-skip" onclick="fetchNextPhrase()">Next phrase</button>
       </div>
 
       <div id="phrase-actions">
@@ -6262,6 +6309,9 @@
             const said = dr.said ? ` <span class="prg-hint-said">(heard: ${esc(dr.said)})</span>` : '';
             return `<span class="prg-hint-item"><span class="prg-hint-word">${esc(dr.word)}</span> → ${esc(syls)}${said}</span>`;
           }).join('');
+          if (confidence != null && confidence < 0.65) {
+            hintEl.innerHTML += `<div class="conf-low-note">Low recording confidence — speak clearly and try again.</div>`;
+          }
         } else {
           hintEl.style.display = 'none';
           hintEl.innerHTML = '';
@@ -6310,6 +6360,7 @@
   let isPhraseLoading    = false;
   let phraseAdvanceTimer = null;
   let phraseAttemptNumber = 0;
+  let phraseHighestScore  = -1;
   const SHADOW_AUTO_ADVANCE = 3;
 
   // ── Coach focus session state ──────────────────────────────────────────────
@@ -6517,9 +6568,12 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (isPhraseLoading) return;
     isPhraseLoading = true;
     phraseAttemptNumber = 0;
+    phraseHighestScore  = -1;
     document.getElementById('phrase-retry-hint').style.display = 'none';
 
     document.getElementById('phrase-feedback').style.display = 'none';
+    const _metaEl = document.getElementById('phrase-attempt-meta'); if (_metaEl) { _metaEl.textContent = ''; _metaEl.style.display = 'none'; }
+    document.getElementById('phrase-limit-msg').style.display = 'none';
     document.getElementById('phrase-text').textContent = '…';
     document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Loading…';
     rhythmOn = false;
@@ -6672,7 +6726,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         }),
       });
       const data = await res.json();
-      renderFeedback(data, text);
+      renderFeedback(data, text, undefined, confidence);
 
       if (data.passed) {
         shadowPassStreak++;
@@ -6693,16 +6747,28 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     }
   }
 
-  function renderFeedback(data, userText, container) {
+  function renderFeedback(data, userText, container, confidence) {
     if (!container) container = document.getElementById('phrase-feedback');
     const pct    = Math.round(data.score * 100);
     const passed = data.passed;
-
 
     const scoreEl = container.querySelector('.feedback-score');
     scoreEl.textContent = pct + '%';
     scoreEl.className = 'feedback-score ' + (passed ? 'pass' : 'fail');
     updateScoreBar(container.querySelector('.feedback-score-fill'), pct, passed, 'feedback-score-fill');
+
+    if (container === document.getElementById('phrase-feedback')) {
+      if (pct > phraseHighestScore) phraseHighestScore = pct;
+      const metaEl = document.getElementById('phrase-attempt-meta');
+      if (metaEl) {
+        const bestLine = phraseHighestScore >= 0 ? `Best ${phraseHighestScore}%` : '';
+        const attemptLine = `Attempt ${phraseAttemptNumber}`;
+        metaEl.textContent = phraseAttemptNumber > 1 ? `${attemptLine} · ${bestLine}` : attemptLine;
+        metaEl.style.display = '';
+      }
+      const limitMsg = document.getElementById('phrase-limit-msg');
+      if (limitMsg) limitMsg.style.display = phraseAttemptNumber >= 10 ? '' : 'none';
+    }
 
     const phraseDiff = container.querySelector('.feedback-phrase-diff');
     phraseDiff.innerHTML = '';
@@ -6710,6 +6776,16 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       phraseDiff.appendChild(buildScoredToken(dr.word, dr.matched, dr.said));
       phraseDiff.appendChild(document.createTextNode(' '));
     });
+
+    const existingNote = phraseDiff.parentNode.querySelector('.conf-low-note');
+    if (existingNote) existingNote.remove();
+    const hasMismatches = (data.display_results || []).some(dr => !dr.matched);
+    if (confidence != null && confidence < 0.65 && hasMismatches) {
+      const note = document.createElement('div');
+      note.className = 'conf-low-note';
+      note.textContent = 'Low recording confidence — speak clearly and try again.';
+      phraseDiff.insertAdjacentElement('afterend', note);
+    }
 
     const itemsEl = container.querySelector('.feedback-items');
     itemsEl.innerHTML = '';
@@ -7331,6 +7407,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function normalizeForCheck(text) {
     return text.toLowerCase()
+      .replace(/_/g, ' ')
       .replace(/[éèêë]/g, 'e').replace(/[àâ]/g, 'a').replace(/[ùûü]/g, 'u')
       .replace(/[îï]/g, 'i').replace(/[ôö]/g, 'o').replace(/ç/g, 'c')
       .replace(/['']/g, '').replace(/[^a-z\s]/g, '').trim();
@@ -8587,7 +8664,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         body: JSON.stringify({ target, transcription: text, confidence, chunk_size: 1 }),
       });
       const data = await res.json();
-      renderWordDrillFeedback(data, text);
+      renderWordDrillFeedback(data, text, confidence);
     } catch (err) {
       console.error('handleWordDrillResult failed:', err);
     }
@@ -8601,7 +8678,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     } catch {}
   }
 
-  function renderWordDrillFeedback(data, userText) {
+  function renderWordDrillFeedback(data, userText, confidence) {
     const pct    = Math.round(data.score * 100);
     const passed = data.passed;
 
@@ -8635,6 +8712,16 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       diff.appendChild(buildScoredToken(dr.word, dr.matched, dr.said));
       diff.appendChild(document.createTextNode(' '));
     });
+
+    const existingDrillNote = diff.parentNode.querySelector('.conf-low-note');
+    if (existingDrillNote) existingDrillNote.remove();
+    const drillHasMismatches = (data.display_results || []).some(dr => !dr.matched);
+    if (confidence != null && confidence < 0.65 && drillHasMismatches) {
+      const note = document.createElement('div');
+      note.className = 'conf-low-note';
+      note.textContent = 'Low recording confidence — speak clearly and try again.';
+      diff.insertAdjacentElement('afterend', note);
+    }
 
     // Feedback items
     const itemsEl = document.getElementById(feedbackItemsId);
@@ -9231,6 +9318,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   async function loadPhraseForDrill(text) {
     if (phraseAdvanceTimer) { clearTimeout(phraseAdvanceTimer); phraseAdvanceTimer = null; }
     phraseAttemptNumber = 0;
+    phraseHighestScore  = -1;
     currentPhrase = text;
     currentAudioUrl = '';
     currentNounAdjTokens = [];
@@ -9240,6 +9328,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     // Reset exercise state
     document.getElementById('phrase-feedback').style.display = 'none';
+    const _dMeta = document.getElementById('phrase-attempt-meta'); if (_dMeta) { _dMeta.textContent = ''; _dMeta.style.display = 'none'; }
+    document.getElementById('phrase-limit-msg').style.display = 'none';
     document.getElementById('phrase-retry-hint').style.display = 'none';
     document.getElementById('phrase-text').textContent = text;
     document.getElementById('phrase-attempt-prefix').style.display = 'none';
