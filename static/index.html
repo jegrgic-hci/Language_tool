@@ -865,11 +865,14 @@
     }
     .feedback-score-fill.pass { background: var(--k-green); }
     .feedback-score-fill.fail { background: var(--k-red); }
-    .phrase-attempt-meta {
+    #phrase-attempt-meta {
       font-family: var(--font-ui);
       font-size: 0.58rem;
       letter-spacing: 0.1em;
       color: var(--k-text-muted);
+      width: 100%;
+      max-width: 640px;
+      text-align: center;
       margin-top: 4px;
     }
     .phrase-limit-msg {
@@ -918,6 +921,20 @@
     .diff-word.missing {
       color: var(--k-text-muted);
       text-decoration: line-through;
+    }
+    .liaison-mark {
+      color: var(--k-teal);
+      font-size: 0.8em;
+      vertical-align: middle;
+      opacity: 0.85;
+      letter-spacing: 0;
+    }
+    .enchainement-mark {
+      color: #9B7A00;
+      font-size: 0.8em;
+      vertical-align: middle;
+      opacity: 0.85;
+      letter-spacing: 0;
     }
     .feedback-items { padding: 4px 0; }
     .word-exercise {
@@ -4004,8 +4021,8 @@
 
       <div class="phrase-attempt-label" id="phrase-attempt-label">
         <span id="phrase-attempt-prefix" style="display:none;">Speech input&nbsp;</span><span id="phrase-attempt-text">Loading…</span>
-        <div id="phrase-attempt-meta" class="phrase-attempt-meta" style="display:none;"></div>
       </div>
+      <div id="phrase-attempt-meta" class="phrase-attempt-meta">—</div>
       <div id="phrase-limit-msg" style="display:none;" class="phrase-limit-msg">
         Nice effort — save this phrase to your list and try a new one.
         <button class="phrase-limit-skip" onclick="fetchNextPhrase()">Next phrase</button>
@@ -4889,11 +4906,25 @@
   }
 
   // Shared scored-token renderer — single source of truth for word-level coloring across all modes.
+  function markLinks(s) {
+    return s
+      .replace(/‿/g, '<span class="liaison-mark">‿</span>')
+      .replace(/⁀/g, '<span class="enchainement-mark">⁀</span>');
+  }
+
+  function phraseHTML(phrase) {
+    return markLinks(esc(phrase));
+  }
+
   function buildScoredToken(word, matched, said) {
     const cls = matched ? 'correct' : (said ? 'wrong' : 'missing');
     const span = document.createElement('span');
     span.className = 'diff-word ' + cls;
-    span.textContent = word;
+    if (word.includes('‿') || word.includes('⁀')) {
+      span.innerHTML = markLinks(esc(word));
+    } else {
+      span.textContent = word;
+    }
     return span;
   }
 
@@ -6462,7 +6493,7 @@
     if (rhythmOn) {
       rhythmOn = false;
       btn.classList.remove('active');
-      phraseEl.textContent = rhythmPlainPhrase;
+      phraseEl.innerHTML = phraseHTML(rhythmPlainPhrase);
       return;
     }
 
@@ -6572,7 +6603,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('phrase-retry-hint').style.display = 'none';
 
     document.getElementById('phrase-feedback').style.display = 'none';
-    const _metaEl = document.getElementById('phrase-attempt-meta'); if (_metaEl) { _metaEl.textContent = ''; _metaEl.style.display = 'none'; }
+    const _metaEl = document.getElementById('phrase-attempt-meta'); if (_metaEl) { _metaEl.textContent = '—'; }
     document.getElementById('phrase-limit-msg').style.display = 'none';
     document.getElementById('phrase-text').textContent = '…';
     document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Loading…';
@@ -6608,7 +6639,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         currentPhrase        = phrase;
         currentAudioUrl      = ttsData.audio_url;
         currentNounAdjTokens = [];
-        document.getElementById('phrase-text').textContent = phrase;
+        document.getElementById('phrase-text').innerHTML = phraseHTML(phrase);
         document.getElementById('phrase-card').classList.toggle('blurred', isBlurred);
         document.getElementById('phrase-replay-btn').disabled = false;
         document.getElementById('phrase-attempt-prefix').style.display = 'none';
@@ -6627,7 +6658,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         currentPhrase        = data.phrase;
         currentAudioUrl      = data.audio_url;
         currentNounAdjTokens = data.noun_adj_tokens || [];
-        document.getElementById('phrase-text').textContent = data.phrase;
+        document.getElementById('phrase-text').innerHTML = phraseHTML(data.phrase);
         document.getElementById('phrase-card').classList.toggle('blurred', isBlurred);
         document.getElementById('phrase-replay-btn').disabled = false;
         document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = 'Tap mic to repeat';
@@ -6764,7 +6795,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const bestLine = phraseHighestScore >= 0 ? `Best ${phraseHighestScore}%` : '';
         const attemptLine = `Attempt ${phraseAttemptNumber}`;
         metaEl.textContent = phraseAttemptNumber > 1 ? `${attemptLine} · ${bestLine}` : attemptLine;
-        metaEl.style.display = '';
       }
       const limitMsg = document.getElementById('phrase-limit-msg');
       if (limitMsg) limitMsg.style.display = phraseAttemptNumber >= 10 ? '' : 'none';
@@ -6802,7 +6832,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     });
 
     document.getElementById('phrase-feedback').style.display = '';
-    document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = passed ? 'Passed ✓' : '';
+    document.getElementById('phrase-attempt-prefix').style.display = 'none'; document.getElementById('phrase-attempt-text').textContent = passed ? 'Passed ✓' : 'Tap mic to retry';
     document.getElementById('phrase-retry-hint').style.display = passed ? 'none' : '';
     // On pass: hide footer (auto-advance fires). On fail: show next + retry.
   }
@@ -6818,7 +6848,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const wordsRow = document.createElement('div');
     wordsRow.className = 'feedback-item-words';
     wordsRow.innerHTML =
-      `<span class="fi-target">${esc(word)}</span>` +
+      `<span class="fi-target">${markLinks(esc(word))}</span>` +
       `<span class="fi-arrow">←</span>` +
       `<span class="fi-said">you said: ${esc(said || '(missing)')}</span>`;
 
@@ -7407,7 +7437,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function normalizeForCheck(text) {
     return text.toLowerCase()
-      .replace(/_/g, ' ')
+      .replace(/[_‿⁀]/g, ' ')
       .replace(/[éèêë]/g, 'e').replace(/[àâ]/g, 'a').replace(/[ùûü]/g, 'u')
       .replace(/[îï]/g, 'i').replace(/[ôö]/g, 'o').replace(/ç/g, 'c')
       .replace(/['']/g, '').replace(/[^a-z\s]/g, '').trim();
@@ -8732,7 +8762,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const wordsRow = document.createElement('div');
       wordsRow.className = 'feedback-item-words';
       wordsRow.innerHTML =
-        `<span class="fi-target">${esc(f.target_word)}</span>` +
+        `<span class="fi-target">${markLinks(esc(f.target_word))}</span>` +
         `<span class="fi-arrow">←</span>` +
         `<span class="fi-said">you said: ${esc(f.said || '(missing)')}</span>`;
 
@@ -8824,7 +8854,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const wordsRow = document.createElement('div');
       wordsRow.className = 'feedback-item-words';
       wordsRow.innerHTML =
-        `<span class="fi-target">${esc(f.target_word)}</span>` +
+        `<span class="fi-target">${markLinks(esc(f.target_word))}</span>` +
         `<span class="fi-arrow">←</span>` +
         `<span class="fi-said">you said: ${esc(f.said || '(missing)')}</span>`;
 
@@ -9328,7 +9358,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     // Reset exercise state
     document.getElementById('phrase-feedback').style.display = 'none';
-    const _dMeta = document.getElementById('phrase-attempt-meta'); if (_dMeta) { _dMeta.textContent = ''; _dMeta.style.display = 'none'; }
+    const _dMeta = document.getElementById('phrase-attempt-meta'); if (_dMeta) { _dMeta.textContent = '—'; }
     document.getElementById('phrase-limit-msg').style.display = 'none';
     document.getElementById('phrase-retry-hint').style.display = 'none';
     document.getElementById('phrase-text').textContent = text;

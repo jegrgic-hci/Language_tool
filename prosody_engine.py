@@ -55,12 +55,12 @@ Return ONLY valid JSON — no markdown, no extra text — in this exact shape:
   "phrase": "Les enfants jouent dans le jardin",
   "ipa": "le.z‿ɑ̃.fɑ̃ ʒu | dɑ̃ lə ʒaʁ.dɛ̃",
   "syllabified": [
-    {"word": "Les", "syllables": ["Les"]},
-    {"word": "enfants", "syllables": ["en", "fants"]},
-    {"word": "jouent", "syllables": ["jouent"]},
-    {"word": "dans", "syllables": ["dans"]},
-    {"word": "le", "syllables": ["le"]},
-    {"word": "jardin", "syllables": ["jar", "din"]}
+    {"word": "Les", "syllables": ["le"]},
+    {"word": "enfants", "syllables": ["ɑ̃", "fɑ̃"]},
+    {"word": "jouent", "syllables": ["ʒu"]},
+    {"word": "dans", "syllables": ["dɑ̃"]},
+    {"word": "le", "syllables": ["lə"]},
+    {"word": "jardin", "syllables": ["ʒaʁ", "dɛ̃"]}
   ],
   "rhythm_groups": [["Les", "enfants", "jouent"], ["dans", "le", "jardin"]],
   "liaisons": [
@@ -72,7 +72,7 @@ Return ONLY valid JSON — no markdown, no extra text — in this exact shape:
 }
 
 STRICT RULES:
-- syllabified: list EVERY word of the phrase in order, exactly as written in "phrase"
+- syllabified: list EVERY word of the phrase in order, exactly as written in "phrase". Syllables must be PHONETIC (IPA) — show what the learner hears and says, not the spelling. Use the same IPA symbols as in the "ipa" field.
 - rhythm_groups: arrays of word strings covering every word exactly once, in phrase order
 - liaisons: only mandatory liaisons (les/des/mes/ses/ces/nos/vos/leurs + vowel-start word; vous/nous/ils/elles/on + vowel-start verb; adjective ending in consonant directly before vowel-start noun)
 - enchaînements: only when a word ends in a normally-pronounced consonant that links into the next vowel (not liaison)

@@ -71,7 +71,7 @@ def normalize(text: str, noun_adj_set=None) -> list:
     t = t.replace("’", "'").replace("‘", "'").replace("´", "'")
     t = normalize_french(t)
     t = _ORDINAL_RE.sub(lambda m: _ORDINAL_WORDS.get(int(m.group(1)), m.group(0)), t)
-    t = t.replace("-", " ").replace("_", " ")
+    t = t.replace("-", " ").replace("_", " ").replace("‿", " ").replace("⁀", " ")
     t = _PUNCT_RE.sub("", t)
     words = [w for w in t.split() if w]
     words = [_EE_RE.sub("é", w) for w in words]
@@ -156,6 +156,14 @@ def analyze_mismatches(target: str, transcription: str, mismatches: list, client
             if raw.startswith("json\n"):
                 raw = raw[5:]
             raw = raw.rstrip()
-        return json.loads(raw).get("feedback", [])
+        feedback = json.loads(raw).get("feedback", [])
+        # Mistral normalises ‿/⁀ to spaces when echoing target_word back.
+        # Re-apply the original values from the input mismatches so link marks survive.
+        orig = {re.sub(r'[‿⁀]', ' ', m['target_word']): m['target_word'] for m in mismatches}
+        for item in feedback:
+            key = re.sub(r'[‿⁀]', ' ', item.get('target_word', ''))
+            if key in orig:
+                item['target_word'] = orig[key]
+        return feedback
     except Exception:
         return fallback

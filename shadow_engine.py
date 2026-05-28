@@ -7,6 +7,7 @@ from mistralai import Mistral
 from dotenv import load_dotenv
 from score_utils import normalize as _normalize, build_display_results, run_sequence_match, analyze_mismatches as _analyze_mismatches
 from pos_tagger import tag_nouns_adjs
+from liaison_rules import detect_links
 
 load_dotenv()
 
@@ -89,7 +90,7 @@ def generate_phrase(level: str = 'A1', topic: str = None, style: str = 'story', 
         style_clause = " Style: STORY — a short narrative or conversational fragment about the subject, as a native speaker would mention it in real life."
 
     _SOUND_FOCUS_DESCRIPTIONS = {
-        "liaison":     "many mandatory liaison opportunities (e.g. les‿enfants, vous‿avez, ils‿ont)",
+        "liaison":     "many mandatory liaisons and enchaînements — include determiners before vowel nouns (les enfants), pronouns before vowel verbs (ils ont), prepositions before vowel words (dans un parc), pre-nominal adjectives before vowel nouns (bon ami). Do NOT add any special characters — liaison marks will be inserted automatically.",
         "nasal":       "multiple nasal vowels /ɑ̃/ /ɛ̃/ /ɔ̃/ (an/en, in/ein, on)",
         "u_vowel":     "multiple words with the French /y/ vowel (tu, lune, sur, pur, du, une)",
         "r_sound":     "multiple words with the uvular /ʁ/ sound (regarder, vraiment, partir, parler)",
@@ -125,6 +126,8 @@ def generate_phrase(level: str = 'A1', topic: str = None, style: str = 'story', 
                 raw = raw.rstrip()
             data = json.loads(raw)
             phrase = data["phrase"]
+            if sound_focus == "liaison":
+                phrase = detect_links(phrase)
 
             if key not in _recent_phrases:
                 _recent_phrases[key] = deque(maxlen=_RECENT_MAX)

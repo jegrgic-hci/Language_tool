@@ -92,6 +92,7 @@ def clean_for_tts(text: str) -> str:
     text = re.sub(r"—",  ", ",  text)               # em dash → pause
     text = re.sub(r"…",  "...", text)               # ellipsis
     text = re.sub(r"[#`~]", "", text)               # leftover markdown chars
+    text = text.replace("‿", " ").replace("⁀", " ")  # link marks → space so TTS sees clean French
     text = re.sub(r"\s{2,}", " ", text)             # collapse whitespace
     return text.strip()
 
