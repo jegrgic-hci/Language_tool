@@ -313,17 +313,28 @@
         grid-column: 1;
         grid-row: 1;
       }
+      .mobile-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mobile-logo-icon {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        background: url('/static/Icon_language.png') center / contain no-repeat;
+      }
       .mobile-wordmark {
-        font-family: var(--font-display);
-        font-weight: 700;
+        display: flex;
+        align-items: baseline;
+        font-family: var(--font-body);
+        font-weight: 800;
         font-size: 1rem;
-        letter-spacing: -0.01em;
-        color: var(--vk-fg-1);
-        border-left: 3px solid var(--k-teal);
-        padding-left: 9px;
+        letter-spacing: -0.02em;
         line-height: 1;
       }
-      .mobile-wordmark::after { content: "vraiFrench"; }
+      .mobile-wordmark::before { content: "vrai"; color: var(--vk-accent); }
+      .mobile-wordmark::after  { content: "French"; color: var(--vk-fg-1); }
       #mobile-bar .mobile-mode-chip {
         font-family: var(--font-ui);
         font-size: 0.55rem;
@@ -333,6 +344,7 @@
         border: 1px solid var(--vk-accent-border);
         color: var(--vk-accent-text);
         margin-left: auto;
+        flex-shrink: 0;
       }
       #hamburger {
         background: none;
@@ -340,9 +352,8 @@
         color: var(--vk-fg-2);
         padding: 6px;
         cursor: pointer;
-        margin-left: auto;
+        flex-shrink: 0;
       }
-      #mobile-bar .mobile-mode-chip ~ #hamburger { margin-left: 0; }
 
       #sidebar {
         position: fixed;
@@ -907,6 +918,81 @@
     }
     #para-dict-tray.open { display: flex; }
 
+    /* ── Unified drill tray (#drill-tray) ───────────────────────────────────────
+       Opened by openDrillTray() for sentence / phrase / word practice. It lives
+       at <body> level (outside #app), so it is fixed-positioned to the viewport.
+       Slides in from the right on desktop; full-screen on mobile. */
+    #drill-tray-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 998;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms var(--vk-ease);
+    }
+    #drill-tray-backdrop.open { opacity: 1; pointer-events: auto; }
+    #drill-tray {
+      position: fixed;
+      right: 0; top: 0; bottom: 0;
+      width: 480px;
+      max-width: 100vw;
+      background: var(--vk-surface);
+      border-left: 2px solid var(--vk-accent-border);
+      transform: translateX(100%);
+      transition: transform var(--vk-dur-emph) var(--pa-ease-soft);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 999;
+      box-shadow: var(--vk-elev-2);
+    }
+    #drill-tray.open { transform: translateX(0); }
+    #dt-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--vk-border);
+      flex-shrink: 0;
+    }
+    #dt-title {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      margin-right: auto;
+    }
+    #dt-close-btn {
+      background: none;
+      border: none;
+      color: var(--vk-fg-3);
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 2px;
+      transition: color var(--vk-dur-quick) var(--vk-ease);
+    }
+    #dt-close-btn:hover { color: var(--vk-fg-1); }
+    #dt-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    /* When phrase-content is moved into the tray it must NOT be a second nested
+       fixed-height scroller — let #dt-content own the scroll so the inner card
+       list (and its Practice/Drill buttons) isn't clipped. */
+    #dt-content > #phrase-content {
+      flex: 0 0 auto;
+      overflow: visible;
+      padding: 24px 16px 48px;
+    }
+    @media (max-width: 768px) {
+      #drill-tray { width: 100vw; border-left: none; }
+    }
+
     /* ── Tray chrome (shared by sentence drill + dictation) ── */
     .psdp-header {
       display: flex;
@@ -1105,13 +1191,79 @@
     }
     .level-chip-option.active { background: var(--vk-accent); border-color: var(--vk-accent); color: var(--vk-accent-fg); }
 
+    /* ── Speed chip dropdown — compact playback-speed control (mobile header) ──
+       A subtle, outline icon trigger that reveals the speed options. Distinct
+       from the accent-filled level chip so it doesn't read as a primary control.
+       Options carry .speed-btn so setPlaybackSpeed() keeps their active state. */
+    .speed-chip-dropdown { display: none; position: relative; }
+    .speed-chip-trigger {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--vkg-font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      background: transparent;
+      border: 1px solid var(--vk-border-mid);
+      color: var(--vk-fg-2);
+      padding: 5px 9px;
+      cursor: pointer;
+    }
+    .speed-chip-trigger:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
+    .speed-chip-panel {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      background: var(--vk-surface);
+      border: 1px solid var(--vk-border-mid);
+      box-shadow: var(--vk-elev-1);
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 300;
+      min-width: 92px;
+    }
+    .speed-chip-option {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--vk-fg-1);
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .speed-chip-option:hover { background: var(--vk-accent-bg); }
+    .speed-chip-option.active { background: var(--vk-accent); border-color: var(--vk-accent); color: var(--vk-accent-fg); }
+
     @media (max-width: 768px) {
-      .level-chip-dropdown { display: block; }
-      .pv-levels { display: none; }
+      /* Paragraph header: kill the level selector entirely (set from the hub),
+         and collapse the three speed buttons into the speed chip dropdown. */
+      .pv-levels,
+      #pv-chip-wrapper,
+      .pv-header-right .header-status { display: none; }
+      #para-speed-btns { display: none; }
+      #para-speed-chip { display: block; }
+
       #para-sent-drill-tray,
       #para-dict-tray { position: fixed; inset: 0; z-index: 300; }
       #para-drill-backdrop { position: fixed; inset: 0; z-index: 299; }
       #para-content { padding: 24px 16px 0; }
+
+      /* Per-sentence score row: badge + Practice + save share one line above
+         the phrase; the phrase text wraps to its own full-width line below. */
+      .pv-ss-top { flex-wrap: wrap; align-items: center; }
+      .pv-ss-actions { margin-left: auto; order: 2; }
+      .pv-ss-text { order: 3; flex: 1 0 100%; }
+
+      /* Transcript diff: stack the "heard" label above the runs to give the
+         transcript the full width in the narrow drill tray. */
+      .pa-transcript-row { flex-direction: column; align-items: stretch; gap: 4px; }
+      .pa-transcript-label { width: auto; text-align: left; padding-top: 0; }
     }
 
     /* ── My Content view ─────────────────────────────────────────────────── */
@@ -2169,6 +2321,35 @@
     #dict-hub-content::-webkit-scrollbar { width: 4px; }
     #dict-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
 
+    /* ── Hubs on mobile — collapse to a single column ──────────────────────────
+       Placed after all hub grid definitions so these overrides win on source
+       order (media queries add no specificity). Each row stacks its name +
+       description ABOVE its selection chips instead of beside them. */
+    @media (max-width: 768px) {
+      #hub-content,
+      #comp-hub-content,
+      #vocab-hub-content,
+      #dict-hub-content {
+        grid-template-columns: 1fr;
+        column-gap: 0;
+        padding: 24px 16px 32px;
+      }
+      .hub-row-label {
+        border-top: 1px solid var(--vk-border);
+        padding: 20px 0 10px;
+      }
+      .hub-row-controls {
+        border-top: none;
+        padding: 0 0 8px;
+      }
+      .hub-row:first-child > .hub-row-label { border-top: none; padding-top: 0; }
+      #hub-modes {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .hub-start-btn { width: 100%; text-align: center; }
+    }
+
     /* ── Dictation view chrome ── */
     .dict-loading-text {
       font-family: var(--vkg-font-mono);
@@ -2501,7 +2682,10 @@
         <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     </button>
-    <span class="mobile-wordmark"></span>
+    <span class="mobile-brand">
+      <span class="mobile-logo-icon"></span>
+      <span class="mobile-wordmark"></span>
+    </span>
     <span class="mobile-mode-chip" id="mobile-mode-chip">Exercises</span>
   </div>
 
@@ -2819,6 +3003,18 @@
             <button class="pv-speed-btn speed-btn" data-rate="0.75" onclick="setPlaybackSpeed(0.75)">×0.75</button>
             <button class="pv-speed-btn speed-btn active" data-rate="1" onclick="setPlaybackSpeed(1)">×1</button>
             <button class="pv-speed-btn speed-btn" data-rate="1.25" onclick="setPlaybackSpeed(1.25)">×1.25</button>
+          </div>
+          <div class="speed-chip-dropdown" id="para-speed-chip">
+            <button class="speed-chip-trigger" onclick="toggleSpeedChip(event)" aria-label="Playback speed">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.6 12.5a6 6 0 1110.8 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 8.5l2.8-2.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span id="para-speed-chip-label">×1</span>
+              <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="speed-chip-panel" id="para-speed-chip-panel" style="display:none;">
+              <button class="speed-chip-option speed-btn" data-rate="0.75" onclick="setPlaybackSpeed(0.75);closeSpeedChip()">×0.75</button>
+              <button class="speed-chip-option speed-btn active" data-rate="1" onclick="setPlaybackSpeed(1);closeSpeedChip()">×1</button>
+              <button class="speed-chip-option speed-btn" data-rate="1.25" onclick="setPlaybackSpeed(1.25);closeSpeedChip()">×1.25</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3804,7 +4000,16 @@
     const panel = document.getElementById('pv-chip-panel');
     if (panel) panel.style.display = 'none';
   }
-  document.addEventListener('click', () => { closeDiffChip(); closePvChip(); });
+  function toggleSpeedChip(e) {
+    e.stopPropagation();
+    const panel = document.getElementById('para-speed-chip-panel');
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  }
+  function closeSpeedChip() {
+    const panel = document.getElementById('para-speed-chip-panel');
+    if (panel) panel.style.display = 'none';
+  }
+  document.addEventListener('click', () => { closeDiffChip(); closePvChip(); closeSpeedChip(); });
 
   // ── Access Code / Welcome ──────────────────────────────────────────────────
   async function submitApiKey() {
@@ -4148,6 +4353,8 @@
     document.querySelectorAll('.speed-btn').forEach(b =>
       b.classList.toggle('active', parseFloat(b.dataset.rate) === rate)
     );
+    const speedChipLabel = document.getElementById('para-speed-chip-label');
+    if (speedChipLabel) speedChipLabel.textContent = '×' + rate;
   }
 
   // Init speed buttons to match persisted rate on load

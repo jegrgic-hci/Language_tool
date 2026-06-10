@@ -240,7 +240,14 @@
   flex: 1;
   min-width: 0;
   line-height: 1.7;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 5px;
 }
+/* column-gap handles run spacing inside the heard row; drop the sibling margin
+   so runs wrap cleanly (adjacent spans otherwise had no break opportunity). */
+.pa-transcript-heard .pa-run + .pa-run { margin-left: 0; }
 
 
 /* ── Score bar ───────────────────────────────────────────────────────────────
@@ -784,6 +791,8 @@
   cursor: pointer;
   border-radius: var(--vk-radius-ui);
   transition: all 120ms;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .pv-action-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
 

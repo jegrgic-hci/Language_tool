@@ -1,8 +1,9 @@
 # French Tutor — Claude Session Instructions
 
-## Hard rule — index.html is off-limits
-**`static/index.html` is off-limits. Never open, grep, or read it under any circumstances.**
-For all frontend work, consult only: `static/index-v3.html`, `static/vk-tokens.css`, `static/vk-components.css`, `static/vk-atelier-components.css`, `static/vk-theme-light.css`, `static/vk-theme-atelier.css`.
+## Active frontend file — index.html
+The vraiKronos rebuild is complete and `index-v3.html` has been copied into **`static/index.html`**, which is now the live, active frontend. Do all frontend work in `static/index.html`.
+The older versions (`index-v3.html`, `index_v2.html`) are **sunset** — do not edit them; they are kept only for reference.
+Design system files (still the source of truth for tokens/components): `static/vk-tokens.css`, `static/vk-components.css`, `static/vk-atelier-components.css`, `static/vk-theme-light.css`, `static/vk-theme-atelier.css`.
 
 ## Project purpose
 A French language learning webapp built for a user living in Marseille who wants to improve listening and speaking. The tool uses Mistral AI (chosen for native French capability) and runs locally via FastAPI, accessed in Chrome.
