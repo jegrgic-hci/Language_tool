@@ -1,0 +1,454 @@
+/* ==========================================================================
+   vraiKronos — DESIGN TOKENS (core)
+   v1.0.0 | Vraifactors public design system
+
+   Namespace: --vk-*  |  Classes: .vk-*
+
+   Architecture
+   ─────────────────────────────────────────────────────────────────────────
+   Tier 1  Global tokens     Raw named values. NEVER referenced by components.
+   Tier 2  Semantic tokens   Meaning-based aliases. ALL theming lives here.
+                             [data-theme="x"] remaps only Tier 2.
+   Tier 3  Component tokens  Optional fine-grained overrides per component.
+                             Default to Tier 2 values; override per product/scope.
+
+   Fonts
+   ─────────────────────────────────────────────────────────────────────────
+   Geist Sans (body, headings) + Geist Mono (labels, buttons, nav, code)
+   CDN import is included below. If using Next.js next/font, remove the
+   @import and pass CSS variables matching --vkg-font-sans / --vkg-font-mono.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap');
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TIER 1 — GLOBAL TOKENS
+   Raw values only. Never reference these in components — use Tier 2.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+
+  /* ── Obsidian neutral scale ──────────────────────────────────────────────
+     Warm-obsidian character: barely-warm undertone (~290° hue, 5% sat).
+     Not cold monitor grey — qualities of obsidian glass.
+     950 = deepest; 50 = warm off-white foreground.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-obsidian-950: #050408;
+  --vkg-obsidian-900: #09080a;   /* primary page bg — matches vraifactors */
+  --vkg-obsidian-850: #0c0b0f;
+  --vkg-obsidian-800: #0f0d13;
+  --vkg-obsidian-750: #131118;
+  --vkg-obsidian-700: #19161f;
+  --vkg-obsidian-600: #221f28;
+  --vkg-obsidian-500: #302d38;
+  --vkg-obsidian-400: #46424f;
+  --vkg-obsidian-300: #635f6c;
+  --vkg-obsidian-200: #8d8a96;
+  --vkg-obsidian-100: #bdbac4;
+  --vkg-obsidian-50:  #f0ece6;   /* warm off-white — primary foreground */
+
+  /* ── Amber / brass scale ─────────────────────────────────────────────────
+     Warm, authoritative, refined — not garish. The vraifactors accent system.
+     500 = primary brand amber (#c9954a)
+     300 = light amber highlight (#e8c47a)
+     700 = dark amber — decorative washes and dim contexts (#7a5c2e)
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-amber-50:  #fdf6ec;
+  --vkg-amber-100: #f9e9cb;
+  --vkg-amber-150: #f5d9a8;
+  --vkg-amber-200: #f0ca8c;
+  --vkg-amber-300: #e8c47a;      /* light amber — highlights, secondary accent */
+  --vkg-amber-400: #d8a85e;
+  --vkg-amber-500: #c9954a;      /* PRIMARY brand amber */
+  --vkg-amber-600: #b07838;
+  --vkg-amber-700: #7a5c2e;      /* dark amber — dim accent / decorative wash */
+  --vkg-amber-800: #5a3e1c;
+  --vkg-amber-900: #3a260e;
+  --vkg-amber-950: #1e1205;
+
+  /* ── Semantic status — tuned for dark surface legibility ─────────────────
+     Slightly desaturated: informative, not alarming.
+     All pass WCAG AA contrast on obsidian-900 background.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-red:              #e05048;
+  --vkg-red-dim:          rgba(224, 80, 72, 0.10);
+  --vkg-red-border:       rgba(224, 80, 72, 0.22);
+  --vkg-red-text:         #f08080;
+
+  --vkg-green:            #4caf7a;
+  --vkg-green-dim:        rgba(76, 175, 122, 0.10);
+  --vkg-green-border:     rgba(76, 175, 122, 0.22);
+  --vkg-green-text:       #7dd4a8;
+
+  --vkg-amber-warn:       #d09040;
+  --vkg-amber-warn-dim:   rgba(208, 144, 64, 0.10);
+  --vkg-amber-warn-border: rgba(208, 144, 64, 0.22);
+  --vkg-amber-warn-text:  #e8b870;
+
+  --vkg-blue:             #6b9fd4;
+  --vkg-blue-dim:         rgba(107, 159, 212, 0.10);
+  --vkg-blue-border:      rgba(107, 159, 212, 0.22);
+  --vkg-blue-text:        #9bbfe4;
+
+  /* ── Type families ───────────────────────────────────────────────────────
+     Geist Sans → body text, headings, long-form
+     Geist Mono → eyebrows, labels, buttons, nav, code fragments
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-font-sans:  'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --vkg-font-mono:  'Geist Mono', 'IBM Plex Mono', 'Courier New', monospace;
+
+  /* ── Type size scale — 16px base ─────────────────────────────────────────
+     11px → 88px. UI and editorial scales share values; semantic tokens map
+     the right raw value to the right role.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-size-2xs:  0.6875rem;   /* 11px — micro labels */
+  --vkg-size-xs:   0.75rem;     /* 12px */
+  --vkg-size-sm:   0.8125rem;   /* 13px */
+  --vkg-size-base: 0.875rem;    /* 14px — compact UI default */
+  --vkg-size-md:   1rem;        /* 16px — standard body */
+  --vkg-size-lg:   1.125rem;    /* 18px */
+  --vkg-size-xl:   1.375rem;    /* 22px */
+  --vkg-size-2xl:  1.75rem;     /* 28px */
+  --vkg-size-3xl:  2.25rem;     /* 36px */
+  --vkg-size-4xl:  3rem;        /* 48px */
+  --vkg-size-5xl:  4rem;        /* 64px */
+  --vkg-size-6xl:  5.5rem;      /* 88px */
+
+  /* ── Spacing — 8px base grid ─────────────────────────────────────────────
+     sp-2 = 8px (base unit). 4-point sub-grid for tight contexts.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-sp-0:  2px;
+  --vkg-sp-1:  4px;
+  --vkg-sp-2:  8px;
+  --vkg-sp-3:  12px;
+  --vkg-sp-4:  16px;
+  --vkg-sp-5:  24px;
+  --vkg-sp-6:  32px;
+  --vkg-sp-7:  48px;
+  --vkg-sp-8:  64px;
+  --vkg-sp-9:  96px;
+  --vkg-sp-10: 128px;
+
+  /* ── Breakpoints ──────────────────────────────────────────────────────────
+     Mobile-first: the base (un-queried) styles ARE the mobile styles.
+     Enhance UP with `@media (min-width: …)`. Mirror of tokens/tier1/breakpoint.json.
+
+     ⚠ These custom properties are for JS/reference ONLY. CSS custom properties
+     CANNOT be used inside `@media`/`@container` conditions — `@media
+     (min-width: var(--vkg-bp-md))` silently fails. When authoring CSS, write the
+     literal value and keep it in sync with this block (same dual-source rule as
+     the rest of tokens-core.css). For component-level responsiveness prefer
+     container queries over viewport media queries.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-bp-sm: 480px;
+  --vkg-bp-md: 768px;
+  --vkg-bp-lg: 1024px;
+  --vkg-bp-xl: 1280px;
+
+  /* ── Radius ──────────────────────────────────────────────────────────────
+     Hard-edge philosophy: interactive UI = 0. Containers = subtle rounding.
+     0px → buttons, inputs, tags, tabs, nav items, table cells
+     2px → cards, panels, drawers (subtle softening only)
+     4px → editorial containers, code blocks, tooltips
+     999px → pills, circular avatars
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-radius-0:    0px;
+  --vkg-radius-sm:   2px;
+  --vkg-radius-md:   4px;
+  --vkg-radius-lg:   8px;
+  --vkg-radius-pill: 999px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────────
+     Expressive but purposeful. Spring for interactive feedback.
+     Expressive ease for entrances and reveals.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-ease:            cubic-bezier(0.4, 0, 0.2, 1);
+  --vkg-ease-out:        cubic-bezier(0, 0, 0.2, 1);
+  --vkg-ease-spring:     cubic-bezier(0.34, 1.4, 0.64, 1);
+  --vkg-ease-expressive: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --vkg-dur-micro:  60ms;
+  --vkg-dur-quick: 100ms;
+  --vkg-dur-base:  200ms;
+  --vkg-dur-emph:  320ms;
+  --vkg-dur-enter: 500ms;
+
+  /* ── Raw elevation — dark-surface shadow system ──────────────────────────
+     Dark mode uses depth-darkness rather than cast shadows.
+     elev-1 = floating element (tooltip, dropdown)
+     elev-2 = modal, panel
+     elev-3 = full overlay / drawer
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-elev-1:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 4px 20px rgba(5, 4, 8, 0.65),
+    0 1px 4px rgba(5, 4, 8, 0.4);
+  --vkg-elev-2:
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 16px 48px rgba(5, 4, 8, 0.75),
+    0 4px 16px rgba(5, 4, 8, 0.5);
+  --vkg-elev-3:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 32px 96px rgba(5, 4, 8, 0.85),
+    0 8px 32px rgba(5, 4, 8, 0.65);
+
+  /* ── Amber glow — accent-driven elevation ────────────────────────────────
+     Used for focus rings, active states, featured content.
+     Replaces box-shadow-based elevation in accent contexts.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vkg-glow-xs:  0 0 8px rgba(201, 149, 74, 0.20);
+  --vkg-glow-sm:  0 0 16px rgba(201, 149, 74, 0.25);
+  --vkg-glow-md:  0 0 32px rgba(201, 149, 74, 0.20), 0 0 8px rgba(201, 149, 74, 0.15);
+  --vkg-glow-lg:  0 0 60px rgba(201, 149, 74, 0.25), 0 0 20px rgba(201, 149, 74, 0.18);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TIER 2 — SEMANTIC TOKENS
+   Meaning-based aliases. Components reference ONLY these tokens.
+   Theme overrides: [data-theme="product-x"] remaps ONLY these tokens.
+   Font, spacing, and motion values are intentionally not themeable —
+   only color and optional weight/scale may change per product theme.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="core"] {
+
+  /* ── Background & surface ────────────────────────────────────────────── */
+  --vk-bg:              var(--vkg-obsidian-900);    /* root page background */
+  --vk-bg-alt:          var(--vkg-obsidian-850);    /* slightly raised bg area */
+  --vk-surface:         var(--vkg-obsidian-800);    /* card / panel surface */
+  --vk-surface-2:       var(--vkg-obsidian-750);    /* nested card / inner section */
+  --vk-surface-3:       var(--vkg-obsidian-700);    /* highest surface layer */
+  --vk-surface-glass:   rgba(255, 255, 255, 0.025); /* glass-morphism card */
+  --vk-surface-glass-hover: rgba(255, 255, 255, 0.045);
+  --vk-surface-tint:    rgba(201, 149, 74, 0.06);   /* amber-tinted surface */
+  --vk-surface-tint-hover: rgba(201, 149, 74, 0.10);
+  --vk-sidebar:         var(--vkg-obsidian-950);    /* sidebar / nav bg */
+  --vk-overlay:         rgba(5, 4, 8, 0.80);        /* modal scrim */
+
+  /* ── Foreground ──────────────────────────────────────────────────────── */
+  --vk-fg-1:        var(--vkg-obsidian-50);           /* primary text — #f0ece6 */
+  --vk-fg-2:        rgba(240, 236, 230, 0.78);        /* secondary text */
+  --vk-fg-3:        rgba(240, 236, 230, 0.52);        /* tertiary / supporting */
+  --vk-fg-4:        rgba(240, 236, 230, 0.32);        /* muted / placeholder */
+  --vk-fg-inverse:  var(--vkg-obsidian-900);          /* text on amber fill */
+
+  /* ── Accent (primary — amber brass) ─────────────────────────────────── */
+  --vk-accent:          var(--vkg-amber-500);       /* #c9954a */
+  --vk-accent-bright:   var(--vkg-amber-300);       /* #e8c47a — highlights */
+  --vk-accent-dim:      var(--vkg-amber-700);       /* #7a5c2e — muted contexts */
+  --vk-accent-bg:       rgba(201, 149, 74, 0.08);   /* amber fill on dark surface */
+  --vk-accent-bg-hover: rgba(201, 149, 74, 0.14);
+  --vk-accent-border:   rgba(201, 149, 74, 0.28);
+  --vk-accent-border-strong: rgba(201, 149, 74, 0.50);
+  --vk-accent-text:     var(--vkg-amber-500);       /* amber label text */
+  --vk-accent-fg:       var(--vkg-obsidian-900);    /* text on solid amber fill */
+  --vk-accent-glow:     var(--vkg-glow-sm);
+
+  /* ── Utility visual — glow, line, dot-grid, scrollbar, selection ─────
+     Components reference these instead of hardcoding accent rgba values.
+     Override on [data-theme="x"] to adapt all utilities to any accent.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vk-glow-text:             0 0 20px rgba(201, 149, 74, 0.40), 0 0 40px rgba(201, 149, 74, 0.20);
+  --vk-glow-text-bright:      0 0 30px rgba(232, 196, 122, 0.50), 0 0 60px rgba(201, 149, 74, 0.25);
+  --vk-glow-text-dim:         0 0 40px rgba(201, 149, 74, 0.30);
+  --vk-accent-line-color:     rgba(201, 149, 74, 0.35);
+  --vk-accent-line-hover:     rgba(232, 196, 122, 0.60);   /* link underline hover */
+  --vk-accent-shimmer:        rgba(232, 196, 122, 0.50);   /* progress bar leading edge */
+  --vk-dot-grid-color:        rgba(201, 149, 74, 0.08);
+  --vk-dot-grid-dim-color:    rgba(240, 236, 230, 0.04);
+  --vk-glow-blob-dim-color:   rgba(122, 92, 46, 0.05);
+  --vk-scrollbar-thumb:       rgba(201, 149, 74, 0.25);
+  --vk-scrollbar-thumb-hover: rgba(201, 149, 74, 0.40);
+  --vk-selection-bg:          rgba(201, 149, 74, 0.22);
+
+  /* ── Border ──────────────────────────────────────────────────────────── */
+  --vk-border:          rgba(255, 255, 255, 0.07);   /* default — very dim */
+  --vk-border-mid:      rgba(255, 255, 255, 0.12);   /* standard separation */
+  --vk-border-strong:   rgba(255, 255, 255, 0.22);   /* emphasis / hover */
+  --vk-border-accent:   var(--vk-accent-border);
+  --vk-border-focus:    var(--vkg-amber-500);
+
+  /* ── Semantic status ─────────────────────────────────────────────────── */
+  --vk-success:         var(--vkg-green);
+  --vk-success-bg:      var(--vkg-green-dim);
+  --vk-success-border:  var(--vkg-green-border);
+  --vk-success-text:    var(--vkg-green-text);
+
+  --vk-error:           var(--vkg-red);
+  --vk-error-bg:        var(--vkg-red-dim);
+  --vk-error-border:    var(--vkg-red-border);
+  --vk-error-text:      var(--vkg-red-text);
+
+  --vk-warning:         var(--vkg-amber-warn);
+  --vk-warning-bg:      var(--vkg-amber-warn-dim);
+  --vk-warning-border:  var(--vkg-amber-warn-border);
+  --vk-warning-text:    var(--vkg-amber-warn-text);
+
+  --vk-info:            var(--vkg-blue);
+  --vk-info-bg:         var(--vkg-blue-dim);
+  --vk-info-border:     var(--vkg-blue-border);
+  --vk-info-text:       var(--vkg-blue-text);
+
+  /* ── Disabled ────────────────────────────────────────────────────────── */
+  --vk-disabled-fg:     var(--vk-fg-4);
+  --vk-disabled-bg:     rgba(255, 255, 255, 0.03);
+  --vk-disabled-border: rgba(255, 255, 255, 0.06);
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  --vk-font-body:   var(--vkg-font-sans);    /* Geist — prose, headings */
+  --vk-font-ui:     var(--vkg-font-mono);    /* Geist Mono — labels, buttons, nav */
+
+  /* Headings are FLUID: clamp(mobile-floor, viewport-scaled, desktop-cap).
+     Floor/cap are Tier 1 size tokens (Tier 2 → Tier 1 is allowed); the middle
+     term scales linearly ~360px→1280px viewport. Body/labels stay fixed. */
+  --vk-text-display: clamp(var(--vkg-size-3xl), 1.57rem + 3.04vw, var(--vkg-size-5xl));  /* 36 → 64 */
+  --vk-text-h1:      clamp(var(--vkg-size-2xl), 1.26rem + 2.17vw, var(--vkg-size-4xl));  /* 28 → 48 */
+  --vk-text-h2:      clamp(var(--vkg-size-xl),  1.03rem + 1.52vw, var(--vkg-size-3xl));  /* 22 → 36 */
+  --vk-text-h3:      clamp(var(--vkg-size-lg),  0.88rem + 1.09vw, var(--vkg-size-2xl));  /* 18 → 28 */
+  --vk-text-h4:      var(--vkg-size-xl);    /* 22px — fixed */
+  --vk-text-lg:      var(--vkg-size-lg);    /* 18px — lead paragraph */
+  --vk-text-body:    var(--vkg-size-md);    /* 16px — standard body */
+  --vk-text-sm:      var(--vkg-size-base);  /* 14px — UI default */
+  --vk-text-xs:      var(--vkg-size-xs);    /* 12px — labels */
+  --vk-text-2xs:     var(--vkg-size-2xs);   /* 11px — micro */
+
+  --vk-track-tight:   -0.02em;
+  --vk-track-base:     0;
+  --vk-track-wide:     0.06em;
+  --vk-track-wider:    0.12em;
+  --vk-track-widest:   0.22em;
+
+  /* UI-chrome case — buttons, labels, nav, tabs, tags, eyebrows. Uppercase by
+     default (tool-grade identity). Product themes may set `none` for a softer,
+     more legible consumer voice (e.g. language). Pairs with --vk-font-ui and the
+     tracking tokens above, which a theme can also relax for sentence-case sans. */
+  --vk-ui-case:        uppercase;
+
+  /* ── Radius (semantic) ───────────────────────────────────────────────── */
+  --vk-radius-ui:      var(--vkg-radius-0);     /* buttons, inputs, tags */
+  --vk-radius-card:    var(--vkg-radius-sm);    /* cards, panels — 2px */
+  --vk-radius-tooltip: var(--vkg-radius-md);    /* tooltips — 4px */
+  --vk-radius-pill:    var(--vkg-radius-pill);
+
+  /* ── Layout ──────────────────────────────────────────────────────────── */
+  --vk-content-max:    1200px;
+  --vk-content-mid:    860px;
+  --vk-content-narrow: 640px;
+  --vk-sidebar-width:  260px;
+
+  /* ── Spacing (semantic passthrough) ─────────────────────────────────── */
+  --vk-sp-1:  var(--vkg-sp-1);   /* 4px */
+  --vk-sp-2:  var(--vkg-sp-2);   /* 8px */
+  --vk-sp-3:  var(--vkg-sp-3);   /* 12px */
+  --vk-sp-4:  var(--vkg-sp-4);   /* 16px */
+  --vk-sp-5:  var(--vkg-sp-5);   /* 24px */
+  --vk-sp-6:  var(--vkg-sp-6);   /* 32px */
+  --vk-sp-7:  var(--vkg-sp-7);   /* 48px */
+  --vk-sp-8:  var(--vkg-sp-8);   /* 64px */
+
+  /* ── Elevation ───────────────────────────────────────────────────────── */
+  --vk-elev-1:  var(--vkg-elev-1);
+  --vk-elev-2:  var(--vkg-elev-2);
+  --vk-elev-3:  var(--vkg-elev-3);
+  --vk-glow:    var(--vkg-glow-md);
+
+  /* ── Focus ring ──────────────────────────────────────────────────────── */
+  --vk-focus-ring:       0 0 0 2px var(--vk-bg), 0 0 0 4px var(--vk-accent);
+  --vk-focus-glow:       0 0 0 2px var(--vk-bg), 0 0 0 4px var(--vk-accent), var(--vkg-glow-xs);
+  --vk-focus-ring-inset: inset 0 0 0 2px var(--vk-accent);
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --vk-ease:            var(--vkg-ease);
+  --vk-ease-spring:     var(--vkg-ease-spring);
+  --vk-ease-expressive: var(--vkg-ease-expressive);
+  --vk-dur-quick:       var(--vkg-dur-quick);
+  --vk-dur-base:        var(--vkg-dur-base);
+  --vk-dur-emph:        var(--vkg-dur-emph);
+  --vk-dur-enter:       var(--vkg-dur-enter);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TIER 3 — COMPONENT TOKENS
+   Fine-grained per-component defaults. Override on a [data-theme] scope
+   or a component wrapper to customize without touching shared Tier 2.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+
+  /* ── Touch targets ───────────────────────────────────────────────────────
+     Minimum hit area on coarse pointers (touch). WCAG 2.5.5 / Apple HIG = 44px.
+     Components apply `min-height: var(--vk-tap-min)` under
+     `@media (pointer: coarse)` so dense desktop heights stay compact on mouse
+     but expand to a finger-friendly size on touch devices.
+  ────────────────────────────────────────────────────────────────────────── */
+  --vk-tap-min:        44px;
+
+  /* ── Button ──────────────────────────────────────────────────────────── */
+  --vk-btn-font:       var(--vk-font-ui);
+  --vk-btn-text-size:  var(--vk-text-xs);
+  --vk-btn-tracking:   var(--vk-track-wide);
+  --vk-btn-radius:     var(--vk-radius-ui);
+  --vk-btn-height:     40px;
+  --vk-btn-pad-x:      20px;
+  --vk-btn-height-sm:  32px;
+  --vk-btn-pad-x-sm:   14px;
+  --vk-btn-height-lg:  48px;
+  --vk-btn-pad-x-lg:   28px;
+
+  /* ── Input / form ────────────────────────────────────────────────────── */
+  --vk-input-font:         var(--vk-font-body);
+  --vk-input-text-size:    var(--vk-text-sm);
+  --vk-input-radius:       var(--vk-radius-ui);
+  --vk-input-height:       40px;
+  --vk-input-pad-x:        14px;
+  --vk-input-bg:           rgba(255, 255, 255, 0.03);
+  --vk-input-bg-hover:     rgba(255, 255, 255, 0.055);
+  --vk-input-bg-focus:     rgba(255, 255, 255, 0.06);
+  --vk-input-border:       var(--vk-border-mid);
+  --vk-input-border-hover: var(--vk-border-strong);
+  --vk-input-border-focus: var(--vk-accent);
+
+  /* ── Card ────────────────────────────────────────────────────────────── */
+  --vk-card-bg:            var(--vk-surface-glass);
+  --vk-card-border:        var(--vk-border);
+  --vk-card-border-hover:  var(--vk-border-accent);
+  --vk-card-radius:        var(--vk-radius-card);
+  --vk-card-pad:           var(--vk-sp-5);
+  --vk-card-hover-glow:    0 0 40px rgba(201, 149, 74, 0.10);
+
+  /* ── Tag / badge ─────────────────────────────────────────────────────── */
+  --vk-tag-font:     var(--vk-font-ui);
+  --vk-tag-size:     var(--vk-text-2xs);
+  --vk-tag-track:    var(--vk-track-wide);
+  --vk-tag-radius:   var(--vk-radius-ui);
+  --vk-tag-bg:       rgba(255, 255, 255, 0.06);
+  --vk-tag-border:   var(--vk-border-mid);
+
+  /* ── Navigation ──────────────────────────────────────────────────────── */
+  --vk-nav-bg:          var(--vk-bg);
+  --vk-nav-bg-sticky:   rgba(9, 8, 10, 0.88);   /* dark: semi-transparent obsidian */
+  --vk-nav-border:      var(--vk-border);
+  --vk-nav-size:     var(--vk-text-xs);
+  --vk-nav-track:    var(--vk-track-wider);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SYSTEM PREFERENCES
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --vkg-ease-spring:     linear;
+    --vkg-ease-expressive: linear;
+    --vkg-dur-micro:   0ms;
+    --vkg-dur-quick:   0ms;
+    --vkg-dur-base:    0ms;
+    --vkg-dur-emph:    0ms;
+    --vkg-dur-enter:   0ms;
+  }
+}

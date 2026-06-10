@@ -145,6 +145,7 @@ def generate_prosody_phrase(sound_target: str, level: str = "B1") -> dict:
             raw = _strip_md_fence(resp.choices[0].message.content)
             data = json.loads(raw)
             phrase = data["phrase"]
+            _fix_word_spellings(data, phrase)
             data["noun_adj_tokens"] = tag_nouns_adjs(phrase)
 
             if key not in _recent:
@@ -221,6 +222,27 @@ def _strip_md_fence(raw: str) -> str:
     return raw.strip()
 
 
+def _fix_word_spellings(data: dict, phrase: str) -> dict:
+    """
+    Replace word strings in syllabified/rhythm_groups with the canonical spellings
+    from the phrase field. Mistral sometimes drops apostrophes (j'ai → Jai) in the
+    word arrays even when the phrase field is correct.
+    """
+    canonical = phrase.split()
+    syllabified = data.get("syllabified", [])
+    for i, entry in enumerate(syllabified):
+        if i < len(canonical):
+            entry["word"] = canonical[i]
+    rhythm_groups = data.get("rhythm_groups", [])
+    pos = 0
+    for group in rhythm_groups:
+        for j in range(len(group)):
+            if pos < len(canonical):
+                group[j] = canonical[pos]
+                pos += 1
+    return data
+
+
 def annotate_phrase_rhythm(phrase: str) -> dict:
     """Annotate an existing phrase with syllabification, rhythm groups, liaisons, and IPA."""
     for attempt in range(3):
@@ -235,7 +257,9 @@ def annotate_phrase_rhythm(phrase: str) -> dict:
                 max_tokens=1600,
             )
             raw = _strip_md_fence(resp.choices[0].message.content)
-            return json.loads(raw)
+            data = json.loads(raw)
+            _fix_word_spellings(data, phrase)
+            return data
         except json.JSONDecodeError:
             if attempt < 2:
                 continue

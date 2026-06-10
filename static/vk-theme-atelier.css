@@ -1,0 +1,213 @@
+/* ==========================================================================
+   vraiFrench — THEME: Atelier  (deepened "language" product theme)
+   v1.0.0 | built on vraiKronos v1.1.4
+
+   What this is
+   ─────────────────────────────────────────────────────────────────────────
+   A *deepened* product theme — NOT a new design system. It nests inside the
+   light theme and overrides only the Tier-2 semantic tokens the Atelier
+   direction changes: warm canvas, friendly-blue accent, the three-font roles,
+   softer corners, and the scoring / recording / veil tokens the practice
+   atoms consume. Everything else (borders, elevation, motion, spacing) is
+   inherited from the light theme it sits inside.
+
+   Composition
+   ─────────────────────────────────────────────────────────────────────────
+       <html data-mode="light">           ← light base (borders, elevation…)
+         <main data-theme="atelier">       ← the practice "room" + instrument
+   The sidebar stays data-theme="core" (obsidian) and the gate stays light;
+   Atelier only owns the practice surface, per the design doc §10.
+
+   Two registers (design doc §2)
+   ─────────────────────────────────────────────────────────────────────────
+     The room        warm, calm — lowers speaking anxiety
+     The instrument  precise, neutral — the score reads as truth
+   Hard color rule: blue/accent = SYSTEM (nav, active, focus, recording).
+   green / amber / clay = PERFORMANCE (scoring). They never mix.
+   ========================================================================== */
+
+
+/* ── Font import — Hanken Grotesk carries both the room (UI/body) and the
+      hero target sentence (large display weight). Geist Mono (the instrument)
+      is already imported by vk-tokens.css.                                    */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
+
+
+[data-theme="atelier"] {
+
+  /* ── Two-font roles (design doc §5, deviation: no serif) ───────────────
+     Hanken Grotesk = the room — tool, UI, body copy, AND the hero target
+                      sentence (set large + heavy as --pa-font-display).
+     Geist Mono     = the instrument — transcript diff + all numerals.
+     Serif (Fraunces) and display (Anton) are both intentionally dropped:
+     the target sentence is distinguished by size/weight, not a third face.   */
+  --pa-font-sans:    'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+  --pa-font-display: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+  --pa-font-mono:    'Geist Mono', 'IBM Plex Mono', 'Courier New', monospace;
+
+  /* Re-point the shared semantic font tokens so vraiKronos components inside
+     the room read as Hanken, not Geist/IBM Plex. The serif + mono roles are
+     applied explicitly by the practice atoms that need them.                 */
+  --vk-font-body: var(--pa-font-sans);
+  --vk-font-ui:   var(--pa-font-sans);
+
+  /* ── Environment — the room (design doc §4) ───────────────────────────── */
+  --vk-bg:        #FAF7F2;   /* warm paper, easy for long reading */
+  --vk-bg-alt:    #F3EEE6;
+  --vk-surface:   #FFFFFF;   /* soft card — border + faint shadow, no hard line */
+  --vk-surface-2: #FAF7F2;
+  --vk-surface-3: #F0EAE0;
+
+  --vk-fg-1: #211F1B;                  /* warm near-black — never pure #000 */
+  --vk-fg-2: #5C574F;                  /* labels, hints, supporting text */
+  --vk-fg-3: rgba(33, 31, 27, 0.52);
+  --vk-fg-4: rgba(33, 31, 27, 0.36);
+
+  /* Honey — sparing warmth, celebration on wins only */
+  --pa-honey: #C9883E;
+
+  /* ── Accent — friendly blue = the SYSTEM ──────────────────────────────── */
+  --vk-accent:               #2D6CB3;    /* buttons, active, focus, recording */
+  --vk-accent-bright:        #3E7DC4;
+  --vk-accent-dim:           #245A99;    /* hover / press on solid fills */
+  --vk-accent-bg:            rgba(45, 108, 179, 0.08);   /* active / learner bubble */
+  --vk-accent-bg-hover:      rgba(45, 108, 179, 0.13);
+  --vk-accent-border:        rgba(45, 108, 179, 0.45);   /* focused inputs, active */
+  --vk-accent-border-strong: rgba(45, 108, 179, 0.65);
+  --vk-accent-text:          #245A99;    /* accent text on warm paper — AA ✓ */
+  --vk-accent-fg:            #FFFFFF;    /* text on solid blue fill — ≈5.25:1 AA ✓ */
+  --vk-accent-glow:          0 0 0 1px rgba(45, 108, 179, 0.18),
+                             0 4px 18px rgba(45, 108, 179, 0.14);
+
+  --vk-surface-tint:       rgba(45, 108, 179, 0.06);
+  --vk-surface-tint-hover: rgba(45, 108, 179, 0.11);
+  --vk-border-accent:      rgba(45, 108, 179, 0.45);
+  --vk-border-focus:       #2D6CB3;
+  --vk-input-border-focus: #2D6CB3;
+  --vk-card-border-hover:  rgba(45, 108, 179, 0.45);
+
+  --vk-focus-ring: 0 0 0 2px #FAF7F2, 0 0 0 4px #2D6CB3;
+  --vk-focus-glow: 0 0 0 2px #FAF7F2, 0 0 0 4px #2D6CB3, 0 0 8px rgba(45, 108, 179, 0.20);
+  --vk-selection-bg: rgba(45, 108, 179, 0.18);
+
+  /* ── Soft corners — warmer than core's hard edges (design doc §6) ─────── */
+  --vk-radius-ui:    8px;    /* buttons, inputs */
+  --vk-radius-card:  10px;   /* cards, panels */
+  --vk-btn-radius:   8px;
+  --vk-input-radius: 8px;
+  --vk-card-radius:  10px;
+  --vk-tag-radius:   8px;
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE INSTRUMENT — performance tokens (design doc §4, §7)
+     Measurements, not decoration. Identical every time. green/amber/clay are
+     PERFORMANCE only and never used for system/nav/active states.
+     All WCAG AA on the warm canvas.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* Scoring quad — phrase pass threshold is 90% */
+  --pa-pass:        #1F7A52;   /* pass     ≥90% */
+  --pa-progress:    #1A6B9A;   /* progress  60–90% — positive, not yet success */
+  --pa-almost:      #8A5A00;   /* almost    40–60% */
+  --pa-fail:        #B0472E;   /* fail      <40% — clay, NOT fire-engine red */
+
+  --pa-pass-bg:       rgba(31, 122, 82, 0.10);
+  --pa-progress-bg:   rgba(26, 107, 154, 0.10);
+  --pa-almost-bg:     rgba(138, 90, 0, 0.10);
+  --pa-fail-bg:       rgba(176, 71, 46, 0.10);
+
+  --pa-pass-border:       rgba(31, 122, 82, 0.30);
+  --pa-progress-border:   rgba(26, 107, 154, 0.30);
+  --pa-almost-border:     rgba(138, 90, 0, 0.30);
+  --pa-fail-border:       rgba(176, 71, 46, 0.30);
+
+  /* Transcript states (the aligned diff — the proof, doc §7.2).
+     Heard row is binary for now: pass / fail / unheard (no partial matching,
+     so --pa-token-near is reserved for when partial scoring lands).          */
+  --pa-token-hit:    var(--pa-pass);     /* pass — said correctly */
+  --pa-token-near:   var(--pa-almost);   /* reserved — partial match (unused) */
+  --pa-token-miss:   var(--pa-fail);     /* fail — said, but wrong */
+  --pa-token-hit-bg:  var(--pa-pass-bg);
+  --pa-token-near-bg: var(--pa-almost-bg);
+  --pa-token-miss-bg: var(--pa-fail-bg);
+
+  /* Unheard — a target word the learner didn't say / wasn't picked up. Gray:
+     neither a win nor a mistake, just absent from the attempt.               */
+  --pa-unheard:    rgba(33, 31, 27, 0.42);
+  --pa-unheard-bg: rgba(33, 31, 27, 0.05);
+
+  /* Instrument scale — the objective reference line. Does not move for the
+     learner (doc §7.4): thresholds painted at 40 and 70 on every bar.        */
+  --pa-scale-track:    rgba(33, 31, 27, 0.10);
+  --pa-scale-thresh:   rgba(33, 31, 27, 0.28);
+
+  /* ── Recording — pulses the ACCENT (blue), never red (hard rule, doc §4) ─ */
+  --pa-record:        var(--vk-accent);
+  --pa-record-ring:   rgba(45, 108, 179, 0.35);
+  --pa-record-ring-0: rgba(45, 108, 179, 0.45);
+
+  /* ── Scrollbar ───────────────────────────────────────────────────────────── */
+  --vk-scrollbar-thumb:       rgba(45, 108, 179, 0.35);
+  --vk-scrollbar-thumb-hover: rgba(45, 108, 179, 0.55);
+  scrollbar-color: var(--vk-scrollbar-thumb) var(--vk-bg);
+
+  /* ── Veil (listening mode) — blur tutor bubbles / utterance until revealed */
+  --pa-veil-blur:     10px;
+  --pa-veil-tint:     rgba(250, 247, 242, 0.35);
+
+  /* ── Motion (doc §8) — calm + confident; spring on rewarding moments ───── */
+  --pa-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --pa-ease-soft:   cubic-bezier(0.16, 1, 0.3, 1);
+  --pa-dur-reveal:  280ms;
+  --pa-dur-land:    320ms;
+}
+
+
+/* ── Atelier buttons — sentence-case Hanken, no all-caps mono (doc §6) ─────
+   Override the core vk-btn engineering-tool signal inside the room only.     */
+[data-theme="atelier"] .vk-btn {
+  font-family: var(--pa-font-sans);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: var(--vk-btn-radius);
+}
+[data-theme="atelier"] .vk-btn-primary:hover {
+  background: var(--vk-accent-dim);
+}
+
+
+/* ── KPI card — atelier hierarchy ───────────────────────────────────────────
+   Stronger top anchor; hover + is-accent picks up the friendly blue.         */
+[data-theme="atelier"] .vk-kpi {
+  border-top-width: 3px;
+  border-top-color: var(--vk-border-mid);
+}
+[data-theme="atelier"] .vk-kpi:hover {
+  border-top-color: var(--vk-accent-border);
+  border-color: var(--vk-accent-border);
+}
+[data-theme="atelier"] .vk-kpi.is-accent {
+  border-top-width: 3px;
+  border-top-color: var(--vk-accent);
+  border-color: var(--vk-accent-border);
+  background: var(--vk-accent-bg);
+}
+[data-theme="atelier"] .vk-kpi.is-accent:hover {
+  background: var(--vk-accent-bg-hover);
+  box-shadow: var(--vk-card-hover-glow);
+}
+[data-theme="atelier"] .vk-kpi.is-accent .vk-kpi-num {
+  color: var(--vk-accent-text);
+}
+
+
+/* ── Reduced motion — freeze the recording pulse + reveal/landing springs ── */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="atelier"] {
+    --pa-ease-spring: linear;
+    --pa-ease-soft:   linear;
+    --pa-dur-reveal:  0ms;
+    --pa-dur-land:    0ms;
+  }
+}

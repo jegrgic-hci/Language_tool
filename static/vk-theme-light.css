@@ -1,0 +1,230 @@
+/* ==========================================================================
+   vraiKronos — THEME: Light (tool mode)
+   v1.0.0 | Vraifactors product theme
+
+   Purpose
+   ─────────────────────────────────────────────────────────────────────────
+   Functional light mode for data-dense tools. Prioritizes legibility,
+   information hierarchy, and scan-ability over atmosphere. Cast shadows
+   replace dark glows. Warm off-white surfaces replace obsidian.
+
+   Usage — three patterns
+   ─────────────────────────────────────────────────────────────────────────
+
+   1. Fully light (sidebar + content both light):
+      <html data-theme="core" data-mode="light">
+
+   2. Light content + dark sidebar (GitHub / VS Code pattern):
+      <html data-theme="core" data-mode="light">
+        <nav class="vk-sidebar" data-mode="dark">   ← stays obsidian
+        <main>                                       ← light content
+
+   3. Light shell + product accent:
+      <html data-theme="language" data-mode="light">
+
+   Because data-theme is scoped to any element, any combination works.
+   The sidebar override (pattern 2) is the recommended default for tools.
+
+   Accent on light surfaces
+   ─────────────────────────────────────────────────────────────────────────
+   --vk-accent        #c9954a    fill (amber button bg) — great on white
+   --vk-accent-text   #7a5c2e    dark amber for text/labels — 6.5:1 AA ✓
+   --vk-accent-fg     #09080a    text on amber fill — 7.7:1 AAA ✓
+   --vk-accent-bright #d8a85e    hover on amber fills
+
+   Status colors are darkened for light-bg readability (all WCAG AA+).
+   ========================================================================== */
+
+
+[data-mode="light"] {
+
+  /* ── Backgrounds & surfaces ──────────────────────────────────────────── */
+  --vk-bg:                   #f5f3ef;    /* warm off-white page bg */
+  --vk-bg-alt:               #efecea;    /* slightly deeper bg area */
+  --vk-surface:              #ffffff;    /* card / panel surface */
+  --vk-surface-2:            #f7f5f1;    /* nested surface / table row hover */
+  --vk-surface-3:            #edeae5;    /* active row / deepest surface */
+  --vk-surface-glass:        rgba(255, 255, 255, 0.90);
+  --vk-surface-glass-hover:  rgba(255, 255, 255, 0.95);
+  --vk-surface-tint:         rgba(201, 149, 74, 0.07);
+  --vk-surface-tint-hover:   rgba(201, 149, 74, 0.13);
+  --vk-sidebar:              #eae7e1;    /* fully-light sidebar bg */
+  --vk-overlay:              rgba(0, 0, 0, 0.45);
+
+  /* ── Foreground — WCAG contrast on light surfaces (#fff / #f5f3ef) ──────
+     fg-1  18.5:1  ✓ AAA — body copy, headings, interactive labels
+     fg-2   7.5:1  ✓ AA  — minimum for any readable text label or UI string
+     fg-3   3.5:1  ✗      — large text only (≥18px / 14px bold); never for
+                            labels, captions, or anything below 18pt
+     fg-4   2.3:1  ✗      — non-text use only: borders, dividers, placeholder
+                            dots, disabled icons; NEVER on readable text
+     Rule: use fg-2 as the floor for all text. fg-3 and fg-4 are decoration.
+     ──────────────────────────────────────────────────────────────────────── */
+  --vk-fg-1:        #1a1818;                    /* primary text — near-black warm */
+  --vk-fg-2:        rgba(26, 24, 24, 0.74);     /* secondary text — AA floor for all readable text */
+  --vk-fg-3:        rgba(26, 24, 24, 0.52);     /* large text only (≥18px / 14px bold) — not for labels/captions */
+  --vk-fg-4:        rgba(26, 24, 24, 0.36);     /* non-text decoration only — NEVER on readable text */
+  --vk-fg-inverse:  #f0ece6;                    /* text on dark surfaces */
+
+  /* ── Accent ──────────────────────────────────────────────────────────── */
+  --vk-accent:               #c9954a;    /* amber fill — same brand color */
+  --vk-accent-bright:        #d8a85e;    /* hover on fills */
+  --vk-accent-dim:           #b07838;    /* muted accent */
+  --vk-accent-bg:            rgba(201, 149, 74, 0.09);
+  --vk-accent-bg-hover:      rgba(201, 149, 74, 0.16);
+  --vk-accent-border:        rgba(201, 149, 74, 0.40);
+  --vk-accent-border-strong: rgba(201, 149, 74, 0.65);
+  --vk-accent-text:          #7a5c2e;    /* dark amber — text on light bg, 6.5:1 AA */
+  --vk-accent-fg:            #09080a;    /* dark text on amber fill — 7.7:1 AAA */
+  --vk-accent-glow:          0 0 12px rgba(201, 149, 74, 0.18);
+
+  /* ── Borders ─────────────────────────────────────────────────────────── */
+  --vk-border:               rgba(0, 0, 0, 0.09);
+  --vk-border-mid:           rgba(0, 0, 0, 0.14);
+  --vk-border-strong:        rgba(0, 0, 0, 0.26);
+  --vk-border-accent:        rgba(201, 149, 74, 0.40);
+  --vk-border-focus:         #c9954a;
+
+  /* ── Semantic status — darkened for light-bg legibility ─────────────── */
+  --vk-success:              #1f5a40;
+  --vk-success-bg:           #e5f0ea;
+  --vk-success-border:       rgba(31, 90, 64, 0.22);
+  --vk-success-text:         #1f5a40;
+
+  --vk-error:                #a8281c;
+  --vk-error-bg:             #fcecea;
+  --vk-error-border:         rgba(168, 40, 28, 0.22);
+  --vk-error-text:           #a8281c;
+
+  --vk-warning:              #7a5000;
+  --vk-warning-bg:           #fbf0d8;
+  --vk-warning-border:       rgba(122, 80, 0, 0.22);
+  --vk-warning-text:         #7a5000;
+
+  --vk-info:                 #2a4f7a;
+  --vk-info-bg:              #e6ecf5;
+  --vk-info-border:          rgba(42, 79, 122, 0.22);
+  --vk-info-text:            #2a4f7a;
+
+  /* ── Disabled ────────────────────────────────────────────────────────── */
+  --vk-disabled-fg:          rgba(26, 24, 24, 0.35);
+  --vk-disabled-bg:          rgba(0, 0, 0, 0.04);
+  --vk-disabled-border:      rgba(0, 0, 0, 0.10);
+
+  /* ── Elevation — cast shadows (not dark glows) ───────────────────────── */
+  --vk-elev-1:
+    0 1px 0 rgba(0, 0, 0, 0.05),
+    0 2px 8px rgba(0, 0, 0, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  --vk-elev-2:
+    0 1px 0 rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  --vk-elev-3:
+    0 2px 0 rgba(0, 0, 0, 0.06),
+    0 20px 56px rgba(0, 0, 0, 0.14),
+    0 6px 16px rgba(0, 0, 0, 0.08);
+  --vk-glow:
+    0 0 0 1px rgba(201, 149, 74, 0.18),
+    0 4px 20px rgba(201, 149, 74, 0.12);
+
+  /* ── Focus ring ──────────────────────────────────────────────────────── */
+  --vk-focus-ring:
+    0 0 0 2px #f5f3ef, 0 0 0 4px #c9954a;
+  --vk-focus-glow:
+    0 0 0 2px #f5f3ef, 0 0 0 4px #c9954a, 0 0 8px rgba(201, 149, 74, 0.18);
+  --vk-focus-ring-inset:
+    inset 0 0 0 2px #c9954a;
+
+  /* ── Utility visual tokens ───────────────────────────────────────────── */
+  --vk-glow-text:             0 1px 8px rgba(201, 149, 74, 0.25), 0 2px 16px rgba(201, 149, 74, 0.15);
+  --vk-glow-text-bright:      0 1px 8px rgba(201, 149, 74, 0.30), 0 2px 20px rgba(201, 149, 74, 0.18);
+  --vk-glow-text-dim:         0 2px 12px rgba(201, 149, 74, 0.22), 0 4px 24px rgba(201, 149, 74, 0.14);
+  --vk-accent-line-color:     rgba(201, 149, 74, 0.40);
+  --vk-dot-grid-color:        rgba(26, 24, 24, 0.07);
+  --vk-dot-grid-dim-color:    rgba(26, 24, 24, 0.04);
+  --vk-glow-blob-dim-color:   rgba(176, 120, 56, 0.04);
+  --vk-scrollbar-thumb:       rgba(26, 24, 24, 0.18);
+  --vk-scrollbar-thumb-hover: rgba(26, 24, 24, 0.30);
+  --vk-selection-bg:          rgba(201, 149, 74, 0.20);
+  --vk-card-hover-glow:       0 0 0 0 transparent;
+
+  /* ── Component token overrides ───────────────────────────────────────── */
+
+  /* Input */
+  --vk-input-bg:              #ffffff;
+  --vk-input-bg-hover:        #faf8f5;
+  --vk-input-bg-focus:        #ffffff;
+  --vk-input-border:          rgba(0, 0, 0, 0.18);
+  --vk-input-border-hover:    rgba(0, 0, 0, 0.30);
+  --vk-input-border-focus:    #c9954a;
+
+  /* Card */
+  --vk-card-bg:               #ffffff;
+  --vk-card-border:           rgba(0, 0, 0, 0.09);
+  --vk-card-border-hover:     rgba(201, 149, 74, 0.45);
+
+  /* Tag */
+  --vk-tag-bg:                rgba(0, 0, 0, 0.05);
+  --vk-tag-border:            rgba(0, 0, 0, 0.14);
+
+  /* Nav */
+  --vk-nav-bg:                #f5f3ef;
+  --vk-nav-bg-sticky:         rgba(245, 243, 239, 0.92);  /* light: warm off-white, semi-transparent */
+  --vk-nav-border:            rgba(0, 0, 0, 0.09);
+}
+
+
+/* ── Scrollbar — track adapts to light bg ────────────────────────────────── */
+[data-mode="light"]::-webkit-scrollbar-track {
+  background: #f5f3ef;
+}
+[data-mode="light"]{
+  scrollbar-color: var(--vk-scrollbar-thumb) #f5f3ef;
+}
+
+/* ── Glow blobs — remove on light (they read as dirty) ──────────────────── */
+[data-mode="light"].vk-glow-blob {
+  opacity: 0;
+}
+
+/* ── Noise texture — reduce opacity (already subtle on dark, visible here) ─ */
+[data-mode="light"].vk-noise::after {
+  opacity: 0.012;
+}
+
+/* ── Card hover — cast shadow on light, no glow ─────────────────────────── */
+[data-mode="light"].vk-card:hover {
+  box-shadow: var(--vk-elev-2);
+}
+
+/* ── Table — light alternating rows ─────────────────────────────────────── */
+[data-mode="light"].vk-table th {
+  background: #f5f3ef;
+}
+
+/* ── Sidebar — light variant (when data-theme="light" covers sidebar too) ── */
+/* When using the dark-sidebar pattern, scope the sidebar separately:
+   <nav class="vk-sidebar" data-theme="core"> — sidebar stays obsidian.
+   The rules below handle the fully-light sidebar case.                    */
+[data-mode="light"].vk-sidebar {
+  border-right-color: rgba(0, 0, 0, 0.09);
+}
+
+/* ── Nav links on light topnav ───────────────────────────────────────────── */
+[data-mode="light"].vk-topnav {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ── Modal overlay — lighter scrim on light ─────────────────────────────── */
+[data-mode="light"].vk-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Toast — white surface with border on light ─────────────────────────── */
+[data-mode="light"].vk-toast {
+  border: 1px solid var(--vk-border-mid);
+  border-left-width: 3px;
+}

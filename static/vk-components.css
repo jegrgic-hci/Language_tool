@@ -1,0 +1,2896 @@
+/* ==========================================================================
+   vraiKronos — COMPONENTS (core)
+   v1.0.0 | Vraifactors public design system
+
+   All components reference ONLY Tier 2 semantic tokens (--vk-*).
+   No direct palette references — theming is handled entirely in tokens-core.css.
+
+   Contents
+   ─────────────────────────────────────────────────────────────────────────
+   1.  Reset + base
+   2.  Design utilities  (dot-grid, noise, glow, glass, scrollbar, selection)
+   3.  Typography        (display, h1–h4, body, eyebrow, label, link, code)
+   4.  Buttons           (primary, outline, ghost, accent-fill, icon, sizes)
+   5.  Form elements     (input, textarea, select, checkbox, radio, toggle, field)
+   6.  Tags / badges
+   7.  Cards             (glass card, kpi card)
+   8.  Navigation        (topnav, sidebar, sidebar item)
+   9.  Table
+   10. Feedback          (banner/alert, toast, tooltip)
+   11. Modal / overlay
+   12. Tabs
+   13. Progress & stepper
+   14. Layout utilities  (section, grid, divider, app shell)
+   ========================================================================== */
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   1. RESET + BASE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-body);
+  line-height: 1.6;
+  color: var(--vk-fg-1);
+  background: var(--vk-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 { margin: 0; }
+p { margin: 0; }
+a { color: inherit; }
+button { cursor: pointer; }
+img, svg { display: block; }
+
+/* Focus visible — amber glow ring */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--vk-focus-ring);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   2. DESIGN UTILITIES
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Dot-grid background — accent-tinted dots on surface */
+.vk-dot-grid {
+  background-image: radial-gradient(
+    var(--vk-dot-grid-color) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+}
+
+.vk-dot-grid-dim {
+  background-image: radial-gradient(
+    var(--vk-dot-grid-dim-color) 1px,
+    transparent 1px
+  );
+  background-size: 28px 28px;
+}
+
+/* Film grain noise texture — overlay on any element */
+.vk-noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+  background-repeat: repeat;
+}
+.vk-noise { position: relative; }
+
+/* Glass surface — translucent dark panel */
+.vk-glass {
+  background: var(--vk-surface-glass);
+  border: 1px solid var(--vk-border);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+}
+
+/* Glow text utilities */
+.vk-glow-text {
+  text-shadow: var(--vk-glow-text);
+}
+.vk-glow-text-bright {
+  text-shadow: var(--vk-glow-text-bright);
+}
+
+/* Ambient glow blob — decorative background element */
+.vk-glow-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+}
+.vk-glow-blob-amber {
+  background: var(--vk-surface-tint);
+}
+.vk-glow-blob-dim {
+  background: var(--vk-glow-blob-dim-color);
+}
+
+/* Gradient accent line — horizontal rule with accent fade */
+.vk-accent-line {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--vk-accent-line-color) 30%,
+    var(--vk-accent-line-color) 70%,
+    transparent
+  );
+  border: none;
+  margin: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--vk-bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--vk-scrollbar-thumb);
+  border-radius: var(--vk-radius-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--vk-scrollbar-thumb-hover); }
+html { scrollbar-color: var(--vk-scrollbar-thumb) transparent; scrollbar-width: thin; }
+
+/* Selection */
+::selection {
+  background: var(--vk-selection-bg);
+  color: var(--vk-fg-1);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   3. TYPOGRAPHY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Display — hero-scale. Use sparingly. */
+.vk-display {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-display);
+  font-weight: 800;
+  letter-spacing: var(--vk-track-tight);
+  line-height: 0.95;
+  color: var(--vk-fg-1);
+  margin: 0;
+}
+.vk-display.is-accent { color: var(--vk-accent); }
+.vk-display.is-glow   { color: var(--vk-accent); text-shadow: var(--vk-glow-text-dim); }
+
+/* Headings */
+.vk-h1 {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-h1);
+  font-weight: 700;
+  letter-spacing: var(--vk-track-tight);
+  line-height: 1.1;
+  color: var(--vk-fg-1);
+  margin: 0;
+}
+.vk-h2 {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-h2);
+  font-weight: 700;
+  letter-spacing: var(--vk-track-tight);
+  line-height: 1.15;
+  color: var(--vk-fg-1);
+  margin: 0;
+}
+.vk-h3 {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-h3);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-tight);
+  line-height: 1.25;
+  color: var(--vk-fg-1);
+  margin: 0;
+}
+.vk-h4 {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-h4);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--vk-fg-1);
+  margin: 0;
+}
+
+/* Body text */
+.vk-body {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-body);
+  line-height: 1.7;
+  color: var(--vk-fg-2);
+  margin: 0;
+  max-width: 65ch;
+}
+.vk-body-lg {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-lg);
+  line-height: 1.65;
+  color: var(--vk-fg-2);
+  font-weight: 300;
+  margin: 0;
+  max-width: 60ch;
+}
+.vk-body-sm {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  line-height: 1.6;
+  color: var(--vk-fg-3);
+  margin: 0;
+}
+
+/* Eyebrow — uppercase mono label above headings */
+.vk-eyebrow {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-3);
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-3);
+  margin: 0;
+}
+.vk-eyebrow::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.vk-eyebrow.is-accent { color: var(--vk-accent-text); }
+.vk-eyebrow.no-line::before { display: none; }
+
+/* Label — compact mono label without decoration */
+.vk-label {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  display: inline-block;
+  margin: 0;
+}
+.vk-label.is-accent { color: var(--vk-accent-text); }
+
+/* Link */
+.vk-link {
+  color: var(--vk-accent-text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--vk-accent-line-color);
+  transition: border-color var(--vk-dur-quick) var(--vk-ease),
+              color         var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-link:hover {
+  color: var(--vk-accent-bright);
+  border-bottom-color: var(--vk-accent-line-hover);
+}
+.vk-link:focus-visible { box-shadow: var(--vk-focus-ring); border-radius: 1px; }
+
+/* Arrow link — with trailing arrow that moves on hover */
+.vk-link-arrow {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--vk-track-wide);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-accent-text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-link-arrow::after {
+  content: '↗';
+  font-size: 0.85em;
+  transition: transform var(--vk-dur-base) var(--vk-ease-spring);
+}
+.vk-link-arrow:hover { color: var(--vk-accent-bright); }
+.vk-link-arrow:hover::after { transform: translate(2px, -2px); }
+
+/* Inline code */
+.vk-code {
+  font-family: var(--vk-font-ui);
+  font-size: 0.9em;
+  font-weight: 400;
+  color: var(--vk-accent-text);
+  background: var(--vk-accent-bg);
+  border: 1px solid var(--vk-accent-border);
+  border-radius: var(--vk-radius-card);
+  padding: 1px 6px;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   4. BUTTONS
+   Hard edges. Mono font. Uppercase. Spring press animation.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.vk-btn {
+  font-family: var(--vk-btn-font);
+  font-size: var(--vk-btn-text-size);
+  font-weight: 600;
+  letter-spacing: var(--vk-btn-tracking);
+  text-transform: var(--vk-ui-case);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--vk-btn-height);
+  padding: 0 var(--vk-btn-pad-x);
+  border: 1px solid transparent;
+  border-radius: var(--vk-btn-radius);
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background   var(--vk-dur-quick) var(--vk-ease),
+    color        var(--vk-dur-quick) var(--vk-ease),
+    border-color var(--vk-dur-quick) var(--vk-ease),
+    box-shadow   var(--vk-dur-quick) var(--vk-ease),
+    transform    var(--vk-dur-base)  var(--vk-ease-spring);
+  outline: none;
+  white-space: nowrap;
+  user-select: none;
+}
+.vk-btn:hover  { transform: translateY(-1px); }
+.vk-btn:active { transform: scale(0.97); transition-duration: 60ms; }
+/* Touch devices: guarantee a 44px hit area without inflating dense desktop UI. */
+@media (pointer: coarse) {
+  .vk-btn { min-height: var(--vk-tap-min); }
+}
+.vk-btn:focus-visible { box-shadow: var(--vk-focus-ring); }
+.vk-btn:disabled,
+.vk-btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  transform: none !important;
+  color: var(--vk-disabled-fg) !important;
+  background: var(--vk-disabled-bg) !important;
+  border-color: var(--vk-disabled-border) !important;
+  box-shadow: none !important;
+}
+
+/* Primary — solid amber fill; text on amber = obsidian */
+.vk-btn-primary {
+  background: var(--vk-accent);
+  color: var(--vk-accent-fg);
+  border-color: var(--vk-accent);
+}
+.vk-btn-primary:hover {
+  background: var(--vk-accent-bright);
+  border-color: var(--vk-accent-bright);
+}
+.vk-btn-primary:active { box-shadow: var(--vk-accent-glow); }
+
+/* Outline — transparent with amber border; fills on hover */
+.vk-btn-outline {
+  background: transparent;
+  color: var(--vk-fg-1);
+  border-color: var(--vk-border-mid);
+}
+.vk-btn-outline:hover {
+  border-color: var(--vk-border-accent);
+  background: var(--vk-accent-bg);
+  color: var(--vk-fg-1);
+}
+
+/* Ghost — no border; subtle background on hover */
+.vk-btn-ghost {
+  background: transparent;
+  color: var(--vk-fg-2);
+  border-color: transparent;
+}
+.vk-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--vk-fg-1);
+}
+
+/* Destructive */
+.vk-btn-destructive {
+  background: transparent;
+  color: var(--vk-error-text);
+  border-color: var(--vk-error-border);
+}
+.vk-btn-destructive:hover {
+  background: var(--vk-error-bg);
+  border-color: var(--vk-error);
+}
+
+/* Icon-only button */
+.vk-btn-icon {
+  width: var(--vk-btn-height);
+  height: var(--vk-btn-height);
+  padding: 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--vk-fg-2);
+  border-color: var(--vk-border-mid);
+}
+.vk-btn-icon:hover {
+  background: var(--vk-accent-bg);
+  color: var(--vk-accent-text);
+  border-color: var(--vk-accent-border);
+}
+
+/* Sizes */
+.vk-btn.sm {
+  height: var(--vk-btn-height-sm);
+  padding: 0 var(--vk-btn-pad-x-sm);
+  font-size: var(--vk-text-2xs);
+}
+.vk-btn.lg {
+  height: var(--vk-btn-height-lg);
+  padding: 0 var(--vk-btn-pad-x-lg);
+  font-size: var(--vk-text-sm);
+}
+.vk-btn.icon.sm { width: var(--vk-btn-height-sm); height: var(--vk-btn-height-sm); }
+.vk-btn.icon.lg { width: var(--vk-btn-height-lg); height: var(--vk-btn-height-lg); }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   5. FORM ELEMENTS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Input ───────────────────────────────────────────────────────────────── */
+.vk-input {
+  font-family: var(--vk-input-font);
+  font-size: var(--vk-input-text-size);
+  color: var(--vk-fg-1);
+  background: var(--vk-input-bg);
+  border: 1px solid var(--vk-input-border);
+  border-radius: var(--vk-input-radius);
+  padding: 0 var(--vk-input-pad-x);
+  height: var(--vk-input-height);
+  width: 100%;
+  outline: none;
+  transition:
+    border-color var(--vk-dur-base) var(--vk-ease),
+    background   var(--vk-dur-base) var(--vk-ease),
+    box-shadow   var(--vk-dur-base) var(--vk-ease-expressive);
+}
+.vk-input::placeholder { color: var(--vk-fg-4); }
+.vk-input:hover {
+  background: var(--vk-input-bg-hover);
+  border-color: var(--vk-input-border-hover);
+}
+.vk-input:focus-visible {
+  background: var(--vk-input-bg-focus);
+  border-color: var(--vk-input-border-focus);
+  box-shadow: var(--vk-focus-ring);
+}
+.vk-input.is-error { border-color: var(--vk-error); }
+.vk-input.is-error:focus-visible {
+  box-shadow: 0 0 0 2px var(--vk-bg), 0 0 0 4px var(--vk-error);
+}
+.vk-input:disabled {
+  cursor: not-allowed;
+  color: var(--vk-disabled-fg);
+  background: var(--vk-disabled-bg);
+  border-color: var(--vk-disabled-border);
+}
+/* Touch devices: 44px hit area + 16px font to prevent iOS focus-zoom.
+   (Mobile Safari zooms the viewport whenever a focused field is < 16px.) */
+@media (pointer: coarse) {
+  .vk-input { min-height: var(--vk-tap-min); font-size: 16px; }
+}
+
+/* ── Textarea ────────────────────────────────────────────────────────────── */
+.vk-textarea {
+  font-family: var(--vk-input-font);
+  font-size: var(--vk-input-text-size);
+  color: var(--vk-fg-1);
+  background: var(--vk-input-bg);
+  border: 1px solid var(--vk-input-border);
+  border-radius: var(--vk-input-radius);
+  padding: var(--vk-sp-3) var(--vk-input-pad-x);
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+  transition:
+    border-color var(--vk-dur-base) var(--vk-ease),
+    background   var(--vk-dur-base) var(--vk-ease),
+    box-shadow   var(--vk-dur-base) var(--vk-ease-expressive);
+}
+.vk-textarea::placeholder { color: var(--vk-fg-4); }
+.vk-textarea:hover {
+  background: var(--vk-input-bg-hover);
+  border-color: var(--vk-input-border-hover);
+}
+.vk-textarea:focus-visible {
+  background: var(--vk-input-bg-focus);
+  border-color: var(--vk-input-border-focus);
+  box-shadow: var(--vk-focus-ring);
+}
+
+/* ── Select ──────────────────────────────────────────────────────────────── */
+.vk-select-wrap { position: relative; width: 100%; }
+.vk-select {
+  font-family: var(--vk-input-font);
+  font-size: var(--vk-input-text-size);
+  color: var(--vk-fg-1);
+  background: var(--vk-input-bg);
+  border: 1px solid var(--vk-input-border);
+  border-radius: var(--vk-input-radius);
+  padding: 0 36px 0 var(--vk-input-pad-x);
+  height: var(--vk-input-height);
+  width: 100%;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color var(--vk-dur-quick) var(--vk-ease),
+    background   var(--vk-dur-quick) var(--vk-ease),
+    box-shadow   var(--vk-dur-base)  var(--vk-ease-expressive);
+}
+.vk-select:hover { background: var(--vk-input-bg-hover); border-color: var(--vk-input-border-hover); }
+.vk-select:focus-visible { border-color: var(--vk-input-border-focus); box-shadow: var(--vk-focus-ring); }
+.vk-select-wrap::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--vk-fg-3);
+}
+
+/* ── Checkbox ────────────────────────────────────────────────────────────── */
+.vk-checkbox-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-2);
+  cursor: pointer;
+  user-select: none;
+}
+.vk-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background: var(--vk-input-bg);
+  border: 1px solid var(--vk-input-border);
+  border-radius: var(--vk-radius-ui);
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  transition:
+    border-color var(--vk-dur-quick) var(--vk-ease),
+    background   var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-checkbox:hover { border-color: var(--vk-accent-border); }
+.vk-checkbox:checked {
+  background: var(--vk-accent);
+  border-color: var(--vk-accent);
+}
+.vk-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 5px;
+  width: 4px; height: 7px;
+  border: 2px solid var(--vk-accent-fg);
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+.vk-checkbox:focus-visible { box-shadow: var(--vk-focus-ring); }
+.vk-checkbox-label {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  color: var(--vk-fg-2);
+}
+
+/* ── Radio ───────────────────────────────────────────────────────────────── */
+.vk-radio-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-2);
+  cursor: pointer;
+  user-select: none;
+}
+.vk-radio {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background: var(--vk-input-bg);
+  border: 1px solid var(--vk-input-border);
+  border-radius: 50%;
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  transition:
+    border-color var(--vk-dur-quick) var(--vk-ease),
+    background   var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-radio:hover { border-color: var(--vk-accent-border); }
+.vk-radio:checked {
+  border-color: var(--vk-accent);
+}
+.vk-radio:checked::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 8px; height: 8px;
+  background: var(--vk-accent);
+  border-radius: 50%;
+}
+.vk-radio:focus-visible { box-shadow: var(--vk-focus-ring); }
+
+/* ── Toggle ──────────────────────────────────────────────────────────────── */
+.vk-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-3);
+  cursor: pointer;
+  user-select: none;
+}
+.vk-toggle {
+  appearance: none;
+  width: 36px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid var(--vk-border-mid);
+  border-radius: var(--vk-radius-pill);
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  transition:
+    background    var(--vk-dur-base) var(--vk-ease),
+    border-color  var(--vk-dur-base) var(--vk-ease);
+  flex-shrink: 0;
+}
+.vk-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  background: var(--vk-fg-3);
+  border-radius: 50%;
+  transition: transform var(--vk-dur-base) var(--vk-ease-spring),
+              background var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-toggle:checked {
+  background: var(--vk-accent-bg);
+  border-color: var(--vk-accent-border);
+}
+.vk-toggle:checked::after {
+  transform: translateX(16px);
+  background: var(--vk-accent);
+}
+.vk-toggle:focus-visible { box-shadow: var(--vk-focus-ring); }
+.vk-toggle-label {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  color: var(--vk-fg-2);
+}
+
+/* ── Field wrapper ───────────────────────────────────────────────────────── */
+.vk-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-2);
+}
+.vk-field-label {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+.vk-field-label.is-required::after {
+  content: ' *';
+  color: var(--vk-accent-text);
+}
+.vk-field-helper {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-xs);
+  color: var(--vk-fg-4);
+  line-height: 1.5;
+}
+.vk-field-helper.is-error { color: var(--vk-error-text); }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   6. TAGS / BADGES
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.vk-tag {
+  font-family: var(--vk-tag-font);
+  font-size: var(--vk-tag-size);
+  font-weight: 500;
+  letter-spacing: var(--vk-tag-track);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-3);
+  background: var(--vk-tag-bg);
+  border: 1px solid var(--vk-tag-border);
+  border-radius: var(--vk-tag-radius);
+  padding: 3px 10px;
+  display: inline-block;
+  line-height: 1.7;
+}
+
+/* Variants */
+.vk-tag.is-accent {
+  color: var(--vk-accent-text);
+  background: var(--vk-accent-bg);
+  border-color: var(--vk-accent-border);
+}
+.vk-tag.is-success {
+  color: var(--vk-success-text);
+  background: var(--vk-success-bg);
+  border-color: var(--vk-success-border);
+}
+.vk-tag.is-error {
+  color: var(--vk-error-text);
+  background: var(--vk-error-bg);
+  border-color: var(--vk-error-border);
+}
+.vk-tag.is-warning {
+  color: var(--vk-warning-text);
+  background: var(--vk-warning-bg);
+  border-color: var(--vk-warning-border);
+}
+.vk-tag.is-info {
+  color: var(--vk-info-text);
+  background: var(--vk-info-bg);
+  border-color: var(--vk-info-border);
+}
+
+/* Dot indicator — status tag with leading colored dot */
+.vk-tag.has-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vk-tag.has-dot::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   7. CARDS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Glass card — dark glass surface, amber glow on hover ─────────────────── */
+.vk-card {
+  background: var(--vk-card-bg);
+  border: 1px solid var(--vk-card-border);
+  border-radius: var(--vk-card-radius);
+  transition:
+    border-color var(--vk-dur-base)  var(--vk-ease),
+    background   var(--vk-dur-base)  var(--vk-ease),
+    box-shadow   var(--vk-dur-emph)  var(--vk-ease-expressive),
+    transform    var(--vk-dur-emph)  var(--vk-ease-spring);
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  overflow: hidden;
+}
+.vk-card:hover {
+  background: var(--vk-surface-glass-hover);
+  border-color: var(--vk-card-border-hover);
+  box-shadow:
+    0 0 0 1px var(--vk-accent-border),
+    var(--vk-card-hover-glow),
+    var(--vk-elev-1);
+  transform: translateY(-3px);
+}
+.vk-card:focus-visible {
+  outline: none;
+  box-shadow: var(--vk-focus-ring);
+}
+
+/* Card body and slots */
+.vk-card-media {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: var(--vk-surface-3);
+  border-bottom: 1px solid var(--vk-border);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.vk-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vk-card-media-placeholder {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+
+.vk-card-body {
+  padding: var(--vk-card-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-3);
+}
+
+.vk-card-eyebrow {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+.vk-card-eyebrow.is-accent { color: var(--vk-accent-text); }
+
+.vk-card-title {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-h4);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-tight);
+  color: var(--vk-fg-1);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.vk-card-desc {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  line-height: 1.6;
+  color: var(--vk-fg-3);
+  margin: 0;
+}
+
+.vk-card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: var(--vk-sp-1);
+}
+
+/* Accent variant — left amber border for featured content */
+.vk-card.is-featured {
+  border-left-width: 3px;
+  border-left-color: var(--vk-accent);
+}
+.vk-card.is-featured .vk-card-eyebrow { color: var(--vk-accent-text); }
+
+/* Tint variant — amber surface wash */
+.vk-card.is-tint {
+  background: var(--vk-surface-tint);
+  border-color: var(--vk-accent-border);
+}
+.vk-card.is-tint:hover {
+  background: var(--vk-surface-tint-hover);
+}
+
+/* ── KPI card ─────────────────────────────────────────────────────────────── */
+.vk-kpi {
+  background: var(--vk-surface-glass);
+  border: 1px solid var(--vk-border);
+  border-top: 2px solid var(--vk-border-mid);
+  border-radius: var(--vk-radius-card);
+  padding: var(--vk-sp-5) var(--vk-sp-5) var(--vk-sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-1);
+  transition:
+    border-color var(--vk-dur-base)  var(--vk-ease),
+    transform    var(--vk-dur-emph)  var(--vk-ease-spring);
+}
+.vk-kpi:hover { transform: translateY(-2px); }
+.vk-kpi.is-accent {
+  background: var(--vk-surface-tint);
+  border-top-color: var(--vk-accent);
+  border-color: var(--vk-accent-border);
+}
+
+.vk-kpi-label {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+.vk-kpi.is-accent .vk-kpi-label { color: var(--vk-accent-text); }
+
+.vk-kpi-num {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-h1);
+  font-weight: 700;
+  letter-spacing: var(--vk-track-tight);
+  line-height: 1;
+  color: var(--vk-fg-1);
+  margin-top: var(--vk-sp-1);
+}
+.vk-kpi-num.is-accent { color: var(--vk-accent-text); }
+
+.vk-kpi-delta {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-xs);
+  font-weight: 600;
+}
+.vk-kpi-delta.up   { color: var(--vk-success-text); }
+.vk-kpi-delta.down { color: var(--vk-error-text); }
+
+.vk-kpi-meta {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-xs);
+  color: var(--vk-fg-4);
+  margin-top: var(--vk-sp-1);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   8. NAVIGATION
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Top navigation bar ───────────────────────────────────────────────────── */
+.vk-topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vk-sp-5);
+  padding: 0 var(--vk-sp-6);
+  height: 60px;
+  background: var(--vk-nav-bg);
+  border-bottom: 1px solid var(--vk-nav-border);
+  position: relative;
+}
+.vk-topnav.is-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  background: var(--vk-nav-bg-sticky, rgba(9, 8, 10, 0.88));
+}
+
+/* Brand mark */
+.vk-topnav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vk-sp-3);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.vk-topnav-brand .mark {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-accent-text);
+  line-height: 1;
+}
+.vk-topnav-brand .version {
+  font-family: var(--vk-font-ui);
+  font-size: 10px;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  border-left: 1px solid var(--vk-border-mid);
+  padding-left: var(--vk-sp-3);
+  margin-left: var(--vk-sp-1);
+}
+
+/* Nav links */
+/* MOBILE-FIRST: below md the link row collapses into a right-side off-canvas
+   drawer, toggled by a .vk-menu-toggle (wired by nav.js). At md+ it returns to
+   the static horizontal row with the underline active-indicator. */
+.vk-topnav-links {
+  /* mobile: off-canvas right drawer */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 90;                      /* below sticky topnav (100) so the toggle/X stays reachable */
+  width: min(320px, 86vw);
+  height: 100dvh;
+  padding: calc(60px + var(--vk-sp-3)) var(--vk-sp-3) var(--vk-sp-5);
+  background: var(--vk-surface);
+  border-left: 1px solid var(--vk-border-mid);
+  box-shadow: var(--vk-elev-3);
+  transform: translateX(100%);
+  visibility: hidden;              /* removes links from the a11y tree while closed */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* visibility flips instantly on open (so the panel is focusable at once) and
+     is delayed on close until the slide-out finishes. */
+  transition:
+    transform  var(--vk-dur-emph) var(--vk-ease-expressive),
+    visibility 0s linear var(--vk-dur-emph);
+}
+.vk-topnav-links.is-open {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform  var(--vk-dur-emph) var(--vk-ease-expressive),
+    visibility 0s;
+}
+
+.vk-topnav-links a {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-nav-size);
+  font-weight: 500;
+  letter-spacing: var(--vk-nav-track);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-2);
+  text-decoration: none;
+  /* mobile: full-width tappable rows with a left accent indicator */
+  display: flex;
+  align-items: center;
+  min-height: var(--vk-tap-min);
+  padding: var(--vk-sp-3);
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--vk-border);
+  outline: none;
+  transition:
+    color        var(--vk-dur-base) var(--vk-ease),
+    background    var(--vk-dur-base) var(--vk-ease),
+    border-color var(--vk-dur-base) var(--vk-ease-expressive);
+}
+.vk-topnav-links a:hover { color: var(--vk-fg-1); background: var(--vk-accent-bg); }
+.vk-topnav-links a:focus-visible { box-shadow: var(--vk-focus-ring-inset); }
+.vk-topnav-links a[aria-current="page"] {
+  color: var(--vk-fg-1);
+  border-left-color: var(--vk-accent);
+}
+
+/* md+: restore the static horizontal row */
+@media (min-width: 768px) {  /* --vkg-bp-md */
+  .vk-topnav-links {
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--vk-sp-5);
+    width: auto;
+    height: auto;
+    padding: 0;
+    background: none;
+    border-left: none;
+    box-shadow: none;
+    transform: none;
+    visibility: visible;
+    overflow: visible;
+  }
+  .vk-topnav-links a {
+    display: inline-block;
+    min-height: 0;
+    padding: 8px 0;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .vk-topnav-links a:hover { background: none; }
+  .vk-topnav-links a[aria-current="page"] {
+    border-left-color: transparent;
+    border-bottom-color: var(--vk-accent);
+  }
+}
+
+.vk-topnav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-2);
+  flex-shrink: 0;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+/* MOBILE-FIRST: below md the sidebar is a left off-canvas drawer (hidden until
+   .is-open is toggled by a .vk-menu-toggle via nav.js). At md+ it docks as the
+   static navigation column inside .vk-app. */
+.vk-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--vk-sidebar);
+  padding: var(--vk-sp-4) 0;
+  border-right: 1px solid var(--vk-border);
+  flex-shrink: 0;
+  /* mobile: off-canvas left drawer */
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;                      /* below sticky topnav (100) so a topnav-hosted toggle stays reachable */
+  width: min(var(--vk-sidebar-width), 84vw);
+  height: 100dvh;
+  transform: translateX(-100%);
+  visibility: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: var(--vk-elev-3);
+  /* visibility flips instantly on open (focusable at once), delayed on close. */
+  transition:
+    transform  var(--vk-dur-emph) var(--vk-ease-expressive),
+    visibility 0s linear var(--vk-dur-emph);
+}
+.vk-sidebar.is-open {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform  var(--vk-dur-emph) var(--vk-ease-expressive),
+    visibility 0s;
+}
+
+@media (min-width: 768px) {  /* --vkg-bp-md */
+  .vk-sidebar {
+    position: static;
+    z-index: auto;
+    width: var(--vk-sidebar-width);
+    height: auto;
+    min-height: 100vh;
+    transform: none;
+    visibility: visible;
+    overflow: visible;
+    box-shadow: none;
+    transition: none;
+  }
+}
+
+/* Opt out of the mobile-drawer behaviour — sidebar stays in normal flow at all
+   sizes. For embedded previews or split-pane layouts where the sidebar should
+   not become a viewport-level drawer. */
+.vk-sidebar.is-docked {
+  position: static;
+  z-index: auto;
+  width: var(--vk-sidebar-width);
+  height: auto;
+  transform: none;
+  visibility: visible;
+  overflow: visible;
+  box-shadow: none;
+  transition: none;
+}
+
+.vk-sb-brand {
+  padding: 0 var(--vk-sp-5) var(--vk-sp-4);
+  border-bottom: 1px solid var(--vk-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-0);
+  margin-bottom: var(--vk-sp-2);
+}
+.vk-sb-brand .mark {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-accent-text);
+}
+.vk-sb-brand .version {
+  font-family: var(--vk-font-ui);
+  font-size: 10px;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+
+.vk-sb-section {
+  font-family: var(--vk-font-ui);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  padding: var(--vk-sp-4) var(--vk-sp-5) var(--vk-sp-2);
+  margin-top: var(--vk-sp-2);
+}
+
+.vk-sb-item {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-3);
+  padding: 9px var(--vk-sp-5);
+  color: var(--vk-fg-3);
+  text-decoration: none;
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xs);
+  font-weight: 500;
+  letter-spacing: var(--vk-track-wide);
+  text-transform: var(--vk-ui-case);
+  border-left: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  border-top: none; border-right: none; border-bottom: none;
+  width: 100%;
+  text-align: left;
+  outline: none;
+  transition:
+    color       var(--vk-dur-quick) var(--vk-ease),
+    background  var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-sb-item:hover {
+  color: var(--vk-fg-1);
+  background: rgba(255, 255, 255, 0.04);
+}
+.vk-sb-item.is-active {
+  color: var(--vk-fg-1);
+  background: var(--vk-accent-bg);
+  border-left-color: var(--vk-accent);
+  padding-left: calc(var(--vk-sp-5) - 2px);
+}
+.vk-sb-item:focus-visible { box-shadow: var(--vk-focus-ring-inset); }
+.vk-sb-item .icon { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.7; }
+.vk-sb-item.is-active .icon { opacity: 1; }
+.vk-sb-badge {
+  margin-left: auto;
+  font-family: var(--vk-font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--vk-accent-bg);
+  color: var(--vk-accent-text);
+  border: 1px solid var(--vk-accent-border);
+  padding: 1px 6px;
+  letter-spacing: 0.05em;
+}
+
+
+/* ── Mobile menu toggle (hamburger) ───────────────────────────────────────────
+   Place inside the sticky topnav / topbar. Visible below md only; opens the
+   adjacent off-canvas drawer (.vk-topnav-links or .vk-sidebar) via nav.js.
+   Hosting it in the sticky topnav (z 100) keeps the close (X) reachable above
+   the drawer (z 90). Markup:
+     <button class="vk-menu-toggle" data-vk-menu="#nav" aria-label="Menu">
+       <span class="vk-menu-toggle-bars"></span>
+     </button>                                                                   */
+.vk-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--vk-border-mid);
+  border-radius: var(--vk-btn-radius);
+  color: var(--vk-fg-1);
+  cursor: pointer;
+  outline: none;
+  transition:
+    background   var(--vk-dur-quick) var(--vk-ease),
+    border-color var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-menu-toggle:hover { background: var(--vk-accent-bg); border-color: var(--vk-accent-border); }
+.vk-menu-toggle:focus-visible { box-shadow: var(--vk-focus-ring); }
+@media (pointer: coarse) {
+  .vk-menu-toggle { min-width: var(--vk-tap-min); min-height: var(--vk-tap-min); }
+}
+/* Desktop shows the full nav — hide the toggle at md+ */
+@media (min-width: 768px) {  /* --vkg-bp-md */
+  .vk-menu-toggle { display: none; }
+}
+
+/* Hamburger bars: middle bar = the element, top/bottom = pseudos. Morph to X. */
+.vk-menu-toggle-bars,
+.vk-menu-toggle-bars::before,
+.vk-menu-toggle-bars::after {
+  display: block;
+  width: 18px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 2px;
+  transition:
+    transform var(--vk-dur-base)  var(--vk-ease),
+    opacity   var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-menu-toggle-bars { position: relative; }
+.vk-menu-toggle-bars::before,
+.vk-menu-toggle-bars::after { content: ''; position: absolute; left: 0; }
+.vk-menu-toggle-bars::before { top: -5px; }
+.vk-menu-toggle-bars::after  { top: 5px; }
+.vk-menu-toggle[aria-expanded="true"] .vk-menu-toggle-bars { background: transparent; }
+.vk-menu-toggle[aria-expanded="true"] .vk-menu-toggle-bars::before { top: 0; transform: rotate(45deg); }
+.vk-menu-toggle[aria-expanded="true"] .vk-menu-toggle-bars::after  { top: 0; transform: rotate(-45deg); }
+
+
+/* ── Scrim / backdrop ─────────────────────────────────────────────────────────
+   Shared dim layer behind an open drawer. nav.js creates one #vk-scrim element
+   and toggles .is-open; clicking it closes the drawer. Never shows at md+.     */
+.vk-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 85;                      /* above content, below drawer (90) */
+  background: var(--vk-overlay);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity    var(--vk-dur-base) var(--vk-ease),
+    visibility var(--vk-dur-base) var(--vk-ease);
+}
+.vk-scrim.is-open { opacity: 1; visibility: visible; }
+@media (min-width: 768px) {  /* --vkg-bp-md */
+  .vk-scrim { display: none; }
+}
+
+/* Body scroll-lock — nav.js adds this while a drawer is open. */
+body.vk-scroll-lock { overflow: hidden; }
+
+
+/* ── Touch-target sweep ───────────────────────────────────────────────────────
+   WCAG 2.5.5 / Apple HIG: interactive controls reach a 44px hit area on coarse
+   pointers while staying compact for mouse users. (.vk-btn, .vk-input and
+   .vk-pagination-btn handle this at their own definitions; .vk-btn.sm inherits
+   the .vk-btn floor. Checkbox/radio/toggle rely on their <label> wrapper as the
+   hit area — keep the visual control inside .vk-*-wrap for touch compliance.)  */
+@media (pointer: coarse) {
+  .vk-select       { min-height: var(--vk-tap-min); }
+  .vk-btn-icon     { min-width: var(--vk-tap-min); }
+  .vk-checkbox-wrap,
+  .vk-radio-wrap,
+  .vk-toggle-wrap  { min-height: var(--vk-tap-min); }
+  .vk-tab          { min-height: var(--vk-tap-min); }
+  .vk-sb-item      { min-height: var(--vk-tap-min); }
+  .vk-dropdown-item { min-height: var(--vk-tap-min); display: flex; align-items: center; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   9. TABLE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.vk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+}
+.vk-table th,
+.vk-table td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vk-border);
+  color: var(--vk-fg-2);
+}
+.vk-table th {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wide);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--vk-border-mid);
+}
+.vk-table td b { color: var(--vk-fg-1); font-weight: 500; }
+.vk-table tbody tr {
+  transition: background var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-table tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
+.vk-table tbody tr:last-child td { border-bottom: none; }
+
+/* Table wrapper with border */
+.vk-table-wrap {
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-radius-card);
+  overflow: hidden;
+}
+.vk-table-wrap .vk-table { margin: 0; }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   10. FEEDBACK — BANNER, TOAST, TOOLTIP
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Banner / alert ───────────────────────────────────────────────────────── */
+.vk-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vk-sp-3);
+  padding: 14px var(--vk-sp-4);
+  border: 1px solid;
+  border-left-width: 3px;
+  border-radius: var(--vk-radius-card);
+  font-family: var(--vk-font-body);
+}
+.vk-banner-icon  { flex-shrink: 0; margin-top: 2px; }
+.vk-banner-body  { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.vk-banner-title { font-size: var(--vk-text-sm); font-weight: 600; }
+.vk-banner-msg   { font-size: var(--vk-text-xs); line-height: 1.5; opacity: 0.8; }
+.vk-banner-close {
+  background: transparent; border: none; opacity: 0.5;
+  cursor: pointer; padding: 2px; display: inline-flex;
+  outline: none; flex-shrink: 0;
+  transition: opacity var(--vk-dur-quick) var(--vk-ease);
+  color: inherit;
+}
+.vk-banner-close:hover { opacity: 1; }
+.vk-banner-close:focus-visible { box-shadow: var(--vk-focus-ring); }
+
+.vk-banner.is-info    { background: var(--vk-info-bg);    border-color: var(--vk-info-border);    color: var(--vk-info-text); }
+.vk-banner.is-success { background: var(--vk-success-bg); border-color: var(--vk-success-border); color: var(--vk-success-text); }
+.vk-banner.is-warning { background: var(--vk-warning-bg); border-color: var(--vk-warning-border); color: var(--vk-warning-text); }
+.vk-banner.is-error   { background: var(--vk-error-bg);   border-color: var(--vk-error-border);   color: var(--vk-error-text); }
+
+/* ── Toast ────────────────────────────────────────────────────────────────── */
+.vk-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vk-sp-3);
+  background: var(--vk-surface-2);
+  color: var(--vk-fg-1);
+  border: 1px solid var(--vk-border-mid);
+  border-left: 3px solid var(--vk-accent);
+  border-radius: var(--vk-radius-card);
+  padding: 12px 16px 12px 14px;
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  box-shadow: var(--vk-elev-2);
+  max-width: 400px;
+}
+.vk-toast.is-success  { border-left-color: var(--vk-success); }
+.vk-toast.is-error    { border-left-color: var(--vk-error); }
+.vk-toast.is-warning  { border-left-color: var(--vk-warning); }
+.vk-toast-title       { font-weight: 600; display: block; }
+.vk-toast-msg         { color: var(--vk-fg-3); font-size: var(--vk-text-xs); }
+
+/* ── Tooltip ──────────────────────────────────────────────────────────────── */
+.vk-tooltip { position: relative; display: inline-block; }
+.vk-tooltip-bubble {
+  background: var(--vk-surface-3);
+  color: var(--vk-fg-1);
+  border: 1px solid var(--vk-border-mid);
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 7px 11px;
+  white-space: nowrap;
+  border-radius: var(--vk-radius-tooltip);
+  box-shadow: var(--vk-elev-2);
+  display: inline-block;
+  position: relative;
+}
+.vk-tooltip-bubble[data-arrow]::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 14px;
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--vk-surface-3);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   11. MODAL / OVERLAY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.vk-overlay {
+  background: var(--vk-overlay);
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--vk-sp-5);
+  z-index: 200;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.vk-modal {
+  width: 100%;
+  max-width: 520px;
+  background: var(--vk-surface);
+  border: 1px solid var(--vk-border-mid);
+  border-radius: var(--vk-radius-card);
+  box-shadow: var(--vk-elev-3);
+}
+.vk-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--vk-sp-4) var(--vk-sp-5);
+  border-bottom: 1px solid var(--vk-border);
+}
+.vk-modal-head h3 {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-lg);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-tight);
+  color: var(--vk-fg-1);
+  margin: 0;
+}
+.vk-modal-body {
+  padding: var(--vk-sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-4);
+}
+.vk-modal-foot {
+  padding: var(--vk-sp-4) var(--vk-sp-5);
+  border-top: 1px solid var(--vk-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--vk-sp-3);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   12. TABS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.vk-tabs {
+  display: flex;
+  gap: var(--vk-sp-5);
+  border-bottom: 1px solid var(--vk-border);
+}
+.vk-tab {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wide);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 11px 0 10px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  outline: none;
+  transition:
+    color        var(--vk-dur-base) var(--vk-ease),
+    border-color var(--vk-dur-base) var(--vk-ease-expressive);
+}
+.vk-tab:hover { color: var(--vk-fg-2); }
+.vk-tab:focus-visible { box-shadow: var(--vk-focus-ring); }
+.vk-tab[aria-selected="true"] {
+  color: var(--vk-fg-1);
+  border-bottom-color: var(--vk-accent);
+}
+.vk-tab-panel { padding-top: var(--vk-sp-5); }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   13. PROGRESS & STEPPER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Progress bar ─────────────────────────────────────────────────────────── */
+.vk-progress {
+  height: 3px;
+  background: var(--vk-border-mid);
+  border-radius: var(--vk-radius-pill);
+  overflow: hidden;
+}
+.vk-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--vk-accent);
+  border-radius: var(--vk-radius-pill);
+  transition: width var(--vk-dur-emph) var(--vk-ease-expressive);
+  position: relative;
+}
+.vk-progress > span::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0; bottom: 0;
+  width: 24px;
+  background: linear-gradient(to right, transparent, var(--vk-accent-shimmer));
+  border-radius: var(--vk-radius-pill);
+}
+.vk-progress.is-success > span { background: var(--vk-success); }
+.vk-progress.is-error   > span { background: var(--vk-error); }
+.vk-progress.is-warning > span { background: var(--vk-warning); }
+
+/* ── Stepper ──────────────────────────────────────────────────────────────── */
+.vk-stepper { display: flex; align-items: stretch; gap: 0; }
+.vk-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-2);
+  padding: var(--vk-sp-3) var(--vk-sp-3) var(--vk-sp-3) 0;
+  border-top: 2px solid var(--vk-border);
+  transition: border-color var(--vk-dur-base) var(--vk-ease);
+}
+.vk-step.is-done    { border-top-color: var(--vk-accent-dim); }
+.vk-step.is-current { border-top-color: var(--vk-accent); }
+.vk-step-num {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+.vk-step.is-done    .vk-step-num { color: var(--vk-accent-dim); }
+.vk-step.is-current .vk-step-num { color: var(--vk-accent-text); }
+.vk-step-name {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-xs);
+  color: var(--vk-fg-4);
+}
+.vk-step.is-current .vk-step-name { color: var(--vk-fg-1); font-weight: 500; }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   14. LAYOUT UTILITIES
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* App shell — sidebar + main content */
+/* MOBILE-FIRST: single column with the sidebar hidden; the persistent sidebar
+   appears at md (768px) and up. On mobile, surface sidebar nav via a drawer or
+   the topnav instead. */
+.vk-app {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 100vh;
+}
+@media (min-width: 768px) {  /* --vkg-bp-md */
+  .vk-app { grid-template-columns: var(--vk-sidebar-width) 1fr; }
+}
+.vk-main {
+  padding: var(--vk-sp-7) clamp(var(--vk-sp-5), 5vw, var(--vk-sp-8));
+  overflow: hidden;
+}
+.vk-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vk-sp-3);
+  padding-bottom: var(--vk-sp-5);
+  border-bottom: 1px solid var(--vk-border);
+  margin-bottom: var(--vk-sp-6);
+}
+
+/* Content width constraints */
+.vk-container {
+  max-width: var(--vk-content-max);
+  margin-inline: auto;
+  padding-inline: clamp(var(--vk-sp-5), 5vw, var(--vk-sp-8));
+}
+.vk-container-mid    { max-width: var(--vk-content-mid);    margin-inline: auto; }
+.vk-container-narrow { max-width: var(--vk-content-narrow); margin-inline: auto; }
+
+/* Section spacing */
+.vk-section       { padding-block: var(--vk-sp-8); }
+.vk-section-lg    { padding-block: var(--vk-sp-9); }
+.vk-section-sm    { padding-block: var(--vk-sp-6); }
+
+/* Section header pattern — eyebrow + heading + body */
+.vk-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-4);
+  max-width: var(--vk-content-mid);
+  margin-bottom: var(--vk-sp-7);
+}
+
+/* Divider */
+.vk-divider {
+  border: none;
+  border-top: 1px solid var(--vk-border);
+  margin: 0;
+}
+.vk-divider.is-accent { border-top-color: var(--vk-accent-border); }
+
+/* Stat strip — horizontal data display (hero bottom / progress strip) */
+.vk-stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vk-sp-5) var(--vk-sp-7);
+  padding-block: var(--vk-sp-5);
+  border-block: 1px solid var(--vk-border);
+}
+.vk-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-1);
+}
+.vk-stat-value {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-lg);
+  font-weight: 700;
+  color: var(--vk-accent-text);
+  letter-spacing: 0;
+  line-height: 1;
+}
+.vk-stat-label {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+
+/* Grid helpers — MOBILE-FIRST: base is a single column, columns are added UP.
+   Breakpoints mirror tokens/tier1/breakpoint.json (md 768 / lg 1024). */
+.vk-grid-2 { display: grid; grid-template-columns: 1fr; gap: var(--vk-sp-5); }
+.vk-grid-3 { display: grid; grid-template-columns: 1fr; gap: var(--vk-sp-5); }
+.vk-grid-4 { display: grid; grid-template-columns: 1fr; gap: var(--vk-sp-4); }
+.vk-grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--vk-sp-5); }
+
+@media (min-width: 768px) {  /* --vkg-bp-md */
+  .vk-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .vk-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .vk-grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {  /* --vkg-bp-lg */
+  .vk-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .vk-grid-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   15. DASHBOARD — Charts, Data Tables, Infographic Cards
+   ────────────────────────────────────────────────────────────────────────────
+   Components: KPI card, bar chart, line graph, data table, trend badge.
+   All use only Tier 2 semantic tokens — fully themeable.
+   Chart rendering uses CSS custom properties + SVG (no JS dependency for
+   static displays). For interactive charts, wire --vk-chart-* tokens to
+   any charting library (Chart.js, Recharts, D3, etc.).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Chart color palette (Tier 3 — override per product theme) ───────────── */
+:root {
+  --vk-chart-1:       var(--vk-accent);               /* primary series — tracks theme accent */
+  --vk-chart-2:       var(--vkg-blue);               /* #6b9fd4 — secondary series */
+  --vk-chart-3:       var(--vkg-green);              /* #4caf7a — tertiary series */
+  --vk-chart-4:       var(--vkg-red);                /* #e05048 — quaternary / alert */
+  --vk-chart-5:       var(--vkg-amber-300);          /* #e8c47a — quinary */
+
+  --vk-chart-grid:    var(--vk-border-mid);
+  --vk-chart-axis:    var(--vk-border-strong);
+  --vk-chart-label:   var(--vk-fg-4);
+  --vk-chart-bg:      var(--vk-surface);
+  --vk-chart-pad:     var(--vk-sp-5);
+  --vk-chart-radius:  var(--vk-radius-card);
+}
+
+/* ── Chart wrapper (shared container) ────────────────────────────────────── */
+.vk-chart {
+  background: var(--vk-chart-bg);
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-chart-radius);
+  padding: var(--vk-chart-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-4);
+}
+
+.vk-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vk-sp-4);
+}
+
+.vk-chart-title {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-2);
+  margin: 0;
+}
+
+.vk-chart-subtitle {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  color: var(--vk-fg-4);
+  margin: var(--vk-sp-1) 0 0;
+}
+
+/* Chart legend */
+.vk-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vk-sp-2) var(--vk-sp-4);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.vk-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-2);
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-wide);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-3);
+}
+.vk-chart-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.vk-chart-legend-dot.s1 { background: var(--vk-chart-1); }
+.vk-chart-legend-dot.s2 { background: var(--vk-chart-2); }
+.vk-chart-legend-dot.s3 { background: var(--vk-chart-3); }
+.vk-chart-legend-dot.s4 { background: var(--vk-chart-4); }
+
+/* SVG chart canvas */
+.vk-chart-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+/* ── Bar chart — pure CSS bar chart ─────────────────────────────────────── */
+.vk-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-3);
+}
+
+.vk-bar-chart-axes {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--vk-sp-3);
+  height: 200px;
+  position: relative;
+}
+
+/* Horizontal grid lines */
+.vk-bar-chart-axes::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to top,
+    var(--vk-chart-grid) 0px,
+    var(--vk-chart-grid) 1px,
+    transparent 1px,
+    transparent 25%
+  );
+  pointer-events: none;
+}
+
+.vk-bar-group {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 100%;
+  position: relative;
+  justify-content: center;
+}
+
+.vk-bar {
+  flex: 1;
+  max-width: 48px;
+  border-radius: var(--vk-radius-sm) var(--vk-radius-sm) 0 0;
+  position: relative;
+  transition:
+    opacity var(--vk-dur-base) var(--vk-ease),
+    filter  var(--vk-dur-base) var(--vk-ease);
+  cursor: default;
+}
+.vk-bar:hover { opacity: 0.85; filter: brightness(1.1); }
+
+.vk-bar.s1 { background: var(--vk-chart-1); }
+.vk-bar.s2 { background: var(--vk-chart-2); }
+.vk-bar.s3 { background: var(--vk-chart-3); }
+.vk-bar.s4 { background: var(--vk-chart-4); }
+
+/* Bar value label (shown above bar on hover) */
+.vk-bar::after {
+  content: attr(data-value);
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--vk-font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wide);
+  color: var(--vk-fg-2);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--vk-dur-base) var(--vk-ease);
+}
+.vk-bar:hover::after { opacity: 1; }
+
+/* X-axis labels */
+.vk-bar-chart-labels {
+  display: flex;
+  gap: var(--vk-sp-3);
+}
+.vk-bar-label {
+  flex: 1;
+  text-align: center;
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-wide);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-chart-label);
+}
+
+/* Y-axis (optional, left-side labels) */
+.vk-bar-chart-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 2px;
+  min-width: 36px;
+}
+.vk-bar-chart-y span {
+  font-family: var(--vk-font-ui);
+  font-size: 10px;
+  color: var(--vk-chart-label);
+  letter-spacing: var(--vk-track-wide);
+}
+
+/* ── Line graph — SVG-based, token-driven ────────────────────────────────── */
+.vk-line-chart {
+  position: relative;
+}
+
+.vk-line-chart svg {
+  width: 100%;
+  overflow: visible;
+}
+
+/* SVG elements — use CSS custom properties for token-driven colors */
+.vk-line-chart .chart-grid-line {
+  stroke: var(--vk-chart-grid);
+  stroke-width: 1;
+}
+.vk-line-chart .chart-axis-line {
+  stroke: var(--vk-chart-axis);
+  stroke-width: 1;
+}
+.vk-line-chart .chart-axis-label {
+  fill: var(--vk-chart-label);
+  font-family: var(--vk-font-ui);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.vk-line-chart .series-1-line {
+  stroke: var(--vk-chart-1);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke-width var(--vk-dur-base) var(--vk-ease);
+}
+.vk-line-chart .series-2-line {
+  stroke: var(--vk-chart-2);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.vk-line-chart .series-1-area {
+  fill: var(--vk-chart-1);
+  opacity: 0.08;
+}
+.vk-line-chart .series-2-area {
+  fill: var(--vk-chart-2);
+  opacity: 0.08;
+}
+.vk-line-chart .series-1-dot {
+  fill: var(--vk-chart-1);
+  stroke: var(--vk-chart-bg);
+  stroke-width: 2;
+  cursor: default;
+  transition:
+    r          var(--vk-dur-base) var(--vk-ease),
+    opacity    var(--vk-dur-base) var(--vk-ease);
+}
+.vk-line-chart .series-2-dot {
+  fill: var(--vk-chart-2);
+  stroke: var(--vk-chart-bg);
+  stroke-width: 2;
+  cursor: default;
+  transition:
+    r          var(--vk-dur-base) var(--vk-ease),
+    opacity    var(--vk-dur-base) var(--vk-ease);
+}
+.vk-line-chart .series-1-dot:hover,
+.vk-line-chart .series-2-dot:hover {
+  r: 6;
+}
+
+/* ── KPI card — infographic stat with trend indicator ────────────────────── */
+.vk-kpi-card {
+  background: var(--vk-surface);
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-radius-card);
+  padding: var(--vk-sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-3);
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color var(--vk-dur-base) var(--vk-ease),
+    box-shadow   var(--vk-dur-base) var(--vk-ease);
+}
+.vk-kpi-card:hover {
+  border-color: var(--vk-accent-border);
+  box-shadow: var(--vk-elev-1);
+}
+
+/* Left accent bar */
+.vk-kpi-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  background: var(--vk-accent);
+  border-radius: 0 2px 2px 0;
+  opacity: 0.7;
+  transition: opacity var(--vk-dur-base) var(--vk-ease);
+}
+.vk-kpi-card:hover::before { opacity: 1; }
+
+.vk-kpi-label {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  margin: 0;
+}
+
+.vk-kpi-value {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-h2);   /* 36px — was --vk-text-3xl (undefined token) */
+  font-weight: 700;
+  color: var(--vk-fg-1);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 0;
+}
+
+.vk-kpi-value .unit {
+  font-size: var(--vk-text-lg);
+  font-weight: 500;
+  color: var(--vk-fg-3);
+  margin-left: 2px;
+}
+
+.vk-kpi-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-3);
+  flex-wrap: wrap;
+}
+
+.vk-kpi-context {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  color: var(--vk-fg-3);
+}
+
+/* Trend badge — inline in kpi footer */
+.vk-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wide);
+  padding: 3px 8px;
+  border-radius: var(--vk-radius-ui);
+}
+.vk-trend::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+}
+.vk-trend.up {
+  color: var(--vk-success-text);
+  background: var(--vk-success-bg);
+  border: 1px solid var(--vk-success-border);
+}
+.vk-trend.up::before {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid var(--vk-success);
+}
+.vk-trend.down {
+  color: var(--vk-error-text);
+  background: var(--vk-error-bg);
+  border: 1px solid var(--vk-error-border);
+}
+.vk-trend.down::before {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--vk-error);
+}
+.vk-trend.neutral {
+  color: var(--vk-fg-3);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--vk-border-mid);
+}
+
+/* Mini sparkline inside KPI card */
+.vk-sparkline {
+  width: 100%;
+  height: 40px;
+  display: block;
+}
+.vk-sparkline .spark-line {
+  stroke: var(--vk-chart-1);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.7;
+}
+.vk-sparkline .spark-area {
+  fill: var(--vk-chart-1);
+  opacity: 0.08;
+}
+
+/* ── Data table ──────────────────────────────────────────────────────────── */
+.vk-data-table-wrap {
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-radius-card);
+  overflow: hidden;
+  background: var(--vk-surface);
+}
+
+/* Horizontal-scroll container — the safe default for wide tables on mobile.
+   Wrap ONLY the <table> (not the header/footer) so chrome stays put while the
+   grid scrolls sideways. Markup:
+     <div class="vk-data-table-wrap">
+       <div class="vk-data-table-header">…</div>
+       <div class="vk-data-table-scroll"><table class="vk-data-table">…</table></div>
+       <div class="vk-data-table-footer">…</div>
+     </div> */
+.vk-data-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.vk-data-table-scroll .vk-data-table { min-width: max-content; }
+
+/* Table header bar */
+.vk-data-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vk-sp-4);
+  padding: var(--vk-sp-4) var(--vk-sp-5);
+  border-bottom: 1px solid var(--vk-border);
+  background: var(--vk-bg-alt);
+  flex-wrap: wrap;
+}
+
+.vk-data-table-title {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-2);
+  margin: 0;
+}
+
+.vk-data-table-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-2);
+}
+
+/* Table itself */
+.vk-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+}
+
+.vk-data-table th {
+  padding: var(--vk-sp-3) var(--vk-sp-4);
+  text-align: left;
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  background: var(--vk-bg-alt);
+  border-bottom: 1px solid var(--vk-border-mid);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Sortable column header */
+.vk-data-table th.sortable {
+  cursor: pointer;
+  transition: color var(--vk-dur-base) var(--vk-ease);
+}
+.vk-data-table th.sortable:hover { color: var(--vk-fg-1); }
+.vk-data-table th.sort-asc::after  { content: ' ↑'; color: var(--vk-accent); }
+.vk-data-table th.sort-desc::after { content: ' ↓'; color: var(--vk-accent); }
+
+.vk-data-table td {
+  padding: var(--vk-sp-3) var(--vk-sp-4);
+  color: var(--vk-fg-1);
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+/* Row divider on the row, not every cell — one line not N */
+.vk-data-table tbody tr {
+  border-bottom: 1px solid var(--vk-border);
+  transition: background var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-data-table tbody tr:last-child { border-bottom: none; }
+.vk-data-table tbody tr:hover { background: var(--vk-surface-2); }
+.vk-data-table tbody tr.is-selected { background: var(--vk-surface-tint); }
+
+/* Cell modifiers */
+.vk-data-table td.num {
+  font-family: var(--vk-font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--vk-fg-2);
+}
+.vk-data-table td.muted { color: var(--vk-fg-3); }
+.vk-data-table td.accent {
+  font-weight: 600;
+  color: var(--vk-accent-text);
+}
+
+/* Row status — stripe on first cell only + subtle background tint */
+.vk-data-table tbody tr.row-success td:first-child { border-left: 3px solid var(--vk-success); }
+.vk-data-table tbody tr.row-warning td:first-child { border-left: 3px solid var(--vk-warning); }
+.vk-data-table tbody tr.row-error   td:first-child { border-left: 3px solid var(--vk-error); }
+
+/* Status rows — no background fill, stripe alone carries the signal */
+
+/* ── Card-stack mode (opt-in: .vk-data-table.is-stacked) ──────────────────────
+   The best mobile UX for a dense table: below md, each row becomes a card and
+   each cell a label/value pair. Requires a data-label on every <td>:
+     <td data-label="Status">Active</td>
+   Mobile-first: the stacked card layout is the BASE; the real table grid is
+   restored at md (768) and up. Use this instead of .vk-data-table-scroll when
+   rows read better as records than as a grid on small screens. */
+.vk-data-table.is-stacked thead {
+  position: absolute;            /* visually hidden, still in a11y tree */
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.vk-data-table.is-stacked tbody tr {
+  display: block;
+  padding: var(--vk-sp-3) var(--vk-sp-4);
+}
+.vk-data-table.is-stacked td {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vk-sp-4);
+  padding: var(--vk-sp-1) 0;
+  text-align: right;
+}
+.vk-data-table.is-stacked td::before {
+  content: attr(data-label);
+  flex: none;
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-wide);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+  text-align: left;
+}
+/* Row-status stripe moves to the whole card edge in stacked mode */
+.vk-data-table.is-stacked tbody tr.row-success { border-left: 3px solid var(--vk-success); }
+.vk-data-table.is-stacked tbody tr.row-warning { border-left: 3px solid var(--vk-warning); }
+.vk-data-table.is-stacked tbody tr.row-error   { border-left: 3px solid var(--vk-error); }
+.vk-data-table.is-stacked tbody tr.row-success td:first-child,
+.vk-data-table.is-stacked tbody tr.row-warning td:first-child,
+.vk-data-table.is-stacked tbody tr.row-error   td:first-child { border-left: none; }
+
+@media (min-width: 768px) {  /* --vkg-bp-md — restore the real table grid */
+  .vk-data-table.is-stacked thead {
+    position: static;
+    width: auto; height: auto;
+    clip: auto;
+    white-space: normal;
+  }
+  .vk-data-table.is-stacked tbody tr { display: table-row; padding: 0; border-left: none; }
+  .vk-data-table.is-stacked td {
+    display: table-cell;
+    padding: var(--vk-sp-3) var(--vk-sp-4);
+  }
+  .vk-data-table.is-stacked td.num { text-align: right; }
+  .vk-data-table.is-stacked td:not(.num) { text-align: left; }
+  .vk-data-table.is-stacked td::before { content: none; }
+  /* Restore the first-cell stripe at table widths */
+  .vk-data-table.is-stacked tbody tr.row-success td:first-child { border-left: 3px solid var(--vk-success); }
+  .vk-data-table.is-stacked tbody tr.row-warning td:first-child { border-left: 3px solid var(--vk-warning); }
+  .vk-data-table.is-stacked tbody tr.row-error   td:first-child { border-left: 3px solid var(--vk-error); }
+}
+
+/* Table footer — pagination / summary */
+.vk-data-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--vk-sp-3) var(--vk-sp-5);
+  border-top: 1px solid var(--vk-border);
+  background: var(--vk-bg-alt);
+  gap: var(--vk-sp-4);
+  flex-wrap: wrap;
+}
+
+.vk-data-table-count {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-wide);
+  color: var(--vk-fg-4);
+}
+
+.vk-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-1);
+}
+
+.vk-pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 var(--vk-sp-2);
+  background: transparent;
+  border: 1px solid var(--vk-border-mid);
+  border-radius: var(--vk-radius-ui);
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-wide);
+  color: var(--vk-fg-2);
+  cursor: pointer;
+  transition:
+    background      var(--vk-dur-quick) var(--vk-ease),
+    border-color    var(--vk-dur-quick) var(--vk-ease),
+    color           var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-pagination-btn:hover {
+  background: var(--vk-surface-2);
+  border-color: var(--vk-border-strong);
+  color: var(--vk-fg-1);
+}
+.vk-pagination-btn.is-active {
+  background: var(--vk-accent-bg);
+  border-color: var(--vk-accent-border);
+  color: var(--vk-accent-text);
+}
+.vk-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Touch devices: pagination controls reach the 44px hit area. */
+@media (pointer: coarse) {
+  .vk-pagination-btn { min-width: var(--vk-tap-min); height: var(--vk-tap-min); }
+}
+
+/* ── Infographic metric row ──────────────────────────────────────────────── */
+.vk-metric-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-4);
+  padding: var(--vk-sp-3) 0;
+  border-bottom: 1px solid var(--vk-border);
+}
+.vk-metric-row:last-child { border-bottom: none; }
+
+.vk-metric-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vk-accent-bg);
+  border: 1px solid var(--vk-accent-border);
+  border-radius: var(--vk-radius-card);
+  flex-shrink: 0;
+  color: var(--vk-accent-text);
+  font-size: 16px;
+}
+.vk-metric-icon.info    { background: var(--vk-info-bg);    border-color: var(--vk-info-border);    color: var(--vk-info-text); }
+.vk-metric-icon.success { background: var(--vk-success-bg); border-color: var(--vk-success-border); color: var(--vk-success-text); }
+.vk-metric-icon.warning { background: var(--vk-warning-bg); border-color: var(--vk-warning-border); color: var(--vk-warning-text); }
+.vk-metric-icon.error   { background: var(--vk-error-bg);   border-color: var(--vk-error-border);   color: var(--vk-error-text); }
+
+.vk-metric-body {
+  flex: 1;
+  min-width: 0;
+}
+.vk-metric-name {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  font-weight: 500;
+  color: var(--vk-fg-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vk-metric-desc {
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  color: var(--vk-fg-4);
+  margin-top: 2px;
+}
+
+.vk-metric-value {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-base);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--vk-fg-1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Progress bar (used inside metric rows or standalone) */
+.vk-progress-bar {
+  height: 4px;
+  background: var(--vk-border-mid);
+  border-radius: var(--vk-radius-pill);
+  overflow: hidden;
+  margin-top: var(--vk-sp-2);
+}
+.vk-progress-fill {
+  height: 100%;
+  background: var(--vk-chart-1);
+  border-radius: var(--vk-radius-pill);
+  transition: width var(--vk-dur-emph) var(--vk-ease-expressive);
+}
+.vk-progress-fill.s2 { background: var(--vk-chart-2); }
+.vk-progress-fill.s3 { background: var(--vk-chart-3); }
+.vk-progress-fill.success { background: var(--vk-success); }
+.vk-progress-fill.warning { background: var(--vk-warning); }
+.vk-progress-fill.error   { background: var(--vk-error); }
+
+/* ── Dashboard layout helpers ────────────────────────────────────────────── */
+.vk-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-5);
+}
+
+.vk-dashboard-row {
+  display: grid;
+  gap: var(--vk-sp-5);
+}
+/* MOBILE-FIRST: every row is a single stacked column on phones. Columns are
+   introduced at md (768) and reach full density at lg (1024). The col-* class
+   is the DESKTOP intent; the cascade below builds up to it. */
+.vk-dashboard-row.cols-4,
+.vk-dashboard-row.cols-3,
+.vk-dashboard-row.cols-2,
+.vk-dashboard-row.cols-2-1,
+.vk-dashboard-row.cols-1-2,
+.vk-dashboard-row.cols-3-1,
+.vk-dashboard-row.cols-1-3 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {  /* --vkg-bp-md */
+  .vk-dashboard-row.cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .vk-dashboard-row.cols-3 { grid-template-columns: repeat(2, 1fr); }
+  .vk-dashboard-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .vk-dashboard-row.cols-2-1 { grid-template-columns: 2fr 1fr; }
+  .vk-dashboard-row.cols-1-2 { grid-template-columns: 1fr 2fr; }
+  .vk-dashboard-row.cols-3-1 { grid-template-columns: 3fr 1fr; }
+  .vk-dashboard-row.cols-1-3 { grid-template-columns: 1fr 3fr; }
+}
+
+@media (min-width: 1024px) {  /* --vkg-bp-lg */
+  .vk-dashboard-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .vk-dashboard-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ── Container-query reference pattern (PREFERRED for components) ──────────────
+   Mobile-first viewport @media (above) is for PAGE/LAYOUT shells. For COMPONENT
+   responsiveness, query the component's CONTAINER, not the viewport — so a card
+   adapts the same whether it sits in a 4-up grid, a sidebar, or a modal.
+
+   1. A wrapper opts in by establishing an inline-size containment context.
+   2. Descendants respond with @container.
+
+   This is the convention for new vraiKronos components going forward. */
+.vk-cq { container: vk-cq / inline-size; }
+
+/* Example: a KPI card in a .vk-cq wrapper enlarges its value and padding once
+   its OWN column is wide enough — independent of screen width. Copy this shape
+   for new components rather than reaching for a viewport breakpoint. */
+@container vk-cq (min-width: 340px) {
+  .vk-kpi-card { padding: var(--vk-sp-6); }
+  .vk-kpi-value { font-size: var(--vk-text-h2); }   /* 36px */
+}
+
+
+/* ── Ring / donut chart ──────────────────────────────────────────────────── */
+/*
+   Usage:
+     <div class="vk-ring-chart">
+       <svg class="vk-ring-svg" viewBox="0 0 120 120">
+         <circle class="vk-ring-track" cx="60" cy="60" r="50"/>
+         <circle class="vk-ring-seg s1" cx="60" cy="60" r="50"
+                 style="--pct: 0.44; --offset: 0;"/>
+         <circle class="vk-ring-seg s2" cx="60" cy="60" r="50"
+                 style="--pct: 0.31; --offset: 0.44;"/>
+         ...
+       </svg>
+       <div class="vk-ring-center">          ← optional center label
+         <span class="vk-ring-total">75%</span>
+         <span class="vk-ring-caption">used</span>
+       </div>
+     </div>
+
+   How the math works:
+     circumference = 2π × r = 2π × 50 ≈ 314.159px  ← MUST have px units
+     stroke-dasharray  = pct × circumference − gap   (arc length, gap carved from end)
+     stroke-dashoffset = −(offset × circumference)   (rotate start point clockwise)
+     SVG is rotated −90° so 0° is at the top.
+
+     The px unit on --vk-ring-circumference is required: CSS calc() cannot
+     subtract a <length> (--vk-ring-gap: 2px) from a dimensionless number.
+     Without px the calc is a type error and browsers may discard the value.
+
+   Convenience: set --vk-ring-c on :root or override per instance.
+*/
+
+:root {
+  --vk-ring-circumference: 314.159px; /* 2π × 50 — MUST be px; update if r changes */
+  --vk-ring-thickness:     10px;
+  --vk-ring-gap:           2px;      /* gap between segments */
+  --vk-ring-bg:            var(--vk-border-mid);
+}
+
+.vk-ring-chart {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vk-ring-svg {
+  display: block;
+  transform: rotate(-90deg);        /* 0° = 12 o'clock */
+  overflow: visible;
+}
+
+/* Track — full background circle */
+.vk-ring-track {
+  fill: none;
+  stroke: var(--vk-ring-bg);
+  stroke-width: var(--vk-ring-thickness);
+}
+
+/* Segment — each coloured arc */
+.vk-ring-seg {
+  fill: none;
+  stroke-width: var(--vk-ring-thickness);
+  stroke-linecap: butt;
+
+  /*
+    --pct    : fraction of the full circle (0–1)
+    --offset : cumulative fraction of segments before this one (0–1)
+
+    Rendered arc length  = --pct    × circumference
+    Remaining gap        = (1 − --pct) × circumference
+    Dashoffset shifts the start: −(--offset × circumference)
+
+    A tiny gap is carved out by reducing the arc by --vk-ring-gap.
+  */
+  stroke-dasharray:
+    calc(var(--pct, 0) * var(--vk-ring-circumference) - var(--vk-ring-gap))
+    calc(var(--vk-ring-circumference) - (var(--pct, 0) * var(--vk-ring-circumference) - var(--vk-ring-gap)));
+
+  stroke-dashoffset:
+    calc(-1 * var(--offset, 0) * var(--vk-ring-circumference));
+
+  transition:
+    stroke-dasharray    var(--vk-dur-emph) var(--vk-ease-expressive),
+    stroke-dashoffset   var(--vk-dur-emph) var(--vk-ease-expressive),
+    opacity             var(--vk-dur-base) var(--vk-ease);
+}
+
+.vk-ring-seg:hover { opacity: 0.75; cursor: default; }
+
+/* Series colours — match chart palette */
+.vk-ring-seg.s1 { stroke: var(--vk-chart-1); }
+.vk-ring-seg.s2 { stroke: var(--vk-chart-2); }
+.vk-ring-seg.s3 { stroke: var(--vk-chart-3); }
+.vk-ring-seg.s4 { stroke: var(--vk-chart-4); }
+.vk-ring-seg.s5 { stroke: var(--vk-chart-5); }
+
+/* Status-mapped variants */
+.vk-ring-seg.success { stroke: var(--vk-success); }
+.vk-ring-seg.warning { stroke: var(--vk-warning); }
+.vk-ring-seg.error   { stroke: var(--vk-error); }
+.vk-ring-seg.info    { stroke: var(--vk-info); }
+
+/* Single-value "progress ring" — just fill from 0 */
+.vk-ring-seg.solo {
+  stroke: var(--vk-chart-1);
+  stroke-linecap: round;
+}
+
+/* Center label — absolutely positioned over the SVG */
+.vk-ring-center {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.vk-ring-total {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xl);
+  font-weight: 700;
+  color: var(--vk-fg-1);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.vk-ring-caption {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-2xs);
+  letter-spacing: var(--vk-track-widest);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-4);
+}
+
+/* Ring + legend layout helper */
+.vk-ring-layout {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-6);
+  flex-wrap: wrap;
+}
+
+.vk-ring-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-sp-3);
+  flex: 1;
+  min-width: 140px;
+}
+
+.vk-ring-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vk-sp-3);
+}
+
+.vk-ring-legend-label {
+  display: flex;
+  align-items: center;
+  gap: var(--vk-sp-2);
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  color: var(--vk-fg-2);
+}
+
+.vk-ring-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.vk-ring-legend-swatch.s1 { background: var(--vk-chart-1); }
+.vk-ring-legend-swatch.s2 { background: var(--vk-chart-2); }
+.vk-ring-legend-swatch.s3 { background: var(--vk-chart-3); }
+.vk-ring-legend-swatch.s4 { background: var(--vk-chart-4); }
+.vk-ring-legend-swatch.s5 { background: var(--vk-chart-5); }
+.vk-ring-legend-swatch.success { background: var(--vk-success); }
+.vk-ring-legend-swatch.warning { background: var(--vk-warning); }
+.vk-ring-legend-swatch.error   { background: var(--vk-error); }
+
+.vk-ring-legend-value {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--vk-fg-1);
+  white-space: nowrap;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   16. DROPDOWN MENU
+   ────────────────────────────────────────────────────────────────────────────
+   Contextual menu that appears below a trigger. Toggle .is-open to show.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.vk-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  min-width: 160px;
+  background: var(--vk-surface);
+  border: 1px solid var(--vk-border-mid);
+  box-shadow: var(--vk-elev-2);
+  display: none;
+  flex-direction: column;
+  padding: 4px 0;
+}
+.vk-dropdown.is-open { display: flex; }
+
+.vk-dropdown-item {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-sm);
+  letter-spacing: 0.02em;
+  color: var(--vk-fg-2);
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+.vk-dropdown-item:hover {
+  background: var(--vk-surface-2);
+  color: var(--vk-fg-1);
+}
+.vk-dropdown-item:focus-visible {
+  outline: none;
+  box-shadow: var(--vk-focus-ring-inset);
+}
+.vk-dropdown-item.is-destructive { color: var(--vk-error-text); }
+.vk-dropdown-item.is-destructive:hover { background: var(--vk-error-bg); }
+
+.vk-dropdown-divider {
+  border: none;
+  border-top: 1px solid var(--vk-border);
+  margin: 4px 0;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   17. DASHBOARD ANIMATIONS
+   ────────────────────────────────────────────────────────────────────────────
+   Entrance animations for charts, KPI cards, metric rows, and counters.
+
+   How it works
+   ─────────────────────────────────────────────────────────────────────────
+   dashboard-animations.js adds .vk-js-animations to <html> on load.
+   All animation CSS is scoped to .vk-js-animations so elements are fully
+   visible if JS is unavailable or blocked.
+
+   IntersectionObserver adds .is-visible when the element enters the viewport.
+   .vk-anim-delay (CSS custom property) is set per-element by JS for stagger.
+
+   prefers-reduced-motion: all animations are disabled via the media query.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+
+@keyframes vk-bar-rise {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+@keyframes vk-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vk-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Chart container ─────────────────────────────────────────────────────── */
+.vk-js-animations .vk-chart:not(.is-visible) { opacity: 0; }
+.vk-js-animations .vk-chart.is-visible {
+  animation: vk-fade-in var(--vk-dur-emph) var(--vk-ease) forwards;
+}
+
+/* ── KPI cards ───────────────────────────────────────────────────────────── */
+.vk-js-animations .vk-kpi-card:not(.is-visible) {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.vk-js-animations .vk-kpi-card.is-visible {
+  animation: vk-fade-up var(--vk-dur-enter) var(--vk-ease-expressive) both;
+  animation-delay: var(--vk-anim-delay, 0ms);
+}
+
+/* ── Bar chart — rise from baseline ─────────────────────────────────────── */
+.vk-js-animations .vk-bar {
+  transform: scaleY(0);
+  transform-origin: bottom center;
+}
+.vk-js-animations .vk-chart.is-visible .vk-bar {
+  animation: vk-bar-rise var(--vk-dur-emph) var(--vk-ease-expressive) both;
+  animation-delay: var(--vk-anim-delay, 0ms);
+}
+
+/* ── Metric rows — staggered fade up ────────────────────────────────────── */
+.vk-js-animations .vk-chart:not(.is-visible) .vk-metric-row {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.vk-js-animations .vk-chart.is-visible .vk-metric-row {
+  animation: vk-fade-up var(--vk-dur-emph) var(--vk-ease-expressive) both;
+  animation-delay: var(--vk-anim-delay, 0ms);
+}
+
+/* ── Count-up number display ─────────────────────────────────────────────── */
+.vk-count-up {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Reduced motion — disable everything ────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .vk-js-animations .vk-chart:not(.is-visible),
+  .vk-js-animations .vk-kpi-card:not(.is-visible) {
+    opacity: 1;
+    transform: none;
+  }
+  .vk-js-animations .vk-bar {
+    transform: none;
+  }
+  .vk-js-animations .vk-chart:not(.is-visible) .vk-metric-row {
+    opacity: 1;
+    transform: none;
+  }
+  .vk-js-animations .vk-chart.is-visible,
+  .vk-js-animations .vk-kpi-card.is-visible,
+  .vk-js-animations .vk-chart.is-visible .vk-bar,
+  .vk-js-animations .vk-chart.is-visible .vk-metric-row {
+    animation: none;
+  }
+}

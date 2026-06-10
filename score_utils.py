@@ -65,6 +65,85 @@ Return ONLY valid JSON in this exact shape:
 If there are no mismatches to analyze, return: {"feedback": []}"""
 
 
+DICTATION_ANALYSIS_SYSTEM = """You are analyzing a French dictation exercise. The student listened to a spoken sentence and typed what they heard.
+
+You receive:
+- The target sentence (what was spoken)
+- What the student typed
+- A list of mismatched word pairs: {target_word, typed}
+
+For each mismatch, provide feedback covering TWO angles where relevant:
+
+1. PHONETIC NOTE — why might a careful listener write the wrong word?
+   Explain the acoustic difference between what was said and what they wrote.
+   Format: "<target_word> /<IPA>/ — <what to listen for, max 20 words>"
+   Examples:
+     "mangé /mɑ̃.ʒe/ — past participle ends with a held open /e/ vowel; mange ends in a near-silent schwa"
+     "une /yn/ — ends with an audible /n/ that stops abruptly; un /œ̃/ is a pure nasal with no final consonant"
+     "j'ai /ʒe/ — elision blends directly into the vowel; je /ʒə/ has a breathy schwa before the next word"
+
+2. GRAMMAR NOTE — if the error reveals a grammar gap, one short sentence explaining the rule.
+   If the error is purely phonetic/spelling, leave this empty string.
+   Examples:
+     "Passé composé: avoir + past participle — mangé is the participle, not the infinitive manger."
+     "Gender agreement: beau/belle — adjective follows the noun's gender."
+     "Elision: de + vowel → d' — obligatory in spoken and written French."
+
+Classify each error as one of: tense | gender | elision | vocabulary | spelling | phonetic
+
+Return ONLY valid JSON:
+{
+  "feedback": [
+    {
+      "target_word": "mangé",
+      "typed": "mange",
+      "phonetic_note": "mangé /mɑ̃.ʒe/ — past participle ends with a held /e/ vowel; mange ends in a near-silent schwa",
+      "grammar_note": "Passé composé: avoir + past participle — mangé is the participle.",
+      "error_type": "tense"
+    }
+  ]
+}
+
+If there are no mismatches, return: {"feedback": []}"""
+
+
+def analyze_dictation_mismatches(target: str, typed: str, mismatches: list, client) -> list:
+    """
+    Call Mistral to get listening/grammar feedback for each dictation mismatch.
+    client: a Mistral client instance.
+    Returns list of feedback dicts.
+    """
+    if not mismatches:
+        return []
+
+    payload = (
+        f"Target sentence: {target}\n"
+        f"Student typed: {typed}\n"
+        f"Mismatches: {json.dumps(mismatches)}"
+    )
+    fallback = [{"target_word": m["target_word"], "typed": m["typed"], "phonetic_note": "", "grammar_note": "", "error_type": "phonetic"} for m in mismatches]
+    try:
+        raw = client.chat.complete(
+            model="mistral-small-latest",
+            messages=[
+                {"role": "system", "content": DICTATION_ANALYSIS_SYSTEM},
+                {"role": "user", "content": payload},
+            ],
+            temperature=0.0,
+            max_tokens=600,
+        ).choices[0].message.content.strip()
+        if not raw:
+            return fallback
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json\n"):
+                raw = raw[5:]
+            raw = raw.rstrip()
+        return json.loads(raw).get("feedback", [])
+    except Exception:
+        return fallback
+
+
 def normalize(text: str, noun_adj_set=None) -> list:
     """Lowercase, normalize apostrophes, contract elisions, strip punctuation, split to word list."""
     t = text.lower()

@@ -1,0 +1,1599 @@
+/* ==========================================================================
+   vraiFrench — ATELIER COMPONENTS
+   v1.3.0 | the interaction primitives of the tool (design doc §9)
+
+   Components are additions to the vraiKronos inventory, not conflicts —
+   vraiKronos has none of these. They consume the Atelier tokens
+   (vk-theme-atelier.css) and must live inside a [data-theme="atelier"] scope.
+
+   Three tiers + view layout shell — one file:
+   ─────────────────────────────────────────────────────────────────────────
+   ATOMS       Indivisible primitives. No internal composition.
+                 pa-utterance   pa-token   pa-run   pa-badge
+                 pa-ctrl        pa-drill-pip
+
+   MOLECULES   Atoms grouped into a functional unit.
+                 pa-transcript   (token diff — target + heard rows)
+                 pa-score        (bar form — num + bar + scale; thresholds at-40/at-70/at-90)
+                 pa-score-ring   (ring form — SVG donut for multi-phrase)
+                 pa-bubble       (chat bubble — tutor / learner)
+                 pa-drill        (prompt + attempt counter + pip row)
+                 pa-word-item    (per-word feedback: target/said pair + tip + drill)
+
+   ORGANISMS   Molecules + atoms composing a full interactive section.
+                 pv-card             (utterance card — top bar, text body, footer)
+                 pv-func             (controls row — play · record · skip/continue)
+                 pv-live-transcript  (real-time STT strip between card and func)
+                 pv-viz              (score visualisation — ring + optional phrase bars)
+                 pv-card-score       (inline score: num + bar, for footer/tray use)
+                 pv-sentence-scores  (per-sentence score list after a chunk)
+                 pv-fb               (feedback view — sentence-level diff list)
+
+   VIEW LAYOUT SHELL   Structural chrome shared by paragraph + phrase views.
+                 pv-header           (sticky header bar — title + level/speed controls)
+                 pv-body / pv-col    (scrollable body + centred column)
+                 pv-controls-area    (vertical centre area for record+replay row)
+                 pv-complete-*       (session-done heading + 4-stat grid)
+                 pv-chunk-list       (per-chunk breakdown table)
+                 pv-insight          (Mistral coach insight card)
+                 .view               (base flex-column wrapper for all views)
+
+   PHRASE VIEW   Components specific to the single-phrase exercise.
+                 phv-toolbar         (save · +word · SYL · rhythm · blur)
+                 phv-attempt-*       (pip row + best-score display)
+                 phv-syllable-line   (syllable breakdown)
+                 phv-score-block     (pa-score + pa-transcript after attempt)
+                 phv-auto-row        (auto-advance toggle switch)
+                 phv-limit-msg       (attempts-exhausted note)
+                 phv-coach-banner    (coach focus word strip)
+
+   Register split (doc §2): utterance / bubbles / ctrl are the warm ROOM;
+   transcript / score / drill / word-item are the precise INSTRUMENT.
+   ========================================================================== */
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MOTION — keyframes + reduced-motion preference
+   (declared first so cascade order doesn't matter)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes pa-score-land {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-score-num { animation: none; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ATOMS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Utterance ───────────────────────────────────────────────────────────────
+   The target French sentence — Hanken display hero. Distinguished from body
+   copy by size + weight, not a third typeface (no serif). */
+
+.pa-utterance {
+  font-family: var(--pa-font-display);
+  font-weight: 600;
+  font-size: clamp(17px, 2.8vw, 20px);
+  line-height: 1.4;
+  color: var(--vk-fg-1);
+  letter-spacing: -0.015em;
+  margin: 0;
+  transition: filter var(--pa-dur-reveal) var(--pa-ease-soft),
+              opacity var(--pa-dur-reveal) var(--pa-ease-soft);
+}
+.pa-utterance.is-blurred {
+  filter: blur(var(--pa-veil-blur));
+  opacity: 0.85;
+  cursor: pointer;
+  user-select: none;
+}
+.pa-utterance.is-revealed {
+  filter: none;
+  opacity: 1;
+}
+/* Layout wrapper when an inline reveal eye is needed */
+.pa-utterance-wrap { position: relative; display: flex; align-items: flex-start; gap: 12px; }
+
+
+/* ── Token ───────────────────────────────────────────────────────────────────
+   A single word in the target row — neutral, never stylized by score. */
+
+.pa-token {
+  font-family: var(--pa-font-mono);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--vk-fg-1);
+  white-space: nowrap;
+}
+
+
+/* ── Run ─────────────────────────────────────────────────────────────────────
+   A span of heard words sharing a score state. Consecutive runs of the same
+   state merge visually — no per-word pills. */
+
+.pa-run {
+  font-family: var(--pa-font-mono);
+  font-size: 15px;
+  color: var(--vk-fg-2);
+}
+.pa-run + .pa-run { margin-left: 5px; }
+
+.pa-run.is-pass    { color: var(--pa-token-hit); }
+.pa-run.is-fail    { color: var(--pa-token-miss); text-decoration: underline; text-underline-offset: 3px; }
+.pa-run.is-unheard { color: var(--pa-unheard); }
+
+
+/* ── Badge ───────────────────────────────────────────────────────────────────
+   Compact inline score pill — same triad, for use next to a phrase or in a
+   breakdown list. */
+
+.pa-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--pa-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 9px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.pa-badge.is-pass     { color: var(--pa-pass);     background: var(--pa-pass-bg);     border-color: var(--pa-pass-border); }
+.pa-badge.is-progress { color: var(--pa-progress); background: var(--pa-progress-bg); border-color: var(--pa-progress-border); }
+.pa-badge.is-almost   { color: var(--pa-almost);   background: var(--pa-almost-bg);   border-color: var(--pa-almost-border); }
+.pa-badge.is-fail     { color: var(--pa-fail);     background: var(--pa-fail-bg);     border-color: var(--pa-fail-border); }
+
+
+/* ── Control button ──────────────────────────────────────────────────────────
+   Circular accent button — play (52 px) and record (76 px). Recording pulses
+   the ACCENT (blue), never red — a red record state reads as failure. */
+
+.pa-ctrl {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  color: var(--vk-accent-fg);
+  background: var(--vk-accent);
+  transition: background var(--vk-dur-quick) var(--vk-ease),
+              transform var(--vk-dur-quick) var(--vk-ease);
+  flex-shrink: 0;
+}
+.pa-ctrl:hover         { background: var(--vk-accent-dim); }
+.pa-ctrl:active        { transform: scale(0.96); }
+.pa-ctrl:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+.pa-ctrl svg           { width: 42%; height: 42%; display: block; }
+
+.pa-ctrl-record { width: 76px; height: 76px; }
+.pa-ctrl-play   { width: 52px; height: 52px; }
+
+.pa-ctrl.is-outline       { background: var(--vk-surface); color: var(--vk-accent-text); border: 1.5px solid var(--vk-accent-border); }
+.pa-ctrl.is-outline:hover { background: var(--vk-accent-bg); }
+.pa-ctrl.is-playing       { box-shadow: 0 0 0 4px var(--pa-record-ring); }
+.pa-ctrl.is-recording     { box-shadow: 0 0 0 4px var(--pa-record-ring); }
+.pa-ctrl.listening        { box-shadow: 0 0 0 4px var(--pa-record-ring); } /* bridge — JS uses .listening */
+.pa-ctrl:disabled         { opacity: 0.35; pointer-events: none; cursor: default; }
+
+
+/* ── Drill pip ───────────────────────────────────────────────────────────────
+   Single attempt dot in a 10-pip row. Filled by triad as attempts are scored. */
+
+.pa-drill-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pa-scale-track);
+}
+.pa-drill-pip.is-pass     { background: var(--pa-pass); }
+.pa-drill-pip.is-progress { background: var(--pa-progress); }
+.pa-drill-pip.is-almost   { background: var(--pa-almost); }
+.pa-drill-pip.is-fail     { background: var(--pa-fail); }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MOLECULES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Transcript diff ─────────────────────────────────────────────────────────
+   The aligned diff — the proof the score is derived from. Target row on top
+   (neutral, never stylized); heard row below (pass / fail / unheard runs).
+   Uses: pa-token, pa-run */
+
+.pa-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--pa-font-mono);
+}
+.pa-transcript-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.pa-transcript-label {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+  width: 56px;
+  flex-shrink: 0;
+  padding-top: 5px;
+  text-align: right;
+}
+.pa-transcript-target {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.pa-transcript-heard {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.7;
+}
+
+
+/* ── Score bar ───────────────────────────────────────────────────────────────
+   Bar form — number first, honest word second. Fills to the true value against
+   a visible scale with 40 / 70 thresholds marked. Used for single-phrase results.
+   NOTE: dimension breakdown (pronunciation / rhythm / liaison) intentionally
+   omitted — those aren't individually measured; the transcript diff is the proof.
+   Uses: pa-badge (optional) */
+
+.pa-score {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--pa-font-mono);
+}
+.pa-score-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.pa-score-num {
+  font-family: var(--pa-font-mono);
+  font-size: 34px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  animation: pa-score-land var(--pa-dur-land) var(--pa-ease-spring) both;
+}
+.pa-score-word {
+  font-family: var(--pa-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--vk-fg-2);
+}
+
+.pa-bar {
+  position: relative;
+  height: 10px;
+  width: 100%;
+  background: var(--pa-scale-track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pa-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+  width: 0;
+  transition: width var(--pa-dur-land) var(--pa-ease-spring);
+}
+.pa-bar-thresh {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--pa-scale-thresh);
+}
+.pa-bar-thresh.at-40 { left: 40%; }
+.pa-bar-thresh.at-70 { left: 70%; }
+.pa-bar-thresh.at-90 { left: 90%; }
+
+.pa-bar-scale {
+  position: relative;
+  height: 12px;
+  font-family: var(--pa-font-mono);
+  font-size: 9px;
+  color: var(--vk-fg-4);
+}
+.pa-bar-scale span      { position: absolute; transform: translateX(-50%); }
+.pa-bar-scale .at-40    { left: 40%; }
+.pa-bar-scale .at-70    { left: 70%; }
+.pa-bar-scale .at-90    { left: 90%; }
+
+.pa-score.is-pass     .pa-score-num { color: var(--pa-pass); }
+.pa-score.is-pass     .pa-bar-fill  { background: var(--pa-pass); }
+
+.pa-score.is-progress .pa-score-num { color: var(--pa-progress); }
+.pa-score.is-progress .pa-bar-fill  { background: var(--pa-progress); }
+
+.pa-score.is-almost   .pa-score-num { color: var(--pa-almost); }
+.pa-score.is-almost   .pa-bar-fill  { background: var(--pa-almost); }
+
+.pa-score.is-fail     .pa-score-num { color: var(--pa-fail); }
+.pa-score.is-fail     .pa-bar-fill  { background: var(--pa-fail); }
+
+
+/* ── Score ring ──────────────────────────────────────────────────────────────
+   Ring form — SVG donut for paragraph / multi-phrase overall results.
+   Apply classes to SVG circle elements; CSS wins over presentation attributes.
+   Geometry: r=38, circumference=238.76. stroke-dashoffset = 238.76 × (1 − pct).
+   Uses: — (self-contained SVG) */
+
+.pa-score-ring-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.pa-score-ring__track {
+  fill: none;
+  stroke: var(--pa-scale-track);
+}
+.pa-score-ring__fill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke var(--pa-dur-land) ease;
+}
+.pa-score-ring__fill.is-pass     { stroke: var(--pa-pass); }
+.pa-score-ring__fill.is-progress { stroke: var(--pa-progress); }
+.pa-score-ring__fill.is-almost   { stroke: var(--pa-almost); }
+.pa-score-ring__fill.is-fail     { stroke: var(--pa-fail); }
+
+/* Score-grade colours for the vk-ring-seg inside pv-viz */
+.vk-ring-seg.is-pass   { stroke: var(--pa-pass); }
+.vk-ring-seg.is-almost { stroke: var(--pa-almost); }
+.vk-ring-seg.is-fail   { stroke: var(--pa-fail); }
+.pa-score-ring__text {
+  font-family: var(--pa-font-mono);
+  font-weight: 600;
+  fill: var(--vk-fg-1);
+  dominant-baseline: central;
+}
+.pa-score-ring-label {
+  font-family: var(--pa-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+}
+
+
+/* ── Bubble ──────────────────────────────────────────────────────────────────
+   Chat bubbles — tutor (neutral surface) and learner (accent tint).
+   Tutor bubble supports blurred (veil) and playing (accent ring) states.
+   Uses: pa-ctrl (eye is a ghost icon button, similar pattern) */
+
+.pa-bubble {
+  font-family: var(--pa-font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  padding: 14px 18px;
+  border-radius: 14px;
+  max-width: 78%;
+  position: relative;
+  color: var(--vk-fg-1);
+}
+.pa-bubble.is-tutor {
+  background: var(--vk-surface);
+  border: 1px solid var(--vk-border);
+  box-shadow: var(--vk-elev-1);
+  border-bottom-left-radius: 4px;
+  align-self: flex-start;
+}
+.pa-bubble.is-tutor.is-blurred .pa-bubble-text {
+  filter: blur(var(--pa-veil-blur));
+  user-select: none;
+  transition: filter var(--pa-dur-reveal) var(--pa-ease-soft);
+}
+.pa-bubble.is-tutor.is-playing {
+  border-color: var(--vk-accent-border);
+  box-shadow: 0 0 0 1px var(--vk-accent-border), var(--vk-elev-1);
+}
+.pa-bubble-eye {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--vk-fg-4);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color var(--vk-dur-quick) var(--vk-ease),
+              background var(--vk-dur-quick) var(--vk-ease);
+}
+.pa-bubble-eye:hover { color: var(--vk-fg-2); background: var(--vk-surface-tint); }
+
+.pa-bubble.is-learner {
+  background: var(--vk-accent-bg);
+  border: 1px solid var(--vk-accent-border);
+  border-bottom-right-radius: 4px;
+  align-self: flex-end;
+  color: var(--vk-fg-1);
+}
+
+
+/* ── Drill row ───────────────────────────────────────────────────────────────
+   Prompt label + attempt counter + pip track — the instrument view for a
+   focused drill session.
+   Uses: pa-drill-pip */
+
+.pa-drill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--pa-font-mono);
+}
+.pa-drill-prompt {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--vk-fg-2);
+}
+.pa-drill-counter {
+  font-family: var(--pa-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--vk-fg-2);
+  padding: 2px 8px;
+  border: 1px solid var(--vk-border-mid);
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.pa-drill-counter b { color: var(--vk-accent-text); font-weight: 600; }
+
+.pa-drill.is-active .pa-drill-prompt  { color: var(--vk-accent-text); }
+.pa-drill.is-active .pa-drill-counter { border-color: var(--vk-accent-border); }
+
+.pa-drill-pips { display: inline-flex; gap: 4px; }
+
+
+/* ── Word list  (pa-word-list) ───────────────────────────────────────────────
+   Container for pa-word-item rows — appears below the controls row after a
+   phrase result or per-sentence drill result. Bordered card with a small header. */
+
+.pa-word-list {
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-card-radius);
+  overflow: hidden;
+  background: var(--vk-surface);
+  margin-top: 12px;
+}
+.pa-word-list-header {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--vk-border);
+}
+.pa-word-list .pa-word-item {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+
+/* ── Word item  (pa-word-item) ───────────────────────────────────────────────
+   Per-word feedback shown after a phrase or paragraph attempt — target word,
+   what the learner said, a Mistral pronunciation tip, optional grammar note,
+   and an expandable inline 10× drill panel.
+   Register: warm ROOM (guidance) with INSTRUMENT details (mono pair).
+   Uses: pa-wi-play (ghost icon button) */
+
+.pa-word-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--vk-border);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pa-word-item:last-child { border-bottom: none; }
+
+/* Header row: [target] ← [said] [▶] */
+.pa-wi-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pa-wi-target {
+  font-family: var(--pa-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pa-pass);
+}
+.pa-wi-arrow {
+  font-family: var(--pa-font-mono);
+  font-size: 12px;
+  color: var(--vk-fg-4);
+}
+.pa-wi-said {
+  font-family: var(--pa-font-mono);
+  font-size: 12px;
+  color: var(--pa-fail);
+  flex: 1;
+}
+.pa-wi-play {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--vk-border-mid);
+  color: var(--vk-fg-3);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--vk-radius-ui);
+  transition: color var(--vk-dur-quick) var(--vk-ease),
+              border-color var(--vk-dur-quick) var(--vk-ease);
+}
+.pa-wi-play:hover    { color: var(--vk-accent-text); border-color: var(--vk-accent-border-strong); }
+.pa-wi-play:disabled { opacity: 0.35; pointer-events: none; }
+
+/* Pronunciation tip */
+.pa-wi-tip {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--vk-fg-2);
+}
+
+/* Grammar / context note */
+.pa-wi-note {
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--vk-fg-2);
+  background: var(--vk-surface-tint);
+  border-left: 2px solid var(--vk-border-mid);
+  padding: 6px 10px;
+}
+
+/* Action row: [🎤 Practice] [Drill] [+ Save] */
+.pa-wi-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Inline drill panel */
+.pa-wi-drill {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--vk-accent-bg);
+  border: 1px solid var(--vk-accent-border);
+  padding: 12px 14px;
+  border-radius: var(--vk-radius-ui);
+}
+.pa-wi-drill.is-open { display: flex; }
+
+/* Live transcript during drill attempt */
+.pa-wd-transcript {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--vk-fg-2);
+  min-height: 1.4em;
+  line-height: 1.4;
+}
+/* Per-attempt history line */
+.pa-wd-meta {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--vk-fg-3);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ORGANISMS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sentence score list  (pv-sentence-scores) ───────────────────────────────
+   Per-sentence breakdown table shown after a chunk attempt. Each row: sentence
+   text (pa-run spans) + badge + Drill button + thin 3px score bar.
+   Uses: pa-badge (A3), pa-run (A2), pv-ss-drill-btn */
+
+.pv-sentence-scores {
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-card-radius);
+  overflow: hidden;
+  background: var(--vk-surface);
+}
+.pv-ss-header {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--vk-border);
+}
+.pv-ss-row {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--vk-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pv-ss-row:last-child { border-bottom: none; }
+.pv-ss-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pv-ss-text {
+  flex: 1;
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vk-fg-1);
+}
+.pv-ss-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  align-items: center;
+}
+.pv-ss-drill-btn {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--vk-accent-border-strong);
+  color: var(--vk-accent-text);
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: var(--vk-radius-ui);
+  transition: background var(--vk-dur-quick) var(--vk-ease);
+  white-space: nowrap;
+}
+.pv-ss-drill-btn:hover { background: var(--vk-accent-bg); }
+
+.pv-ss-bar {
+  height: 3px;
+  background: var(--pa-scale-track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pv-ss-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 400ms var(--pa-ease-spring);
+  @starting-style { width: 0; }
+}
+.pv-ss-bar-fill.is-pass     { background: var(--pa-pass); }
+.pv-ss-bar-fill.is-progress { background: var(--pa-progress); }
+.pv-ss-bar-fill.is-almost   { background: var(--pa-almost); }
+.pv-ss-bar-fill.is-fail     { background: var(--pa-fail); }
+
+
+/* ── Feedback view  (pv-fb) ──────────────────────────────────────────────────
+   Sentence-level breakdown after a full-paragraph attempt — back nav, then
+   one row per sentence: badge + flowing heard runs + Drill button.
+   Badge and Drill are fixed-width; the run text wraps freely between them.
+   Uses: pa-badge (A3), pa-run (A2), pv-ss-drill-btn */
+
+.pv-fb-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pv-fb-back {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--vk-fg-3);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--vk-dur-quick) var(--vk-ease);
+}
+.pv-fb-back:hover { color: var(--vk-fg-1); }
+
+.pv-fb-list {
+  display: flex;
+  flex-direction: column;
+}
+.pv-fb-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+}
+.pv-fb-row + .pv-fb-row         { border-top: 1px solid var(--vk-border); }
+.pv-fb-row .pa-badge             { flex-shrink: 0; margin-top: 2px; }
+.pv-fb-row .pa-transcript-heard  { flex: 1; }
+.pv-fb-row .pv-ss-drill-btn      { flex-shrink: 0; margin-top: 2px; }
+
+
+/* ── Utterance card  (pv-card) ───────────────────────────────────────────────
+   Surface that holds the paragraph/utterance text, top action bar, and
+   optional footer. Separate from controls and score viz.
+   Uses: pa-utterance, pa-drill-prompt, pa-bubble-eye, pv-action-btn */
+
+.pv-card {
+  background: var(--vk-surface);
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-card-radius);
+  box-shadow: var(--vk-elev-1);
+  padding: 20px 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pv-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pv-card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pv-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pv-card-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.pv-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--vk-border-mid);
+  color: var(--vk-fg-3);
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 6px 11px;
+  cursor: pointer;
+  border-radius: var(--vk-radius-ui);
+  transition: all 120ms;
+}
+.pv-action-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
+
+/* Chunk highlight within utterance */
+.pv-chunk-current { font-weight: 700; color: var(--vk-fg-1); }
+.pv-chunk-dimmed  { opacity: 0.30; }
+
+
+/* ── Live transcript strip  (pv-live-transcript) ────────────────────────────
+   Real-time STT output shown between the utterance card and func controls
+   while the mic is active. */
+
+.pv-live-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pv-live-label {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+}
+.pv-live-text {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--vk-fg-2);
+  font-style: italic;
+}
+
+
+/* ── Controls row  (pv-func) ────────────────────────────────────────────────
+   Centred row: play · record · skip or continue.
+   Uses: pa-ctrl, vk-btn */
+
+.pv-func {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.pv-func-skip {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--vk-fg-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 120ms;
+}
+.pv-func-skip:hover { color: var(--vk-fg-1); }
+.pv-pass-label {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--pa-pass);
+}
+
+
+/* ── Score visualisation  (pv-viz) ──────────────────────────────────────────
+   Ring (pa-score-ring) + optional phrase mini-bars for multi-chunk attempts.
+   Single-chunk: ring centred. Multi-chunk: ring left, bars right (.is-multi). */
+
+.pv-viz {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.pv-viz.is-multi {
+  justify-content: space-between;
+}
+.pv-viz-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.pv-viz-ring-label {
+  font-family: var(--pa-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+}
+.pv-viz-phrases {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pv-viz-p-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pv-viz-p-label {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  color: var(--vk-fg-3);
+  width: 18px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.pv-viz-p-track {
+  flex: 1;
+  height: 4px;
+  background: var(--pa-scale-track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pv-viz-p-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 400ms var(--pa-ease-spring);
+}
+.pv-viz-p-fill.is-pass    { background: var(--pa-pass); }
+.pv-viz-p-fill.is-almost  { background: var(--pa-almost); }
+.pv-viz-p-fill.is-fail    { background: var(--pa-fail); }
+.pv-viz-p-pct {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vk-fg-2);
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+
+/* ── Inline score (pv-card-score) ───────────────────────────────────────────
+   Compact num + bar used in card footers and mobile trays.
+   Wrap in .is-pass / .is-almost / .is-fail to colour num and bar. */
+
+.pv-card-score-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.pv-card-score-num {
+  font-family: var(--pa-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.pv-card-score-inline.is-pass    .pv-card-score-num { color: var(--pa-pass); }
+.pv-card-score-inline.is-almost  .pv-card-score-num { color: var(--pa-almost); }
+.pv-card-score-inline.is-fail    .pv-card-score-num { color: var(--pa-fail); }
+.pv-card-score-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--pa-scale-track);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.pv-card-score-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 400ms var(--pa-ease-spring);
+}
+.pv-card-score-inline.is-pass    .pv-card-score-bar-fill { background: var(--pa-pass); }
+.pv-card-score-inline.is-almost  .pv-card-score-bar-fill { background: var(--pa-almost); }
+.pv-card-score-inline.is-fail    .pv-card-score-bar-fill { background: var(--pa-fail); }
+
+/* Accent-outline button variant (Continue →) */
+.vk-btn-outline-accent {
+  background: transparent;
+  color: var(--vk-accent-text);
+  border-color: var(--vk-accent-border-strong);
+}
+.vk-btn-outline-accent:hover {
+  background: var(--vk-accent-bg);
+  border-color: var(--vk-accent-border-strong);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   VIEW LAYOUT SHELL
+   Structural chrome shared by paragraph + phrase exercise views.
+   These wrap the organisms above — they are not themselves organisms.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Base wrapper — all exercise views are flex columns */
+.view {
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ── Header bar ─────────────────────────────────────────────────────────────
+   Sticky top strip: title left, level + speed controls right. */
+
+.pv-header {
+  background: var(--vk-surface);
+  border-bottom: 1px solid var(--vk-border);
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.pv-title {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vk-fg-1);
+  white-space: nowrap;
+}
+.pv-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Level tabs */
+.pv-levels { display: flex; gap: 3px; }
+.pv-level-btn {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  background: transparent;
+  border: 1px solid var(--vk-border-mid);
+  color: var(--vk-fg-3);
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: var(--vk-radius-ui);
+  transition: all 120ms;
+}
+.pv-level-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-fg-2); }
+.pv-level-btn.is-active {
+  border-color: var(--vk-accent);
+  background: var(--vk-accent);
+  color: var(--vk-accent-fg);
+}
+
+/* Speed buttons */
+.pv-speed-btns { display: flex; gap: 2px; }
+.pv-speed-btn {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--vk-border-mid);
+  color: var(--vk-fg-3);
+  padding: 5px 9px;
+  cursor: pointer;
+  border-radius: var(--vk-radius-ui);
+  transition: all 120ms;
+}
+.pv-speed-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-fg-2); }
+.pv-speed-btn.is-active {
+  background: var(--vk-accent-bg);
+  border-color: var(--vk-accent-border);
+  color: var(--vk-accent-text);
+}
+
+
+/* ── Scrollable body ────────────────────────────────────────────────────────
+   flex:1 scroll container + centred narrow column. */
+
+.pv-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 28px 100px;
+  display: flex;
+  justify-content: center;
+}
+.pv-col {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+
+/* ── Controls area ──────────────────────────────────────────────────────────
+   Vertical stack centring the replay+mic row; alternative to pv-func. */
+
+.pv-controls-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+.pv-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.pv-pass-label {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--pa-pass);
+}
+.pv-try-again {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--vk-fg-3);
+}
+.pv-skip-btn {
+  background: none;
+  border: none;
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--vk-fg-3);
+  cursor: pointer;
+  padding: 0;
+  transition: color 120ms;
+}
+.pv-skip-btn:hover { color: var(--vk-fg-1); }
+
+
+/* ── Action button row ──────────────────────────────────────────────────────
+   Full-width pair of buttons after a chunk or session. */
+
+.pv-btn-row {
+  display: flex;
+  gap: 8px;
+}
+.pv-btn-row .vk-btn { flex: 1; justify-content: center; }
+
+
+/* ── Session complete ───────────────────────────────────────────────────────
+   Heading + 4-stat summary grid shown after all chunks are done. */
+
+.pv-complete-label {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pa-pass);
+  margin-bottom: 4px;
+}
+.pv-complete-heading {
+  font-family: var(--pa-font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--vk-fg-1);
+  margin: 0 0 16px;
+}
+
+.pv-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+@media (max-width: 520px) {
+  .pv-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.pv-stat-tile {
+  background: var(--vk-surface);
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-card-radius);
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pv-stat-label {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+}
+.pv-stat-value {
+  font-family: var(--pa-font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--vk-fg-1);
+  line-height: 1;
+}
+.pv-stat-unit {
+  font-size: 11px;
+  color: var(--vk-fg-3);
+  margin-left: 1px;
+}
+
+
+/* ── Chunk breakdown list ───────────────────────────────────────────────────
+   Bordered table: one row per chunk showing text truncation + badge + attempts. */
+
+.pv-chunk-list {
+  background: var(--vk-surface);
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-card-radius);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.pv-chunk-list-header {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--vk-border);
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 12px;
+  align-items: center;
+}
+.pv-chunk-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+}
+.pv-chunk-row + .pv-chunk-row { border-top: 1px solid var(--vk-border); }
+.pv-chunk-text {
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  color: var(--vk-fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-chunk-meta {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  color: var(--vk-fg-3);
+  text-align: right;
+  white-space: nowrap;
+}
+
+
+/* ── Insight card ───────────────────────────────────────────────────────────
+   Mistral coach suggestion — warm honey left border, subtle amber tint. */
+
+.pv-insight {
+  background: rgba(201, 136, 62, 0.06);
+  border: 1px solid rgba(201, 136, 62, 0.28);
+  border-left: 3px solid var(--pa-honey);
+  border-radius: var(--vk-card-radius);
+  padding: 14px 18px;
+  margin-bottom: 4px;
+}
+.pv-insight-label {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pa-honey);
+  margin-bottom: 6px;
+}
+.pv-insight-text {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--vk-fg-1);
+  line-height: 1.55;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PHRASE VIEW  (phv-*)
+   Components specific to the single-phrase shadow/repeat exercise.
+   Reuses pv-header / pv-body / pv-col / pv-card / pv-func from above.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Card toolbar ───────────────────────────────────────────────────────────
+   Row of icon/label buttons inside the pv-card: save · +word · SYL · rhythm · blur */
+
+.phv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--vk-border);
+  margin-bottom: 14px;
+}
+.phv-toolbar-spacer { flex: 1; }
+.phv-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-radius-ui);
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vk-fg-2);
+  padding: 4px 9px;
+  height: 28px;
+  cursor: pointer;
+  transition: border-color 100ms, color 100ms, background 100ms;
+}
+.phv-toolbar-btn svg { flex-shrink: 0; }
+.phv-toolbar-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
+.phv-toolbar-btn.is-active {
+  border-color: var(--vk-accent-border);
+  color: var(--vk-accent-text);
+  background: var(--vk-accent-bg);
+}
+
+.phv-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--vk-border);
+  border-radius: var(--vk-radius-ui);
+  color: var(--vk-fg-2);
+  cursor: pointer;
+  transition: border-color 100ms, color 100ms;
+}
+.phv-save-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
+.phv-save-btn.is-saved { border-color: var(--pa-pass); color: var(--pa-pass); }
+
+
+/* ── Attempt tracker ────────────────────────────────────────────────────────
+   10-pip row (left) + best score display (right). */
+
+.phv-attempt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+}
+.phv-attempt-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.phv-attempt-label {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+}
+.phv-attempt-pips { display: flex; gap: 4px; }
+.phv-attempt-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.phv-attempt-best-label {
+  font-family: var(--pa-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+}
+.phv-attempt-best {
+  font-family: var(--pa-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.phv-attempt-best.is-pass     { color: var(--pa-pass); }
+.phv-attempt-best.is-almost   { color: var(--pa-almost); }
+.phv-attempt-best.is-fail     { color: var(--pa-fail); }
+
+.phv-attempt-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--vk-fill-2);
+  border: 1px solid var(--vk-border);
+}
+.phv-attempt-pip.is-done    { background: var(--pa-almost); border-color: var(--pa-almost); }
+.phv-attempt-pip.is-pass    { background: var(--pa-pass);   border-color: var(--pa-pass); }
+.phv-attempt-pip.is-current { background: var(--vk-fg-3);  border-color: var(--vk-fg-2); }
+
+
+/* ── Syllable breakdown ─────────────────────────────────────────────────────
+   Phonetic breakdown line shown when SYL is active. */
+
+.phv-syllable-line {
+  font-family: var(--pa-font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--vk-fg-2);
+  padding: 10px 0 2px;
+  line-height: 1.6;
+  border-top: 1px solid var(--vk-border);
+  margin-top: 8px;
+}
+.phv-syllable-line .syl-stress {
+  color: var(--vk-accent-text);
+  font-weight: 700;
+  border-bottom: 1.5px solid currentColor;
+}
+
+
+/* ── Score block ────────────────────────────────────────────────────────────
+   pa-score bar + pa-transcript diff shown below the card after scoring. */
+
+.phv-score-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0 4px;
+}
+.phv-score-block .pa-score { width: 100%; }
+
+
+/* ── Auto-advance toggle ────────────────────────────────────────────────────
+   Small toggle switch positioned left of the controls row. */
+
+.phv-auto-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.phv-auto-label {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vk-fg-3);
+  transition: color 80ms;
+}
+.phv-auto-row:hover .phv-auto-label { color: var(--vk-fg-1); }
+.phv-auto-track {
+  display: inline-flex;
+  width: 28px;
+  height: 15px;
+  background: var(--vk-fill-2);
+  border: 1px solid var(--vk-border);
+  align-items: center;
+  padding: 0 2px;
+  border-radius: 999px;
+  transition: background 80ms, border-color 80ms;
+}
+.phv-auto-row.is-on .phv-auto-track { background: var(--vk-accent); border-color: var(--vk-accent); }
+.phv-auto-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--vk-fg-3);
+  border-radius: 999px;
+  transition: transform 80ms, background 80ms;
+}
+.phv-auto-row.is-on .phv-auto-thumb { transform: translateX(12px); background: #fff; }
+
+
+/* ── Attempts-exhausted note ────────────────────────────────────────────────
+   Shown inside the card after 10 attempts. */
+
+.phv-limit-msg {
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  color: var(--vk-fg-2);
+  text-align: center;
+  padding: 10px 0 4px;
+  margin: 0;
+}
+
+
+/* ── Coach focus banner ─────────────────────────────────────────────────────
+   Accent-left-border strip shown above the card when coach identifies a word
+   to focus on. Left: chip + word. Right: progress counter + skip button. */
+
+.phv-coach-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-left: 3px solid var(--vk-accent);
+  background: var(--vk-accent-bg);
+  margin-bottom: 12px;
+}
+.phv-coach-left { display: flex; align-items: baseline; gap: 8px; }
+.phv-coach-chip {
+  font-family: var(--pa-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vk-accent-text);
+}
+.phv-coach-word {
+  font-family: var(--pa-font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--vk-fg-1);
+}
+.phv-coach-right { display: flex; align-items: center; gap: 10px; }
+.phv-coach-progress {
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  color: var(--vk-fg-3);
+  letter-spacing: 0.04em;
+}
+.phv-coach-skip {
+  padding: 3px 10px;
+  background: transparent;
+  border: 1px solid var(--vk-border);
+  font-family: var(--pa-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--vk-fg-2);
+  cursor: pointer;
+  border-radius: var(--vk-radius-ui);
+  transition: all 100ms;
+}
+.phv-coach-skip:hover { border-color: var(--vk-fg-2); color: var(--vk-fg-1); }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HUB INTRO  (hub-intro)
+   Exercise description block at the top of each hub page.
+   Four levels: eyebrow → heading → body → feature list. The eyebrow is in
+   accent-text with a short rule after it — a horizontal anchor that reads as
+   "section opened." The heading is the primary visual anchor: large + heavy.
+   Feature items are a borderless dot-list — scannable metadata, not controls.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.hub-intro {
+  padding: 26px 48px 22px;
+  border-bottom: 1px solid var(--vk-border);
+  flex-shrink: 0;
+}
+
+.hub-intro-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--pa-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--vk-accent-text);
+  margin-bottom: 10px;
+}
+
+.hub-intro-eyebrow::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 1px;
+  background: var(--vk-accent-border);
+  flex-shrink: 0;
+}
+
+.hub-intro-heading {
+  font-family: var(--pa-font-sans);
+  font-size: 23px;
+  font-weight: 800;
+  color: var(--vk-fg-1);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin: 0 0 8px;
+}
+
+.hub-intro-text {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--vk-fg-2);
+  max-width: 520px;
+  margin: 0;
+}
+
+.hub-intro-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  margin-top: 16px;
+}
+
+.hub-intro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--pa-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--vk-fg-2);
+  padding-right: 20px;
+}
+
+.hub-intro-chip::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--vk-accent);
+  flex-shrink: 0;
+  opacity: 0.75;
+}

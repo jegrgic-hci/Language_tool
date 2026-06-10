@@ -7,9 +7,10 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import asyncio
@@ -26,6 +27,7 @@ import shadow_engine as _shadow_module
 from shadow_engine import generate_phrase, score_attempt, analyze_mismatches as analyze_shadow_mismatches
 import paragraph_engine as _paragraph_module
 from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mismatches, analyze_patterns
+from score_utils import normalize, run_sequence_match, build_display_results, analyze_dictation_mismatches
 import router as _router_module
 import practice_list as pl
 import analytics as _analytics
@@ -36,6 +38,7 @@ load_dotenv()
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 _api_key: str = os.environ.get("MISTRAL_API_KEY", "")
 _mistral = Mistral(api_key=_api_key) if _api_key else None
@@ -52,7 +55,7 @@ _ANALYTICS_KEYS: set = {
 
 _analytics.init_db()
 
-AUDIO_DIR = Path(tempfile.gettempdir()) / "french_tutor_audio"
+AUDIO_DIR = Path(tempfile.gettempdir()) / "vraifrench_audio"
 AUDIO_DIR.mkdir(exist_ok=True)
 
 # In-memory sessions keyed by session_id
@@ -290,6 +293,7 @@ class ShadowAnalyzeRequest(BaseModel):
     # analytics fields
     session_id: Optional[str] = None
     access_code: Optional[str] = None
+    visit_id: Optional[str] = None
     level: Optional[str] = None
     topic: Optional[str] = None
     attempt_number: Optional[int] = None
@@ -389,6 +393,7 @@ class ParagraphAnalyzeRequest(BaseModel):
     # analytics fields
     session_id: Optional[str] = None
     access_code: Optional[str] = None
+    visit_id: Optional[str] = None
     paragraph_id: Optional[str] = None
     chunk_index: Optional[int] = None
     attempt_number: Optional[int] = None
@@ -433,12 +438,12 @@ class PracticeWordRequest(BaseModel):
 class CustomSaveRequest(BaseModel):
     label: str
     text: str
-    content_type: str = "phrases"  # "phrases" | "paragraphs" | "stories"
+    content_type: str = "phrase"  # "phrase" | "paragraph" | "story"
 
 
 class CustomStartRequest(BaseModel):
     text: str
-    content_type: str = "paragraphs"
+    content_type: str = "paragraph"
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -537,407 +542,66 @@ async def coach_refresh(access_code: str = ""):
     return data
 
 
-@app.get("/analytics/dashboard", response_class=HTMLResponse)
-async def analytics_dashboard(key: str = ""):
+def _require_analytics_key(key: str):
     if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
         raise HTTPException(status_code=403, detail="Forbidden")
-    data = _analytics.get_analytics()
-    word_accuracy = {code: _analytics.get_word_accuracy(code) for code in data}
-    drill_breakdown = {code: _analytics.get_sentence_drill_breakdown(code) for code in data}
-    session_history = {code: _analytics.get_session_history(code) for code in data}
-    coach_data_map = {code: _analytics.get_coach_data(code) for code in data}
 
-    def score_bar(score):
-        if score is None:
-            return '<span style="color:rgba(26,26,26,0.3)">—</span>'
-        pct = int(score * 100)
-        color = "#1F5A40" if pct >= 70 else "#A8281C" if pct < 40 else "#8A5A00"
-        return f'<div style="display:flex;align-items:center;gap:8px"><div style="width:80px;height:6px;background:#E8E8E8"><div style="width:{pct}px;max-width:80px;height:6px;background:{color}"></div></div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem">{pct}%</span></div>'
 
-    def word_chip(word, acc):
-        color = "#1F5A40" if acc >= 0.7 else "#8A5A00" if acc >= 0.4 else "#A8281C"
-        return f'<span style="display:inline-block;padding:3px 9px;border:1px solid #E0E0E0;font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem;color:{color};margin:2px 2px 0 0">{word} <span style="opacity:0.45">{round(acc*100)}%</span></span>'
+class AddStudentRequest(BaseModel):
+    name: str
+    email: str = ""
+    lesson_days: list = []
+    lesson_time: str = ""
+    notes: str = ""
 
-    def render_coach_tab(cd):
-        if not cd or not cd.get("total_words_tracked"):
-            return '<div class="empty">NO COACHING DATA YET — complete more practice drills first</div>'
 
-        total    = cd["total_words_tracked"]
-        mastered = cd.get("mastered_words", [])
-        suspect  = cd.get("tech_suspect_words", [])
-        almost   = cd.get("almost_there_words", [])
-        incon    = cd.get("inconsistent_words", [])
-        quick    = cd.get("quick_pickup_words", [])
-        worst    = [w for w in cd.get("worst_words", []) if w["accuracy"] < 0.30]
-        clusters = cd.get("error_clusters", {})
+class UpdateStudentRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    lesson_days: Optional[list] = None
+    lesson_time: Optional[str] = None
+    notes: Optional[str] = None
 
-        def insight_card(label, color, message, chips_html=""):
-            chips_block = f'<div style="margin-top:12px">{chips_html}</div>' if chips_html else ""
-            return (
-                f'<div style="border-left:3px solid {color};padding:16px 20px;margin-bottom:20px;background:#FAFAFA">'
-                f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.58rem;letter-spacing:0.1em;font-weight:700;color:{color};margin-bottom:10px">{label}</div>'
-                f'<div style="font-family:\'IBM Plex Sans\',sans-serif;font-size:0.83rem;line-height:1.6;color:#1A1A1A">{message}</div>'
-                f'{chips_block}</div>'
-            )
 
-        # Mastery hero
-        m_count = len(mastered)
-        if m_count:
-            chips = "".join(word_chip(w["word"], w["accuracy"]) for w in mastered)
-            mastery_block = (
-                f'<div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid #E8E8E8">'
-                f'<div style="font-family:Anton,Impact,sans-serif;font-size:4.5rem;line-height:1;color:#1F5A40">{m_count}</div>'
-                f'<div style="padding-bottom:10px">'
-                f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;color:#1F5A40;text-transform:uppercase">word{"s" if m_count != 1 else ""} mastered</div>'
-                f'<div style="font-family:\'IBM Plex Sans\',sans-serif;font-size:0.72rem;color:rgba(26,26,26,0.4);margin-top:3px">out of {total} tracked</div>'
-                f'</div></div>'
-            )
-        else:
-            mastery_block = f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;letter-spacing:0.07em;color:rgba(26,26,26,0.3);margin-bottom:28px">{total} WORDS TRACKED · 0 MASTERED</div>'
+@app.get("/analytics/students")
+async def list_students(key: str = ""):
+    _require_analytics_key(key)
+    return {"students": _analytics.get_roster()}
 
-        html = mastery_block
-        shown = set()
 
-        # WORK ON THIS — worst words < 30% accuracy
-        if worst:
-            shown.update(w["word"] for w in worst)
-            chips = "".join(word_chip(w["word"], w["accuracy"]) for w in worst)
-            n = len(worst)
-            msg = (f'The word <strong>{worst[0]["word"]}</strong> keeps coming up wrong. It\'s showing up consistently across your attempts but hasn\'t clicked yet.'
-                   if n == 1 else
-                   f'These {n} words keep coming up wrong across multiple sessions. They\'re your biggest opportunity right now.')
-            html += insight_card("WORK ON THIS", "#137CB6", msg, chips)
+@app.post("/analytics/students")
+async def add_student(req: AddStudentRequest, key: str = ""):
+    _require_analytics_key(key)
+    return _analytics.add_student(
+        req.name, req.email, req.lesson_days, req.lesson_time, req.notes,
+    )
 
-        # CHECK YOUR MIC — exact zero across many attempts
-        suspect_f = [w for w in suspect if w["word"] not in shown]
-        if suspect_f:
-            shown.update(w["word"] for w in suspect_f)
-            n = len(suspect_f)
-            chips = "".join(word_chip(w["word"], w["accuracy"]) for w in suspect_f)
-            subj = "This word has" if n == 1 else "These words have"
-            html += insight_card("CHECK YOUR MIC", "#8A5A00", f'{subj} never been recognised correctly across multiple attempts. That\'s unusual — it may be a microphone or speech recognition issue rather than a pronunciation problem. Try speaking closer to the mic or in a quieter space.', chips)
 
-        # NOTICE THIS — acoustic misses (0% accuracy)
-        acoustic_words = [w for w in clusters.get("acoustic_miss", []) if w["word"] not in shown]
-        if len(acoustic_words) >= 2:
-            shown.update(w["word"] for w in acoustic_words)
-            chips = "".join(word_chip(w["word"], w["accuracy"]) for w in acoustic_words)
-            html += insight_card("NOTICE THIS", "#137CB6", "The microphone keeps missing these words. The sound is likely there but needs more definition — usually more energy on the first consonant.", chips)
+@app.put("/analytics/students/{access_code}")
+async def update_student(access_code: str, req: UpdateStudentRequest, key: str = ""):
+    _require_analytics_key(key)
+    updated = _analytics.update_student(
+        access_code,
+        name=req.name, email=req.email,
+        lesson_days=req.lesson_days, lesson_time=req.lesson_time,
+        notes=req.notes,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return {"ok": True}
 
-        # PATTERNS — grouped by homophone / substitution with sub-labels
-        pattern_groups = [
-            ("homophone",    "Homophones",    "Sound nearly identical but are spelled differently."),
-            ("substitution", "Substitutions", "Consistently replaced with a different word."),
-        ]
-        pattern_sections = []
-        for cluster_key, group_label, desc in pattern_groups:
-            wlist = [w for w in clusters.get(cluster_key, []) if w["word"] not in shown]
-            if len(wlist) >= 2:
-                shown.update(w["word"] for w in wlist)
-                group_chips = "".join(word_chip(w["word"], w["accuracy"]) for w in wlist)
-                pattern_sections.append(
-                    f'<div style="margin-top:14px">'
-                    f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.52rem;letter-spacing:0.12em;font-weight:700;text-transform:uppercase;color:rgba(26,26,26,0.35);margin-bottom:6px">'
-                    f'{group_label} — <span style="font-weight:400;text-transform:none;letter-spacing:0">{desc}</span></div>'
-                    f'<div>{group_chips}</div></div>'
-                )
-        if pattern_sections:
-            html += insight_card("PATTERNS", "#8A5A00", "These words are consistently coming out wrong in a recognisable way. Each group points to a different fix.", "".join(pattern_sections))
 
-        # INCONSISTENT — getting through sometimes but not reliably
-        incon_f = [w for w in incon if w["word"] not in shown]
-        if incon_f:
-            shown.update(w["word"] for w in incon_f)
-            chips = "".join(word_chip(w["word"], w["accuracy"]) for w in incon_f)
-            n = len(incon_f)
-            subj = "This word is" if n == 1 else f"These {n} words are"
-            html += insight_card("INCONSISTENT", "#8A5A00", f'{subj} getting through sometimes but not reliably. The sound is in there — it just hasn\'t locked in yet.', chips)
+@app.get("/dashboard")
+async def dashboard_shortcut():
+    from fastapi.responses import RedirectResponse
+    key = next(iter(_ANALYTICS_KEYS), "")
+    return RedirectResponse(url=f"/analytics/dashboard?key={key}")
 
-        # ALMOST THERE — close to mastery
-        almost_f = [w for w in almost if w["word"] not in shown]
-        if almost_f:
-            shown.update(w["word"] for w in almost_f)
-            chips = "".join(word_chip(w["word"], w["accuracy"]) for w in almost_f)
-            n = len(almost_f)
-            subj = "This word is" if n == 1 else f"These {n} words are"
-            obj = "it" if n == 1 else "them"
-            contr = "it'll" if n == 1 else "they'll"
-            html += insight_card("ALMOST THERE", "#8A5A00", f"{subj} close — getting {obj} right most of the time. A few more clean reps and {contr} be locked in.", chips)
 
-        # QUICK WINS — nailed fast
-        quick_f = [w for w in quick if w["word"] not in shown]
-        if quick_f:
-            chips = "".join(word_chip(w["word"], w["accuracy"]) for w in quick_f)
-            n = len(quick_f)
-            subj = "this word" if n == 1 else f"these {n} words"
-            nat = "This is" if n == 1 else "These are"
-            html += insight_card("QUICK WINS", "#1F5A40", f'You got {subj} right almost immediately — fewer attempts than most. {nat} your natural strengths.', chips)
-
-        return html or '<div class="empty">NO PATTERNS YET — keep practicing</div>'
-
-    rows = ""
-    for code, stats in sorted(data.items()):
-        ps = stats.get("phrase_shadowing", {})
-        pa = stats.get("paragraph_shadowing", {})
-        phrase_levels = ps.get("by_level", {})
-        para_levels = pa.get("by_level", {})
-
-        level_rows = ""
-        all_levels = sorted(set(list(phrase_levels.keys()) + list(para_levels.keys())))
-        for lvl in all_levels:
-            ph = phrase_levels.get(lvl, {})
-            pr = para_levels.get(lvl, {})
-            level_rows += f"""
-            <tr style="border-top:1px solid #E8E8E8">
-              <td style="padding:6px 12px;font-size:0.72rem;color:rgba(26,26,26,0.5);padding-left:32px">LEVEL {lvl}</td>
-              <td style="padding:6px 12px;font-size:0.72rem">{ph.get('attempts','—')}</td>
-              <td style="padding:6px 12px">{score_bar(ph.get('avg_score'))}</td>
-              <td style="padding:6px 12px;font-size:0.72rem">{pr.get('chunk_attempts','—')}</td>
-              <td style="padding:6px 12px">{score_bar(pr.get('avg_chunk_score'))}</td>
-              <td style="padding:6px 12px;font-size:0.72rem">{pr.get('sentence_drills','—')}</td>
-              <td style="padding:6px 12px">{score_bar(pr.get('avg_drill_score'))}</td>
-            </tr>"""
-
-        rows += f"""
-        <tr style="border-top:2px solid #1A1A1A;background:#FAFAFA">
-          <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:700;letter-spacing:0.08em">{code.upper()}</td>
-          <td style="padding:10px 12px;font-size:0.8rem">{stats.get('sessions',0)}</td>
-          <td style="padding:10px 12px;font-size:0.8rem">{stats.get('total_shadowing_minutes',0)} min</td>
-          <td style="padding:10px 12px;font-size:0.8rem">{ps.get('total_attempts','—')}</td>
-          <td></td>
-          <td style="padding:10px 12px;font-size:0.8rem">{pa.get('paragraphs_started','—')}</td>
-          <td></td>
-        </tr>
-        {level_rows}"""
-
-    def fmt_duration(secs):
-        if secs is None:
-            return "—"
-        secs = int(secs)
-        if secs < 60:
-            return f"{secs}s"
-        return f"{secs // 60}m {secs % 60:02d}s"
-
-    coach_sections = ""
-    all_codes = sorted(set(list(word_accuracy.keys()) + list(drill_breakdown.keys()) + list(session_history.keys())))
-    for code in all_codes:
-        words  = word_accuracy.get(code, [])
-        drills = drill_breakdown.get(code, [])
-        visits = session_history.get(code, [])
-        if not words and not drills and not visits:
-            continue
-
-        # ── Word accuracy tab content ──────────────────────────────────────────
-        if words:
-            word_rows = ""
-            for w in words:
-                pct = int(w["accuracy"] * 100)
-                color = "#A8281C" if pct < 40 else "#8A5A00" if pct < 70 else "#1F5A40"
-                bar = f'<div style="display:flex;align-items:center;gap:8px"><div style="width:80px;height:6px;background:#E8E8E8"><div style="width:{pct}px;max-width:80px;height:6px;background:{color}"></div></div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem">{pct}%</span></div>'
-                word_rows += f"""
-                <tr data-attempts="{w['attempts']}" data-accuracy="{w['accuracy']}" style="border-top:1px solid #E8E8E8">
-                  <td style="padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:500">{w['word']}</td>
-                  <td style="padding:8px 12px;font-size:0.75rem;color:rgba(26,26,26,0.5)">{w['attempts']}</td>
-                  <td style="padding:8px 12px">{bar}</td>
-                </tr>"""
-            word_tab_content = f"""
-            <table>
-              <thead><tr>
-                <th>Word</th>
-                <th data-col="attempts" data-dir="" onclick="sortStruggleTable(this)" style="cursor:pointer;user-select:none">Attempts <span class="sort-ind"></span></th>
-                <th data-col="accuracy" data-dir="asc" onclick="sortStruggleTable(this)" style="cursor:pointer;user-select:none">Accuracy <span class="sort-ind">▲</span></th>
-              </tr></thead>
-              <tbody>{word_rows}</tbody>
-            </table>"""
-        else:
-            word_tab_content = '<div class="empty">NO WORD DATA YET — min. 5 attempts required</div>'
-
-        # ── Sentence drill tab content ─────────────────────────────────────────
-        if drills:
-            drill_rows = ""
-            for d in drills:
-                avg_att = f"{d['avg_attempts']:.1f}" if d["avg_attempts"] is not None else "—"
-                avg_score = d.get("avg_score") or 0
-                if avg_score >= 0.7:
-                    status = '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;letter-spacing:0.1em;padding:3px 7px;background:#1F5A40;color:white">STRONG</span>'
-                elif avg_score >= 0.4:
-                    status = '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;letter-spacing:0.1em;padding:3px 7px;background:#137CB6;color:white">PROGRESSING</span>'
-                else:
-                    status = '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;letter-spacing:0.1em;padding:3px 7px;background:#A8281C;color:white">NEEDS WORK</span>'
-                drill_rows += f"""
-                <tr style="border-top:1px solid #E8E8E8">
-                  <td style="padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.75rem">LEVEL {d['level']}</td>
-                  <td style="padding:8px 12px;font-size:0.75rem;color:rgba(26,26,26,0.6)">{d['sentences_practiced']}</td>
-                  <td style="padding:8px 12px;font-size:0.75rem;color:rgba(26,26,26,0.6)">{avg_att}</td>
-                  <td style="padding:8px 12px">{score_bar(d['avg_score'])}</td>
-                  <td style="padding:8px 12px">{status}</td>
-                </tr>"""
-            drill_tab_content = f"""
-            <table>
-              <thead><tr>
-                <th>Level</th><th>Sentences Practiced</th><th>Avg Attempts</th><th>Avg Score</th><th>Status</th>
-              </tr></thead>
-              <tbody>{drill_rows}</tbody>
-            </table>"""
-        else:
-            drill_tab_content = '<div class="empty">NO SENTENCE DRILL DATA YET</div>'
-
-        # ── Recent sessions tab content ────────────────────────────────────────
-        if visits:
-            session_rows = ""
-            for v in visits:
-                date_str = v["started_at"][:16].replace("T", " ") if v["started_at"] else "—"
-                dur = fmt_duration(v["duration_seconds"])
-                phrase_cell = f"{v['phrase_attempts']} {score_bar(v['avg_phrase_score'])}" if v['phrase_attempts'] else '<span style="color:rgba(26,26,26,0.3)">—</span>'
-                chunk_cell  = f"{v['chunk_attempts']} {score_bar(v['avg_chunk_score'])}"  if v['chunk_attempts']  else '<span style="color:rgba(26,26,26,0.3)">—</span>'
-                drill_cell  = f"{v['drill_attempts']} {score_bar(v['avg_drill_score'])}"  if v['drill_attempts']  else '<span style="color:rgba(26,26,26,0.3)">—</span>'
-                session_rows += f"""
-                <tr style="border-top:1px solid #E8E8E8">
-                  <td style="padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.72rem">{date_str}</td>
-                  <td style="padding:8px 12px;font-family:'IBM Plex Mono',monospace;font-size:0.72rem">{dur}</td>
-                  <td style="padding:8px 12px;font-size:0.75rem">{phrase_cell}</td>
-                  <td style="padding:8px 12px;font-size:0.75rem">{chunk_cell}</td>
-                  <td style="padding:8px 12px;font-size:0.75rem">{drill_cell}</td>
-                </tr>"""
-            sessions_tab_content = f"""
-            <table>
-              <thead><tr>
-                <th>Date</th><th>Duration</th><th>Phrase Attempts / Score</th><th>Chunk Attempts / Score</th><th>Drill Attempts / Score</th>
-              </tr></thead>
-              <tbody>{session_rows}</tbody>
-            </table>"""
-        else:
-            sessions_tab_content = '<div class="empty">NO SESSION DATA YET — sessions tracked after this update</div>'
-
-        coaching_tab_content = render_coach_tab(coach_data_map.get(code))
-
-        coach_sections += f"""
-        <div class="coach-card">
-          <div class="coach-header">
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;color:rgba(26,26,26,0.4);text-transform:uppercase">COACHING</span>
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;font-weight:700;letter-spacing:0.08em">{code.upper()}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-              <div class="tab-bar">
-                <button class="tab-btn active" onclick="switchTab(this,'{code}-sessions')">SESSIONS</button>
-                <button class="tab-btn" onclick="switchTab(this,'{code}-word')">WORD ACCURACY</button>
-                <button class="tab-btn" onclick="switchTab(this,'{code}-drill')">SENTENCE DRILLS</button>
-                <button class="tab-btn" onclick="switchTab(this,'{code}-coaching')">COACHING</button>
-              </div>
-              <div style="display:flex;gap:8px">
-                <a href="/analytics/word-accuracy/download?key={key}&access_code={code}" class="action-btn">DOWNLOAD CSV</a>
-                <button onclick="resetCode('{code}')" class="action-btn danger">RESET DATA</button>
-              </div>
-            </div>
-          </div>
-          <div id="{code}-sessions" class="tab-panel">{sessions_tab_content}</div>
-          <div id="{code}-word" class="tab-panel" style="display:none">{word_tab_content}</div>
-          <div id="{code}-drill" class="tab-panel" style="display:none">{drill_tab_content}</div>
-          <div id="{code}-coaching" class="tab-panel" style="display:none;padding:24px;max-width:680px">{coaching_tab_content}</div>
-        </div>"""
-
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ANALYTICS — FRENCH TUTOR</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ font-family: 'IBM Plex Sans', system-ui, sans-serif; background: #F2F2F2; color: #1A1A1A; min-height: 100vh; }}
-    .header {{ background: #1A1A1A; padding: 28px 40px; display: flex; align-items: baseline; gap: 16px; }}
-    .header-title {{ font-family: 'Anton', Impact, 'Arial Black', 'Helvetica Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.1em; color: white; }}
-    .header-sub {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.22em; color: rgba(255,255,255,0.35); text-transform: uppercase; }}
-    .container {{ max-width: 1100px; margin: 40px auto; padding: 0 24px; }}
-    .stat-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 2px; margin-bottom: 40px; }}
-    .stat-card {{ background: white; padding: 20px 24px; border-top: 3px solid #137CB6; }}
-    .stat-label {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em; color: rgba(26,26,26,0.4); text-transform: uppercase; margin-bottom: 8px; }}
-    .stat-value {{ font-family: Impact, sans-serif; font-size: 2rem; letter-spacing: 0.05em; color: #1A1A1A; }}
-    .section-label {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: rgba(26,26,26,0.4); text-transform: uppercase; margin-bottom: 12px; }}
-    table {{ width: 100%; border-collapse: collapse; background: white; }}
-    th {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(26,26,26,0.45); padding: 10px 12px; text-align: left; border-bottom: 2px solid #1A1A1A; background: white; }}
-    td {{ padding: 8px 12px; vertical-align: middle; }}
-    .empty {{ text-align: center; padding: 48px; color: rgba(26,26,26,0.3); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; letter-spacing: 0.1em; }}
-    .coach-card {{ background: white; margin-bottom: 24px; }}
-    .coach-header {{ background: #FAFAFA; border-bottom: 2px solid #1A1A1A; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }}
-    .tab-bar {{ display: flex; border: 1px solid #E8E8E8; }}
-    .tab-btn {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 7px 14px; background: transparent; border: none; cursor: pointer; color: rgba(26,26,26,0.4); border-bottom: 2px solid transparent; margin-bottom: -1px; }}
-    .tab-btn.active {{ color: #1A1A1A; border-bottom: 2px solid #137CB6; }}
-    .tab-panel {{ padding: 0; }}
-    .action-btn {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 12px; background: #137CB6; color: white; text-decoration: none; border: none; cursor: pointer; display: inline-block; }}
-    .action-btn.danger {{ background: #A8281C; }}
-  </style>
-  <script>
-    async function resetCode(code) {{
-      if (!confirm('Delete all analytics data for "' + code + '"? This cannot be undone.')) return;
-      const res = await fetch('/analytics/reset?key={key}&access_code=' + code, {{method:'POST'}});
-      if (res.ok) {{ location.reload(); }} else {{ alert('Reset failed'); }}
-    }}
-    function switchTab(btn, panelId) {{
-      const card = btn.closest('.coach-card');
-      card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      card.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
-      btn.classList.add('active');
-      document.getElementById(panelId).style.display = '';
-    }}
-    function sortStruggleTable(th) {{
-      const col = th.dataset.col;
-      const dir = th.dataset.dir === 'asc' ? 'desc' : 'asc';
-      const table = th.closest('table');
-      table.querySelectorAll('th[data-col]').forEach(h => {{
-        h.dataset.dir = '';
-        h.querySelector('.sort-ind').textContent = '';
-      }});
-      th.dataset.dir = dir;
-      th.querySelector('.sort-ind').textContent = dir === 'asc' ? ' ▲' : ' ▼';
-      const tbody = table.querySelector('tbody');
-      Array.from(tbody.querySelectorAll('tr'))
-        .sort((a, b) => {{
-          const av = parseFloat(a.dataset[col]);
-          const bv = parseFloat(b.dataset[col]);
-          return dir === 'asc' ? av - bv : bv - av;
-        }})
-        .forEach(r => tbody.appendChild(r));
-    }}
-  </script>
-</head>
-<body>
-  <div class="header">
-    <span class="header-title">ANALYTICS</span>
-    <span class="header-sub">French Tutor — User Activity</span>
-  </div>
-  <div class="container">
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Users</div>
-        <div class="stat-value">{len(data)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total Sessions</div>
-        <div class="stat-value">{sum(v.get('sessions',0) for v in data.values())}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Shadowing Time</div>
-        <div class="stat-value">{sum(v.get('total_shadowing_minutes',0) for v in data.values())}<span style="font-family:'IBM Plex Mono',monospace;font-size:0.9rem;margin-left:4px">min</span></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Phrase Attempts</div>
-        <div class="stat-value">{sum(v.get('phrase_shadowing',{}).get('total_attempts',0) for v in data.values())}</div>
-      </div>
-    </div>
-
-    <div class="section-label">Per User</div>
-    {'<table><thead><tr><th>Access Code</th><th>Sessions</th><th>Shadow Time</th><th>Phrase Attempts</th><th>Avg Phrase Score</th><th>Paragraphs</th><th>Avg Chunk Score</th></tr></thead><tbody>' + rows + '</tbody></table>' if data else '<div class="empty">NO DATA YET</div>'}
-
-    {('<div style="margin-top:48px"><div class="section-label" style="margin-bottom:24px">Coaching Breakdown</div>' + coach_sections + '</div>') if coach_sections else ''}
-  </div>
-</body>
-</html>"""
-    return HTMLResponse(content=html)
+@app.get("/analytics/dashboard")
+async def analytics_dashboard(key: str = ""):
+    _require_analytics_key(key)
+    return FileResponse(BASE_DIR / "static" / "analytics.html")
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -1136,12 +800,14 @@ async def shadow_analyze(req: ShadowAnalyzeRequest):
     result = score_attempt(req.target, req.transcription, noun_adj_set)
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
+            "exercise_type": "phrase",
             "level": req.level,
             "topic": req.topic,
             "score": result["score"],
+            "passed": result["passed"],
             "attempt_number": req.attempt_number,
             "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
-        })
+        }, req.visit_id)
     feedback_raw = await asyncio.to_thread(
         lambda: analyze_shadow_mismatches(req.target, req.transcription, result["mismatches"])
     )
@@ -1190,6 +856,11 @@ class WordDrillAnalyzeRequest(BaseModel):
     word: str
     attempts: list
     session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+    level: Optional[str] = None
+    source: Optional[str] = None  # "practice_list" | "phrase_exercise" | "paragraph_drill"
+    mode: Optional[str] = None    # "check" | "drill"
 
 
 _WORD_DRILL_SYSTEM_STRUGGLING = """You are a French pronunciation coach analyzing a student's repeated attempts to say a single word.
@@ -1234,6 +905,16 @@ async def analyze_word_drill(req: WordDrillAnalyzeRequest):
         return {"feedback": "No attempts to analyze."}
 
     hit_rate = _word_drill_hit_rate(req.word, req.attempts)
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "word_attempted", {
+            "exercise_type": "word",
+            "mode": req.mode or "drill",
+            "source": req.source,
+            "word": req.word,
+            "level": req.level,
+            "attempts": len(req.attempts),
+            "score": round(hit_rate, 3),
+        }, req.visit_id)
     system = _WORD_DRILL_SYSTEM_SOLID if hit_rate >= 0.6 else _WORD_DRILL_SYSTEM_STRUGGLING
     attempts_text = "\n".join(f"- {a}" for a in req.attempts)
     prompt = f"Target word: {req.word}\nHit rate: {hit_rate:.0%}\n\nAttempts:\n{attempts_text}"
@@ -1318,6 +999,7 @@ async def prosody_analyze(req: ProsodyAnalyzeRequest):
 class ParagraphStartRequestWithSession(ParagraphStartRequest):
     session_id: Optional[str] = None
     access_code: Optional[str] = None
+    visit_id: Optional[str] = None
 
 @app.post("/paragraph/start", response_model=ParagraphStartResponse)
 async def paragraph_start(req: ParagraphStartRequestWithSession):
@@ -1328,10 +1010,12 @@ async def paragraph_start(req: ParagraphStartRequestWithSession):
         paragraph_id = str(uuid.uuid4())
         if req.session_id and req.access_code:
             _analytics.track(req.session_id, req.access_code, "paragraph_started", {
+                "exercise_type": "paragraph",
                 "paragraph_id": paragraph_id,
                 "level": req.level,
                 "topic": topic,
-            })
+                "sentence_count": len(data["sentences"]),
+            }, req.visit_id)
         return ParagraphStartResponse(
             sentences=data["sentences"],
             full_audio_url=f"/audio/{audio_file}",
@@ -1350,7 +1034,8 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
     result = score_chunk(req.target, req.transcription, req.chunk_size, noun_adj_set)
     if req.session_id and req.access_code:
         if req.is_drill:
-            _analytics.track(req.session_id, req.access_code, "sentence_drilled", {
+            _analytics.track(req.session_id, req.access_code, "paragraph_drilled", {
+                "exercise_type": "paragraph",
                 "paragraph_id": req.paragraph_id,
                 "chunk_index": req.chunk_index,
                 "sentence_index": req.sentence_index,
@@ -1358,9 +1043,10 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
                 "score": result["score"],
                 "attempt_number": req.attempt_number,
                 "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
-            })
+            }, req.visit_id)
         else:
-            _analytics.track(req.session_id, req.access_code, "chunk_attempted", {
+            _analytics.track(req.session_id, req.access_code, "paragraph_attempted", {
+                "exercise_type": "paragraph",
                 "paragraph_id": req.paragraph_id,
                 "chunk_index": req.chunk_index,
                 "chunk_size": req.chunk_size,
@@ -1368,7 +1054,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
                 "score": result["score"],
                 "attempt_number": req.attempt_number,
                 "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
-            })
+            }, req.visit_id)
     feedback_raw = await asyncio.to_thread(
         lambda: analyze_mismatches(req.target, req.transcription, result.get("mismatches", []))
     )
@@ -1462,8 +1148,8 @@ def _split_stories(text: str) -> list:
 async def custom_list():
     entries = _load_user_content()
     for e in entries:
-        ct = e.get("content_type", "paragraphs")
-        if ct == "stories":
+        ct = e.get("content_type", "paragraph")
+        if ct == "story":
             e["story_count"] = len(e.get("stories", []))
         else:
             e["sentence_count"] = len(e.get("sentences", []))
@@ -1474,8 +1160,8 @@ async def custom_list():
 async def custom_save(req: CustomSaveRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
-    valid_types = {"phrases", "paragraphs", "stories"}
-    content_type = req.content_type if req.content_type in valid_types else "paragraphs"
+    valid_types = {"phrase", "paragraph", "story"}
+    content_type = req.content_type if req.content_type in valid_types else "paragraph"
     entries = _load_user_content()
     entry = {
         "id": str(uuid.uuid4()),
@@ -1484,9 +1170,9 @@ async def custom_save(req: CustomSaveRequest):
         "content_type": content_type,
         "created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
     }
-    if content_type == "phrases":
+    if content_type == "phrase":
         entry["sentences"] = _split_phrases(req.text.strip())
-    elif content_type == "stories":
+    elif content_type == "story":
         raw_stories = _split_stories(req.text.strip())
         entry["stories"] = [{"text": s, "sentences": _split_sentences(s)} for s in raw_stories]
         entry["sentences"] = []
@@ -1509,16 +1195,16 @@ async def custom_delete(entry_id: str):
 async def custom_start(req: CustomStartRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
-    valid_types = {"phrases", "paragraphs", "stories"}
-    content_type = req.content_type if req.content_type in valid_types else "paragraphs"
-    if content_type == "phrases":
+    valid_types = {"phrase", "paragraph", "story"}
+    content_type = req.content_type if req.content_type in valid_types else "paragraph"
+    if content_type == "phrase":
         sentences = _split_phrases(req.text.strip())
     else:
         sentences = _split_sentences(req.text.strip())
     if not sentences:
         raise HTTPException(status_code=400, detail="No content found in text")
-    if content_type == "phrases":
-        return {"sentences": sentences, "full_audio_url": None, "content_type": "phrases"}
+    if content_type == "phrase":
+        return {"sentences": sentences, "full_audio_url": None, "content_type": "phrase"}
     audio_file = await generate_audio(req.text.strip())
     return {
         "sentences": sentences,
@@ -1613,6 +1299,278 @@ async def remove_practice_entry(entry_id: str):
     if not removed:
         raise HTTPException(status_code=404, detail="Entry not found")
     return {"status": "deleted"}
+
+
+# ── Comprehension routes ────────────────────────────────────────────────────────
+
+_COMPREHENSION_SYSTEM = """You are a French language content generator for learners.
+Generate a French listening passage and comprehension questions at the requested CEFR level.
+Return ONLY valid JSON with this exact structure — no markdown, no explanation, just JSON:
+{
+  "passage": "The full French passage text...",
+  "vocab_preview": [
+    { "word": "exact word or phrase from passage", "gloss": "brief French-only definition", "example": "the exact sentence from the passage containing this word" }
+  ],
+  "questions": [
+    {
+      "type": "literal",
+      "question": "Question in French?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_index": 0,
+      "explanation": "One or two sentences in French explaining why this answer is correct."
+    }
+  ]
+}
+
+Rules:
+- Vocabulary and grammar must strictly match the CEFR level
+- Write exactly the number of paragraphs requested by the user; each paragraph should be a natural length for that level
+- A1: ~40 words per paragraph, present tense only, high-frequency vocabulary
+- A2: ~60 words per paragraph, passé composé + near future, everyday vocabulary
+- B1: ~90 words per paragraph, varied tenses, some idiomatic expressions
+- B2: ~120 words per paragraph, nuance and opinion, formal register where appropriate
+- C1: ~150 words per paragraph, complex structures, abstract vocabulary
+- C2: ~180 words per paragraph, literary register, implicit meaning and irony
+- vocab_preview: choose 4-6 key words or phrases directly from the passage. For each: "word" is the exact token as it appears in the passage, "gloss" is a brief French-only definition (no English, no translation), "example" is the exact sentence from the passage where the word appears
+- Generate exactly the number of questions specified in the user prompt. Always include one question of each of these types — in this order:
+    "literal"    — tests direct recall of a stated fact
+    "inference"  — requires the listener to infer something not explicitly stated
+    "vocabulary" — tests understanding of a specific word or phrase in context; quote the word in the question
+    "main_idea"  — tests understanding of the overall message, tone, or purpose
+  If more than 4 questions are needed, add additional "literal" or "inference" questions after the first four
+- All questions, options, and explanations must be in French
+- Distractors should be plausible but clearly wrong on close listening
+- Do not number the options — just the text"""
+
+_COMPREHENSION_Q_COUNT = {"A1": 3, "A2": 3, "B1": 4, "B2": 4, "C1": 5, "C2": 5}
+
+@app.post("/comprehension/generate")
+async def comprehension_generate(req: Request):
+    data = await req.json()
+    level = data.get("level", "B1")
+    topic = data.get("topic", "la vie quotidienne")
+    num_paragraphs = min(max(int(data.get("num_paragraphs", 2)), 1), 4)
+    q_count = _COMPREHENSION_Q_COUNT.get(level, 4)
+
+    user_prompt = (
+        f"CEFR level: {level}\n"
+        f"Topic: {topic}\n"
+        f"Number of paragraphs: {num_paragraphs}\n"
+        f"Number of questions: {q_count}\n\n"
+        "Generate the passage, vocab_preview, and comprehension questions now."
+    )
+
+    resp = _mistral.chat.complete(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": _COMPREHENSION_SYSTEM},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+        max_tokens=2400,
+    )
+
+    result = json.loads(resp.choices[0].message.content)
+    passage = result.get("passage", "")
+    questions = result.get("questions", [])
+    vocab_preview = result.get("vocab_preview", [])
+
+    audio_url = f"/audio/{await generate_audio(passage)}"
+    return {"passage": passage, "audio_url": audio_url, "questions": questions, "vocab_preview": vocab_preview}
+
+
+# ── Dictation routes ────────────────────────────────────────────────────────────
+
+_DICTATION_SENTENCE_SYSTEM = """You generate French dictation sentences for language learners.
+Generate exactly ONE natural French sentence calibrated to the given CEFR level and topic.
+
+CEFR guidelines:
+- A1: 5–8 words, present tense, basic common vocabulary
+- A2: 8–12 words, passé composé or near future, everyday vocabulary
+- B1: 10–16 words, varied tenses, compound sentences, some idiomatic phrases
+- B2: 12–20 words, subordinate clauses, nuanced vocabulary, more complex grammar
+- C1: 15–25 words, complex syntax, formal or colloquial register, idiomatic expressions
+- C2: 20+ words, native-level complexity, varied register
+
+Return ONLY the sentence — no quotes, no explanation, no extra punctuation."""
+
+_dictation_sentences: dict = {}
+
+
+class DictationGenerateRequest(BaseModel):
+    level: str = "B1"
+    topic: str = "la vie quotidienne"
+
+
+class DictationCheckRequest(BaseModel):
+    sentence_id: str
+    typed: str
+
+
+@app.post("/dictation/generate")
+async def dictation_generate(req: DictationGenerateRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": _DICTATION_SENTENCE_SYSTEM},
+            {"role": "user", "content": f"CEFR level: {req.level}\nTopic: {req.topic}"},
+        ],
+        temperature=0.7,
+        max_tokens=120,
+    ))
+    sentence = resp.choices[0].message.content.strip().strip('"').strip("'")
+
+    sentence_id = uuid.uuid4().hex
+    _dictation_sentences[sentence_id] = sentence
+    audio_url = f"/audio/{await generate_audio(sentence)}"
+    return {"sentence_id": sentence_id, "audio_url": audio_url}
+
+
+@app.post("/dictation/check")
+async def dictation_check(req: DictationCheckRequest):
+    sentence = _dictation_sentences.get(req.sentence_id)
+    if not sentence:
+        raise HTTPException(status_code=404, detail="Sentence not found")
+
+    target_words = normalize(sentence)
+    typed_words = normalize(req.typed)
+    word_results = run_sequence_match(target_words, typed_words)
+    display_results = build_display_results(sentence, word_results)
+
+    matched = sum(1 for dr in display_results if dr["matched"])
+    total = len(display_results)
+    score = matched / total if total else 0.0
+
+    mismatches = [
+        {"target_word": dr["word"], "typed": dr["said"] or ""}
+        for dr in display_results if not dr["matched"]
+    ]
+    feedback = await asyncio.to_thread(
+        analyze_dictation_mismatches, sentence, req.typed, mismatches, _mistral
+    )
+
+    return {
+        "sentence": sentence,
+        "score": round(score, 3),
+        "display_results": display_results,
+        "feedback": feedback,
+    }
+
+
+class DictationCheckInlineRequest(BaseModel):
+    target: str
+    typed: str
+
+
+@app.post("/dictation/check-inline")
+async def dictation_check_inline(req: DictationCheckInlineRequest):
+    if not req.target.strip() or not req.typed.strip():
+        raise HTTPException(status_code=400, detail="target and typed are required")
+    target_words = normalize(req.target)
+    typed_words  = normalize(req.typed)
+    word_results = run_sequence_match(target_words, typed_words)
+    display_results = build_display_results(req.target, word_results)
+    matched = sum(1 for dr in display_results if dr["matched"])
+    total   = len(display_results)
+    score   = matched / total if total else 0.0
+    mismatches = [
+        {"target_word": dr["word"], "typed": dr["said"] or ""}
+        for dr in display_results if not dr["matched"]
+    ]
+    feedback = await asyncio.to_thread(
+        analyze_dictation_mismatches, req.target, req.typed, mismatches, _mistral
+    )
+    return {
+        "sentence": req.target,
+        "score": round(score, 3),
+        "display_results": display_results,
+        "feedback": feedback,
+    }
+
+
+# ── Vocabulary routes ───────────────────────────────────────────────────────────
+
+class VocabCard(BaseModel):
+    word: str
+    part_of_speech: str
+    usage: str
+    french_definition: str
+    english_definition: str
+    example_sentence: str
+    english_translation: str
+
+class VocabGenerateRequest(BaseModel):
+    level: str
+    subject: str
+    count: int = 8
+
+class VocabGenerateResponse(BaseModel):
+    cards: list[VocabCard]
+
+_VOCAB_SYSTEM = """You are a French language teacher generating vocabulary flashcards.
+
+Generate exactly {count} vocabulary items (words, phrases, or idiomatic expressions) appropriate for a {level} learner on the subject: {subject}.
+
+Rules:
+- For A1/A2: use high-frequency words and simple phrases only
+- For B1/B2: include common idioms, collocations, and phrasal verbs
+- For C1/C2: include nuanced expressions, literary terms, register variation
+- french_definition: a concise definition IN FRENCH, appropriate to the learner's level (simpler French for A1/A2)
+- english_definition: an English translation of the french_definition (not the word itself — translate the definition)
+- example_sentence: one natural sentence using the word/phrase in context
+- part_of_speech: one of "verbe", "nom", "adjectif", "adverbe", "expression", "locution"
+- usage: one of "courant", "familier", "soutenu"
+
+Focus for this session: {angle}
+
+Return ONLY valid JSON array, no other text:
+[{{"word": "...", "part_of_speech": "...", "usage": "...", "french_definition": "...", "english_definition": "...", "example_sentence": "...", "english_translation": "..."}}, ...]"""
+
+_VOCAB_ANGLES = [
+    "Prioritise verbs and action words — what people do, feel, or experience.",
+    "Prioritise concrete nouns — objects, places, and things people interact with.",
+    "Prioritise adjectives and descriptive words — qualities and characteristics.",
+    "Prioritise idiomatic expressions and set phrases used in natural speech.",
+    "Prioritise formal or written register — words found in articles, official writing.",
+    "Prioritise informal or conversational words — casual everyday speech.",
+    "Prioritise abstract nouns — concepts, ideas, emotions, and states.",
+    "Prioritise less obvious vocabulary — avoid the first words that come to mind for this topic.",
+    "Prioritise collocations and multi-word expressions that native speakers use together.",
+    "Prioritise words related to the senses — sight, sound, touch, taste, smell in this context.",
+]
+
+@app.post("/vocab/generate", response_model=VocabGenerateResponse)
+async def vocab_generate(req: VocabGenerateRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="API key not configured")
+    level = req.level.upper()
+    count = max(4, min(20, req.count))
+    angle = random.choice(_VOCAB_ANGLES)
+    system = _VOCAB_SYSTEM.format(count=count, level=level, subject=req.subject, angle=angle)
+    try:
+        raw = await asyncio.to_thread(
+            lambda: _mistral.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": f"Generate {count} vocabulary cards."},
+                ],
+                temperature=1.0,
+                max_tokens=3200,
+            )
+        )
+        text = raw.choices[0].message.content.strip()
+        # Strip markdown code fences if present
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+        cards_raw = json.loads(text)
+        cards = [VocabCard(**c) for c in cards_raw[:count]]
+        return VocabGenerateResponse(cards=cards)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
 
 
 if __name__ == "__main__":

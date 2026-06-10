@@ -1,5 +1,9 @@
 # French Tutor — Claude Session Instructions
 
+## Hard rule — index.html is off-limits
+**`static/index.html` is off-limits. Never open, grep, or read it under any circumstances.**
+For all frontend work, consult only: `static/index-v3.html`, `static/vk-tokens.css`, `static/vk-components.css`, `static/vk-atelier-components.css`, `static/vk-theme-light.css`, `static/vk-theme-atelier.css`.
+
 ## Project purpose
 A French language learning webapp built for a user living in Marseille who wants to improve listening and speaking. The tool uses Mistral AI (chosen for native French capability) and runs locally via FastAPI, accessed in Chrome.
 
@@ -21,6 +25,9 @@ A French language learning webapp built for a user living in Marseille who wants
 | `audio_engine.py` | Legacy CLI audio (not used by webapp) |
 | `elision.py` | French elision contraction rules — shared by `shadow_engine.py` and `paragraph_engine.py` |
 | `static/index.html` | Full single-file frontend — Kronos two-panel layout |
+| `static/analytics.html` | Teacher dashboard — standalone static file, fetches data from API endpoints |
+| `analytics.py` | SQLite event tracking, all aggregation functions, coach system |
+| `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |
 | `requirements.txt` | All dependencies |
 | `.env` | `MISTRAL_API_KEY=...` |
 
@@ -93,15 +100,25 @@ All elision rules live in **one place**: `elision.py` (`FRENCH_ELISION_RULES` li
 - Rules are applied in order; put specific patterns (e.g. `je ai`) before their generic catch-all (e.g. `je + any vowel-word`)
 - The `tu + avoir/être` colloquial contractions (`tu as` → `t'as`) are in section 6b — these are spoken French only and not standard written elisions
 
-## Design rules (Kronos v3)
-Design spec lives in `kronos-design-handoff/`. Token source of truth: `tokens-v3.css`. Component patterns: `components-v3.css`.
-- No border-radius anywhere (avatars are the only exception, not used here)
-- No shadows on cards/buttons — borders only. Elevation (`--k3-elev-1/2`) reserved for floating UI (dropdowns, modals, toasts)
-- Font families: `--font-display: 'Anton', Impact, 'Arial Black', 'Helvetica Neue'` · `--font-ui: 'IBM Plex Mono'` · `--font-body: 'IBM Plex Sans'`
-- Sidebar: `#1A1A1A` background, white text at 0.3–0.55 opacity for secondary labels
-- **Accent (cerulean)**: `--k-teal: #137CB6` (rail/badge fills) · `--k-teal-dark: #0E5582` (text-safe dark, hover fills)
-- Red: `#A8281C` (destructive actions only)
-- Score bars / status badges: green `#1F5A40` (≥70%) · amber `#8A5A00` (40–70%) · red `#A8281C` (<40%)
-- All buttons: uppercase, letter-spacing, monospace font; primary fill `#1A1A1A`, hover swaps to `--k-teal-dark`
-- Active state: cerulean left border + subtle `rgba(19,124,182,0.06–0.08)` background tint
+## Design rules (vraiKronos — current system)
+Design system files live in `static/`. Token source of truth: `vk-tokens.css`. Components: `vk-components.css`. Themes: `vk-theme-light.css`, `vk-theme-atelier.css`. Exercise atoms: `vk-atelier-components.css`.
+
+**Always use `--vk-*` tokens directly in new CSS. Never use `--k-*` or `--k35-*` bridge tokens — those exist only to support JS-injected styles and legacy code copied from `index.html`. Writing new CSS with bridge tokens hides the real token and breaks the contrast/colour rules below.**
+
+- No border-radius anywhere
+- No shadows on cards/buttons — borders only. Elevation reserved for floating UI (dropdowns, modals, toasts)
+- Font families: `--vkg-font-mono` (IBM Plex Mono, UI labels) · `--vkg-font-sans` (IBM Plex Sans / Hanken Grotesk, body) · display: Anton/Impact
+- **Accent**: `--vk-accent` (fills, active borders) · `--vk-accent-dim` (hover on solid fills) · `--vk-accent-text` (accent text on light bg) · `--vk-accent-fg` (text on solid accent fill)
+- Red: `--vk-error` (destructive actions only)
+- Score bars / status badges: green `#1F5A40` (≥70%) · amber `#8A5A00` (40–70%) · red `--vk-error` (<40%)
+- All buttons: uppercase, letter-spacing, mono font; primary fill `--vk-accent`, hover `--vk-accent-dim`
+- Active state: `--vk-accent` left border + `--vk-accent-bg` background tint
 - Motion: 80–150ms `cubic-bezier(0.4,0,0.2,1)` — transitions on `color`, `background`, `border-color` only
+
+## Accessibility — text contrast (WCAG AA)
+On light surfaces, `--vk-fg-2` is the minimum for any readable text. `--vk-fg-3` and `--vk-fg-4` fail WCAG AA and must not be used on text elements. Full contrast table in `vraiKronos/design.md` under "Foreground token contrast — light theme".
+
+The `--k-*` bridge tokens map directly to `--vk-*` — apply the same rule to them:
+- `--k-text-primary` = `--vk-fg-1` ✓ safe
+- `--k-text-secondary` = `--vk-fg-2` ✓ safe (minimum for readable text)
+- `--k-text-muted` = `--vk-fg-3` ✗ **forbidden on readable text** — decorative/large-text only
