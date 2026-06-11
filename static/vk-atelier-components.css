@@ -1606,3 +1606,10 @@
   flex-shrink: 0;
   opacity: 0.75;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TREND LINE CHART  (atl-chart) — MOVED
+   The chart styles were promoted to a shared stylesheet so any surface (analytics
+   dashboard, design surface, student tool) can render them. They now live in
+   → static/vk-chart.css   Edit there; it is the single source of truth.
+   ══════════════════════════════════════════════════════════════════════════════ */

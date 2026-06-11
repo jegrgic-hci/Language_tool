@@ -6,6 +6,7 @@ import random
 import tempfile
 from pathlib import Path
 from typing import Optional
+from datetime import date, timedelta
 
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -19,16 +20,12 @@ from mistralai import Mistral
 
 BASE_DIR = Path(__file__).parent
 
-from router import route
-import tutor as _tutor_module
-from tutor import get_response
 from document_engine import UPLOADS_DIR
 import shadow_engine as _shadow_module
 from shadow_engine import generate_phrase, score_attempt, analyze_mismatches as analyze_shadow_mismatches
 import paragraph_engine as _paragraph_module
 from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mismatches, analyze_patterns
 from score_utils import normalize, run_sequence_match, build_display_results, analyze_dictation_mismatches
-import router as _router_module
 import practice_list as pl
 import analytics as _analytics
 import prosody_engine as _prosody_module
@@ -58,22 +55,7 @@ _analytics.init_db()
 AUDIO_DIR = Path(tempfile.gettempdir()) / "vraifrench_audio"
 AUDIO_DIR.mkdir(exist_ok=True)
 
-# In-memory sessions keyed by session_id
-sessions: dict[str, dict] = {}
-
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
-
-def get_session(session_id: str) -> dict:
-    if session_id not in sessions:
-        sessions[session_id] = {
-            "history": [],
-            "mode": "CHAT",
-            "topic": "general conversation",
-            "drill_state": None,
-        }
-    return sessions[session_id]
-
 
 VOICE = "fr-FR-DeniseNeural"
 
@@ -100,171 +82,13 @@ def clean_for_tts(text: str) -> str:
     return text.strip()
 
 
-def normalize_french_transcript(text: str) -> str:
-    corrections = [
-        (r'\bje ai\b', "j'ai"),
-        (r'\btu as\b', "t'as"),
-        (r'\bce est\b', "c'est"),
-        (r'\bne est\b', "n'est"),
-        (r'\bne ai\b', "n'ai"),
-        (r'\bde (\w+)', r"d'\1"),
-        (r'\bque il\b', "qu'il"),
-        (r'\bque elle\b', "qu'elle"),
-    ]
-    for pattern, replacement in corrections:
-        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
-    return text
-
-
 async def generate_audio(text: str) -> str:
     filename = f"{uuid.uuid4().hex}.mp3"
     await edge_tts.Communicate(clean_for_tts(text), VOICE).save(str(AUDIO_DIR / filename))
     return filename
 
 
-def _ask_mistral(system: str, user: str, max_tokens: int = 100) -> str:
-    if _mistral is None:
-        raise HTTPException(status_code=503, detail="API key not configured")
-    resp = _mistral.chat.complete(
-        model=_MODEL,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        temperature=0.8,
-        max_tokens=max_tokens,
-    )
-    return resp.choices[0].message.content.strip()
-
-
-_COHERENCE_SYSTEM = """You are checking whether a French language learner's message makes sense in context.
-
-Given the recent conversation and the student's latest message, decide if the message is coherent.
-
-A message is INCOHERENT if:
-- It contains garbled, invented, or misspelled words that don't exist in French or English
-- It is grammatically broken to the point that the intended meaning is impossible to guess
-- It appears to be a speech recognition error (e.g. random syllables, phonetic noise)
-- Key words are so wrong that the sentence has no recoverable meaning
-
-A message IS coherent even if:
-- Grammar is imperfect but the meaning is clear
-- It mixes French and English
-- It is a short or incomplete sentence
-- It uses the wrong word but the intent is obvious
-
-Return ONLY valid JSON: {"coherent": true} or {"coherent": false, "clarification": "<short natural French question asking them to repeat or clarify — 1 sentence>"}"""
-
-_PRONUNCIATION_ANALYSIS_SYSTEM = """You are a French pronunciation analyst helping a tutor give targeted feedback.
-
-Speech recognition flagged this transcription as low-confidence — the student likely mispronounced one word, causing a garbled transcription.
-
-Given the recent conversation and the transcription:
-1. Identify the single word most likely to be a speech recognition error
-2. Determine the correct French word the student most likely intended
-3. Write one short, practical pronunciation tip for that word
-
-Return ONLY valid JSON in this exact shape:
-{"suspected_word": "<garbled transcription>", "likely_intended": "<correct French word>", "tip": "<word> /<IPA>/ — <one body-mechanics cue: lip/tongue/nasal, max 15 words total>"}
-
-If the entire message is too garbled to recover any meaning, return: {"garbled": true}"""
-
-
-async def analyze_pronunciation_error(transcription: str, history: list[dict]) -> Optional[dict]:
-    """Sub-prompt step: identify likely mispronounced word and return analysis dict, or None."""
-    recent = history[-4:] if len(history) >= 4 else history
-    context_lines = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in recent)
-    user_payload = (
-        f"Recent conversation:\n{context_lines}\n\n"
-        f"Low-confidence transcription: {transcription}"
-    )
-    if _mistral is None:
-        return None
-    try:
-        raw = await asyncio.to_thread(
-            lambda: _mistral.chat.complete(
-                model="mistral-small-latest",
-                messages=[
-                    {"role": "system", "content": _PRONUNCIATION_ANALYSIS_SYSTEM},
-                    {"role": "user",   "content": user_payload},
-                ],
-                temperature=0.0,
-                max_tokens=120,
-            ).choices[0].message.content.strip()
-        )
-        return json.loads(raw)
-    except Exception:
-        return None
-
-
-_COHERENCE_LOW_CONF_SYSTEM = """You are checking whether a French language learner's spoken message was transcribed correctly.
-
-Speech recognition reported LOW CONFIDENCE on this transcription — the student likely mispronounced one word, causing it to be garbled.
-
-Given the recent conversation and the (possibly garbled) transcription:
-1. Identify the single word most likely to be a speech recognition error — the one that seems out of place, phonetically plausible as a mispronunciation, or breaks the sentence meaning
-2. Ask the student to repeat that specific word in a short, natural French sentence
-
-Return ONLY valid JSON: {"coherent": false, "clarification": "<natural French question naming the specific suspect word and asking them to repeat it — max 12 words>"}
-
-Always return coherent: false. Always name the specific word."""
-
-
-def check_coherence(message: str, history: list[dict], confidence: Optional[float] = None) -> Optional[str]:
-    """Returns a French clarification string if the message is incoherent, else None."""
-    low_confidence = confidence is not None and confidence < 0.65
-
-    # Skip check for very short inputs unless speech confidence was low
-    if len(message.split()) <= 2 and not low_confidence:
-        return None
-
-    recent = history[-6:] if len(history) >= 6 else history
-    context_lines = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in recent)
-
-    if low_confidence:
-        system = _COHERENCE_LOW_CONF_SYSTEM
-        user_payload = (
-            f"Recent conversation:\n{context_lines}\n\n"
-            f"Low-confidence transcription (confidence={confidence:.0%}): {message}"
-        )
-    else:
-        system = _COHERENCE_SYSTEM
-        user_payload = f"Recent conversation:\n{context_lines}\n\nStudent's latest message: {message}"
-
-    if _mistral is None:
-        return None
-    try:
-        raw = _mistral.chat.complete(
-            model="mistral-small-latest",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": user_payload},
-            ],
-            temperature=0.0,
-            max_tokens=80,
-        ).choices[0].message.content.strip()
-
-        data = json.loads(raw)
-        if not data.get("coherent", True):
-            return data.get("clarification", "Je n'ai pas bien compris — tu peux répéter ?")
-    except Exception:
-        pass
-
-    return None
-
-
 # ── Schemas ────────────────────────────────────────────────────────────────────
-
-class ChatRequest(BaseModel):
-    message: str
-    session_id: str
-    confidence: Optional[float] = None
-
-
-class ChatResponse(BaseModel):
-    reply: str
-    audio_url: str
-    mode: str
-    topic: str
-    drill_type: Optional[str] = None
-
 
 class TTSRequest(BaseModel):
     text: str
@@ -542,9 +366,106 @@ async def coach_refresh(access_code: str = ""):
     return data
 
 
+@app.get("/analytics/progress")
+async def analytics_progress(access_code: str = ""):
+    """Student-facing progress data for the landing page.
+
+    Access-code only (no teacher key), mirroring /coach — the student tool has
+    no analytics key. Returns the per-type/per-level score trend, the cumulative
+    words-mastered curve, and a small headline summary.
+    """
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return _analytics.get_home_data(access_code)
+
+
 def _require_analytics_key(key: str):
     if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
         raise HTTPException(status_code=403, detail="Forbidden")
+
+
+def _window_to_since_days(window: str, access_code: str) -> Optional[int]:
+    """Map a dashboard window token to a since_days int (None = all time)."""
+    if window == "30d":
+        return 30
+    if window == "since":
+        s = _analytics.get_student_by_code(access_code)
+        if s:
+            ll = _analytics.last_lesson_date(s.get("lesson_days") or "[]")
+            if ll:
+                return max((date.today() - ll).days, 1)
+        return 30  # no schedule → fall back to 30d
+    return None  # "all"
+
+
+def _window_to_since_date(window: str, access_code: str) -> date:
+    """Map a dashboard window token to a `since` date for get_practice_since."""
+    days = _window_to_since_days(window, access_code)
+    if days is None:
+        first = _analytics.get_first_event_ts(access_code)
+        if first:
+            try:
+                return date.fromisoformat(first[:10]) - timedelta(days=1)
+            except Exception:
+                pass
+        return date.today() - timedelta(days=3650)
+    return date.today() - timedelta(days=days)
+
+
+@app.get("/analytics/trend")
+async def analytics_trend(key: str = "", access_code: str = ""):
+    _require_analytics_key(key)
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return _analytics.get_score_trend(access_code)
+
+
+@app.get("/analytics/practice")
+async def analytics_practice(key: str = "", access_code: str = "", window: str = "since"):
+    _require_analytics_key(key)
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    since = _window_to_since_date(window, access_code)
+    data = _analytics.get_practice_since(access_code, since)
+    data["topics"] = [t["topic"] for t in _analytics.get_topic_coverage(access_code)[:6]]
+    return data
+
+
+@app.get("/analytics/paragraph")
+async def analytics_paragraph(key: str = "", access_code: str = "", window: str = "all"):
+    _require_analytics_key(key)
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return _analytics.get_paragraph_exercise_stats(
+        access_code, since_days=_window_to_since_days(window, access_code))
+
+
+@app.get("/analytics/phrase")
+async def analytics_phrase(key: str = "", access_code: str = "", window: str = "all"):
+    _require_analytics_key(key)
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return _analytics.get_phrase_exercise_stats(
+        access_code, since_days=_window_to_since_days(window, access_code))
+
+
+@app.get("/analytics/words")
+async def analytics_words(key: str = "", access_code: str = ""):
+    _require_analytics_key(key)
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return {"words": _analytics.get_word_accuracy(access_code)}
+
+
+@app.get("/analytics/content")
+async def analytics_content(key: str = "", access_code: str = ""):
+    _require_analytics_key(key)
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return {
+        "topics": _analytics.get_topic_coverage(access_code),
+        "listen_speak": _analytics.get_listen_speak_ratio(access_code),
+    }
 
 
 class AddStudentRequest(BaseModel):
@@ -604,115 +525,6 @@ async def analytics_dashboard(key: str = ""):
     return FileResponse(BASE_DIR / "static" / "analytics.html")
 
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
-    session = get_session(req.session_id)
-    message = normalize_french_transcript(req.message)
-
-    # ── Number drill: validate pending answer ──────────────────────────────────
-    if session["drill_state"] and session["drill_state"]["type"] == "number":
-        target = session["drill_state"]["target"]
-        given = re.sub(r"[\s.,]", "", message)
-        correct = str(target)
-        session["drill_state"] = None
-
-        if given == correct:
-            reply = f"Correct ! C'était bien {target}. Bravo !"
-        else:
-            reply = f"Pas tout à fait — la réponse était {target}. Tu as dit : {message}."
-
-        return ChatResponse(
-            reply=reply,
-            audio_url=f"/audio/{await generate_audio(reply)}",
-            mode=session["mode"],
-            topic=session["topic"],
-        )
-
-    # ── Route intent ───────────────────────────────────────────────────────────
-    new_mode, new_topic = route(message)
-
-    if new_mode != session["mode"]:
-        session["mode"] = new_mode
-        session["topic"] = new_topic
-        session["history"] = []
-
-    # ── Start number drill ─────────────────────────────────────────────────────
-    if new_mode == "DRILL" and any(w in new_topic.lower() for w in ("number", "chiffre", "nombre")):
-        target = random.randint(1, 9999)
-        sentence = _ask_mistral(
-            system=(
-                f"Generate ONE natural French sentence that contains the number {target}. "
-                "The number MUST appear as digits in your response. Return ONLY the sentence."
-            ),
-            user=f"Sentence with {target}",
-        )
-        session["drill_state"] = {"type": "number", "target": target}
-
-        return ChatResponse(
-            reply=sentence,
-            audio_url=f"/audio/{await generate_audio(sentence)}",
-            mode=new_mode,
-            topic=new_topic,
-            drill_type="number",
-        )
-
-    # ── Low-confidence speech: sub-prompt analysis → targeted pronunciation note ──
-    pronunciation_note = ""
-    if req.confidence is not None and req.confidence < 0.65:
-        analysis = await analyze_pronunciation_error(message, session["history"])
-        if analysis and not analysis.get("garbled"):
-            suspected = analysis.get("suspected_word", "")
-            intended  = analysis.get("likely_intended", "")
-            tip       = analysis.get("tip", "")
-            if suspected and intended:
-                pronunciation_note = (
-                    f"[Pronunciation note for this turn: The student's speech recognition had "
-                    f"low confidence. The word \"{suspected}\" in their message likely should be "
-                    f"\"{intended}\". {('Tip: ' + tip) if tip else ''} "
-                    f"Gently acknowledge this specific word in your reply — e.g. "
-                    f"\"Tu voulais dire '{intended}' ?\" — then continue naturally. Keep your response short.]"
-                )
-        elif analysis and analysis.get("garbled"):
-            # Completely unrecoverable — fall back to generic coherence clarification
-            clarification = "Je n'ai pas bien compris — tu peux répéter ?"
-            return ChatResponse(
-                reply=clarification,
-                audio_url=f"/audio/{await generate_audio(clarification)}",
-                mode=session["mode"],
-                topic=session["topic"],
-                drill_type="clarification",
-            )
-    else:
-        # ── Normal coherence check for typed or high-confidence speech ────────────
-        clarification = check_coherence(message, session["history"], req.confidence)
-        if clarification:
-            return ChatResponse(
-                reply=clarification,
-                audio_url=f"/audio/{await generate_audio(clarification)}",
-                mode=session["mode"],
-                topic=session["topic"],
-                drill_type="clarification",
-            )
-
-    # ── Regular chat / scenario / RAG / connector drill ────────────────────────
-    session["history"].append({"role": "user", "content": message})
-    reply = get_response(
-        session["history"],
-        session_mode=session["mode"],
-        topic=session["topic"],
-        pronunciation_note=pronunciation_note,
-    )
-    session["history"].append({"role": "assistant", "content": reply})
-
-    return ChatResponse(
-        reply=reply,
-        audio_url=f"/audio/{await generate_audio(reply)}",
-        mode=session["mode"],
-        topic=session["topic"],
-        drill_type="connector" if new_mode == "DRILL" else None,
-    )
-
-
 @app.get("/audio/{filename}")
 async def serve_audio(filename: str):
     if not re.fullmatch(r"[a-f0-9]{32}\.mp3", filename):
@@ -750,12 +562,6 @@ async def delete_upload(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
     path.unlink()
     return {"status": "deleted"}
-
-
-@app.delete("/session/{session_id}")
-async def reset_session(session_id: str):
-    sessions.pop(session_id, None)
-    return {"status": "reset"}
 
 
 # ── TTS route ──────────────────────────────────────────────────────────────────
@@ -806,6 +612,7 @@ async def shadow_analyze(req: ShadowAnalyzeRequest):
             "score": result["score"],
             "passed": result["passed"],
             "attempt_number": req.attempt_number,
+            "stt_confidence": req.confidence,
             "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
         }, req.visit_id)
     feedback_raw = await asyncio.to_thread(
@@ -1042,6 +849,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
                 "level": req.level,
                 "score": result["score"],
                 "attempt_number": req.attempt_number,
+                "stt_confidence": req.confidence,
                 "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
             }, req.visit_id)
         else:
@@ -1053,6 +861,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
                 "level": req.level,
                 "score": result["score"],
                 "attempt_number": req.attempt_number,
+                "stt_confidence": req.confidence,
                 "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
             }, req.visit_id)
     feedback_raw = await asyncio.to_thread(

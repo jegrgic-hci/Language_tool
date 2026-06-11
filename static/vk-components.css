@@ -1770,6 +1770,7 @@ body.vk-scroll-lock { overflow: hidden; }
   --vk-chart-3:       var(--vkg-green);              /* #4caf7a — tertiary series */
   --vk-chart-4:       var(--vkg-red);                /* #e05048 — quaternary / alert */
   --vk-chart-5:       var(--vkg-amber-300);          /* #e8c47a — quinary */
+  --vk-chart-6:       var(--vk-fg-2);                 /* senary — used for C2-level lines */
 
   --vk-chart-grid:    var(--vk-border-mid);
   --vk-chart-axis:    var(--vk-border-strong);

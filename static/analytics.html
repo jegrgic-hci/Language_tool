@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="fr" data-mode="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vraifrench — Teacher Dashboard</title>
+  <link rel="stylesheet" href="/static/vk-tokens.css">
+  <link rel="stylesheet" href="/static/vk-components.css">
+  <link rel="stylesheet" href="/static/vk-theme-light.css">
+  <link rel="stylesheet" href="/static/vk-theme-atelier.css">
+  <link rel="stylesheet" href="/static/vk-chart.css">
+  <style>
+    /* ── App shell ──────────────────────────────────────────────────────── */
+    .vk-app   { align-items: stretch; }
+    .vk-sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .vk-main  { padding: 0; overflow-y: auto; height: 100vh; }
+    .sb-footer { margin-top: auto; padding: 12px 16px 16px; }
+
+    /* ── Panels ─────────────────────────────────────────────────────────── */
+    .dash-panel            { display: flex; flex-direction: column; min-height: 100vh; }
+    .dash-panel[hidden]    { display: none !important; }
+
+    .panel-header {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--vk-surface);
+      border-bottom: 1px solid var(--vk-border);
+      padding: 20px 32px 16px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .panel-header-top {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 16px; margin-bottom: 14px;
+    }
+    .panel-meta-strip {
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .panel-content { padding: 28px 32px; flex: 1; }
+
+    /* ── Time-window toggle ─────────────────────────────────────────────── */
+    .win-tabs { display: flex; gap: 0; }
+    .win-tab {
+      font-family: var(--vk-font-ui); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      background: transparent; border: 1px solid var(--vk-border-mid);
+      color: var(--vk-fg-2); padding: 5px 14px; cursor: pointer; outline: none;
+      transition: background 100ms, color 100ms, border-color 100ms;
+    }
+    .win-tab + .win-tab  { border-left: none; }
+    .win-tab:first-child { border-radius: var(--vk-radius-ui) 0 0 var(--vk-radius-ui); }
+    .win-tab:last-child  { border-radius: 0 var(--vk-radius-ui) var(--vk-radius-ui) 0; }
+    .win-tab.is-active   {
+      background: var(--vk-accent-bg);
+      border-color: var(--vk-accent-border);
+      color: var(--vk-accent-text);
+    }
+
+    /* ── KPI section header (toggle sits directly above the cards) ─────── */
+    .kpi-section-header {
+      display: flex; justify-content: flex-end; margin-bottom: 8px;
+    }
+
+    /* ── KPI row ────────────────────────────────────────────────────────── */
+    .kpi-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 28px;
+    }
+
+    /* ── Roster KPI list cards (Topics + Insights) ──────────────────────── */
+    .r-kpi-topics {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      margin-top: 6px;
+    }
+    .r-kpi-insights {
+      list-style: none; margin: 6px 0 0; padding: 0;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .r-kpi-insight-item {
+      display: flex; align-items: flex-start; gap: 6px;
+      font-family: var(--vk-font-body); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2); line-height: 1.3;
+    }
+    .r-kpi-insight-item::before {
+      content: '→';
+      font-family: var(--vk-font-ui); font-size: 10px;
+      color: var(--vk-fg-4); flex-shrink: 0; margin-top: 1px;
+    }
+    .r-kpi-insight-item.is-ok {
+      color: var(--vk-fg-2); font-style: italic;
+    }
+    .r-kpi-insight-item.is-ok::before { content: '✓'; }
+    .r-kpi-insight-item.is-warn { color: var(--vk-warning-text, #8A5A00); }
+    .r-kpi-empty {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2); margin-top: 6px;
+    }
+
+    /* ── Tab panes ──────────────────────────────────────────────────────── */
+    .tab-body  { padding-top: 24px; }
+    .tab-pane  { display: none; }
+    .tab-pane.is-active { display: block; }
+
+    /* ── Section label ──────────────────────────────────────────────────── */
+    .sec-label {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      font-weight: 600; letter-spacing: var(--vk-track-widest);
+      text-transform: uppercase; color: var(--vk-fg-2); margin: 0 0 12px;
+    }
+    .sec-label + .sec-label,
+    .roster-card ~ .sec-label {
+      margin-top: 24px;
+    }
+
+    /* ── Score bar cell ─────────────────────────────────────────────────── */
+    .score-cell { display: flex; align-items: center; gap: 8px; }
+
+    /* ── Empty state ────────────────────────────────────────────────────── */
+    .empty {
+      padding: 40px 24px; text-align: center;
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      letter-spacing: var(--vk-track-widest); text-transform: uppercase;
+      color: var(--vk-fg-2);
+    }
+
+    /* ── Progress content blocks (para / phrase) ─────────────────────────── */
+    .stats-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--vk-border);
+      border-radius: var(--vk-radius-card); overflow: hidden; margin-bottom: 24px;
+    }
+    .stats-strip-item {
+      padding: 16px 20px; border-right: 1px solid var(--vk-border);
+      background: var(--vk-surface);
+    }
+    .stats-strip-item:last-child { border-right: none; }
+    .stats-val {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-h3);
+      font-weight: 700; color: var(--vk-fg-1); line-height: 1;
+    }
+    .stats-lbl {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      letter-spacing: var(--vk-track-widest); text-transform: uppercase;
+      color: var(--vk-fg-2); margin-top: 4px;
+    }
+    .stats-sub {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2); margin-top: 2px;
+    }
+
+    /* ── Tutor insights strip (top of panel) ────────────────────────────── */
+    .tutor-insights {
+      border: 1px solid var(--vk-border-mid); background: var(--vk-surface);
+      padding: 16px 20px; margin-bottom: 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+      flex-wrap: wrap;
+    }
+    .ti-head { flex: 1 1 320px; min-width: 0; }
+    .ti-headline {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-base);
+      color: var(--vk-fg-1); line-height: 1.4; margin: 4px 0 0; font-weight: 500;
+    }
+    .ti-tiles { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ti-tile {
+      min-width: 76px; padding: 10px 14px; text-align: center;
+      border: 1px solid var(--vk-border); background: var(--vk-surface-2, var(--vk-surface));
+    }
+    .ti-num { font-family: var(--vk-font-body); font-size: var(--vk-text-h3);
+      font-weight: 700; line-height: 1; color: var(--vk-fg-1); margin: 0; }
+    .ti-lbl { font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      letter-spacing: var(--vk-track-wide); text-transform: uppercase;
+      color: var(--vk-fg-2); margin: 6px 0 0; }
+    .ti-tile.tone-accent { border-color: var(--vk-accent); }
+    .ti-tile.tone-accent .ti-num { color: var(--vk-accent-text); }
+    .ti-tile.tone-warn  { border-color: var(--vk-error); }
+    .ti-tile.tone-warn  .ti-num { color: var(--vk-error); }
+    .ti-tile.tone-green { border-color: #1F5A40; }
+    .ti-tile.tone-green .ti-num { color: #1F5A40; }
+
+    /* ── Progress tab — student-mirror KPI cards (ported from Home) ──────── */
+    .prog-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 720px) { .prog-kpis { grid-template-columns: 1fr; } }
+    .prog-kpis .vk-kpi-card { cursor: pointer; }
+    .prog-kpis .vk-kpi-card.is-active {
+      border-color: var(--vk-accent);
+      background: var(--vk-surface-tint, var(--vk-accent-bg));
+      box-shadow: var(--vk-elev-1);
+    }
+    .prog-kpis .vk-kpi-card.is-active::before { opacity: 1; }
+    .prog-kpis .vk-kpi-card:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    .prog-kpi-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .prog-kpi-badge { flex-shrink: 0; font-size: var(--vk-text-2xs); }
+    .prog-kpi-tests {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2); margin: 0; line-height: 1.4;
+    }
+    .prog-kpis .vk-kpi-value .unit {
+      font-size: var(--vk-text-lg); font-weight: 500; color: var(--vk-fg-3); margin-left: 2px;
+    }
+    .s-prog-chart .empty {
+      font-family: var(--vk-font-body); color: var(--vk-fg-2);
+      font-size: var(--vk-text-sm); text-align: center; padding: 40px 0;
+    }
+    .prog-chart-hint {
+      font-family: var(--vk-font-ui); font-size: 9px; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--vk-fg-3); margin-top: 10px;
+    }
+
+    /* ── Two-col layout ─────────────────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+    /* ── Word chip row ──────────────────────────────────────────────────── */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    /* ── Roster card grid ───────────────────────────────────────────────── */
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── Roster card ────────────────────────────────────────────────────── */
+    .roster-card {
+      cursor: pointer;
+      display: flex; flex-direction: column; gap: 12px;
+      padding: 16px;
+      transition: border-color 100ms, box-shadow 100ms;
+    }
+    .roster-card:hover {
+      border-color: var(--vk-accent-border);
+      box-shadow: var(--vk-elev-1);
+    }
+
+    /* health dot */
+    .rc-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .rc-dot.green  { background: var(--vk-success); }
+    .rc-dot.amber  { background: var(--vk-warning); }
+    .rc-dot.red    { background: var(--vk-error); }
+    .rc-dot.grey   { background: var(--vk-border-strong); }
+
+    /* card header */
+    .rc-head {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .rc-name {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-sm);
+      font-weight: 600; color: var(--vk-fg-1); flex: 1;
+    }
+    .rc-next {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2); white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* metrics section label */
+    .rc-metrics-label {
+      font-family: var(--vk-font-ui); font-size: 9px;
+      font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--vk-fg-2); margin: 0 0 6px;
+    }
+
+    /* 7-day activity section */
+    .rc-activity {
+      display: flex; flex-direction: column; gap: 0;
+    }
+    .rc-activity-stats { display: flex; gap: 16px; }
+    .rc-stat { display: flex; flex-direction: column; gap: 1px; }
+    .rc-stat-val {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-lg);
+      font-weight: 700; color: var(--vk-fg-1); line-height: 1;
+    }
+    .rc-stat-lbl {
+      font-family: var(--vk-font-ui); font-size: 9px;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--vk-fg-2);
+    }
+
+    /* mini 7-day bar chart */
+    .rc-bars-wrap { display: flex; flex-direction: column; gap: 3px; }
+    .rc-bars-body {
+      display: flex; align-items: flex-end; gap: 2px; height: 28px;
+    }
+    .rc-bar {
+      flex: 1; min-height: 2px;
+      background: var(--vk-chart-1);
+      border-radius: 1px 1px 0 0;
+      opacity: 0.75;
+    }
+    .rc-bar.is-empty { background: var(--vk-border-mid); opacity: 1; }
+    .rc-bars-labels { display: flex; gap: 2px; }
+    .rc-bar-lbl {
+      flex: 1; text-align: center;
+      font-family: var(--vk-font-ui); font-size: 8px;
+      color: var(--vk-fg-2); line-height: 1;
+    }
+    .rc-bar-lbl.is-today { color: var(--vk-accent-text); font-weight: 700; }
+
+    /* topics row */
+    .rc-topics { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
+    .rc-no-topics {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2);
+    }
+
+    /* no-practice-since-lesson indicator */
+    .rc-no-practice {
+      display: flex; align-items: center; gap: 5px;
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      font-weight: 600; letter-spacing: 0.04em;
+      color: var(--vk-warning-text, #8A5A00);
+    }
+    .rc-no-practice::before {
+      content: '↓'; font-size: 11px;
+    }
+
+    /* lower section — anchored to bottom of card */
+    .rc-lower {
+      margin-top: auto;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* card footer */
+    .rc-footer {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2); border-top: 1px solid var(--vk-border);
+      padding-top: 10px; margin-top: 2px;
+    }
+
+    /* ── Score bar ──────────────────────────────────────────────────────── */
+    .sbar { flex: 1; max-width: 120px; height: 6px; background: var(--vk-border-mid); overflow: hidden; }
+    .sbar-fill { height: 100%; }
+    .sbar-fill.green { background: #1F5A40; }
+    .sbar-fill.amber { background: #8A5A00; }
+    .sbar-fill.red   { background: var(--vk-error); }
+    .sbar-num {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2); min-width: 34px; text-align: right;
+    }
+
+    /* ── Diagnosis / session tables ─────────────────────────────────────── */
+    .diag-table { width: 100%; border-collapse: collapse; font-family: var(--vk-font-body); }
+    .diag-table th {
+      text-align: left; font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      font-weight: 600; letter-spacing: var(--vk-track-widest); text-transform: uppercase;
+      color: var(--vk-fg-2); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--vk-border);
+    }
+    .diag-table td {
+      padding: 8px 10px 8px 0; font-size: var(--vk-text-sm); color: var(--vk-fg-1);
+      border-bottom: 1px solid var(--vk-border); vertical-align: middle;
+    }
+    .dt-word { font-weight: 600; }
+    .dt-sub  { font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs); color: var(--vk-fg-2); margin-left: 6px; }
+    .sess-table td { white-space: nowrap; }
+
+    /* ── Score trend summary stats (chart itself is .atl-chart, styled in
+         vk-atelier-components.css and rendered by buildTrendChart) ────────── */
+    .trend-stat { display: flex; flex-direction: column; align-items: flex-end; }
+    .trend-stat-num { font-family: var(--vk-font-body); font-size: var(--vk-text-lg); font-weight: 700; color: var(--vk-fg-1); line-height: 1; }
+    .trend-stat-num.up   { color: #1F5A40; }
+    .trend-stat-num.down { color: var(--vk-error); }
+    .trend-stat-lbl { font-family: var(--vk-font-ui); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--vk-fg-2); margin-top: 3px; }
+
+    /* ── Next-lesson focus blocks ───────────────────────────────────────── */
+    .focus-block {
+      border: 1px solid var(--vk-border); border-left: 3px solid var(--vk-border-strong);
+      padding: 14px 16px; margin-bottom: 12px; background: var(--vk-surface);
+    }
+    .focus-block.tone-accent { border-left-color: var(--vk-accent); }
+    .focus-block.tone-warn   { border-left-color: #8A5A00; }
+    .focus-block.tone-green  { border-left-color: #1F5A40; }
+    .fb-title { font-family: var(--vk-font-ui); font-size: var(--vk-text-sm); font-weight: 700; color: var(--vk-fg-1); margin: 0 0 4px; }
+    .fb-desc  { font-family: var(--vk-font-body); font-size: var(--vk-text-xs); color: var(--vk-fg-2); margin: 0; line-height: 1.4; }
+  </style>
+</head>
+<body data-theme="atelier">
+<div class="vk-app">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SIDEBAR
+       ══════════════════════════════════════════════════════════════════ -->
+  <aside class="vk-sidebar">
+    <div class="vk-sb-brand">
+      <span class="mark">vraifrench</span>
+      <span class="version">Teacher Dashboard</span>
+    </div>
+
+    <div class="vk-sb-section">Overview</div>
+    <button class="vk-sb-item is-active" id="nav-roster"
+            onclick="selectPanel('roster', this)">
+      All Students
+      <span class="vk-sb-badge" id="sb-count">—</span>
+    </button>
+
+    <div class="vk-sb-section">Students</div>
+    <div id="student-nav"></div>
+
+    <div class="sb-footer">
+      <button class="vk-btn vk-btn-outline sm" style="width:100%"
+              onclick="selectPanel('add-student', null)">+ Add Student</button>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       MAIN
+       ══════════════════════════════════════════════════════════════════ -->
+  <main class="vk-main">
+
+    <!-- ── ROSTER ──────────────────────────────────────────────────────── -->
+    <div id="panel-roster" class="dash-panel">
+      <div class="panel-header">
+        <div class="panel-header-top">
+          <div>
+            <p class="vk-eyebrow no-line" style="margin-bottom:4px">Overview</p>
+            <h1 class="vk-h2">All Students</h1>
+          </div>
+          <button class="vk-btn vk-btn-outline sm"
+                  onclick="selectPanel('add-student', null)">+ Add Student</button>
+        </div>
+      </div>
+
+      <div class="panel-content">
+        <div class="kpi-section-header">
+          <div class="win-tabs" id="roster-win-tabs">
+            <button class="win-tab is-active" data-win="7d"
+                    onclick="setRosterWindow('7d', this)">7 Days</button>
+            <button class="win-tab" data-win="30d"
+                    onclick="setRosterWindow('30d', this)">30 Days</button>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <!-- Sessions -->
+          <div class="vk-kpi is-accent">
+            <p class="vk-kpi-label">Sessions</p>
+            <p class="vk-kpi-num" id="r-kpi-sessions">—</p>
+            <p class="vk-kpi-delta" id="r-kpi-sessions-delta" hidden></p>
+            <p class="vk-kpi-meta" id="r-kpi-sessions-sub">—</p>
+          </div>
+          <!-- Avg Time / Session -->
+          <div class="vk-kpi">
+            <p class="vk-kpi-label">Avg Time / Session</p>
+            <p class="vk-kpi-num" id="r-kpi-time">—</p>
+            <p class="vk-kpi-delta" id="r-kpi-time-delta" hidden></p>
+            <p class="vk-kpi-meta" id="r-kpi-time-sub">—</p>
+          </div>
+          <!-- Topics Studied -->
+          <div class="vk-kpi">
+            <p class="vk-kpi-label">Topics Studied</p>
+            <div class="r-kpi-topics" id="r-kpi-topics">
+              <span class="r-kpi-empty">—</span>
+            </div>
+          </div>
+          <!-- Tutor Insights -->
+          <div class="vk-kpi">
+            <p class="vk-kpi-label">Tutor Insights</p>
+            <ul class="r-kpi-insights" id="r-kpi-insights"></ul>
+          </div>
+        </div>
+
+        <div class="roster-grid" id="roster-grid">
+          <div class="empty" style="grid-column:1/-1">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ── STUDENT PANEL TEMPLATE ───────────────────────────────────────── -->
+    <template id="tpl-student">
+      <div class="dash-panel" hidden>
+
+        <div class="panel-header">
+          <div class="panel-header-top">
+            <div>
+              <p class="vk-eyebrow no-line s-code" style="margin-bottom:4px">—</p>
+              <h1 class="vk-h2 s-name">Student</h1>
+            </div>
+          </div>
+          <div class="panel-meta-strip">
+            <span class="vk-label">Last lesson:
+              <span class="s-last-lesson" style="color:var(--vk-fg-2)">—</span>
+            </span>
+            <span class="vk-label">Next:
+              <span class="s-next-lesson" style="color:var(--vk-fg-2)">—</span>
+            </span>
+            <span class="vk-label">Days since:
+              <span class="s-days-since" style="color:var(--vk-fg-2)">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="panel-content">
+
+          <!-- Tutor insights — the explicit "what to act on" strip (replaces the activity KPI row) -->
+          <div class="tutor-insights">
+            <div class="ti-head">
+              <p class="vk-eyebrow no-line">Focus this lesson</p>
+              <p class="ti-headline s-ti-headline">Loading insights…</p>
+            </div>
+            <div class="ti-tiles s-ti-tiles"></div>
+          </div>
+
+          <!-- 4 question-driven tabs -->
+          <div class="vk-tabs">
+            <button class="vk-tab" aria-selected="true"  data-tab="progress">Progress</button>
+            <button class="vk-tab" aria-selected="false" data-tab="diagnosis">Diagnosis</button>
+            <button class="vk-tab" aria-selected="false" data-tab="nextlesson">Next Lesson</button>
+            <button class="vk-tab" aria-selected="false" data-tab="activity">Activity</button>
+          </div>
+
+          <div class="tab-body">
+
+            <!-- PROGRESS — the student-mirror dashboard (same view the student sees on Home) -->
+            <div class="tab-pane is-active" data-pane="progress" data-loaded="0">
+              <!-- Three speaking KPI cards — selectable, drive the chart -->
+              <div class="prog-kpis s-prog-kpis"></div>
+              <!-- Chart — detail view of the highlighted KPI -->
+              <div class="vk-chart is-visible" style="margin-top:16px">
+                <div class="vk-chart-header">
+                  <div>
+                    <p class="vk-chart-title s-prog-chart-title">Performance over time</p>
+                    <p class="vk-chart-subtitle s-prog-chart-sub">Paragraph accuracy by level, weekly</p>
+                  </div>
+                </div>
+                <div class="s-prog-chart"><div class="empty">No practice data yet</div></div>
+              </div>
+              <p class="prog-chart-hint">Showing the highlighted skill — the same progress view the student sees on their home screen.</p>
+            </div>
+
+            <!-- DIAGNOSIS — what do they struggle with? -->
+            <div class="tab-pane" data-pane="diagnosis" data-loaded="0">
+              <div class="two-col">
+                <div>
+                  <p class="sec-label">Word Accuracy</p>
+                  <div class="s-words-content"><div class="empty">No word data yet</div></div>
+                </div>
+                <div>
+                  <p class="sec-label">Listening · Speaking</p>
+                  <div class="s-listen-speak-content"><div class="empty">No ratio data yet</div></div>
+                  <p class="sec-label" style="margin-top:24px">Topic Coverage</p>
+                  <div class="s-topic-content"><div class="empty">No topic data yet</div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- NEXT LESSON — what do I teach next? (hero) -->
+            <div class="tab-pane" data-pane="nextlesson" data-loaded="0">
+              <div class="s-focus-blocks">
+                <div class="empty" style="padding:24px">Complete more practice for coaching insights</div>
+              </div>
+            </div>
+
+            <!-- ACTIVITY — drill-down / proof -->
+            <div class="tab-pane" data-pane="activity" data-loaded="0">
+              <div class="kpi-section-header" style="margin-bottom:16px">
+                <div class="win-tabs">
+                  <button class="win-tab is-active" data-actwin="since">Since Last Lesson</button>
+                  <button class="win-tab"           data-actwin="30d">Last 30 Days</button>
+                  <button class="win-tab"           data-actwin="all">All Time</button>
+                </div>
+              </div>
+              <p class="sec-label">Paragraph Shadowing</p>
+              <div class="s-para-strip"></div>
+              <p class="sec-label" style="margin-top:24px">Phrase Shadowing</p>
+              <div class="s-ph-strip"></div>
+              <p class="sec-label" style="margin-top:24px">Session History</p>
+              <div class="s-sessions-content"><div class="empty">No session data yet</div></div>
+            </div>
+
+          </div><!-- /tab-body -->
+        </div><!-- /panel-content -->
+      </div><!-- /dash-panel -->
+    </template>
+
+
+    <!-- ── ADD STUDENT ──────────────────────────────────────────────────── -->
+    <div id="panel-add-student" class="dash-panel" hidden>
+      <div class="panel-header">
+        <div class="panel-header-top">
+          <div>
+            <p class="vk-eyebrow no-line" style="margin-bottom:4px">Students</p>
+            <h1 class="vk-h2">Add Student</h1>
+          </div>
+        </div>
+      </div>
+      <div class="panel-content" style="max-width:480px">
+        <form id="add-student-form" onsubmit="submitAddStudent(event)">
+          <div style="display:flex; flex-direction:column; gap:20px">
+            <div class="vk-field">
+              <label class="vk-field-label is-required">Student Name</label>
+              <input class="vk-input" id="new-name" type="text"
+                     placeholder="e.g. Marie Dupont" required>
+            </div>
+            <div class="vk-field">
+              <label class="vk-field-label is-required">Access Code</label>
+              <input class="vk-input" id="new-code" type="text"
+                     placeholder="e.g. MARIE01" required>
+              <span class="vk-field-helper">Student uses this to log in</span>
+            </div>
+            <div class="vk-field">
+              <label class="vk-field-label">Lesson Days</label>
+              <input class="vk-input" id="new-lesson-days" type="text"
+                     placeholder='["Monday","Wednesday"]'>
+              <span class="vk-field-helper">JSON array of day names</span>
+            </div>
+            <div class="vk-field">
+              <label class="vk-field-label">Lesson Time</label>
+              <input class="vk-input" id="new-lesson-time" type="text"
+                     placeholder="e.g. 10:00">
+            </div>
+            <div style="display:flex; gap:12px; padding-top:4px">
+              <button type="submit" class="vk-btn vk-btn-primary">Create Student</button>
+              <button type="button" class="vk-btn vk-btn-outline"
+                      onclick="selectPanel('roster', document.getElementById('nav-roster'))">Cancel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div><!-- /vk-app -->
+
+<script src="/static/vk-animations.js" defer></script>
+<script>
+const KEY = new URLSearchParams(location.search).get('key') || '';
+let allNavBtns = [];
+
+// ── Panel switching ──────────────────────────────────────────────
+function selectPanel(id, navBtn) {
+  document.querySelectorAll('.dash-panel').forEach(p => { p.hidden = true; });
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.hidden = false;
+  allNavBtns.forEach(b => b.classList.remove('is-active'));
+  if (navBtn) navBtn.classList.add('is-active');
+  if (panel && panel.dataset.code) ensureStudentLoaded(panel);
+}
+
+// ── Tab switching (scoped to panel) — lazy-loads data on first open ──
+function initTabs(panel) {
+  panel.querySelectorAll('.vk-tab[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      panel.querySelectorAll('.vk-tab[data-tab]')
+           .forEach(b => b.setAttribute('aria-selected', 'false'));
+      btn.setAttribute('aria-selected', 'true');
+      panel.querySelectorAll('.tab-pane')
+           .forEach(p => p.classList.remove('is-active'));
+      panel.querySelector('.tab-pane[data-pane="' + btn.dataset.tab + '"]')
+           .classList.add('is-active');
+      loadTab(panel, btn.dataset.tab);
+    });
+  });
+}
+
+// ── Window (time range) switching ───────────────────────────────
+function initWinTabs(panel) {
+  // Activity window toggle — drives the Activity exercise strips ONLY (independent of KPI)
+  panel.querySelectorAll('.win-tab[data-actwin]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      panel.querySelectorAll('.win-tab[data-actwin]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      panel._actWin = btn.dataset.actwin;
+      renderActivityWindow(panel, panel.dataset.code);
+    });
+  });
+}
+
+// ── Build student panel from template ───────────────────────────
+function createStudentPanel(s) {
+  const tpl  = document.getElementById('tpl-student');
+  const frag = tpl.content.cloneNode(true);
+  const el   = frag.querySelector('.dash-panel');
+  el.id = 'panel-student-' + s.access_code;
+  el.dataset.code = s.access_code;
+  el._actWin = 'since';
+  el.querySelector('.s-name').textContent = s.name || s.access_code;
+  el.querySelector('.s-code').textContent = s.access_code;
+  // Meta strip from roster data
+  el.querySelector('.s-last-lesson').textContent = fmt_date_fr(s.last_lesson);
+  el.querySelector('.s-next-lesson').textContent =
+    (s.next_lesson ? fmt_date_fr(s.next_lesson) : '—') + (s.lesson_time ? ' · ' + s.lesson_time : '');
+  el.querySelector('.s-days-since').textContent =
+    s.days_since_practice != null ? s.days_since_practice + ' day' + (s.days_since_practice === 1 ? '' : 's') : '—';
+  initTabs(el);
+  initWinTabs(el);
+  document.querySelector('.vk-main').appendChild(el);
+  return el;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  STUDENT DETAIL — data loading + rendering
+// ════════════════════════════════════════════════════════════════
+const K_QS = 'key=' + encodeURIComponent(KEY);
+async function fetchJSON(path) {
+  const res = await fetch(path + (path.includes('?') ? '&' : '?') + K_QS);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+const pctStr = x => (x == null ? '—' : Math.round(x * 100) + '%');
+const scoreBand = x => (x >= 0.70 ? 'green' : x >= 0.40 ? 'amber' : 'red');
+
+function scoreBar(x) {
+  if (x == null) return '<span style="color:var(--vk-fg-2)">—</span>';
+  const w = Math.round(x * 100);
+  return '<div class="score-cell"><div class="sbar"><div class="sbar-fill ' + scoreBand(x) +
+         '" style="width:' + w + '%"></div></div><span class="sbar-num">' + w + '%</span></div>';
+}
+
+// Called when a student panel is first shown
+function ensureStudentLoaded(panel) {
+  if (panel.dataset.inited === '1') return;
+  panel.dataset.inited = '1';
+  loadTutorInsights(panel);
+  loadTab(panel, 'progress');  // default active tab
+}
+
+// Tutor insights — the explicit "what to act on" strip at the top of the panel.
+// Deterministic, derived from the coach payload. The detailed chips live in the
+// Next Lesson tab; this is the at-a-glance headline + count tiles.
+async function loadTutorInsights(panel) {
+  const code = panel.dataset.code;
+  const headEl  = panel.querySelector('.s-ti-headline');
+  const tilesEl = panel.querySelector('.s-ti-tiles');
+  try {
+    const d   = await fetchJSON('/coach?access_code=' + code);
+    const ec  = d.error_clusters || {};
+    const sub    = (ec.substitution || []).length;
+    const eli    = (ec.elision_variant || []).length;
+    const tech   = (d.tech_suspect_words || []).length;
+    const inc    = (d.inconsistent_words || []).length;
+    const almost = (d.almost_there_words || []).length;
+    const stuck  = ((d.trajectories && d.trajectories.stuck_items) || []).length;
+    const plural = n => (n === 1 ? '' : 's');
+
+    let head;
+    if (tech)        head = 'Check the mic first — ' + tech + ' word' + plural(tech) + ' never register. Verify before drilling.';
+    else if (sub)    head = 'Top focus: ' + sub + ' word' + plural(sub) + ' consistently misheard — drill these next lesson.';
+    else if (stuck)  head = stuck + ' item' + plural(stuck) + ' plateaued below 60% — try a different angle or an easier level.';
+    else if (eli)    head = eli + ' elision / liaison error' + plural(eli) + ' worth a focused drill.';
+    else if (inc)    head = inc + ' inconsistent word' + plural(inc) + ' — a little more repetition should lock them in.';
+    else if (almost) head = almost + ' word' + plural(almost) + ' almost mastered — quick wins to celebrate.';
+    else             head = 'No clear focus yet — more practice needed for coaching insights.';
+    headEl.textContent = head;
+
+    const tiles = [
+      ['To drill',     sub,    'accent'],
+      ['Check mic',    tech,   tech ? 'warn' : 'plain'],
+      ['Stuck',        stuck,  'plain'],
+      ['Almost there', almost, almost ? 'green' : 'plain'],
+    ];
+    tilesEl.innerHTML = tiles.map(([lbl, n, tone]) =>
+      '<div class="ti-tile tone-' + tone + '"><p class="ti-num">' + n + '</p>' +
+      '<p class="ti-lbl">' + lbl + '</p></div>').join('');
+  } catch (e) {
+    headEl.textContent = 'Insights unavailable — ' + e.message;
+  }
+}
+
+function loadTab(panel, tab) {
+  const pane = panel.querySelector('.tab-pane[data-pane="' + tab + '"]');
+  if (!pane || pane.dataset.loaded === '1') return;
+  pane.dataset.loaded = '1';
+  const code = panel.dataset.code;
+  if (tab === 'progress')   renderProgress(panel, code);
+  else if (tab === 'diagnosis')  renderDiagnosis(panel, code);
+  else if (tab === 'nextlesson') renderNextLesson(panel, code);
+  else if (tab === 'activity')   renderActivity(panel, code);
+}
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ── Progress — student-mirror dashboard ───────────────────────────
+// Ported from the student Home (#home-view in index.html): the same three
+// speaking KPI cards (Performance / Precision / Words) driving a level-split
+// trend chart. Data: GET /analytics/progress (access-code only, mirrors the
+// student tool — no teacher key needed). State is scoped per panel so multiple
+// student panels don't clobber each other.
+const _PROG_LEVEL_RANK = { '?': 1, A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+const _progPct = v => Math.round(v * 100) + '%';
+const _progLevelColor = lvl => 'var(--vk-chart-' + (_PROG_LEVEL_RANK[lvl] || 1) + ')';
+const PROG_SKILL_META = {
+  performance: { label: 'Performance', tests: 'Speaking a whole passage — all of it together.',
+    chartTitle: 'Performance over time', chartSub: 'Paragraph accuracy by level, weekly' },
+  precision:   { label: 'Precision', tests: 'Nailing a single sentence — the sounds and the links.',
+    chartTitle: 'Precision over time', chartSub: 'Phrase & sentence-drill accuracy by level, weekly' },
+  words:       { label: 'Words mastered', tests: 'Words the student can pronounce reliably.',
+    chartTitle: 'Words mastered', chartSub: 'Cumulative — it only goes up' },
+};
+
+function buildProgKpis(d) {
+  const wk = (d && (d.labels || d.week_labels)) || [];
+  const axisWord = (d && d.axis === 'session') ? 'per session'
+    : (d && d.axis === 'day') ? 'by day' : null;
+  const k = (d && d.kpis) || {};
+  const out = [];
+  ['performance', 'precision'].forEach(key => {
+    const x = k[key]; if (!x) return;
+    const m = PROG_SKILL_META[key];
+    const value = x.value != null ? Math.round(x.value * 100) + '<span class="unit">%</span>' : '—';
+    let context;
+    if (x.new_level || (x.trend && x.trend.dir === 'up')) context = 'improving within each level';
+    else if (x.trend && x.trend.dir === 'down') context = 'dipped recently';
+    else context = 'no clear trend yet';
+    const series = (x.levels || []).map(l => ({
+      label: l.level, mark: l.level, color: _progLevelColor(l.level), width: 2.5,
+      points: (l.points || []).map(v => ({ v })),
+    }));
+    out.push({
+      key, label: m.label, tests: m.tests, value, trend: x.trend, context,
+      newLevel: x.new_level, increaseScore: x.momentum || 0,
+      chart: { title: m.chartTitle, sub: axisWord ? m.chartSub.replace('weekly', axisWord) : m.chartSub, series,
+        opts: { yMax: 1, ticks: [0, 0.5, 1], fmt: _progPct, tickFmt: v => Math.round(v * 100),
+          area: true, areaOpacity: 0.12, weekLabels: wk } },
+    });
+  });
+  const w = k.words;
+  if (w) {
+    const m = PROG_SKILL_META.words;
+    const context = (w.total === 0) ? 'none mastered yet'
+      : (w.recent_gain > 0 ? '+' + w.recent_gain + ' in the last 30 days' : 'words pronounced reliably');
+    out.push({
+      key: 'words', label: m.label, tests: m.tests, value: String(w.total || 0), trend: w.trend, context,
+      newLevel: null, increaseScore: w.momentum || 0,
+      chart: { title: m.chartTitle, sub: m.chartSub,
+        series: [{ label: 'Words mastered', color: 'var(--vk-chart-1)', width: 3, points: (w.cumulative || []).map(v => ({ v })) }],
+        opts: { yMax: null, fmt: v => String(Math.round(v)), tickFmt: v => Math.round(v), area: true, weekLabels: wk } },
+    });
+  }
+  return out;
+}
+
+async function renderProgress(panel, code) {
+  const host  = panel.querySelector('.s-prog-kpis');
+  const chart = panel.querySelector('.s-prog-chart');
+  // .vk-chart is opacity:0 until the scroll IntersectionObserver tags it .is-visible,
+  // but that observer never sees our lazily-shown chart — force it.
+  const chartCard = panel.querySelector('.vk-chart');
+  if (chartCard) chartCard.classList.add('is-visible');
+  try {
+    const res = await fetch('/analytics/progress?access_code=' + encodeURIComponent(code));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    panel._progKpis = buildProgKpis(d);
+    if (!panel._progKpis.length) {
+      host.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:24px">No practice data yet</div>';
+      chart.innerHTML = '';
+      return;
+    }
+    renderProgKpis(panel);
+    const def = (d.default_key && panel._progKpis.some(k => k.key === d.default_key))
+      ? d.default_key : panel._progKpis[0].key;
+    selectProgKPI(panel, def);
+  } catch (e) {
+    chart.innerHTML = '<div class="empty">Erreur — ' + e.message + '</div>';
+  }
+}
+
+function renderProgKpis(panel) {
+  const host = panel.querySelector('.s-prog-kpis');
+  host.innerHTML = panel._progKpis.map(k => {
+    const trend = k.trend ? '<span class="vk-trend ' + k.trend.dir + '">' + esc(k.trend.text) + '</span>' : '';
+    const badge = k.newLevel ? '<span class="vk-tag is-success prog-kpi-badge">New level · ' + esc(k.newLevel) + '</span>' : '';
+    // is-visible up front: these cards are created lazily (after page load), so
+    // vk-animations.js never observes them — without it they'd stay at opacity:0.
+    return '<div class="vk-kpi-card is-visible" role="button" tabindex="0" data-key="' + k.key + '">' +
+      '<div class="prog-kpi-head"><p class="vk-kpi-label">' + esc(k.label) + '</p>' + badge + '</div>' +
+      '<p class="vk-kpi-value">' + k.value + '</p>' +
+      '<p class="prog-kpi-tests">' + esc(k.tests) + '</p>' +
+      '<div class="vk-kpi-footer">' + trend + '<span class="vk-kpi-context">' + esc(k.context) + '</span></div>' +
+      '</div>';
+  }).join('');
+  host.querySelectorAll('.vk-kpi-card').forEach(card => {
+    const sel = () => selectProgKPI(panel, card.dataset.key);
+    card.addEventListener('click', sel);
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sel(); } });
+  });
+}
+
+function selectProgKPI(panel, key) {
+  panel.querySelectorAll('.s-prog-kpis .vk-kpi-card')
+       .forEach(c => c.classList.toggle('is-active', c.dataset.key === key));
+  const k = (panel._progKpis || []).find(x => x.key === key); if (!k) return;
+  const t = panel.querySelector('.s-prog-chart-title'); if (t) t.textContent = k.chart.title;
+  const s = panel.querySelector('.s-prog-chart-sub');   if (s) s.textContent = k.chart.sub;
+  const host = panel.querySelector('.s-prog-chart'); if (!host) return;
+  const hasData = (k.chart.series || []).some(se => se.points.some(p => p.v != null));
+  if (!hasData) host.innerHTML = '<div class="empty">No data for this skill yet</div>';
+  else _progBuildChart(host, k.chart.series, k.chart.opts);
+}
+
+// Multi-series level-split renderer (ported from index.html _homeBuildChart).
+let _progGradSeq = 0;
+function _progNiceMax(v) {
+  if (v <= 5) return 5;
+  if (v <= 10) return 10;
+  if (v <= 50) return Math.ceil(v / 10) * 10;
+  return Math.ceil(v / 25) * 25;
+}
+function _progBuildChart(container, series, opts) {
+  const weekLabels = opts.weekLabels || [];
+  const n = weekLabels.length;
+  const uid = ++_progGradSeq;
+  let yMax = opts.yMax;
+  if (yMax == null) {
+    const peak = Math.max(1, ...series.flatMap(s => s.points.map(p => p.v == null ? 0 : p.v)));
+    yMax = _progNiceMax(peak);
+  }
+  const ticks = opts.ticks || [0, yMax / 2, yMax];
+  const fmt = opts.fmt || (v => v);
+  const tickFmt = opts.tickFmt || (v => v);
+  const W = Math.max(container.clientWidth || 0, 320), H = 200;
+  const padT = 16, padR = 14, padB = 26, padL = 38;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const x = i => padL + (n <= 1 ? plotW / 2 : (plotW * i) / (n - 1));
+  const y = v => padT + (1 - v / yMax) * plotH;
+  const grid = ticks.map((g, k) =>
+    '<line class="' + (k === 0 ? 'atl-baseline' : 'atl-grid-line') + '" x1="' + padL + '" y1="' + y(g).toFixed(1) + '" x2="' + (W - padR).toFixed(1) + '" y2="' + y(g).toFixed(1) + '"/>').join('');
+  const yLabels = ticks.map(g =>
+    '<text class="atl-axis-label" x="' + (padL - 8) + '" y="' + (y(g) + 3).toFixed(1) + '" text-anchor="end">' + tickFmt(g) + '</text>').join('');
+  const lblStep = n > 9 ? Math.ceil(n / 7) : 1;
+  const xLabels = weekLabels.map((lbl, i) =>
+    (i % lblStep === 0 || i === n - 1)
+      ? '<text class="atl-axis-label" x="' + x(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(lbl) + '</text>'
+      : '').join('');
+  let defs = '', areas = '', lines = '', dots = '', hits = '', startMarks = '';
+  const yBase = y(0).toFixed(1);
+  series.forEach((s, si) => {
+    const valid = s.points.map((p, i) => ({ i, v: p.v })).filter(p => p.v != null);
+    if (!valid.length) return;
+    const dd = valid.map((p, k) => (k === 0 ? 'M' : 'L') + x(p.i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+    const w = s.width || 2.5;
+    if (opts.area) {
+      const gid = 'progGrad' + uid + '_' + si;
+      const aOp = opts.areaOpacity != null ? opts.areaOpacity : 0.18;
+      defs += '<linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:' + s.color + ';stop-opacity:' + aOp + '"/><stop offset="100%" style="stop-color:' + s.color + ';stop-opacity:0"/></linearGradient>';
+      const first = valid[0], last = valid[valid.length - 1];
+      areas += '<path class="atl-area" style="fill:url(#' + gid + ')" d="' + dd + ' L' + x(last.i).toFixed(1) + ' ' + yBase + ' L' + x(first.i).toFixed(1) + ' ' + yBase + ' Z"/>';
+    }
+    lines += '<path class="atl-line" pathLength="1" style="stroke:' + s.color + ';stroke-width:' + w + '" d="' + dd + '"/>';
+    dots += '<g class="atl-dots">' + valid.map(p =>
+      '<circle class="atl-dot" style="stroke:' + s.color + '" cx="' + x(p.i).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '" r="3.5"/>').join('') + '</g>';
+    hits += valid.map(p =>
+      '<circle class="atl-hit" r="13" cx="' + x(p.i).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '" data-series="' + esc(s.label) + '" data-color="' + s.color + '" data-val="' + p.v + '" data-label="' + esc(weekLabels[p.i]) + '" data-x="' + x(p.i).toFixed(1) + '" data-y="' + y(p.v).toFixed(1) + '"/>').join('');
+    if (s.mark) {
+      const f = valid[0];
+      startMarks += '<text class="atl-startlabel" x="' + x(f.i).toFixed(1) + '" y="' + (y(f.v) - 9).toFixed(1) + '" text-anchor="middle" style="fill:' + s.color + '">' + esc(s.mark) + '</text>';
+    }
+  });
+  const svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="trend">' + (defs ? '<defs>' + defs + '</defs>' : '') + grid + yLabels + areas + lines + dots + startMarks + hits + xLabels + '</svg>';
+  container.innerHTML = '<div class="atl-chart">' + svg + '<div class="atl-chart-tip"><span class="atl-chart-tip-score"></span><span class="atl-chart-tip-meta"></span></div></div>';
+  const chart = container.querySelector('.atl-chart');
+  const tip = chart.querySelector('.atl-chart-tip');
+  const tipScore = tip.querySelector('.atl-chart-tip-score');
+  const tipMeta = tip.querySelector('.atl-chart-tip-meta');
+  chart.querySelectorAll('.atl-hit').forEach(hit => {
+    hit.addEventListener('mouseenter', () => {
+      const ty = parseFloat(hit.dataset.y);
+      const lx = Math.max(52, Math.min(chart.clientWidth - 52, parseFloat(hit.dataset.x)));
+      tipScore.textContent = fmt(parseFloat(hit.dataset.val));
+      tipScore.style.color = hit.dataset.color;
+      tipMeta.textContent = hit.dataset.series + ' · ' + hit.dataset.label;
+      tip.style.left = lx + 'px';
+      tip.style.top = ty + 'px';
+      tip.classList.toggle('below', ty < 56);
+      tip.classList.add('is-on');
+    });
+    hit.addEventListener('mouseleave', () => tip.classList.remove('is-on'));
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => chart.classList.add('is-drawn')));
+}
+
+// ── Diagnosis ─────────────────────────────────────────────────────
+async function renderDiagnosis(panel, code) {
+  const wc = panel.querySelector('.s-words-content');
+  try {
+    const d = await fetchJSON('/analytics/words?access_code=' + code);
+    const words = d.words || [];
+    if (!words.length) wc.innerHTML = '<div class="empty">No word data yet (min. 5 attempts)</div>';
+    else wc.innerHTML =
+      '<table class="diag-table"><thead><tr><th>Word</th><th>Att.</th><th>Accuracy</th><th>Error</th></tr></thead><tbody>' +
+      words.slice(0, 25).map(w =>
+        '<tr><td class="dt-word">' + esc(w.word) +
+        (w.top_substitutions && w.top_substitutions.length
+          ? '<span class="dt-sub">→ ' + esc(w.top_substitutions[0].said) + '</span>' : '') +
+        '</td><td>' + w.attempts + '</td><td>' + scoreBar(w.accuracy) + '</td>' +
+        '<td>' + (w.error_type ? '<span class="vk-tag">' + w.error_type.replace('_', ' ') + '</span>' : '—') + '</td></tr>'
+      ).join('') + '</tbody></table>';
+  } catch (e) { wc.innerHTML = '<div class="empty">Erreur — ' + e.message + '</div>'; }
+
+  try {
+    const c = await fetchJSON('/analytics/content?access_code=' + code);
+    const ls = c.listen_speak || {};
+    panel.querySelector('.s-listen-speak-content').innerHTML =
+      '<div class="three-col">' +
+      kpiMini(ls.listens ?? 0, 'listens') +
+      kpiMini(ls.speak_attempts ?? 0, 'speak attempts') +
+      kpiMini(ls.ratio != null ? ls.ratio.toFixed(2) : '—', 'listen/speak') +
+      '</div>';
+    const topics = c.topics || [];
+    panel.querySelector('.s-topic-content').innerHTML = topics.length
+      ? '<table class="diag-table"><tbody>' + topics.slice(0, 10).map(t =>
+          '<tr><td class="dt-word">' + esc(t.topic) + '</td><td>' + t.attempts + '</td><td>' + scoreBar(t.avg_score) + '</td></tr>'
+        ).join('') + '</tbody></table>'
+      : '<div class="empty">No topic data yet</div>';
+  } catch (e) { /* leave */ }
+}
+
+function kpiMini(val, lbl) {
+  return '<div class="stats-strip-item" style="border:1px solid var(--vk-border)">' +
+    '<div class="stats-val">' + val + '</div><div class="stats-lbl">' + lbl + '</div></div>';
+}
+
+// ── Next Lesson (hero) ────────────────────────────────────────────
+async function renderNextLesson(panel, code) {
+  const host = panel.querySelector('.s-focus-blocks');
+  try {
+    const d = await fetchJSON('/coach?access_code=' + code);
+    const blocks = [];
+    const ec = d.error_clusters || {};
+    const fmtWords = arr => arr.slice(0, 6).map(w => '<span class="vk-tag">' + esc(w.word) + ' ' + pctStr(w.accuracy) + '</span>').join('');
+
+    if ((d.tech_suspect_words || []).length)
+      blocks.push(focusBlock('Check mic / pronunciation', 'warn',
+        'These never register — likely a mic issue or a sound not being produced at all. Verify before drilling.',
+        fmtWords(d.tech_suspect_words)));
+    if ((ec.substitution || []).length)
+      blocks.push(focusBlock('Drill these words', 'accent',
+        'Consistently heard as a different word — the top pronunciation targets.', fmtWords(ec.substitution)));
+    if ((ec.elision_variant || []).length)
+      blocks.push(focusBlock('Elision / liaison', 'accent',
+        'Contraction and liaison errors — worth a focused drill.', fmtWords(ec.elision_variant)));
+    if ((d.inconsistent_words || []).length)
+      blocks.push(focusBlock('Inconsistent — reinforce', 'plain',
+        'Sometimes right, sometimes not. A little more repetition should lock these in.', fmtWords(d.inconsistent_words)));
+    const stuck = (d.trajectories && d.trajectories.stuck_items) || [];
+    if (stuck.length)
+      blocks.push(focusBlock('Revisit stuck material', 'plain',
+        stuck.length + ' item' + (stuck.length === 1 ? '' : 's') + ' plateaued below 60% after 3+ attempts — try a different angle or easier level.', ''));
+    if ((d.almost_there_words || []).length)
+      blocks.push(focusBlock('Almost there', 'green',
+        'Close to mastery (70–89%) — a quick win to celebrate next lesson.', fmtWords(d.almost_there_words)));
+
+    host.innerHTML = blocks.length
+      ? blocks.join('')
+      : '<div class="empty" style="padding:24px">No clear focus yet — more practice needed for coaching insights</div>';
+  } catch (e) { host.innerHTML = '<div class="empty">Erreur — ' + e.message + '</div>'; }
+}
+
+function focusBlock(title, tone, desc, chips) {
+  return '<div class="focus-block tone-' + tone + '">' +
+    '<p class="fb-title">' + esc(title) + '</p>' +
+    '<p class="fb-desc">' + esc(desc) + '</p>' +
+    (chips ? '<div class="chip-row" style="margin-top:8px">' + chips + '</div>' : '') + '</div>';
+}
+
+// ── Activity ──────────────────────────────────────────────────────
+async function renderActivityWindow(panel, code) {
+  const win = panel._actWin || 'since';
+  try {
+    const p = await fetchJSON('/analytics/paragraph?access_code=' + code + '&window=' + win);
+    panel.querySelector('.s-para-strip').innerHTML = statsStrip([
+      ['Started', p.paragraphs_started ?? 0],
+      ['Completed', p.paragraphs_completed ?? 0, p.completion_rate != null ? Math.round(p.completion_rate * 100) + '% rate' : ''],
+      ['Phrases Drilled', p.phrases_practiced ?? 0],
+      ['Avg Drill', pctStr(p.avg_drill_score)],
+    ]);
+  } catch (e) { panel.querySelector('.s-para-strip').innerHTML = '<div class="empty">No paragraph data</div>'; }
+  try {
+    const f = await fetchJSON('/analytics/phrase?access_code=' + code + '&window=' + win);
+    panel.querySelector('.s-ph-strip').innerHTML = statsStrip([
+      ['Started', f.phrases_started ?? 0],
+      ['Completed', f.phrases_completed ?? 0, f.phrases_started ? Math.round((f.phrases_completed / f.phrases_started) * 100) + '% rate' : ''],
+      ['Avg Attempts', f.avg_attempts_to_complete ?? '—'],
+      ['Stuck', f.phrases_stuck ?? 0, '3+ att, not passed'],
+    ]);
+  } catch (e) { panel.querySelector('.s-ph-strip').innerHTML = '<div class="empty">No phrase data</div>'; }
+}
+
+async function renderActivity(panel, code) {
+  await renderActivityWindow(panel, code);   // window-sensitive exercise strips
+  // Session history (all-time, last 20) — not affected by the window toggle
+  const sc = panel.querySelector('.s-sessions-content');
+  try {
+    const s = await fetchJSON('/analytics/sessions?access_code=' + code);
+    const sessions = s.sessions || [];
+    if (!sessions.length) sc.innerHTML = '<div class="empty">No session data yet</div>';
+    else sc.innerHTML =
+      '<table class="diag-table sess-table"><thead><tr><th>Date</th><th>Duration</th><th>Attempts</th><th>New words</th><th>Avg score</th></tr></thead><tbody>' +
+      sessions.map(se => {
+        const att = (se.phrase_attempts || 0) + (se.paragraph_attempts || 0) + (se.paragraph_drills || 0);
+        const sc2 = se.avg_phrase_score ?? se.avg_paragraph_score;
+        const dur = se.duration_seconds != null ? Math.max(1, Math.round(se.duration_seconds / 60)) + 'm' : '—';
+        return '<tr><td>' + fmtDateTime(se.started_at) + '</td><td>' + dur + '</td><td>' + att +
+          '</td><td>' + (se.words_new || 0) + '</td><td>' + scoreBar(sc2) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  } catch (e) { sc.innerHTML = '<div class="empty">Erreur — ' + e.message + '</div>'; }
+}
+
+function statsStrip(items) {
+  return '<div class="stats-strip">' + items.map(it =>
+    '<div class="stats-strip-item"><div class="stats-val">' + it[1] + '</div>' +
+    '<div class="stats-lbl">' + it[0] + '</div>' +
+    (it[2] ? '<div class="stats-sub">' + it[2] + '</div>' : '') + '</div>'
+  ).join('') + '</div>';
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso.replace(' ', 'T') + (iso.includes('Z') ? '' : 'Z'));
+  return FR_DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + FR_MONTHS[d.getMonth()] +
+    ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+// ── Sidebar nav item ─────────────────────────────────────────────
+function createNavItem(s) {
+  const btn = document.createElement('button');
+  btn.className = 'vk-sb-item';
+  btn.id = 'nav-' + s.access_code;
+  btn.textContent = s.name || s.access_code;
+  btn.onclick = () => selectPanel('student-' + s.access_code, btn);
+  document.getElementById('student-nav').appendChild(btn);
+  allNavBtns.push(btn);
+  return btn;
+}
+
+// ── Date helpers ─────────────────────────────────────────────────
+const FR_MONTHS = ['janv','févr','mars','avr','mai','juin',
+                   'juil','août','sept','oct','nov','déc'];
+const FR_DAYS   = ['dim','lun','mar','mer','jeu','ven','sam'];
+
+function fmt_date_fr(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return FR_DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + FR_MONTHS[d.getMonth()];
+}
+
+function cardInsight(s) {
+  // Streak: trailing consecutive active days in activity_7d
+  const bars = s.activity_7d || [];
+  let streak = 0;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    if (bars[i] > 0) streak++;
+    else break;
+  }
+  if (streak >= 3) return streak + '-day practice streak';
+
+  // Strong accuracy since last lesson
+  if (s.avg_score_since_lesson != null && s.avg_score_since_lesson >= 0.70)
+    return Math.round(s.avg_score_since_lesson * 100) + '% accuracy since last lesson';
+
+  // Strong accuracy this week
+  if (s.avg_score_7d != null && s.avg_score_7d >= 0.70)
+    return Math.round(s.avg_score_7d * 100) + '% accuracy this week';
+
+  // Solid session count
+  if ((s.sessions_7d || 0) >= 4) return 'Active week — ' + s.sessions_7d + ' sessions';
+  if ((s.sessions_7d || 0) >= 2) return s.sessions_7d + ' sessions this week';
+
+  // Main topic focus
+  if (s.topics && s.topics.length) return 'Working on ' + s.topics[0];
+
+  return (s.sessions_7d || 0) === 1 ? 'Practiced this week' : 'Just getting started';
+}
+
+// ── Roster card ───────────────────────────────────────────────────
+function createRosterCard(s) {
+  const card = document.createElement('div');
+  card.className = 'vk-card roster-card';
+  card.onclick = () => {
+    const nav = document.getElementById('nav-' + s.access_code);
+    selectPanel('student-' + s.access_code, nav);
+  };
+
+  // Health dot
+  const health = s.health || 'grey';
+
+  // Next lesson — inline in header
+  const nextHtml = s.next_lesson
+    ? '<span class="rc-next">' + fmt_date_fr(s.next_lesson) +
+        (s.lesson_time ? ' · ' + s.lesson_time : '') + '</span>'
+    : '';
+
+  // Topics
+  const topicHtml = (s.topics && s.topics.length)
+    ? s.topics.map(t => '<span class="vk-tag">' + t + '</span>').join('')
+    : '<span class="rc-no-topics">—</span>';
+
+  // Practiced since last lesson?
+  const practicedSinceLesson = s.last_lesson && s.last_practice && s.last_practice >= s.last_lesson;
+  const showNoPracticeWarning = s.last_lesson && !practicedSinceLesson;
+
+  const metricsLabel = showNoPracticeWarning ? 'Last 7 days' : 'Since last lesson';
+
+  const accRaw = practicedSinceLesson
+    ? s.avg_score_since_lesson
+    : showNoPracticeWarning
+      ? s.avg_score_7d
+      : s.avg_score_7d ?? s.avg_score;
+  const accVal = accRaw != null ? Math.round(accRaw * 100) + '%' : '—';
+
+  // Footer: positive per-student insight
+  const footerText = cardInsight(s);
+
+  card.innerHTML =
+    '<div class="rc-head">' +
+      '<span class="rc-dot ' + health + '"></span>' +
+      '<span class="rc-name">' + (s.name || s.access_code) + '</span>' +
+      nextHtml +
+    '</div>' +
+    (showNoPracticeWarning
+      ? '<div class="rc-no-practice">No practice since last lesson</div>'
+      : '') +
+    '<div class="rc-lower">' +
+      '<div class="rc-activity">' +
+        '<p class="rc-metrics-label">' + metricsLabel + '</p>' +
+        '<div class="rc-activity-stats">' +
+          '<div class="rc-stat">' +
+            '<span class="rc-stat-val">' + (s.sessions_7d || 0) + '</span>' +
+            '<span class="rc-stat-lbl">sessions</span>' +
+          '</div>' +
+          '<div class="rc-stat">' +
+            '<span class="rc-stat-val">' + (s.practice_minutes_7d > 0 ? s.practice_minutes_7d + 'm' : '—') + '</span>' +
+            '<span class="rc-stat-lbl">pratique</span>' +
+          '</div>' +
+          '<div class="rc-stat">' +
+            '<span class="rc-stat-val">' + accVal + '</span>' +
+            '<span class="rc-stat-lbl">précision</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rc-topics">' + topicHtml + '</div>' +
+      '<div class="rc-footer">' + footerText + '</div>' +
+    '</div>';
+
+  return card;
+}
+
+// ── Add student form ─────────────────────────────────────────────
+async function submitAddStudent(e) {
+  e.preventDefault();
+  const payload = {
+    access_code:  document.getElementById('new-code').value.trim(),
+    name:         document.getElementById('new-name').value.trim(),
+    lesson_days:  document.getElementById('new-lesson-days').value.trim() || '[]',
+    lesson_time:  document.getElementById('new-lesson-time').value.trim(),
+  };
+  const res = await fetch('/analytics/students?key=' + encodeURIComponent(KEY), {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+  });
+  if (res.ok) {
+    location.reload();
+  } else {
+    alert('Error — check that the access code is unique.');
+  }
+}
+
+// ── Roster KPI helpers ────────────────────────────────────────────
+
+function topTopics(students, n = 3) {
+  const counts = {};
+  students.forEach(s => {
+    (s.topics || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; });
+  });
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(e => e[0]);
+}
+
+function buildInsights(students, win) {
+  const items = [];
+  const inactiveDays = win === '7d' ? 7 : 14;
+
+  const inactive = students.filter(
+    s => s.days_since_practice != null && s.days_since_practice > inactiveDays
+  );
+  if (inactive.length) {
+    items.push({ text: inactive.length + ' inactive ' + inactiveDays + '+ days', warn: true });
+  }
+
+  const lowScore = students.filter(s => s.avg_score != null && s.avg_score < 0.6).length;
+  if (lowScore) {
+    items.push({ text: lowScore + ' student' + (lowScore > 1 ? 's' : '') + ' below 60% avg', warn: true });
+  }
+
+  if (!items.length) items.push({ text: 'All students on track', ok: true });
+
+  return items;
+}
+
+function setDelta(elId, ratio) {
+  const el = document.getElementById(elId);
+  if (ratio == null) { el.hidden = true; el.className = 'vk-kpi-delta'; return; }
+  const pct  = Math.round(Math.abs(ratio) * 100);
+  const up   = ratio >= 0;
+  el.textContent = (up ? '↑' : '↓') + ' ' + (up ? '+' : '−') + pct + '%  vs prev period';
+  el.className   = 'vk-kpi-delta ' + (up ? 'up' : 'down');
+  el.hidden      = false;
+}
+
+function renderRosterKpis(students, win) {
+  const is7d = win === '7d';
+
+  // Sessions
+  const curr7d  = students.reduce((sum, s) => sum + (s.sessions_7d  || 0), 0);
+  const curr30d = students.reduce((sum, s) => sum + (s.sessions_30d || 0), 0);
+  const totalSessions = is7d ? curr7d : curr30d;
+
+  const avgSessions = students.length
+    ? (totalSessions / students.length).toFixed(1)
+    : '—';
+  document.getElementById('r-kpi-sessions').textContent = totalSessions;
+  document.getElementById('r-kpi-sessions-sub').textContent =
+    students.length ? 'avg ' + avgSessions + ' / student' : '—';
+
+  // Sessions trend
+  if (is7d) {
+    // Prior 23 days normalised to a 7-day rate gives a like-for-like comparison
+    const prev7d_est = curr30d > curr7d ? (curr30d - curr7d) * (7 / 23) : null;
+    const ratio = (prev7d_est != null && prev7d_est > 0)
+      ? (curr7d - prev7d_est) / prev7d_est
+      : null;
+    setDelta('r-kpi-sessions-delta', ratio);
+  } else {
+    // prev_sessions_30d not yet in roster payload — needs backend field
+    const prev30d = students[0]?.prev_sessions_30d != null
+      ? students.reduce((sum, s) => sum + (s.prev_sessions_30d || 0), 0)
+      : null;
+    const ratio = (prev30d != null && prev30d > 0) ? (curr30d - prev30d) / prev30d : null;
+    setDelta('r-kpi-sessions-delta', ratio);
+  }
+
+  // Avg time / session
+  const totalMins7d  = students.reduce((sum, s) => sum + (s.practice_minutes_7d  || 0), 0);
+  const totalMins30d = students.reduce((sum, s) => sum + (s.practice_minutes_30d || 0), 0);
+  const timeEl  = document.getElementById('r-kpi-time');
+  const timeSub = document.getElementById('r-kpi-time-sub');
+
+  if (is7d && curr7d > 0) {
+    const avgMin = Math.round(totalMins7d / curr7d);
+    timeEl.textContent  = avgMin + 'm';
+    timeSub.textContent = totalMins7d + 'm total';
+
+    // Time trend: needs practice_minutes_prev_7d from backend
+    const prevMins7d = students[0]?.practice_minutes_prev_7d != null
+      ? students.reduce((sum, s) => sum + (s.practice_minutes_prev_7d || 0), 0)
+      : null;
+    const prevSess7d = students[0]?.sessions_prev_7d != null
+      ? students.reduce((sum, s) => sum + (s.sessions_prev_7d || 0), 0)
+      : null;
+    const prevAvg = (prevMins7d != null && prevSess7d > 0) ? prevMins7d / prevSess7d : null;
+    const currAvg = totalMins7d / curr7d;
+    const ratio = prevAvg != null ? (currAvg - prevAvg) / prevAvg : null;
+    setDelta('r-kpi-time-delta', ratio);
+  } else if (!is7d && curr30d > 0 && totalMins30d > 0) {
+    const avgMin = Math.round(totalMins30d / curr30d);
+    timeEl.textContent  = avgMin + 'm';
+    timeSub.textContent = totalMins30d + 'm total';
+    setDelta('r-kpi-time-delta', null);
+  } else {
+    timeEl.textContent  = '—';
+    timeSub.textContent = '';
+    setDelta('r-kpi-time-delta', null);
+  }
+
+  // Topics — top 3 across all students (topics field is 30d, used for both windows)
+  const topics = topTopics(students, 3);
+  const topicsEl = document.getElementById('r-kpi-topics');
+  topicsEl.innerHTML = topics.length
+    ? topics.map(t => '<span class="vk-tag">' + t + '</span>').join('')
+    : '<span class="r-kpi-empty">—</span>';
+
+  // Tutor insights
+  const insights = buildInsights(students, win);
+  const insightsEl = document.getElementById('r-kpi-insights');
+  insightsEl.innerHTML = insights.map(i =>
+    '<li class="r-kpi-insight-item' +
+    (i.ok ? ' is-ok' : i.warn ? ' is-warn' : '') +
+    '">' + i.text + '</li>'
+  ).join('');
+}
+
+function setRosterWindow(win, btn) {
+  document.querySelectorAll('#roster-win-tabs .win-tab').forEach(t => t.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  if (window._rosterStudents) renderRosterKpis(window._rosterStudents, win);
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+async function init() {
+  allNavBtns = [document.getElementById('nav-roster')];
+
+  const grid = document.getElementById('roster-grid');
+
+  let students = [];
+  try {
+    const res  = await fetch('/analytics/students?key=' + encodeURIComponent(KEY));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    students   = data.students || [];
+  } catch (err) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Erreur de chargement — ' + err.message + '</div>';
+    return;
+  }
+
+  // Sidebar badge
+  document.getElementById('sb-count').textContent = students.length;
+
+  // Store globally so the window toggle can re-render KPIs without a refetch
+  window._rosterStudents = students;
+  renderRosterKpis(students, '7d');
+
+  // Cards + panels + nav
+  grid.innerHTML = '';
+  if (!students.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Aucun élève — ajoutez-en un pour commencer</div>';
+    return;
+  }
+
+  const todayGroup    = students.filter(s => s.days_until_next === 0);
+  const upcomingGroup = students.filter(s => s.days_until_next !== 0);
+
+  function appendGroupLabel(text) {
+    const el = document.createElement('p');
+    el.className = 'sec-label';
+    el.style.gridColumn = '1 / -1';
+    el.textContent = text;
+    grid.appendChild(el);
+  }
+
+  students.forEach(s => { createNavItem(s); createStudentPanel(s); });
+
+  if (todayGroup.length) {
+    appendGroupLabel('Today');
+    todayGroup.forEach(s => grid.appendChild(createRosterCard(s)));
+  }
+
+  if (upcomingGroup.length) {
+    appendGroupLabel('Upcoming');
+    upcomingGroup.forEach(s => grid.appendChild(createRosterCard(s)));
+  }
+}
+
+init();
+</script>
+</body>
+</html>

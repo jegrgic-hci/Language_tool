@@ -3,9 +3,9 @@ import sqlite3
 import json
 import secrets
 import string
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import Any, Optional
 
 from elision import FRENCH_ELISION_RULES, FRENCH_HOMOPHONES, normalize_french
@@ -18,6 +18,63 @@ def _conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+SESSION_GAP_MINUTES = 20
+
+# Events that count as active practice for gap-based session splitting.
+# session_end is excluded — it fires on tab close, long after actual practice ends.
+_SESSION_EVENTS = frozenset({
+    'session_start', 'paragraph_started', 'chunk_listened',
+    'phrase_attempted', 'paragraph_attempted', 'paragraph_drilled', 'word_attempted',
+})
+
+
+def _split_session_groups(ts_list: list) -> list:
+    """Split a sorted list of timestamp strings into (start_ts, end_ts) session pairs.
+
+    A new session begins whenever the gap between consecutive events exceeds
+    SESSION_GAP_MINUTES. Returns one (start, end) tuple per session.
+    """
+    if not ts_list:
+        return []
+    sessions = []
+    start = ts_list[0]
+    prev  = ts_list[0]
+    for ts in ts_list[1:]:
+        try:
+            gap = (datetime.fromisoformat(ts.replace(' ', 'T')) -
+                   datetime.fromisoformat(prev.replace(' ', 'T'))).total_seconds() / 60
+        except Exception:
+            gap = 0
+        if gap > SESSION_GAP_MINUTES:
+            sessions.append((start, prev))
+            start = ts
+        prev = ts
+    sessions.append((start, prev))
+    return sessions
+
+
+def _group_events_into_sessions(rows: list) -> list:
+    """Group (ts, event_type, payload_dict) rows into session buckets using the
+    SESSION_GAP_MINUTES idle threshold. Returns a list of lists."""
+    if not rows:
+        return []
+    sessions = []
+    current = [rows[0]]
+    for row in rows[1:]:
+        try:
+            gap = (datetime.fromisoformat(row[0].replace(' ', 'T')) -
+                   datetime.fromisoformat(current[-1][0].replace(' ', 'T'))).total_seconds() / 60
+        except Exception:
+            gap = 0
+        if gap > SESSION_GAP_MINUTES:
+            sessions.append(current)
+            current = [row]
+        else:
+            current.append(row)
+    sessions.append(current)
+    return sessions
 
 
 def init_db():
@@ -223,24 +280,37 @@ def get_roster() -> list:
         ).fetchall()
         last_practice = {r["access_code"]: r["last_date"] for r in last_rows}
 
-        # 7d: distinct sessions
-        s7_rows = conn.execute(
-            "SELECT access_code, COUNT(DISTINCT visit_id) AS sessions "
-            "FROM events WHERE event_type='session_start' AND date(ts) >= ? "
-            "GROUP BY access_code",
-            (since_7d,),
+        # Session counts + durations via gap analysis (replaces visit_id counting)
+        sess_ts_rows = conn.execute(
+            "SELECT access_code, ts FROM events "
+            "WHERE date(ts) >= ? AND ts IS NOT NULL "
+            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "ORDER BY access_code, ts ASC",
+            (since_30d,),
         ).fetchall()
-        sessions_7d = {r["access_code"]: r["sessions"] for r in s7_rows}
+        ts_by_code: dict = defaultdict(list)
+        for r in sess_ts_rows:
+            ts_by_code[r["access_code"]].append(r["ts"])
 
-        # 7d: total practice duration (seconds)
-        dur_rows = conn.execute(
-            "SELECT access_code, "
-            "SUM(CAST(json_extract(payload,'$.duration_seconds') AS INTEGER)) AS total_sec "
-            "FROM events WHERE event_type='session_end' AND date(ts) >= ? "
-            "GROUP BY access_code",
-            (since_7d,),
-        ).fetchall()
-        duration_7d = {r["access_code"]: int(r["total_sec"] or 0) for r in dur_rows}
+        sessions_7d: dict = {}
+        sessions_30d_map: dict = {}
+        duration_7d: dict = {}
+        for code, timestamps in ts_by_code.items():
+            groups = _split_session_groups(timestamps)
+            sessions_30d_map[code] = len(groups)
+            sev_7d = [g for g in groups if g[0] >= since_7d]
+            sessions_7d[code] = len(sev_7d)
+            total_secs = 0
+            for start, end in sev_7d:
+                try:
+                    total_secs += int((
+                        datetime.fromisoformat(end.replace(' ', 'T')) -
+                        datetime.fromisoformat(start.replace(' ', 'T'))
+                    ).total_seconds())
+                except Exception:
+                    pass
+            duration_7d[code] = total_secs
 
         # 7d: practice event count per day (for mini bar chart)
         daily_rows = conn.execute(
@@ -255,15 +325,6 @@ def get_roster() -> list:
         daily_activity: dict = defaultdict(dict)
         for r in daily_rows:
             daily_activity[r["access_code"]][r["day"]] = r["cnt"]
-
-        # 30d: sessions (for roster KPI)
-        s30_rows = conn.execute(
-            "SELECT access_code, COUNT(DISTINCT visit_id) AS sessions "
-            "FROM events WHERE event_type='session_start' AND date(ts) >= ? "
-            "GROUP BY access_code",
-            (since_30d,),
-        ).fetchall()
-        sessions_30d = {r["access_code"]: r["sessions"] for r in s30_rows}
 
         # Recent topics (30d, top 4 by count)
         topic_rows = conn.execute(
@@ -359,7 +420,7 @@ def get_roster() -> list:
             "sessions_7d":             sessions_7d.get(code, 0),
             "practice_minutes_7d":     round(duration_7d.get(code, 0) / 60),
             "activity_7d":             [daily_activity.get(code, {}).get(d, 0) for d in day_keys],
-            "sessions_30d":            sessions_30d.get(code, 0),
+            "sessions_30d":            sessions_30d_map.get(code, 0),
             "topics":                  topics_map.get(code, []),
             "avg_score":               acc.get("score"),
             "avg_score_7d":            acc.get("avg_score_7d"),
@@ -372,49 +433,56 @@ def get_roster() -> list:
 
 
 def get_practice_since(access_code: str, since: date) -> dict:
-    """Aggregate practice events strictly after `since` date."""
+    """Aggregate practice events strictly after `since` date.
+
+    Sessions are counted using activity-gap analysis (SESSION_GAP_MINUTES idle threshold)
+    rather than visit_id, so a student returning to the same tab hours later counts as
+    a new session.
+    """
     since_str = since.isoformat()
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT event_type, payload, ts, visit_id, session_id FROM events "
-            "WHERE access_code=? AND date(ts) > ?",
+            "SELECT event_type, payload, ts FROM events "
+            "WHERE access_code=? AND date(ts) > ? AND ts IS NOT NULL "
+            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "ORDER BY ts ASC",
             (access_code, since_str),
         ).fetchall()
 
-    visit_ids: set = set()
+    events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in rows]
+    sess_groups = _group_events_into_sessions(events)
+
     days_active: set = set()
     total_attempts = 0
     scores: list = []
     word_stats: dict = defaultdict(lambda: {"attempts": 0, "misses": 0})
-    session_durations: dict = {}  # visit_id → duration_seconds
+    total_seconds = 0
+    session_durations: list = []
 
-    for row in rows:
-        t  = row["event_type"]
-        p  = json.loads(row["payload"])
-        ts = row["ts"] or ""
-        if ts:
+    for group in sess_groups:
+        start_ts, end_ts = group[0][0], group[-1][0]
+        try:
+            dur = int((datetime.fromisoformat(end_ts.replace(' ', 'T')) -
+                       datetime.fromisoformat(start_ts.replace(' ', 'T'))).total_seconds())
+            session_durations.append(dur)
+            total_seconds += dur
+        except Exception:
+            pass
+
+        for ts, t, p in group:
             days_active.add(ts[:10])
-
-        if t == "session_start":
-            visit_ids.add(row["visit_id"] or row["session_id"])
-
-        if t == "session_end":
-            dur = p.get("duration_seconds")
-            vid = row["visit_id"] or row["session_id"]
-            if dur is not None:
-                session_durations[vid] = int(dur)
-
-        if t in ("phrase_attempted", "paragraph_attempted", "paragraph_drilled", "word_attempted"):
-            total_attempts += 1
-            score = p.get("score")
-            if score is not None:
-                scores.append(score)
-            for entry in p.get("word_results", []):
-                word = entry[0].lower()
-                matched = entry[1]
-                word_stats[word]["attempts"] += 1
-                if not matched:
-                    word_stats[word]["misses"] += 1
+            if t in ("phrase_attempted", "paragraph_attempted", "paragraph_drilled", "word_attempted"):
+                total_attempts += 1
+                score = p.get("score")
+                if score is not None:
+                    scores.append(score)
+                for entry in p.get("word_results", []):
+                    word = entry[0].lower()
+                    matched = entry[1]
+                    word_stats[word]["attempts"] += 1
+                    if not matched:
+                        word_stats[word]["misses"] += 1
 
     struggles = []
     for word, s in word_stats.items():
@@ -424,18 +492,14 @@ def get_practice_since(access_code: str, since: date) -> dict:
                 struggles.append({"word": word, "accuracy": acc})
     struggles.sort(key=lambda x: x["accuracy"])
 
-    durations = [session_durations[v] for v in visit_ids if v in session_durations]
-    total_seconds = sum(durations) if durations else None
-    avg_seconds   = round(total_seconds / len(durations)) if durations else None
-
     return {
-        "sessions": len(visit_ids),
-        "days_active": len(days_active),
+        "sessions":       len(sess_groups),
+        "days_active":    len(days_active),
         "total_attempts": total_attempts,
-        "avg_score": _avg(scores),
-        "struggles": struggles[:8],
-        "total_seconds": total_seconds,
-        "avg_seconds": avg_seconds,
+        "avg_score":      _avg(scores),
+        "struggles":      struggles[:8],
+        "total_seconds":  total_seconds if session_durations else None,
+        "avg_seconds":    round(total_seconds / len(session_durations)) if session_durations else None,
     }
 
 
@@ -732,151 +796,89 @@ def _avg(lst: list) -> Any:
 
 
 def get_session_history(access_code: str, limit: int = 20) -> list:
-    """Return per-visit summary rows, most recent first."""
+    """Return per-session summary rows, most recent first.
+
+    Sessions are computed via activity-gap analysis: a new session begins whenever
+    the gap between consecutive practice events exceeds SESSION_GAP_MINUTES.
+    """
+    _PASS_PARA   = 0.70
+    _PASS_PHRASE = 0.90
+
     with _conn() as conn:
         rows = conn.execute(
-            """SELECT session_id, visit_id, event_type, payload, ts
-               FROM events
-               WHERE access_code=?
-               ORDER BY ts ASC""",
+            "SELECT event_type, payload, ts FROM events "
+            "WHERE access_code=? AND ts IS NOT NULL "
+            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "ORDER BY ts ASC",
             (access_code,),
         ).fetchall()
 
-    # ── Phase 1: build visits from events that carry a visit_id ───────────────
-    visits: dict = defaultdict(lambda: {
-        "visit_id": None, "started_at": None, "ended_at": None,
-        "duration_seconds": None, "phrase_attempts": 0, "phrase_scores": [],
-        "word_attempts": 0, "word_scores": [],
-        "paragraph_attempts": 0, "paragraph_scores": [], "paragraph_drills": 0, "paragraph_drill_scores": [],
-        "word_set": set(),
-    })
+    events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in rows]
+    sess_groups = _group_events_into_sessions(events)
 
-    def _collect_words(v: dict, p: dict):
-        for wr in p.get("word_results", []):
-            if wr and wr[0]:
-                v["word_set"].add(wr[0].lower())
-
-    for row in rows:
-        if not row["visit_id"]:
-            continue
-        vid = row["visit_id"]
-        t   = row["event_type"]
-        p   = json.loads(row["payload"])
-        ts  = row["ts"]
-        v   = visits[vid]
-        v["visit_id"] = vid
-        if t == "session_start":
-            v["started_at"] = ts
-        elif t == "session_end":
-            v["ended_at"] = ts
-            v["duration_seconds"] = p.get("duration_seconds")
-        elif t == "word_attempted":
-            v["word_attempts"] += 1
-            if p.get("score") is not None:
-                v["word_scores"].append(p["score"])
-        elif t == "phrase_attempted":
-            v["phrase_attempts"] += 1
-            if p.get("score") is not None:
-                v["phrase_scores"].append(p["score"])
-            _collect_words(v, p)
-        elif t == "paragraph_attempted":
-            v["paragraph_attempts"] += 1
-            if p.get("score") is not None:
-                v["paragraph_scores"].append(p["score"])
-            _collect_words(v, p)
-        elif t == "paragraph_drilled":
-            v["paragraph_drills"] += 1
-            if p.get("score") is not None:
-                v["paragraph_drill_scores"].append(p["score"])
-            _collect_words(v, p)
-
-    # ── Phase 2: assign orphan practice events to visits by timestamp ─────────
-    # Build a sorted list of (start_ts, visit_id). Orphan events belong to the
-    # visit whose session_start is the latest one that precedes the event's ts.
-    # (SQLite stores timestamps as "YYYY-MM-DD HH:MM:SS" — lexicographic sort works.)
-    windows = sorted(
-        [(v["started_at"], vid) for vid, v in visits.items() if v["started_at"]],
-        key=lambda x: x[0],
-    )
-
-    def _visit_for_ts(ts: str) -> Optional[str]:
-        if not ts or not windows:
-            return None
-        matched = None
-        for start, vid in windows:
-            if start <= ts:
-                matched = vid
-            else:
-                break
-        return matched
-
-    for row in rows:
-        if row["visit_id"]:
-            continue  # already handled in phase 1
-        t = row["event_type"]
-        if t not in ("word_attempted", "phrase_attempted", "paragraph_attempted", "paragraph_drilled"):
-            continue
-        ts  = row["ts"]
-        p   = json.loads(row["payload"])
-        vid = _visit_for_ts(ts)
-        if vid is None:
-            continue
-        v = visits[vid]
-        if t == "word_attempted":
-            v["word_attempts"] += 1
-            if p.get("score") is not None:
-                v["word_scores"].append(p["score"])
-        elif t == "phrase_attempted":
-            v["phrase_attempts"] += 1
-            if p.get("score") is not None:
-                v["phrase_scores"].append(p["score"])
-            _collect_words(v, p)
-        elif t == "paragraph_attempted":
-            v["paragraph_attempts"] += 1
-            if p.get("score") is not None:
-                v["paragraph_scores"].append(p["score"])
-            _collect_words(v, p)
-        elif t == "paragraph_drilled":
-            v["paragraph_drills"] += 1
-            if p.get("score") is not None:
-                v["paragraph_drill_scores"].append(p["score"])
-            _collect_words(v, p)
-
-    # ── Phase 3: compute new vs revisited words per visit ─────────────────────
-    _PASS_PARA   = 0.70
-    _PASS_PHRASE = 0.90
     seen_words: set = set()
-    ordered_visits = sorted(
-        [v for v in visits.values() if v["started_at"]],
-        key=lambda x: x["started_at"],
-    )
-    for v in ordered_visits:
-        ws = v["word_set"]
-        v["words_new"]       = len(ws - seen_words)
-        v["words_revisited"] = len(ws & seen_words)
-        seen_words |= ws
-
     results = []
-    for v in visits.values():
-        if not v["started_at"]:
-            continue
+
+    for group in sess_groups:
+        started_at = group[0][0]
+        ended_at   = group[-1][0]
+        try:
+            duration_seconds = int((
+                datetime.fromisoformat(ended_at.replace(' ', 'T')) -
+                datetime.fromisoformat(started_at.replace(' ', 'T'))
+            ).total_seconds())
+        except Exception:
+            duration_seconds = None
+
+        phrase_attempts = 0; phrase_scores = []
+        para_attempts   = 0; para_scores   = []
+        para_drills     = 0; para_drill_scores = []
+        word_attempts   = 0
+        word_set: set   = set()
+
+        for ts, t, p in group:
+            if t == "phrase_attempted":
+                phrase_attempts += 1
+                if p.get("score") is not None:
+                    phrase_scores.append(p["score"])
+                for wr in p.get("word_results", []):
+                    if wr and wr[0]:
+                        word_set.add(wr[0].lower())
+            elif t == "paragraph_attempted":
+                para_attempts += 1
+                if p.get("score") is not None:
+                    para_scores.append(p["score"])
+                for wr in p.get("word_results", []):
+                    if wr and wr[0]:
+                        word_set.add(wr[0].lower())
+            elif t == "paragraph_drilled":
+                para_drills += 1
+                if p.get("score") is not None:
+                    para_drill_scores.append(p["score"])
+                for wr in p.get("word_results", []):
+                    if wr and wr[0]:
+                        word_set.add(wr[0].lower())
+            elif t == "word_attempted":
+                word_attempts += 1
+
         results.append({
-            "visit_id":                  v["visit_id"],
-            "started_at":                v["started_at"],
-            "ended_at":                  v["ended_at"],
-            "duration_seconds":          v["duration_seconds"],
-            "word_attempts":             v["word_attempts"],
-            "words_new":                 v.get("words_new", 0),
-            "words_revisited":           v.get("words_revisited", 0),
-            "phrase_attempts":           v["phrase_attempts"],
-            "phrase_passed":             sum(1 for s in v["phrase_scores"] if s >= _PASS_PHRASE),
-            "avg_phrase_score":          _avg(v["phrase_scores"]),
-            "paragraph_attempts":        v["paragraph_attempts"],
-            "paragraph_passed":          sum(1 for s in v["paragraph_scores"] if s >= _PASS_PARA),
-            "avg_paragraph_score":       _avg(v["paragraph_scores"]),
-            "paragraph_drills":          v["paragraph_drills"],
-            "avg_paragraph_drill_score": _avg(v["paragraph_drill_scores"]),
+            "started_at":                started_at,
+            "ended_at":                  ended_at,
+            "duration_seconds":          duration_seconds,
+            "word_attempts":             word_attempts,
+            "words_new":                 len(word_set - seen_words),
+            "words_revisited":           len(word_set & seen_words),
+            "phrase_attempts":           phrase_attempts,
+            "phrase_passed":             sum(1 for s in phrase_scores if s >= _PASS_PHRASE),
+            "avg_phrase_score":          _avg(phrase_scores),
+            "paragraph_attempts":        para_attempts,
+            "paragraph_passed":          sum(1 for s in para_scores if s >= _PASS_PARA),
+            "avg_paragraph_score":       _avg(para_scores),
+            "paragraph_drills":          para_drills,
+            "avg_paragraph_drill_score": _avg(para_drill_scores),
         })
+        seen_words |= word_set
 
     results.sort(key=lambda x: x["started_at"], reverse=True)
     return results[:limit]
@@ -1300,4 +1302,619 @@ def get_score_trend(access_code: str, weeks: int = 8) -> dict:
         "lifetime_avg": lifetime_avg,
         "delta":        delta,
         "by_level":     by_level,
+    }
+
+
+# ── Student progress trend (landing-page chart) ─────────────────────────────────
+
+# Maps the raw event_type to the exercise "type" used by the progress chart.
+_PROGRESS_EVENT_TYPE = {
+    "phrase_attempted":    "phrase",
+    "paragraph_attempted": "paragraph",
+    "paragraph_drilled":   "paragraph",
+    "word_attempted":      "word",
+}
+
+# Pass thresholds per exercise type (mirrors analytics.md: paragraph 0.70, phrase 0.90).
+_PROGRESS_PASS = {"paragraph": 0.70, "phrase": 0.90, "word": 0.90}
+
+_LEVEL_RANK = {"?": 0, "A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
+
+
+def get_progress_trend(access_code: str, weeks: int = 8) -> dict:
+    """Weekly score/pass time series, split by exercise type AND CEFR level.
+
+    Powers the student landing-page progress chart (DV3 level-split). For each
+    exercise type (``overall`` / ``paragraph`` / ``phrase`` / ``word``) and each
+    CEFR level, a per-week array of avg score, pass rate and attempt count is
+    returned, with ``None`` in weeks that had no practice — so a line spans only
+    its active weeks. Week bucketing mirrors :func:`get_score_trend`.
+    """
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT event_type, payload, ts FROM events WHERE access_code=? "
+            "AND event_type IN ('phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted')",
+            (access_code,),
+        ).fetchall()
+
+    today = date.today()
+    cur_week_start = today - timedelta(days=today.weekday())
+    week_starts = [cur_week_start - timedelta(weeks=(weeks - 1 - i)) for i in range(weeks)]
+    week_index = {ws: i for i, ws in enumerate(week_starts)}
+
+    def _new_weeks():
+        return [{"scores": [], "passes": 0, "attempts": 0} for _ in range(weeks)]
+
+    # acc[type][level] -> per-week buckets
+    acc: dict = defaultdict(lambda: defaultdict(_new_weeks))
+
+    cutoff_30 = today - timedelta(days=30)
+    cutoff_60 = today - timedelta(days=60)
+    recent_scores: list = []
+    prior_scores: list = []
+    lifetime_scores: list = []
+
+    for row in rows:
+        p = json.loads(row["payload"])
+        score = p.get("score")
+        ts = row["ts"] or ""
+        if score is None or not ts:
+            continue
+        try:
+            d = date.fromisoformat(ts[:10])
+        except Exception:
+            continue
+        ws = d - timedelta(days=d.weekday())
+        idx = week_index.get(ws)
+
+        etype = _PROGRESS_EVENT_TYPE.get(row["event_type"], "word")
+        level = str(p.get("level") or "?") or "?"
+        passed = score >= _PROGRESS_PASS.get(etype, 0.90)
+
+        if idx is not None:
+            for tkey in ("overall", etype):
+                wk = acc[tkey][level][idx]
+                wk["scores"].append(score)
+                wk["attempts"] += 1
+                if passed:
+                    wk["passes"] += 1
+
+        lifetime_scores.append(score)
+        if d >= cutoff_30:
+            recent_scores.append(score)
+        elif d >= cutoff_60:
+            prior_scores.append(score)
+
+    def _series(week_buckets):
+        return {
+            "score": [round(sum(w["scores"]) / len(w["scores"]), 3) if w["scores"] else None
+                      for w in week_buckets],
+            "pass":  [round(w["passes"] / w["attempts"], 3) if w["attempts"] else None
+                      for w in week_buckets],
+            "attempts": [w["attempts"] for w in week_buckets],
+        }
+
+    types_out: dict = {}
+    for tkey, level_map in acc.items():
+        agg = _new_weeks()
+        levels_out: dict = {}
+        for lvl, week_buckets in level_map.items():
+            levels_out[lvl] = _series(week_buckets)
+            for i, w in enumerate(week_buckets):
+                agg[i]["scores"].extend(w["scores"])
+                agg[i]["passes"] += w["passes"]
+                agg[i]["attempts"] += w["attempts"]
+        ordered = dict(sorted(levels_out.items(), key=lambda kv: _LEVEL_RANK.get(kv[0], 99)))
+        types_out[tkey] = {"levels": ordered, "weekly": _series(agg)}
+
+    recent_avg = _avg(recent_scores)
+    prior_avg = _avg(prior_scores)
+    lifetime_avg = _avg(lifetime_scores)
+    delta = (round(recent_avg - prior_avg, 3)
+             if recent_avg is not None and prior_avg is not None else None)
+
+    return {
+        "weeks":        weeks,
+        "week_starts":  [ws.isoformat() for ws in week_starts],
+        "week_labels":  [ws.strftime("%m/%d") for ws in week_starts],
+        "types":        types_out,
+        "recent_avg":   recent_avg,
+        "lifetime_avg": lifetime_avg,
+        "delta":        delta,
+        "total_attempts": len(lifetime_scores),
+    }
+
+
+def get_word_mastery_trend(access_code: str, weeks: int = 8) -> dict:
+    """Cumulative 'words mastered' curve, weekly and latched (never decreases).
+
+    A word counts as mastered once it reaches >= 3 attempts at >= 80% hit-rate.
+    Mastery is latched (a word stays mastered once it crosses the bar), so the
+    student-facing curve only ever rises. Returns the cumulative distinct count
+    as of each week end over the last ``weeks`` calendar weeks.
+    """
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT payload, ts FROM events WHERE access_code=? "
+            "AND event_type IN ('phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "ORDER BY ts ASC",
+            (access_code,),
+        ).fetchall()
+
+    today = date.today()
+    cur_week_start = today - timedelta(days=today.weekday())
+    week_starts = [cur_week_start - timedelta(weeks=(weeks - 1 - i)) for i in range(weeks)]
+
+    word_stats: dict = defaultdict(lambda: {"attempts": 0, "hits": 0})
+    mastered: dict = {}   # word -> date first mastered
+
+    for row in rows:
+        ts = row["ts"] or ""
+        if not ts:
+            continue
+        try:
+            d = date.fromisoformat(ts[:10])
+        except Exception:
+            continue
+        p = json.loads(row["payload"])
+        for entry in p.get("word_results", []):
+            word = entry[0].lower()
+            s = word_stats[word]
+            s["attempts"] += 1
+            if entry[1]:
+                s["hits"] += 1
+            if (word not in mastered and s["attempts"] >= 3
+                    and s["hits"] / s["attempts"] >= 0.80):
+                mastered[word] = d
+
+    cumulative = [sum(1 for md in mastered.values() if md <= ws + timedelta(days=6))
+                  for ws in week_starts]
+    newly = (cumulative[-1] - cumulative[-2]) if len(cumulative) >= 2 else (cumulative[-1] if cumulative else 0)
+    mastered_30d = sum(1 for md in mastered.values() if md >= today - timedelta(days=30))
+
+    return {
+        "weeks":          weeks,
+        "week_labels":    [ws.strftime("%m/%d") for ws in week_starts],
+        "cumulative":     cumulative,
+        "total_mastered": len(mastered),
+        "newly_mastered": newly,
+        "mastered_30d":   mastered_30d,
+    }
+
+
+def get_progress_summary(access_code: str) -> dict:
+    """Headline KPIs for the student Home landing.
+
+    Three confound-aware progress signals:
+    - words mastered (total) + 30-day gain
+    - accuracy *trend* (improving / steady / dipping), computed **within level** so
+      that moving to harder material never reads as a regression
+    - average session length + its 30-day change
+    """
+    today = date.today()
+    d30 = today - timedelta(days=30)
+    d60 = today - timedelta(days=60)
+
+    mastery = get_word_mastery_trend(access_code)
+
+    # ── Within-level accuracy trend ──────────────────────────────────────────
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT payload, ts FROM events WHERE access_code=? "
+            "AND event_type IN ('phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted')",
+            (access_code,),
+        ).fetchall()
+
+    lvl_recent: dict = defaultdict(list)
+    lvl_prior: dict  = defaultdict(list)
+    recent_level_attempts: dict = defaultdict(int)
+    for r in rows:
+        p = json.loads(r["payload"])
+        score = p.get("score")
+        ts = r["ts"] or ""
+        if score is None or not ts:
+            continue
+        try:
+            d = date.fromisoformat(ts[:10])
+        except Exception:
+            continue
+        level = str(p.get("level") or "?") or "?"
+        if d >= d30:
+            lvl_recent[level].append(score)
+            recent_level_attempts[level] += 1
+        elif d >= d60:
+            lvl_prior[level].append(score)
+
+    # Attempt-weighted mean of per-level (recent − prior) deltas. Each level is
+    # compared against itself, so the difficulty confound is removed.
+    num = 0.0
+    den = 0
+    for lvl, recent in lvl_recent.items():
+        prior = lvl_prior.get(lvl)
+        if prior:
+            num += (_avg(recent) - _avg(prior)) * len(recent)
+            den += len(recent)
+    acc_delta = round(num / den, 3) if den else None
+
+    if acc_delta is None:
+        acc_direction = "new"
+    elif acc_delta >= 0.02:
+        acc_direction = "improving"
+    elif acc_delta <= -0.02:
+        acc_direction = "dipping"
+    else:
+        acc_direction = "steady"
+
+    acc_level = (max(recent_level_attempts.items(), key=lambda kv: kv[1])[0]
+                 if recent_level_attempts else None)
+
+    # ── Average session length + 30-day change ───────────────────────────────
+    with _conn() as conn:
+        srows = conn.execute(
+            "SELECT event_type, payload, ts FROM events WHERE access_code=? AND ts IS NOT NULL "
+            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "ORDER BY ts ASC",
+            (access_code,),
+        ).fetchall()
+    events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in srows]
+    groups = _group_events_into_sessions(events)
+
+    recent_durs: list = []
+    prior_durs: list = []
+    for g in groups:
+        start_ts, end_ts = g[0][0], g[-1][0]
+        try:
+            sd = date.fromisoformat(start_ts[:10])
+            dur = (datetime.fromisoformat(end_ts.replace(' ', 'T')) -
+                   datetime.fromisoformat(start_ts.replace(' ', 'T'))).total_seconds()
+        except Exception:
+            continue
+        if sd >= d30:
+            recent_durs.append(dur)
+        elif sd >= d60:
+            prior_durs.append(dur)
+
+    avg_recent_min = round(sum(recent_durs) / len(recent_durs) / 60, 1) if recent_durs else None
+    avg_prior_min  = round(sum(prior_durs) / len(prior_durs) / 60, 1) if prior_durs else None
+    sess_delta_min = (round(avg_recent_min - avg_prior_min, 1)
+                      if avg_recent_min is not None and avg_prior_min is not None else None)
+
+    return {
+        "words_mastered":        mastery["total_mastered"],
+        "words_mastered_30d":    mastery["mastered_30d"],
+        "accuracy_direction":    acc_direction,
+        "accuracy_delta":        acc_delta,
+        "accuracy_level":        acc_level,
+        "avg_session_minutes":   avg_recent_min,
+        "avg_session_delta_min": sess_delta_min,
+        "sessions_30d":          len(recent_durs),
+    }
+
+
+# ── Student Home page payload ───────────────────────────────────────────────────
+
+# Scored speaking events → the three Home KPIs. Per-sentence drills are Precision.
+_HOME_SKILL = {
+    "paragraph_attempted": "performance",
+    "phrase_attempted":    "precision",
+    "paragraph_drilled":   "precision",
+    # word_attempted contributes only to word mastery (via word_results), not an accuracy skill
+}
+_NEXT_LEVEL = {"A1": "A2", "A2": "B1", "B1": "B2", "B2": "C1", "C1": "C2", "C2": None}
+
+
+def get_home_data(access_code: str, weeks: int = 8) -> dict:
+    """Everything the redesigned student Home needs, in one payload.
+
+    Three speaking KPIs (Performance, Precision, Words mastered), each with a
+    current value, recent change (Precision/Performance computed *within level*),
+    a per-level weekly series for the staggered chart (Words = cumulative curve),
+    a level-up flag, the default-highlight pick, and the tip signals.
+    Presentation (labels, copy, chart formatters) lives in the frontend.
+    """
+    today = date.today()
+    cur_week_start = today - timedelta(days=today.weekday())
+    week_starts = [cur_week_start - timedelta(weeks=(weeks - 1 - i)) for i in range(weeks)]
+    week_index = {ws: i for i, ws in enumerate(week_starts)}
+    week_labels = [ws.strftime("%m/%d") for ws in week_starts]
+
+    cutoff_30 = today - timedelta(days=30)
+    cutoff_60 = today - timedelta(days=60)
+
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT event_type, payload, ts FROM events WHERE access_code=? "
+            "AND event_type IN ('phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "ORDER BY ts ASC",
+            (access_code,),
+        ).fetchall()
+
+    def _new_weeks():
+        return [[] for _ in range(weeks)]
+
+    acc: dict = defaultdict(lambda: defaultdict(_new_weeks))     # skill -> level -> [week lists]
+    lvl_recent: dict = defaultdict(lambda: defaultdict(list))    # skill -> level -> recent scores
+    lvl_prior: dict = defaultdict(lambda: defaultdict(list))     # skill -> level -> prior scores
+    recent_all: dict = defaultdict(list)                         # skill -> recent scores (all levels)
+    recent_lvl_attempts: dict = defaultdict(Counter)            # skill -> Counter(level)
+
+    word_stats: dict = defaultdict(lambda: {"attempts": 0, "hits": 0})
+    mastered: dict = {}                                          # word -> datetime mastered
+    speaking_rows: list = []                                     # (datetime, level) for phrase/para/drill
+    scored_rows: list = []                                       # (datetime, skill, level, score) — for session-axis chart
+    all_dts: list = []                                           # every event datetime — defines practice sessions
+    attempt_week_starts: set = set()                            # distinct ISO weeks with any activity
+    last_ts = None
+
+    for r in rows:
+        p = json.loads(r["payload"]); et = r["event_type"]; ts = r["ts"] or ""
+        if not ts:
+            continue
+        try:
+            d = date.fromisoformat(ts[:10])
+        except Exception:
+            continue
+        last_ts = ts
+        try:
+            dt_full = datetime.fromisoformat(ts.replace(" ", "T"))
+        except Exception:
+            dt_full = None
+        if dt_full is not None:
+            all_dts.append(dt_full)
+        attempt_week_starts.add(d - timedelta(days=d.weekday()))
+
+        # Word mastery — replay word_results from ANY scored event
+        for entry in p.get("word_results", []):
+            w = entry[0].lower(); s = word_stats[w]; s["attempts"] += 1
+            if entry[1]:
+                s["hits"] += 1
+            if w not in mastered and s["attempts"] >= 3 and s["hits"] / s["attempts"] >= 0.80:
+                mastered[w] = dt_full or datetime.combine(d, datetime.min.time())
+
+        skill = _HOME_SKILL.get(et)
+        if skill is None:
+            continue
+        score = p.get("score")
+        if score is None:
+            continue
+        level = str(p.get("level") or "?") or "?"
+        if dt_full is not None:
+            speaking_rows.append((dt_full, level))
+            scored_rows.append((dt_full, skill, level, score))
+        wi = week_index.get(d - timedelta(days=d.weekday()))
+        if wi is not None:
+            acc[skill][level][wi].append(score)
+        if d >= cutoff_30:
+            lvl_recent[skill][level].append(score)
+            recent_all[skill].append(score)
+            recent_lvl_attempts[skill][level] += 1
+        elif d >= cutoff_60:
+            lvl_prior[skill][level].append(score)
+
+    # ── Level history (sessions → dominant level) for level-up + tip signals ──
+    gap = timedelta(minutes=SESSION_GAP_MINUTES)
+    session_levels: list = []   # Counter per session, chronological
+    prev_dt = None
+    for dt, lvl in speaking_rows:
+        if prev_dt is None or (dt - prev_dt) > gap:
+            session_levels.append(Counter())
+        session_levels[-1][lvl] += 1
+        prev_dt = dt
+    session_dom = [c.most_common(1)[0][0] for c in session_levels if c]
+    dom_counts = Counter(session_dom)
+
+    levels_seen = [L for L in dom_counts if L != "?"]
+    first_level = min(levels_seen, key=lambda L: _LEVEL_RANK.get(L, 99)) if levels_seen else None
+    current_level = session_dom[-1] if session_dom else None
+    last_level = current_level
+
+    # Level-up: current level is dominant in >=2 sessions AND higher than an
+    # established (>=2 session) lower level.
+    new_level = None
+    established = None
+    if current_level and dom_counts.get(current_level, 0) >= 2:
+        lower = [L for L in levels_seen
+                 if _LEVEL_RANK.get(L, 0) < _LEVEL_RANK.get(current_level, 0) and dom_counts.get(L, 0) >= 2]
+        if lower:
+            established = max(lower, key=lambda L: _LEVEL_RANK.get(L, 0))
+            new_level = current_level
+
+    # Ready to level up: settled at current (>=4 dominant sessions), high recent
+    # accuracy, no higher level attempted yet, and a next level exists.
+    ready = False
+    next_level = _NEXT_LEVEL.get(current_level) if current_level else None
+    if current_level and not new_level and next_level and dom_counts.get(current_level, 0) >= 4:
+        higher_tried = any(_LEVEL_RANK.get(L, 0) > _LEVEL_RANK.get(current_level, 0) for L in levels_seen)
+        cur_recent = (lvl_recent["performance"].get(current_level, []) +
+                      lvl_recent["precision"].get(current_level, []))
+        if not higher_tried and cur_recent and _avg(cur_recent) >= 0.85:
+            ready = True
+
+    # ── Per-skill KPI assembly (performance, precision) ──
+    def _weighted_delta(skill):
+        num = 0.0; den = 0
+        for lvl, recent in lvl_recent[skill].items():
+            prior = lvl_prior[skill].get(lvl)
+            if recent and prior:
+                num += (_avg(recent) - _avg(prior)) * len(recent); den += len(recent)
+        return round(num / den, 3) if den else None
+
+    def _trend(delta):
+        if delta is None or abs(delta) < 0.005:
+            return None
+        n = abs(round(delta * 100))
+        return {"dir": "up" if delta > 0 else "down", "text": ("+" if delta > 0 else "−") + str(n) + " pts"}
+
+    def _clamp01(v):
+        return max(0.0, min(1.0, v))
+
+    kpis: dict = {}
+    for skill in ("performance", "precision"):
+        levels_out = []
+        for lvl in sorted(acc[skill].keys(), key=lambda L: _LEVEL_RANK.get(L, 99)):
+            pts = [(round(sum(w) / len(w), 3) if w else None) for w in acc[skill][lvl]]
+            levels_out.append({"level": lvl, "points": pts})
+        recent = recent_all[skill]
+        value = _avg(recent)
+        delta = _weighted_delta(skill)
+        kpis[skill] = {
+            "value": value,
+            "trend": _trend(delta),
+            "momentum": _clamp01((delta or 0) / 0.10) if delta and delta > 0 else 0.0,
+            "new_level": new_level,
+            "levels": levels_out,
+            "has_data": bool(levels_out),
+        }
+
+    # ── Words mastered ──
+    cumulative = [sum(1 for md in mastered.values() if md.date() <= ws + timedelta(days=6)) for ws in week_starts]
+    gain_30d = sum(1 for md in mastered.values() if md.date() >= cutoff_30)
+    gain_prev_30d = sum(1 for md in mastered.values() if cutoff_60 <= md.date() < cutoff_30)
+    kpis["words"] = {
+        "total": len(mastered),
+        "recent_gain": gain_30d,
+        "trend": ({"dir": "up", "text": "+" + str(gain_30d)} if gain_30d > 0 else None),
+        "momentum": _clamp01(gain_30d / 20.0),
+        "cumulative": cumulative,
+        "has_data": len(mastered) > 0,
+    }
+
+    # ── Adaptive chart axis ──────────────────────────────────────────────
+    # Scale the x-axis to how long the student has been practising so the chart
+    # is never just 2-3 dots stretched across the full page width:
+    #   • started <4 weeks ago → one point per ACTIVE DAY (per session if only a
+    #     single day has data, so a heavy first day still shows a real curve)
+    #   • >=4 weeks ago        → weekly, trimmed to first active week..now (<=8)
+    # Only the chart series + x labels switch; scalar KPIs (value/trend/momentum
+    # /level-up) and the tip signals stay computed over the 30/60-day windows.
+    axis = "week"
+    labels = week_labels
+    valid_dts = sorted(dt for dt in all_dts if dt is not None)
+    first_ws = min(attempt_week_starts) if attempt_week_starts else None
+    span_weeks = ((cur_week_start - first_ws).days // 7 + 1) if first_ws else 0
+
+    def _level_series(nbins, idx_of):
+        """Per-skill level-split series given a bucket count and a dt→bin fn."""
+        out = {}
+        for skill in ("performance", "precision"):
+            lvls: dict = defaultdict(lambda: [[] for _ in range(nbins)])
+            for dt, sk, lvl, score in scored_rows:
+                if sk != skill:
+                    continue
+                bi = idx_of(dt)
+                if bi is not None:
+                    lvls[lvl][bi].append(score)
+            out[skill] = [
+                {"level": lvl,
+                 "points": [(round(sum(w) / len(w), 3) if w else None) for w in lvls[lvl]]}
+                for lvl in sorted(lvls.keys(), key=lambda L: _LEVEL_RANK.get(L, 99))
+            ]
+        return out
+
+    if first_ws and span_weeks < 4 and valid_dts:
+        active_days = sorted({dt.date() for dt in valid_dts})[-30:]
+        if len(active_days) >= 2:
+            day_index = {d: i for i, d in enumerate(active_days)}
+            first_day = active_days[0]
+            series = _level_series(
+                len(active_days),
+                lambda dt: day_index.get(dt.date()) if dt.date() >= first_day else None)
+            kpis["words"]["cumulative"] = [
+                sum(1 for md in mastered.values() if md.date() <= d) for d in active_days
+            ]
+            labels = [d.strftime("%-m/%-d") for d in active_days]
+            axis = "day"
+        else:
+            # Single active day → fall back to one point per practice session so a
+            # heavy first day still shows a curve, not a lone dot.
+            sessions: list = []
+            for dt in valid_dts:
+                if not sessions or (dt - sessions[-1][1]) > gap:
+                    sessions.append([dt, dt])
+                else:
+                    sessions[-1][1] = dt
+            sessions = sessions[-10:]
+            first_start = sessions[0][0]
+
+            def _sidx(dt):
+                if dt < first_start:
+                    return None
+                for i in range(len(sessions) - 1, -1, -1):
+                    if dt >= sessions[i][0]:
+                        return i
+                return 0
+
+            series = _level_series(len(sessions), _sidx)
+            kpis["words"]["cumulative"] = [
+                sum(1 for md in mastered.values() if md <= end) for (_s, end) in sessions
+            ]
+            labels = [s.strftime("%a %-I%p").lower() for (s, _e) in sessions]
+            axis = "session"
+
+        for skill in ("performance", "precision"):
+            kpis[skill]["levels"] = series[skill]
+            kpis[skill]["has_data"] = any(
+                any(p is not None for p in s["points"]) for s in series[skill])
+
+    # Weekly path: trim leading empty weeks so a student who started N (<8) weeks
+    # ago shows ~N columns, not 8 with blank leaders. The window runs from their
+    # first in-window active week to now (capped at 8); a gap mid-window stays
+    # visible (a real "you paused here" signal).
+    if axis == "week":
+        in_window = [week_index[w] for w in attempt_week_starts if w in week_index]
+        start_i = min(in_window) if in_window else 0
+        if start_i > 0:
+            labels = week_labels[start_i:]
+            for skill in ("performance", "precision"):
+                for lv in kpis[skill]["levels"]:
+                    lv["points"] = lv["points"][start_i:]
+            kpis["words"]["cumulative"] = kpis["words"]["cumulative"][start_i:]
+
+    # ── Default highlight = biggest momentum; fallback fixed order ──
+    order = ["performance", "precision", "words"]
+    movers = [k for k in order if kpis[k]["momentum"] > 0]
+    default_key = max(movers, key=lambda k: kpis[k]["momentum"]) if movers else \
+        next((k for k in order if kpis[k]["has_data"]), "performance")
+
+    # ── Tip signals ──
+    has_speaking = any(kpis[s]["has_data"] for s in ("performance", "precision"))
+    is_new = not has_speaking and kpis["words"]["total"] == 0
+    gap_days = None
+    if last_ts:
+        try:
+            gap_days = (today - date.fromisoformat(last_ts[:10])).days
+        except Exception:
+            pass
+    top = max(("performance", "precision"), key=lambda s: kpis[s]["momentum"])
+    # Constructive dip: a skill whose within-level trend is down and nothing is climbing
+    dip = None
+    if not movers:
+        for s in ("performance", "precision"):
+            t = kpis[s]["trend"]
+            if t and t["dir"] == "down":
+                dip = s; break
+
+    signals = {
+        "new": is_new,
+        "first_level": first_level,
+        "current_level": current_level,
+        "ready_to_level_up": ready,
+        "next_level": next_level if ready else None,
+        "returning": bool(gap_days is not None and gap_days >= 5 and has_speaking),
+        "last_level": last_level,
+        "gap_days": gap_days,
+        "new_words": gain_30d,
+        "top_skill": top,
+        "top_trend_text": (kpis[top]["trend"] or {}).get("text"),
+        "dip": dip,
+    }
+
+    return {
+        "week_labels": week_labels,
+        "labels": labels,
+        "axis": axis,
+        "kpis": kpis,
+        "default_key": default_key,
+        "signals": signals,
     }

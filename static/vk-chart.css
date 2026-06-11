@@ -1,0 +1,171 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   vk-chart.css — shared data-visualisation styles
+   ──────────────────────────────────────────────────────────────────────────────
+   Single source of truth for chart styling across the whole tool. Link this file
+   anywhere a chart is rendered (student analytics, teacher dashboard, design
+   surface). Edit here once and every surface picks up the change.
+
+   Depends only on design tokens (--vk-*), so load it AFTER vk-tokens.css and the
+   active theme file. The card wrapper (.vk-chart / .vk-chart-header / -title /
+   -subtitle) lives in vk-components.css; this file styles the plot inside it.
+
+   Currently linked by: analytics.html, atelier-design.html
+   (The `.atl-` class prefix is historical — these styles began life in the
+   Atelier practice components and were promoted to a shared layer.)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TREND LINE CHART  (atl-chart)
+   Modern single-series line chart for the student-analytics Progress tab —
+   replaces the legacy CSS bar chart (.trend-bars) inside .vk-chart. Rendered as
+   real-pixel SVG by buildTrendChart() so dots stay circular and strokes crisp.
+   Single accent line + vertical gradient area fill, faint baseline grid, dots
+   that grow on hover with an HTML tooltip, and a left-to-right draw-in on reveal
+   (line `pathLength` normalised to 1, so the animation is data-independent).
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.atl-chart {
+  position: relative;
+  width: 100%;
+}
+
+.atl-chart svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+/* Faint horizontal grid + a slightly stronger 0% baseline */
+.atl-chart .atl-grid-line {
+  stroke: var(--vk-border);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.atl-chart .atl-baseline {
+  stroke: var(--vk-border-strong);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* Axis labels — mono, micro, muted */
+.atl-chart .atl-axis-label {
+  fill: var(--vk-fg-3);
+  font-family: var(--vk-font-ui);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+/* Vertical gradient under the line (stops styled here so they pick up the
+   theme accent via tokens — attribute stop-color can't resolve var()) */
+.atl-chart .atl-grad-top { stop-color: var(--vk-accent); stop-opacity: 0.22; }
+.atl-chart .atl-grad-bot { stop-color: var(--vk-accent); stop-opacity: 0; }
+
+.atl-chart .atl-area {
+  fill: url(#atlAreaGrad);
+  opacity: 0;
+  transition: opacity var(--vk-dur-emph) var(--vk-ease) 140ms;
+}
+
+/* The line — hidden via dashoffset until .is-drawn flips it to 0 */
+.atl-chart .atl-line {
+  fill: none;
+  stroke: var(--vk-accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 900ms var(--vk-ease);
+}
+
+/* Data points (fade in after the line has drawn) */
+.atl-chart .atl-dots {
+  opacity: 0;
+  transition: opacity var(--vk-dur-base) var(--vk-ease) 720ms;
+}
+.atl-chart .atl-dot {
+  fill: var(--vk-surface);
+  stroke: var(--vk-accent);
+  stroke-width: 2.5;
+  transition: r var(--vk-dur-quick) var(--vk-ease),
+              fill var(--vk-dur-quick) var(--vk-ease);
+}
+/* Wide invisible hover targets so the pointer doesn't have to land on 4px */
+.atl-chart .atl-hit { fill: transparent; cursor: pointer; }
+.atl-chart .atl-hit:hover + .atl-dot,
+.atl-chart .atl-dot.is-hot { r: 6; fill: var(--vk-accent); }
+
+/* Reveal state — JS adds .is-drawn one frame after the SVG is inserted */
+.atl-chart.is-drawn .atl-line { stroke-dashoffset: 0; }
+.atl-chart.is-drawn .atl-area,
+.atl-chart.is-drawn .atl-dots { opacity: 1; }
+
+/* Floating tooltip (elevation allowed — this is floating UI) */
+.atl-chart-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+  padding: 7px 10px;
+  background: var(--vk-fg-1);
+  border: 1px solid var(--vk-fg-1);
+  border-radius: var(--vk-radius-card);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  transition: opacity var(--vk-dur-quick) var(--vk-ease);
+  white-space: nowrap;
+  text-align: center;
+}
+.atl-chart-tip.is-on { opacity: 1; }
+.atl-chart-tip.below { transform: translate(-50%, 14px); }
+.atl-chart-tip-score {
+  display: block;
+  font-family: var(--vk-font-body);
+  font-size: var(--vk-text-sm);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--vk-accent-fg);
+}
+.atl-chart-tip-meta {
+  display: block;
+  font-family: var(--vk-font-ui);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vk-accent-fg);
+  opacity: 0.78;
+  margin-top: 3px;
+}
+
+/* CEFR level-change markers — a thin dashed vertical line where the practiced
+   level changes, labelled with the new level. Difficulty context without a
+   separate track. */
+.atl-chart .atl-levelmark {
+  stroke: var(--vk-border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.atl-chart .atl-levellabel {
+  fill: var(--vk-fg-3);
+  font-family: var(--vk-font-ui);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+/* Per-line start label — the CEFR level a segment begins at (fill set inline
+   to the line colour). Used by the level-split chart. */
+.atl-chart .atl-startlabel {
+  font-family: var(--vk-font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atl-chart .atl-line,
+  .atl-chart .atl-area,
+  .atl-chart .atl-dots { transition: none; }
+}

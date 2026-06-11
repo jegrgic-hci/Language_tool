@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/static/vk-theme-light.css">
   <link rel="stylesheet" href="/static/vk-theme-atelier.css">
   <link rel="stylesheet" href="/static/vk-atelier-components.css">
+  <link rel="stylesheet" href="/static/vk-chart.css">
   <style>
     /* ── TOKEN BRIDGE ─────────────────────────────────────────────────────────
        Maps old --k-* / --k35-* tokens → --vk-* so legacy HTML keeps working.
@@ -171,10 +172,10 @@
     .sb-sec-comprehension::after { content: "Comprehension"; }
 
     /* ── Nav item labels ── */
+    .sb-nav-home::after       { content: "Home"; }
     .sb-nav-exercises::after  { content: "Exercises"; }
     .sb-nav-my-content::after { content: "My Content"; }
     .sb-nav-practice::after   { content: "Practice List"; }
-    .sb-nav-coach::after      { content: "Coach"; }
     .sb-nav-flashcards::after { content: "Flashcards"; }
     .sb-nav-listen::after     { content: "Listen & Answer"; }
     .sb-nav-dictation::after  { content: "Dictation"; }
@@ -2640,8 +2641,12 @@
       </div>
     </div>
 
+    <button class="vk-sb-item sb-nav-home is-active" data-view="home" onclick="switchView('home')" title="Home">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 7l6-5 6 5M4 6.5V13h8V6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
     <div class="vk-sb-section sb-sec-speaking"></div>
-    <button class="vk-sb-item sb-nav-exercises is-active" data-view="phrase-hub" onclick="switchView('phrase-hub')">
+    <button class="vk-sb-item sb-nav-exercises" data-view="phrase-hub" onclick="switchView('phrase-hub')">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h2M5 5v6M8 3v10M11 5v6M14 8h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
     <button class="vk-sb-item sb-nav-my-content" data-view="custom" onclick="switchView('custom')">
@@ -2649,9 +2654,6 @@
     </button>
     <button class="vk-sb-item sb-nav-practice" data-view="practice" onclick="switchView('practice')">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v10H2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 7l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-coach" data-view="coach" onclick="switchView('coach')" style="display:none">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 13c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
 
     <div class="vk-sb-section sb-sec-vocabulary"></div>
@@ -2691,6 +2693,115 @@
 
   <!-- ── MAIN CONTENT ── -->
   <main id="main">
+
+    <!-- ══════════════════════════════════════
+         HOME / LANDING — progress + what's next
+    ══════════════════════════════════════ -->
+    <style>
+      /* Landing layout */
+      #home-view .home-wrap { max-width: 920px; width: 100%; margin: 0 auto; padding: 30px 28px 64px; }
+      .home-header { margin-bottom: 4px; }
+      /* Primary KPI cards — design-system .vk-kpi-card; selectable, drive the chart */
+      .home-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+      @media (max-width: 680px) { .home-kpis { grid-template-columns: 1fr; } }
+      .home-kpis .vk-kpi-card { cursor: pointer; }
+      .home-kpis .vk-kpi-card.is-active { border-color: var(--vk-accent); background: var(--vk-surface-tint, var(--vk-accent-bg)); box-shadow: var(--vk-elev-1); }
+      .home-kpis .vk-kpi-card.is-active::before { opacity: 1; }
+      .home-kpis .vk-kpi-card:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+      .home-kpi-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .home-kpi-badge { flex-shrink: 0; font-size: var(--vk-text-2xs); }
+      .home-kpi-tests { font-family: var(--vk-font-body); font-size: var(--vk-text-sm); color: var(--vk-fg-3); margin: 0; line-height: 1.4; }
+      .home-kpis .vk-kpi-value .unit { font-size: var(--vk-text-lg); font-weight: 500; color: var(--vk-fg-3); margin-left: 2px; }
+      /* Chart — detail view of the highlighted KPI */
+      .home-trend-chart .empty { font-family: var(--vk-font-body); color: var(--vk-fg-3); font-size: var(--vk-text-sm); text-align: center; padding: 40px 0; }
+      .home-chart-hint { font-family: var(--vk-font-ui); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--vk-fg-4); margin-top: 10px; }
+      /* Secondary KPIs — compact .vk-kpi tiles, hidden until instrumented */
+      .home-secondary { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--vk-border); }
+      .home-secondary-label { font-family: var(--vk-font-ui); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--vk-fg-3); margin: 0 0 12px; }
+      .home-secondary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+      @media (max-width: 680px) { .home-secondary-grid { grid-template-columns: 1fr; } }
+      .home-secondary .vk-kpi-num { display: flex; align-items: baseline; gap: 8px; }
+      /* Section + Practice-now action cards */
+      .home-section { margin-top: 36px; }
+      .home-section-title { font-family: var(--vk-font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-2); margin: 0 0 4px; }
+      .home-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
+      .home-action { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left; border: 1px solid var(--vk-border-mid); background: var(--vk-surface); padding: 16px; cursor: pointer;
+        transition: border-color 120ms cubic-bezier(0.4,0,0.2,1), background 120ms cubic-bezier(0.4,0,0.2,1); }
+      .home-action:hover { border-color: var(--vk-accent); background: var(--vk-accent-bg); }
+      .home-action-icon { color: var(--vk-accent-text); }
+      .home-action-name { font-family: var(--vk-font-ui); font-size: 13px; font-weight: 700; color: var(--vk-fg-1); }
+      .home-action-desc { font-family: var(--vk-font-body); font-size: 12px; color: var(--vk-fg-2); line-height: 1.4; }
+    </style>
+    <div id="home-view" style="display:none; flex:1; flex-direction:column; overflow-y:auto;">
+      <div class="home-wrap">
+
+        <div class="home-header">
+          <span class="hub-intro-eyebrow">Your progress</span>
+          <h2 class="hub-intro-heading">You're speaking French better</h2>
+          <!-- Subtitle doubles as the data-driven tip -->
+          <p class="hub-intro-text" id="home-greeting-sub">Here's how your spoken French is coming along.</p>
+        </div>
+
+        <!-- Three primary speaking KPIs -->
+        <div class="home-kpis" id="home-kpis"></div>
+
+        <!-- Chart — detail view of the highlighted KPI -->
+        <div class="vk-chart is-visible" style="margin-top:16px">
+          <div class="vk-chart-header">
+            <div>
+              <p class="vk-chart-title home-chart-title">Performance over time</p>
+              <p class="vk-chart-subtitle home-chart-sub">Paragraph accuracy by level, weekly</p>
+            </div>
+          </div>
+          <div class="home-trend-chart"><div class="empty">No practice data yet</div></div>
+        </div>
+        <p class="home-chart-hint">Showing the highlighted skill. The biggest recent gain is highlighted automatically.</p>
+
+        <!-- Secondary KPIs — vocabulary + listening (hidden until instrumented) -->
+        <div class="home-secondary" id="home-secondary" style="display:none">
+          <p class="home-secondary-label">Also tracking</p>
+          <div class="home-secondary-grid" id="home-secondary-grid"></div>
+        </div>
+
+        <!-- What's next -->
+        <section class="home-section">
+          <h3 class="home-section-title">Practice now</h3>
+          <div class="home-actions">
+            <button class="home-action" onclick="switchView('phrase-hub')">
+              <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 8h2M5 5v6M8 3v10M11 5v6M14 8h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+              <span class="home-action-name">Exercises</span>
+              <span class="home-action-desc">Listen, speak & get scored</span>
+            </button>
+            <button class="home-action" onclick="switchView('practice')">
+              <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v10H2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 7l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="home-action-name">Practice List</span>
+              <span class="home-action-desc">Drill your saved words</span>
+            </button>
+            <button class="home-action" onclick="switchView('vocab-hub')">
+              <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+              <span class="home-action-name">Flashcards</span>
+              <span class="home-action-desc">Build vocabulary aloud</span>
+            </button>
+            <button class="home-action" onclick="switchView('comprehension-hub')">
+              <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 6.5c0-1.1.9-2 2-2s2 .9 2 2c0 .8-.5 1.5-1.2 1.8L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+              <span class="home-action-name">Comprehension</span>
+              <span class="home-action-desc">Train your ear</span>
+            </button>
+            <button class="home-action" onclick="switchView('dictation-hub')">
+              <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 10l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="home-action-name">Dictation</span>
+              <span class="home-action-desc">Write what you hear</span>
+            </button>
+            <button class="home-action" onclick="switchView('custom')">
+              <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3V2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 5h6M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+              <span class="home-action-name">My Content</span>
+              <span class="home-action-desc">Practice your own text</span>
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </div>
 
     <!-- ══════════════════════════════════════
          PHRASE VIEW — single-sentence exercise
@@ -2901,9 +3012,6 @@
               <button class="hub-subject-chip" data-focus="liaison" onclick="selectHubSoundChip(this)">Liaison</button>
               <button class="hub-subject-chip" data-focus="nasal" onclick="selectHubSoundChip(this)">Nasal Vowels</button>
               <button class="hub-subject-chip" data-focus="u_vowel" onclick="selectHubSoundChip(this)">French /y/</button>
-              <button class="hub-subject-chip" data-focus="r_sound" onclick="selectHubSoundChip(this)">Uvular R</button>
-              <button class="hub-subject-chip" data-focus="open_vowels" onclick="selectHubSoundChip(this)">Open vs Closed</button>
-              <button class="hub-subject-chip" data-focus="rhythm" onclick="selectHubSoundChip(this)">Rhythm & Flow</button>
             </div>
           </div>
         </div>
@@ -4030,7 +4138,7 @@
       localStorage.setItem('ft_access_code', code);
       document.getElementById('gate').classList.add('hidden');
       trackEvent('session_start', { session_id: sessionId });
-      switchView('phrase-hub');
+      switchView('home');
     } catch (e) {
       errEl.textContent = e.message;
       btn.disabled = false;
@@ -4062,7 +4170,7 @@
         if (res.ok) {
           document.getElementById('gate').classList.add('hidden');
           trackEvent('session_start', { session_id: sessionId });
-          setTimeout(() => switchView('phrase-hub'), 0);
+          setTimeout(() => switchView('home'), 0);
           return;
         }
       } catch (_) {}
@@ -4217,128 +4325,25 @@
     fillEl.className = baseClass + ' ' + (passed ? 'pass' : 'fail');
   }
 
-  function scrollDown() { chatEl.scrollTop = chatEl.scrollHeight; }
-
-  const confidenceBar = document.getElementById('confidence-bar');
-  const confidenceMsg  = document.getElementById('confidence-msg');
-
-  function showConfidenceWarning(conf) {
-    const pct = Math.round(conf * 100);
-    confidenceMsg.innerHTML = `<strong>Low confidence (${pct}%)</strong> — speech may be garbled. Review before sending or retry.`;
-    confidenceBar.classList.remove('hidden');
-  }
-
-  function hideConfidenceWarning() {
-    confidenceBar.classList.add('hidden');
-  }
-
-  function addBubble(role, html, extraClass = '', confidence = null) {
-    const wrap = document.createElement('div');
-    wrap.className = `msg ${role}`;
-    if (role === 'tutor') {
-      const avatar = document.createElement('div');
-      avatar.className = 'msg-avatar';
-      avatar.textContent = '🇫🇷';
-      const bubble = document.createElement('div');
-      bubble.className = `bubble${extraClass ? ' ' + extraClass : ''}`;
-      bubble.innerHTML = html;
-
-      // Click bubble to reveal when in listening mode
-      bubble.addEventListener('click', () => {
-        if (listeningMode && !bubble.classList.contains('revealed')) {
-          bubble.classList.add('revealed');
-          revealBtn.classList.add('hidden');
-        }
-      });
-
-      const revealBtn = document.createElement('button');
-      revealBtn.className = 'bubble-reveal';
-      revealBtn.title = 'Reveal text';
-      revealBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><ellipse cx="8" cy="8" rx="6" ry="4" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/></svg>`;
-      revealBtn.addEventListener('click', () => {
-        bubble.classList.add('revealed');
-        revealBtn.classList.add('hidden');
-      });
-
-      const stopBtn = document.createElement('button');
-      stopBtn.className = 'bubble-stop';
-      stopBtn.title = 'Stop audio';
-      stopBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" fill="currentColor"/></svg>`;
-      stopBtn.addEventListener('click', stopResponse);
-
-      wrap.appendChild(avatar);
-      wrap.appendChild(bubble);
-      wrap.appendChild(revealBtn);
-      wrap.appendChild(stopBtn);
-    } else {
-      const bubbleDiv = document.createElement('div');
-      bubbleDiv.className = 'bubble';
-      bubbleDiv.innerHTML = html;
-
-      if (confidence !== null) {
-        const pct = Math.round(confidence * 100);
-        const cls = confidence < 0.65 ? 'conf-low' : confidence < 0.85 ? 'conf-mid' : 'conf-high';
-        const badge = document.createElement('div');
-        badge.className = `conf-badge ${cls}`;
-        badge.innerHTML = `<svg width="9" height="9" viewBox="0 0 16 16" fill="none"><rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>${pct}%`;
-        bubbleDiv.appendChild(badge);
-      }
-
-      const avatarDiv = document.createElement('div');
-      avatarDiv.className = 'msg-avatar';
-      avatarDiv.textContent = '↑';
-      wrap.appendChild(bubbleDiv);
-      wrap.appendChild(avatarDiv);
+  // Lightweight toast for system notifications (upload/mic feedback).
+  // kind: '' (neutral) | 'success' | 'error' | 'warning'
+  function addSys(text, kind = '') {
+    let host = document.getElementById('vk-toast-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'vk-toast-host';
+      host.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end;';
+      document.body.appendChild(host);
     }
-    chatEl.appendChild(wrap);
-    scrollDown();
-    return wrap;
-  }
-
-  function addSys(text) {
-    const el = document.createElement('div');
-    el.className = 'sys-msg';
-    el.textContent = text;
-    chatEl.appendChild(el);
-    scrollDown();
-  }
-
-  function showTyping() {
-    const wrap = document.createElement('div');
-    wrap.className = 'msg tutor';
-    wrap.id = 'typing';
-    wrap.innerHTML = `<div class="msg-avatar">🇫🇷</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
-    chatEl.appendChild(wrap);
-    scrollDown();
-  }
-  function hideTyping() { document.getElementById('typing')?.remove(); }
-
-  function setLock(locked) {
-    busy = locked;
-    sendBtn.disabled = locked;
-    textInput.disabled = locked;
-    headerStatus.textContent = locked ? 'Thinking…' : 'Ready';
-  }
-
-  function stopResponse() {
-    if (activeController) { activeController.abort(); activeController = null; }
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-    if (activeBubbleStop) { activeBubbleStop.classList.remove('playing'); activeBubbleStop = null; }
-    hideTyping();
-    setLock(false);
-    headerStatus.textContent = 'Ready';
-    textInput.focus();
-  }
-
-  function updateMode(mode, topic) {
-    currentMode = mode;
-    document.querySelectorAll('[data-mode]').forEach(b => {
-      b.classList.toggle('is-active', b.dataset.mode === mode);
-    });
-    const modeTag = document.getElementById('mode-tag');
-    const topicLabel = document.getElementById('topic-label');
-    if (modeTag) modeTag.textContent = mode;
-    if (topicLabel && topic) topicLabel.textContent = topic;
+    const toast = document.createElement('div');
+    toast.className = 'vk-toast' + (kind ? ' is-' + kind : '');
+    toast.innerHTML = `<span class="vk-toast-msg">${esc(text)}</span>`;
+    host.appendChild(toast);
+    setTimeout(() => {
+      toast.style.transition = 'opacity .3s';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3200);
   }
 
   // ── Audio ──────────────────────────────────────────────────────────────────
@@ -4363,13 +4368,6 @@
   function playAudio(url) {
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if (activeBubbleStop) { activeBubbleStop.classList.remove('playing'); activeBubbleStop = null; }
-
-    // Find the stop button on the most recent tutor bubble (chat view may be absent)
-    if (chatEl) {
-      const bubbleStops = chatEl.querySelectorAll('.bubble-stop');
-      const latest = bubbleStops[bubbleStops.length - 1];
-      if (latest) { latest.classList.add('playing'); activeBubbleStop = latest; }
-    }
 
     // Stop speech recognition while audio is playing (prevents picking up speaker audio)
     const wasListening = recognition && document.getElementById('phrase-mic-btn')?.classList.contains('listening');
@@ -4400,111 +4398,6 @@
         recognition.start();
       }
     });
-  }
-
-  // ── Send ───────────────────────────────────────────────────────────────────
-  async function send(text) {
-    text = text.trim();
-    if (!text || busy) return;
-
-    const confidence = lastSpeechConfidence;
-    lastSpeechConfidence = null;
-    hideConfidenceWarning();
-
-    addBubble('user', esc(text), '', confidence);
-    textInput.value = '';
-    setLock(true);
-    showTyping();
-
-    activeController = new AbortController();
-
-    const body = { message: text, session_id: sessionId };
-    if (confidence !== null) body.confidence = confidence;
-
-    try {
-      const res  = await fetch('/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: activeController.signal,
-      });
-      const data = await res.json();
-      hideTyping();
-      updateMode(data.mode, data.topic);
-
-      if (data.drill_type === 'number') {
-        addBubble('tutor', esc(data.reply));
-        addSys('Number drill active — type the number you heard');
-      } else if (data.drill_type === 'clarification') {
-        addBubble('tutor', esc(data.reply), 'clarification');
-      } else {
-        addBubble('tutor', esc(data.reply));
-      }
-
-      playAudio(data.audio_url);
-    } catch (err) {
-      hideTyping();
-      if (err.name !== 'AbortError') {
-        addSys('Connection error — is the server running?');
-      }
-    } finally {
-      activeController = null;
-      setLock(false);
-      textInput.focus();
-    }
-  }
-
-  if (sendBtn)   sendBtn.addEventListener('click', () => send(textInput.value));
-  if (textInput) textInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(textInput.value); }
-  });
-
-  // ── Listening mode ─────────────────────────────────────────────────────────
-  function toggleListeningMode() {
-    listeningMode = !listeningMode;
-    chatEl.classList.toggle('listening-mode', listeningMode);
-    document.getElementById('listening-toggle').classList.toggle('active', listeningMode);
-
-    if (!listeningMode) {
-      // Revealing all when switching off — remove blur from everything
-      chatEl.querySelectorAll('.tutor .bubble').forEach(b => b.classList.add('revealed'));
-    } else {
-      // Switching on — hide all bubbles that were previously auto-revealed by "off"
-      chatEl.querySelectorAll('.tutor .bubble').forEach(b => {
-        b.classList.remove('revealed');
-      });
-      // Also show all reveal buttons
-      chatEl.querySelectorAll('.bubble-reveal').forEach(b => b.classList.remove('hidden'));
-    }
-  }
-
-  // ── Mode / Drill launchers ─────────────────────────────────────────────────
-  function launchMode(mode) {
-    closeMobilePanel();
-    const prompts = {
-      CHAT:     "Let's have a free conversation in French.",
-      SCENARIO: "Let's practice a real-world French scenario.",
-      DRILL:    "I want to do a French drill.",
-      RAG:      "Let's work through my tutor's documents.",
-    };
-    send(prompts[mode]);
-  }
-
-  function launchDrill(type) {
-    const prompts = {
-      numbers:    "I want to practice numbers and dates in French.",
-      connectors: "I want to practice French connector words.",
-      marseille:  "Let's do the Marseille district drill.",
-    };
-    send(prompts[type]);
-  }
-
-  // ── Reset ──────────────────────────────────────────────────────────────────
-  async function resetSession() {
-    await fetch(`/session/${sessionId}`, { method: 'DELETE' });
-    chatEl.innerHTML = '';
-    updateMode('CHAT', 'General conversation');
-    addSys('Session reset');
   }
 
   function signOut() {
@@ -4860,7 +4753,7 @@
     const inParagraph = view === 'paragraph';
     const inHub       = view === 'phrase-hub';
     const inCustom    = view === 'custom';
-    const inCoach           = view === 'coach';
+    const inHome            = view === 'home';
     const inCompHub         = view === 'comprehension-hub';
     const inComprehension   = view === 'comprehension';
     const inDictHub         = view === 'dictation-hub';
@@ -4883,7 +4776,7 @@
     setDisplay('paragraph-view',      inParagraph    ? 'flex' : 'none');
     setDisplay('phrase-hub',          inHub          ? 'flex' : 'none');
     setDisplay('custom-view',         inCustom       ? 'flex' : 'none');
-    setDisplay('coach-view',          inCoach        ? 'flex' : 'none');
+    setDisplay('home-view',           inHome         ? 'flex' : 'none');
     setDisplay('comprehension-hub',   inCompHub      ? 'flex' : 'none');
     setDisplay('comprehension-view',  inComprehension? 'flex' : 'none');
     setDisplay('dictation-hub',       inDictHub      ? 'flex' : 'none');
@@ -4894,7 +4787,7 @@
     const VIEW_LABELS = {
       'chat': 'Chat', 'phrase': 'Exercises', 'phrase-hub': 'Exercises',
       'practice': 'Practice List', 'paragraph': 'Exercises',
-      'custom': 'My Content', 'coach': 'Coach',
+      'home': 'Home', 'custom': 'My Content',
       'comprehension-hub': 'Comprehension', 'comprehension': 'Comprehension',
       'dictation-hub': 'Dictation', 'dictation': 'Dictation',
       'vocab-hub': 'Flashcards', 'vocab': 'Flashcards',
@@ -4926,7 +4819,7 @@
     }
     if (inParagraph && paragraphSentences.length === 0) fetchNextParagraph();
     if (inCustom) loadCustomList();
-    if (inCoach) loadCoachData(false);
+    if (inHome) loadHomeView();
   }
 
   // ── Shadowing Hub ──────────────────────────────────────────────────────────
@@ -8088,268 +7981,259 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     requestAnimationFrame(() => updateParaScoreBar(pct, passed));
   }
 
-  // ── Coach ──────────────────────────────────────────────────────────────────
-  let _coachLoaded = false;
 
-  async function loadCoachData(forceRefresh) {
-    if (_coachLoaded && !forceRefresh) return;
+  // ── Home / Landing ──────────────────────────────────────────────────────────
+  // Three speaking KPIs (Performance, Precision, Words mastered). Each card is
+  // selectable and drives the chart; the biggest recent gain auto-highlights.
+  // Data: GET /analytics/progress → analytics.get_home_data(). Presentation here.
+  const _HOME_LEVEL_RANK = { '?': 1, A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+  const _homePct = v => Math.round(v * 100) + '%';
+  const _homeCnt = v => String(Math.round(v));
+  const _homeLevelColor = lvl => 'var(--vk-chart-' + (_HOME_LEVEL_RANK[lvl] || 1) + ')';
+  const HOME_SKILL_META = {
+    performance: { label: 'Performance', tests: 'Speaking a whole passage — all of it together.',
+      chartTitle: 'Performance over time', chartSub: 'Paragraph accuracy by level, weekly' },
+    precision:   { label: 'Precision', tests: 'Nailing a single sentence — the sounds and the links.',
+      chartTitle: 'Precision over time', chartSub: 'Phrase & sentence-drill accuracy by level, weekly' },
+    words:       { label: 'Words mastered', tests: 'Words you can pronounce reliably.',
+      chartTitle: 'Words mastered', chartSub: 'Cumulative — it only goes up' },
+  };
+
+  let _homeData = null;
+  let _homeKpis = [];
+  let _homeActiveKey = null;
+  let _homeLoaded = false;
+  let _homeResizeBound = false;
+
+  async function loadHomeView() {
     const code = localStorage.getItem('ft_access_code') || '';
     if (!code) return;
-    const loading = document.getElementById('coach-loading');
-    const empty   = document.getElementById('coach-empty');
-    const body    = document.getElementById('coach-body');
-    loading.style.display = 'block';
-    empty.style.display   = 'none';
-    body.style.display    = 'none';
-    const btn = document.getElementById('coach-refresh-btn');
-    if (btn) btn.disabled = true;
+    if (!_homeResizeBound) {
+      let rt;
+      window.addEventListener('resize', () => {
+        clearTimeout(rt);
+        rt = setTimeout(() => { if (currentView === 'home' && _homeActiveKey) selectHomeKPI(_homeActiveKey); }, 150);
+      });
+      _homeResizeBound = true;
+    }
+    if (_homeLoaded && _homeData) { renderHome(); return; }
     try {
-      const endpoint = forceRefresh ? `/coach/refresh?access_code=${encodeURIComponent(code)}` : `/coach?access_code=${encodeURIComponent(code)}`;
-      const method   = forceRefresh ? 'POST' : 'GET';
-      const res = await fetch(endpoint, { method });
+      const res = await fetch(`/analytics/progress?access_code=${encodeURIComponent(code)}`);
       if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      loading.style.display = 'none';
-      if (!data.total_words_tracked) {
-        empty.style.display = 'block';
-        return;
-      }
-      body.innerHTML = renderCoachData(data);
-      body.style.display = 'block';
-      _coachLoaded = true;
+      _homeData = await res.json();
+      _homeLoaded = true;
+      renderHome();
     } catch (e) {
-      loading.style.display = 'none';
-      empty.textContent = 'Could not load coach data.';
-      empty.style.display = 'block';
-    } finally {
-      if (btn) btn.disabled = false;
+      const chart = document.querySelector('.home-trend-chart');
+      if (chart) chart.innerHTML = '<div class="empty">Could not load your progress right now.</div>';
     }
   }
 
-  function renderCoachData(d) {
-    const scoreColor = v => v == null ? '#999' : v >= 0.7 ? '#1F5A40' : v >= 0.4 ? '#8A5A00' : '#A8281C';
-    const chip = (word, acc) => `<span style="display:inline-block;padding:4px 10px;border:1px solid #E0E0E0;font-family:var(--font-ui);font-size:0.75rem;color:${scoreColor(acc)};margin:3px 3px 0 0;">${word} <span style="opacity:0.45;font-weight:400">${Math.round(acc*100)}%</span></span>`;
-    const navBtn = (label, view) => `<button onclick="switchView('${view}')" style="margin-top:14px;padding:7px 16px;background:#1A1A1A;border:none;color:#fff;font-family:var(--font-ui);font-size:0.65rem;letter-spacing:0.08em;cursor:pointer;text-transform:uppercase;">${label} →</button>`;
-    const focusBtn = (label, words) => {
-      const safe = JSON.stringify(words).replace(/"/g, '&quot;');
-      return `<button onclick="startCoachFocusSession(JSON.parse(this.dataset.words))" data-words="${safe}" style="margin-top:14px;padding:7px 16px;background:#137CB6;border:none;color:#fff;font-family:var(--font-ui);font-size:0.65rem;letter-spacing:0.08em;cursor:pointer;text-transform:uppercase;">${label} →</button>`;
-    };
+  function renderHome() {
+    _homeKpis = buildHomeKpis(_homeData);
+    renderHomeTip(_homeData.signals || {});
+    renderHomeKPIs();
+    renderHomeSecondary(_homeData.secondary);
+    const def = (_homeData.default_key && _homeKpis.some(k => k.key === _homeData.default_key))
+      ? _homeData.default_key : (_homeKpis[0] && _homeKpis[0].key);
+    if (def) selectHomeKPI(def);
+  }
 
-    const traj       = d.trajectories || {};
-    const total      = d.total_words_tracked || 0;
-    const clusters   = d.error_clusters || {};
-    const masteredWords   = d.mastered_words || [];
-    const techSuspect     = d.tech_suspect_words || [];
-    const almostThere     = d.almost_there_words || [];
-    const inconsistent    = d.inconsistent_words || [];
-    const quickPickup     = d.quick_pickup_words || [];
-    const mastered        = masteredWords.length;
-
-    const insights = [];
-
-    // track shown words to avoid duplication across cards
-    const shown = new Set();
-    const dedup = (list) => list.filter(w => !shown.has(w.word));
-    const markShown = (list) => list.forEach(w => shown.add(w.word));
-
-    // ── Stuck / hard words ──
-    const hardWords = dedup((d.worst_words || []).filter(w => w.accuracy < 0.30));
-    if (hardWords.length) {
-      markShown(hardWords);
-      const plural = hardWords.length === 1;
-      const wordList = hardWords.map(w => w.word);
-      insights.push({
-        priority: 'focus',
-        label: 'WORK ON THIS',
-        message: plural
-          ? `The word <strong>${hardWords[0].word}</strong> keeps coming up wrong. It's showing up consistently across your attempts but hasn't clicked yet.`
-          : `These ${hardWords.length} words keep coming up wrong across multiple sessions. They're your biggest opportunity right now.`,
-        chips: hardWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: focusBtn('Practice these in the phrase exercise', wordList),
+  function buildHomeKpis(d) {
+    const wk = (d && (d.labels || d.week_labels)) || [];
+    const axisWord = (d && d.axis === 'session') ? 'per session'
+      : (d && d.axis === 'day') ? 'by day' : null;
+    const k = (d && d.kpis) || {};
+    const out = [];
+    ['performance', 'precision'].forEach(key => {
+      const x = k[key]; if (!x) return;
+      const m = HOME_SKILL_META[key];
+      const value = x.value != null ? `${Math.round(x.value * 100)}<span class="unit">%</span>` : '—';
+      let context;
+      if (x.new_level || (x.trend && x.trend.dir === 'up')) context = 'improving within each level';
+      else if (x.trend && x.trend.dir === 'down') context = "a dip — learning isn't linear";
+      else context = 'practise to see your trend';
+      const series = (x.levels || []).map(l => ({
+        label: l.level, mark: l.level, color: _homeLevelColor(l.level), width: 2.5,
+        points: (l.points || []).map(v => ({ v })),
+      }));
+      out.push({
+        key, label: m.label, tests: m.tests, value, trend: x.trend, context,
+        newLevel: x.new_level, increaseScore: x.momentum || 0,
+        chart: { title: m.chartTitle, sub: axisWord ? m.chartSub.replace('weekly', axisWord) : m.chartSub, series,
+          opts: { yMax: 1, ticks: [0, 0.5, 1], fmt: _homePct, tickFmt: v => Math.round(v * 100),
+            area: true, areaOpacity: 0.12, weekLabels: wk } },
+      });
+    });
+    const w = k.words;
+    if (w) {
+      const m = HOME_SKILL_META.words;
+      const context = (w.total === 0) ? 'your first mastered words will show here'
+        : (w.recent_gain > 0 ? 'mastered in the last 30 days' : 'words pronounced reliably');
+      out.push({
+        key: 'words', label: m.label, tests: m.tests, value: String(w.total || 0), trend: w.trend, context,
+        newLevel: null, increaseScore: w.momentum || 0,
+        chart: { title: m.chartTitle, sub: m.chartSub,
+          series: [{ label: 'Words mastered', color: 'var(--vk-chart-1)', width: 3, points: (w.cumulative || []).map(v => ({ v })) }],
+          opts: { yMax: null, fmt: _homeCnt, tickFmt: v => Math.round(v), area: true, weekLabels: wk } },
       });
     }
+    return out;
+  }
 
-    // ── Tech suspect — exact zero across many attempts ──
-    const suspectWords = dedup(techSuspect);
-    if (suspectWords.length) {
-      markShown(suspectWords);
-      insights.push({
-        priority: 'focus',
-        label: 'CHECK YOUR MIC',
-        message: `${suspectWords.length === 1 ? 'This word has' : 'These words have'} never been recognised correctly across multiple attempts. That's unusual — it may be a microphone or speech recognition issue rather than a pronunciation problem. Try speaking closer to the mic or in a quieter space.`,
-        chips: suspectWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: null,
-      });
-    }
-
-    // ── Mic misses — acoustic_miss only, 0% accuracy ──
-    const acousticWords = dedup(clusters.acoustic_miss || []);
-    if (acousticWords.length >= 2) {
-      markShown(acousticWords);
-      insights.push({
-        priority: 'focus',
-        label: 'NOTICE THIS',
-        message: 'The microphone keeps missing these words. The sound is likely there but needs more definition — usually more energy on the first consonant.',
-        chips: acousticWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: focusBtn('Practice these in the phrase exercise', acousticWords.map(w => w.word)),
-      });
-    }
-
-    // ── Substitution patterns — homophones and wrong-word replacements ──
-    const patternGroups = [
-      { key: 'homophone',    groupLabel: 'Homophones',    desc: 'Sound nearly identical but are spelled differently.' },
-      { key: 'substitution', groupLabel: 'Substitutions', desc: 'Consistently replaced with a different word.' },
-    ];
-    const patternSections = [];
-    const allPatternWords = [];
-    for (const { key, groupLabel, desc } of patternGroups) {
-      const pWords = dedup(clusters[key] || []);
-      if (pWords.length >= 2) {
-        markShown(pWords);
-        allPatternWords.push(...pWords);
-        const groupChips = pWords.map(w => chip(w.word, w.accuracy)).join('');
-        patternSections.push(
-          `<div style="margin-top:14px;">` +
-          `<div style="font-family:var(--font-ui);font-size:0.52rem;letter-spacing:0.12em;font-weight:700;text-transform:uppercase;color:rgba(26,26,26,0.35);margin-bottom:6px;">${groupLabel} — <span style="font-weight:400;text-transform:none;letter-spacing:0;">${desc}</span></div>` +
-          `<div>${groupChips}</div>` +
-          `</div>`
-        );
-      }
-    }
-    if (patternSections.length) {
-      insights.push({
-        priority: 'focus',
-        label: 'PATTERNS',
-        message: 'These words are consistently coming out wrong in a recognisable way. Each group points to a different fix.',
-        chips: patternSections.join(''),
-        btn: focusBtn('Practice these in the phrase exercise', allPatternWords.map(w => w.word)),
-      });
-    }
-
-    // ── Inconsistent — you get it sometimes ──
-    const inconsistentWords = dedup(inconsistent);
-    if (inconsistentWords.length) {
-      markShown(inconsistentWords);
-      insights.push({
-        priority: 'watch',
-        label: 'INCONSISTENT',
-        message: `You get ${inconsistentWords.length === 1 ? 'this word' : 'these words'} sometimes but not reliably. The sound is in there — it just hasn't locked in yet. More reps in context will close this gap.`,
-        chips: inconsistentWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: focusBtn('Focus on these in the phrase exercise', inconsistentWords.map(w => w.word)),
-      });
-    }
-
-    // ── Almost there — close to mastery ──
-    const almostThereWords = dedup(almostThere);
-    if (almostThereWords.length) {
-      markShown(almostThereWords);
-      insights.push({
-        priority: 'watch',
-        label: 'ALMOST THERE',
-        message: `${almostThereWords.length === 1 ? 'This word is' : 'These words are'} close — you're getting them right most of the time. A few more clean reps and they'll be locked in.`,
-        chips: almostThereWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: null,
-      });
-    }
-
-    // ── Quick pickup — nailed fast ──
-    const quickWords = dedup(quickPickup);
-    if (quickWords.length) {
-      insights.push({
-        priority: 'good',
-        label: 'QUICK WINS',
-        message: `You got ${quickWords.length === 1 ? 'this word' : 'these words'} right almost immediately — fewer attempts than most. These are your natural strengths.`,
-        chips: quickWords.map(w => chip(w.word, w.accuracy)).join(''),
-        btn: null,
-      });
-    }
-
-    const accentColor = p => p === 'good' ? '#1F5A40' : p === 'watch' ? '#8A5A00' : '#137CB6';
-
-    // ── Coaching summary — synthesise dominant signals into pointers ──
-    const coachingPoints = [];
-    const acousticCount     = (clusters.acoustic_miss || []).length;
-    const substitutionCount = (clusters.substitution || []).length;
-    const hardCount         = (d.worst_words || []).filter(w => w.accuracy < 0.30).length;
-    const inconCount        = inconsistent.length;
-    const almostCount       = almostThere.length;
-    const masteryRate       = total >= 10 ? mastered / total : null;
-
-    if (acousticCount >= 3) {
-      coachingPoints.push('First-consonant definition is your main gap. The mic is detecting sound but not registering specific words — the initial consonant isn\'t landing clearly enough. Try a deliberate, sharp attack on the first sound of each word before relaxing into the rest of it.');
-    } else if (acousticCount >= 2) {
-      coachingPoints.push('A few words aren\'t registering at all — likely a consonant clarity issue. Exaggerate the first sound on these words in isolation until they click, then bring them back into sentences.');
-    }
-
-    if (hardCount >= 3) {
-      coachingPoints.push(`${hardCount} words are stuck below 30% accuracy. These need isolation work — say them alone and slowly until your mouth finds a reliable shape, then build speed. Sentence-level practice won\'t fix them yet.`);
-    } else if (hardCount === 1 || hardCount === 2) {
-      coachingPoints.push(`${hardCount === 1 ? 'One word is' : 'Two words are'} stuck below 30%. Slow it down to feel the mouth position before building speed — these need deliberate repetition, not just more exposure.`);
-    }
-
-    if (substitutionCount >= 2) {
-      coachingPoints.push('Your substitution errors follow a pattern — this isn\'t random mishearing. Targeted listening drills on these specific words will resolve it faster than general shadowing practice.');
-    }
-
-    if (inconCount >= 4) {
-      coachingPoints.push('Inconsistency is your dominant issue right now. You can produce these sounds — you just can\'t do it on demand yet. That\'s a repetition gap, not a phonics gap. More reps in varied sentence contexts will close it.');
-    } else if (inconCount >= 2 && coachingPoints.length < 2) {
-      coachingPoints.push('Several words are inconsistent — you get them sometimes but not reliably. The sound is there; it needs more automatic recall through repetition.');
-    }
-
-    if (almostCount >= 3 && coachingPoints.length < 3) {
-      coachingPoints.push(`${almostCount} words are close to mastery. A focused 10-minute session on the Almost There list could push several over the line today.`);
-    }
-
-    if (masteryRate !== null && masteryRate >= 0.4 && coachingPoints.length < 3) {
-      coachingPoints.push(`Strong mastery rate — ${Math.round(masteryRate * 100)}% of tracked words are locked in. The priority now is expanding your active vocabulary rather than perfecting what you already know.`);
-    }
-
-    const summaryBlock = coachingPoints.length
-      ? `<div style="margin-bottom:28px;padding:18px 20px;background:#F4F4F4;border-top:2px solid #1A1A1A;">
-          <div style="font-family:var(--font-ui);font-size:0.52rem;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;color:rgba(26,26,26,0.35);margin-bottom:14px;">Based on your data</div>
-          ${coachingPoints.map((p, i) => `
-            <div style="display:flex;gap:12px;${i < coachingPoints.length - 1 ? 'margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(26,26,26,0.08);' : ''}">
-              <div style="font-family:var(--font-ui);font-size:0.6rem;font-weight:700;color:#137CB6;padding-top:2px;flex-shrink:0;">${String(i + 1).padStart(2, '0')}</div>
-              <div style="font-family:var(--font-body);font-size:0.82rem;line-height:1.6;color:#1A1A1A;">${p}</div>
-            </div>`).join('')}
-        </div>`
-      : '';
-
-    const masteryBlock = mastered > 0
-      ? `<div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid #E8E8E8;">
-          <div style="font-family:var(--font-display);font-size:4.5rem;line-height:1;color:#1F5A40;letter-spacing:-0.01em;">${mastered}</div>
-          <div style="padding-bottom:10px;">
-            <div style="font-family:var(--font-ui);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;color:#1F5A40;text-transform:uppercase;">word${mastered !== 1 ? 's' : ''} mastered</div>
-            <div style="font-family:var(--font-body);font-size:0.72rem;color:rgba(26,26,26,0.4);margin-top:3px;">out of ${total} tracked</div>
-          </div>
-        </div>`
-      : `<div style="font-family:var(--font-ui);font-size:0.6rem;letter-spacing:0.07em;color:rgba(26,26,26,0.3);margin-bottom:28px;">${total} WORDS TRACKED · 0 MASTERED</div>`;
-
-    if (!insights.length && mastered === 0) {
-      return summaryBlock + masteryBlock + '<div style="font-family:var(--font-body);font-size:0.8rem;color:rgba(26,26,26,0.4);padding:40px 0;text-align:center;">Keep practicing — coaching insights will appear once more data is collected.</div>';
-    }
-
-    let html = summaryBlock + masteryBlock;
-
-    for (const ins of insights) {
-      const accent = accentColor(ins.priority);
-      html += `<div style="border-left:3px solid ${accent};padding:16px 20px;margin-bottom:20px;background:#FAFAFA;">
-        <div style="font-family:var(--font-ui);font-size:0.58rem;letter-spacing:0.1em;font-weight:700;color:${accent};margin-bottom:10px;">${ins.label}</div>
-        <div style="font-family:var(--font-body);font-size:0.83rem;line-height:1.6;color:#1A1A1A;">${ins.message}</div>
-        ${ins.chips ? `<div style="margin-top:12px;">${ins.chips}</div>` : ''}
-        ${ins.btn || ''}
+  function renderHomeKPIs() {
+    const host = document.getElementById('home-kpis');
+    if (!host) return;
+    host.innerHTML = _homeKpis.map(k => {
+      const trend = k.trend ? `<span class="vk-trend ${k.trend.dir}">${k.trend.text}</span>` : '';
+      const badge = k.newLevel ? `<span class="vk-tag is-success home-kpi-badge" title="You've reached a new level">New level · ${k.newLevel}</span>` : '';
+      return `<div class="vk-kpi-card" role="button" tabindex="0" data-key="${k.key}">
+        <div class="home-kpi-head"><p class="vk-kpi-label">${k.label}</p>${badge}</div>
+        <p class="vk-kpi-value">${k.value}</p>
+        <p class="home-kpi-tests">${k.tests}</p>
+        <div class="vk-kpi-footer">${trend}<span class="vk-kpi-context">${k.context}</span></div>
       </div>`;
-    }
-
-    return html;
+    }).join('');
+    host.querySelectorAll('.vk-kpi-card').forEach(card => {
+      const sel = () => selectHomeKPI(card.dataset.key);
+      card.addEventListener('click', sel);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sel(); } });
+    });
   }
 
-  function coachSection(title, inner) {
-    return `<div style="margin-bottom:32px;">
-      <div style="font-family:var(--font-ui);font-size:0.65rem;font-weight:700;letter-spacing:0.1em;color:rgba(26,26,26,0.4);text-transform:uppercase;margin-bottom:14px;padding-bottom:6px;border-bottom:2px solid #1A1A1A;">${title}</div>
-      ${inner}
-    </div>`;
+  function selectHomeKPI(key) {
+    _homeActiveKey = key;
+    document.querySelectorAll('#home-kpis .vk-kpi-card').forEach(c => c.classList.toggle('is-active', c.dataset.key === key));
+    const k = _homeKpis.find(x => x.key === key); if (!k) return;
+    const t = document.querySelector('.home-chart-title'); if (t) t.textContent = k.chart.title;
+    const s = document.querySelector('.home-chart-sub'); if (s) s.textContent = k.chart.sub;
+    const host = document.querySelector('.home-trend-chart'); if (!host) return;
+    const hasData = (k.chart.series || []).some(se => se.points.some(p => p.v != null));
+    if (!hasData) host.innerHTML = '<div class="empty">No practice data yet — start an exercise and your progress will show here.</div>';
+    else _homeBuildChart(host, k.chart.series, k.chart.opts);
+  }
+
+  function _homeTopGainer() {
+    return _homeKpis.reduce((a, b) => ((b.increaseScore || 0) > (a.increaseScore || 0) ? b : a), _homeKpis[0] || {});
+  }
+
+  // Calm, encouraging, data-driven tip rendered as the page subtitle. No emoji.
+  function pickHomeTip(s) {
+    s = s || {};
+    if (s.new) return `Start with a few phrases, and your progress will start to take shape here.`;
+    const leveled = _homeKpis.find(k => k.newLevel);
+    if (leveled) return `You've moved up to ${leveled.newLevel}${s.first_level ? ` from ${s.first_level}` : ''}, and your accuracy is holding there. That's real progress.`;
+    if (s.ready_to_level_up && s.current_level && s.next_level) return `You've been consistently strong at ${s.current_level} — it might be time to try ${s.next_level}.`;
+    if (s.returning && s.last_level) return `Welcome back — you left off improving at ${s.last_level}. Pick up where you were.`;
+    const top = _homeTopGainer();
+    if (top && top.trend && top.trend.dir === 'up' && (top.increaseScore || 0) >= 0.5)
+      return `Your ${top.label.toLowerCase()} is climbing — up ${top.trend.text} over the last few weeks.`;
+    if (s.new_words > 0) return `You've locked in ${s.new_words} new words this month, and counting.`;
+    if (s.dip) return `Your ${s.dip} dipped a little this week — a few focused reps will bring it back. Learning isn't linear.`;
+    if (top && top.trend) return `Your ${top.label.toLowerCase()} is trending up ${top.trend.text}.`;
+    return `Here's how your spoken French is coming along.`;
+  }
+
+  function renderHomeTip(signals) {
+    const el = document.getElementById('home-greeting-sub');
+    if (el) el.textContent = pickHomeTip(signals);
+  }
+
+  // Secondary KPIs (vocabulary + listening) — hidden until those are instrumented.
+  function renderHomeSecondary(secondary) {
+    const wrap = document.getElementById('home-secondary');
+    const grid = document.getElementById('home-secondary-grid');
+    if (!wrap || !grid) return;
+    const items = (secondary || []).filter(x => x && x.num != null);
+    if (!items.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    grid.innerHTML = items.map(s => {
+      const delta = s.delta ? `<span class="vk-kpi-delta ${s.delta.dir}">${s.delta.text}</span>` : '';
+      return `<div class="vk-kpi"><p class="vk-kpi-label">${s.label}</p><p class="vk-kpi-num">${s.num}${delta}</p><p class="vk-kpi-meta">${s.meta || ''}</p></div>`;
+    }).join('');
+  }
+
+  // ── Multi-series trend renderer (ported from the atelier-design data-viz) ──
+  let _homeGradSeq = 0;
+  function _homeNiceMax(v) {
+    if (v <= 5) return 5;
+    if (v <= 10) return 10;
+    if (v <= 50) return Math.ceil(v / 10) * 10;
+    return Math.ceil(v / 25) * 25;
+  }
+  function _homeBuildChart(container, series, opts) {
+    const weekLabels = opts.weekLabels || [];
+    const n = weekLabels.length;
+    const uid = ++_homeGradSeq;
+    let yMax = opts.yMax;
+    if (yMax == null) {
+      const peak = Math.max(1, ...series.flatMap(s => s.points.map(p => p.v == null ? 0 : p.v)));
+      yMax = _homeNiceMax(peak);
+    }
+    const ticks = opts.ticks || [0, yMax / 2, yMax];
+    const fmt = opts.fmt || (v => v);
+    const tickFmt = opts.tickFmt || (v => v);
+    const W = Math.max(container.clientWidth || 0, 320), H = 200;
+    const padT = 16, padR = 14, padB = 26, padL = 38;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const x = i => padL + (n <= 1 ? plotW / 2 : (plotW * i) / (n - 1));
+    const y = v => padT + (1 - v / yMax) * plotH;
+    const grid = ticks.map((g, k) =>
+      `<line class="${k === 0 ? 'atl-baseline' : 'atl-grid-line'}" x1="${padL}" y1="${y(g).toFixed(1)}" x2="${(W - padR).toFixed(1)}" y2="${y(g).toFixed(1)}"/>`).join('');
+    const yLabels = ticks.map(g =>
+      `<text class="atl-axis-label" x="${padL - 8}" y="${(y(g) + 3).toFixed(1)}" text-anchor="end">${tickFmt(g)}</text>`).join('');
+    // Thin labels when the axis is dense (e.g. a per-day window) so they don't
+    // overlap; always keep the first and last. Dots are unaffected.
+    const lblStep = n > 9 ? Math.ceil(n / 7) : 1;
+    const xLabels = weekLabels.map((lbl, i) =>
+      (i % lblStep === 0 || i === n - 1)
+        ? `<text class="atl-axis-label" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(lbl)}</text>`
+        : '').join('');
+    let defs = '', areas = '', lines = '', dots = '', hits = '', startMarks = '';
+    const yBase = y(0).toFixed(1);
+    series.forEach((s, si) => {
+      const valid = s.points.map((p, i) => ({ i, v: p.v })).filter(p => p.v != null);
+      if (!valid.length) return;
+      const dd = valid.map((p, k) => (k === 0 ? 'M' : 'L') + x(p.i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+      const w = s.width || 2.5;
+      if (opts.area) {
+        const gid = 'homeGrad' + uid + '_' + si;
+        const aOp = opts.areaOpacity != null ? opts.areaOpacity : 0.18;
+        defs += `<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:${s.color};stop-opacity:${aOp}"/><stop offset="100%" style="stop-color:${s.color};stop-opacity:0"/></linearGradient>`;
+        const first = valid[0], last = valid[valid.length - 1];
+        areas += `<path class="atl-area" style="fill:url(#${gid})" d="${dd} L${x(last.i).toFixed(1)} ${yBase} L${x(first.i).toFixed(1)} ${yBase} Z"/>`;
+      }
+      lines += `<path class="atl-line" pathLength="1" style="stroke:${s.color};stroke-width:${w}" d="${dd}"/>`;
+      dots += '<g class="atl-dots">' + valid.map(p =>
+        `<circle class="atl-dot" style="stroke:${s.color}" cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5"/>`).join('') + '</g>';
+      hits += valid.map(p =>
+        `<circle class="atl-hit" r="13" cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" data-series="${esc(s.label)}" data-color="${s.color}" data-val="${p.v}" data-label="${esc(weekLabels[p.i])}" data-x="${x(p.i).toFixed(1)}" data-y="${y(p.v).toFixed(1)}"/>`).join('');
+      if (s.mark) {
+        const f = valid[0];
+        startMarks += `<text class="atl-startlabel" x="${x(f.i).toFixed(1)}" y="${(y(f.v) - 9).toFixed(1)}" text-anchor="middle" style="fill:${s.color}">${esc(s.mark)}</text>`;
+      }
+    });
+    const svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(opts.title || 'trend')}">${defs ? '<defs>' + defs + '</defs>' : ''}${grid}${yLabels}${areas}${lines}${dots}${startMarks}${hits}${xLabels}</svg>`;
+    container.innerHTML = `<div class="atl-chart">${svg}<div class="atl-chart-tip"><span class="atl-chart-tip-score"></span><span class="atl-chart-tip-meta"></span></div></div>`;
+    const chart = container.querySelector('.atl-chart');
+    const tip = chart.querySelector('.atl-chart-tip');
+    const tipScore = tip.querySelector('.atl-chart-tip-score');
+    const tipMeta = tip.querySelector('.atl-chart-tip-meta');
+    chart.querySelectorAll('.atl-hit').forEach(hit => {
+      hit.addEventListener('mouseenter', () => {
+        const ty = parseFloat(hit.dataset.y);
+        const lx = Math.max(52, Math.min(chart.clientWidth - 52, parseFloat(hit.dataset.x)));
+        tipScore.textContent = fmt(parseFloat(hit.dataset.val));
+        tipScore.style.color = hit.dataset.color;
+        tipMeta.textContent = hit.dataset.series + ' · ' + hit.dataset.label;
+        tip.style.left = lx + 'px';
+        tip.style.top = ty + 'px';
+        tip.classList.toggle('below', ty < 56);
+        tip.classList.add('is-on');
+      });
+      hit.addEventListener('mouseleave', () => tip.classList.remove('is-on'));
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => chart.classList.add('is-drawn')));
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
