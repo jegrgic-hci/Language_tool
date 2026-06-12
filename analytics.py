@@ -174,6 +174,29 @@ def _generate_access_code() -> str:
     raise RuntimeError("Could not generate unique access code")
 
 
+def seed_students(access_codes: list) -> dict:
+    """Insert student rows for known access codes that don't already exist.
+    Uses the access code as the display name until updated via the dashboard."""
+    inserted, skipped = [], []
+    with _conn() as conn:
+        for code in access_codes:
+            code = code.strip()
+            if not code:
+                continue
+            existing = conn.execute(
+                "SELECT 1 FROM students WHERE access_code=?", (code,)
+            ).fetchone()
+            if existing:
+                skipped.append(code)
+            else:
+                conn.execute(
+                    "INSERT INTO students (access_code, name, lesson_days) VALUES (?,?,?)",
+                    (code, code, "[]"),
+                )
+                inserted.append(code)
+    return {"inserted": inserted, "skipped": skipped}
+
+
 def add_student(name: str, email: str, lesson_days: list,
                 lesson_time: str, notes: str, teacher_id: Optional[int] = None) -> dict:
     code = _generate_access_code()
@@ -265,8 +288,25 @@ def next_lesson_date(lesson_days_json: str) -> Optional[date]:
 
 
 def get_roster() -> list:
-    """All students with key stats for the roster card view, sorted by next lesson date."""
-    students = get_all_students()
+    """All students with key stats for the roster card view, sorted by next lesson date.
+    Includes any access code that has logged events but isn't in the students table."""
+    registered = {s["access_code"]: s for s in get_all_students()}
+    with _conn() as conn:
+        event_codes = [
+            r["access_code"] for r in conn.execute(
+                "SELECT DISTINCT access_code FROM events"
+            ).fetchall()
+        ]
+    # Merge: registered students first, then any event-only codes as placeholders
+    students_map = dict(registered)
+    for code in event_codes:
+        if code not in students_map:
+            students_map[code] = {
+                "access_code": code, "name": code,
+                "lesson_days": "[]", "lesson_time": "", "notes": "",
+                "teacher_id": None,
+            }
+    students = list(students_map.values())
     today = date.today()
     since_7d  = (today - timedelta(days=6)).isoformat()
     since_30d = (today - timedelta(days=29)).isoformat()

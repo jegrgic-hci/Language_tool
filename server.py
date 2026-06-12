@@ -498,6 +498,15 @@ async def add_student(req: AddStudentRequest, key: str = ""):
     )
 
 
+@app.get("/analytics/students/seed")
+async def seed_students(key: str = "", codes: str = ""):
+    """Insert student rows for comma-separated access codes that don't already exist."""
+    _require_analytics_key(key)
+    if not codes:
+        raise HTTPException(status_code=400, detail="codes required")
+    return _analytics.seed_students([c.strip() for c in codes.split(",") if c.strip()])
+
+
 @app.put("/analytics/students/{access_code}")
 async def update_student(access_code: str, req: UpdateStudentRequest, key: str = ""):
     _require_analytics_key(key)
