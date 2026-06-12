@@ -18,18 +18,26 @@ A French language learning webapp built for a user living in Marseille who wants
 ## File map
 | File | Purpose |
 |---|---|
-| `server.py` | FastAPI app, all routes, coherence check, TTS generation |
-| `router.py` | Intent classification via mistral-small → `(mode, topic)` tuple |
-| `document_engine.py` | PDF ingestion for RAG mode, `UPLOADS_DIR` |
-| `audio_engine.py` | Legacy CLI audio (not used by webapp) |
-| `elision.py` | French elision contraction rules — shared by `shadow_engine.py` and `paragraph_engine.py` |
-| `static/index.html` | Full single-file frontend — Kronos two-panel layout |
-| `static/analytics.html` | Teacher dashboard — standalone static file, fetches data from API endpoints |
+| `server.py` | FastAPI app — all routes, Mistral client, TTS generation (`generate_audio` via edge-tts), custom-content + dictation + comprehension + vocab handlers |
+| `shadow_engine.py` | Single-phrase shadowing: `generate_phrase()`, `score_attempt()`, `analyze_mismatches()`; pulls liaison links via `detect_links` |
+| `paragraph_engine.py` | Paragraph generation + per-chunk scoring: `generate_paragraph()`, `score_chunk()`, `analyze_mismatches()`, `analyze_patterns()`; `TOPICS` |
+| `prosody_engine.py` | Sound-target / rhythm phrases: `generate_prosody_phrase()`, `analyze_prosody_mismatches()`, `annotate_phrase_rhythm()`; `SOUND_TARGETS` |
+| `score_utils.py` | Shared scoring core — `normalize()`, `run_sequence_match()` (difflib SequenceMatcher), `build_display_results()`, `analyze_mismatches()`, `analyze_dictation_mismatches()` |
+| `elision.py` | French elision rules + homophones + number/gender-ending normalization — consumed by `score_utils.py` (and `analytics.py`) |
+| `liaison_rules.py` | Mandatory liaison (‿) and enchaînement (⁀) detection: `detect_links()` |
+| `pos_tagger.py` | spaCy `fr_core_news_sm` wrapper: `tag_nouns_adjs()`, `_get_nlp()` — feeds gender/number-aware scoring |
+| `practice_list.py` | JSON-backed practice word list CRUD (stored under `data/`) |
+| `document_engine.py` | PDF text extraction for uploaded docs, `UPLOADS_DIR` |
 | `analytics.py` | SQLite event tracking, all aggregation functions, coach system |
+| `static/index.html` | Full single-file frontend (vraiKronos) — all student exercise views |
+| `static/analytics.html` | Teacher dashboard — standalone static file, fetches from `/analytics/*` endpoints |
 | `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |
+| `vocabulary.md` | Vocabulary feature spec — 4-round oral session, `/vocab/generate` |
 | `future_updates.md` | Tech roadmap — updates deferred on a capability gap (e.g. STT upgrade → restore /r/, open/closed e, rhythm sound focuses) |
 | `requirements.txt` | All dependencies |
 | `.env` | `MISTRAL_API_KEY=...` |
+
+**Models**: `mistral-large-latest` (`_MODEL`) for content generation (paragraph, comprehension, dictation); `mistral-small-latest` for the lighter calls (word-drill analysis, pronunciation tips, context phrases, vocab).
 
 ## Running the server
 ```bash
@@ -40,34 +48,35 @@ python server.py
 ```
 
 ## Architecture
-### Session flow
-1. Browser generates a UUID session ID stored in `localStorage`
-2. Each `/chat` POST carries `{ message, session_id }`
-3. Server maintains in-memory `sessions` dict with `history`, `mode`, `topic`, `drill_state`
-4. On mode change, history is wiped and fresh context is built
+The app is an exercise platform, not a chatbot — there is no `/chat` route or conversational session state. Each exercise type is a generate → speak → score → explain loop. Most endpoints are stateless per request; persistence lives in `data/` (practice list), `user_content.json` (custom content), SQLite (analytics), and `uploads/` (PDFs). The shadow/prosody engines keep a small in-process `deque` of recent phrases to avoid repeats.
 
-### `/chat` endpoint order of operations
-1. If `drill_state.type == "number"` → validate the user's numeric answer, return result
-2. `route(message)` → classify intent → set mode/topic
-3. If new mode is DRILL + number topic → generate number sentence, set `drill_state`
-4. `check_coherence(message, history)` → if incoherent, return clarification bubble
-5. Call `get_response(history, mode, topic)` → main tutor reply
-6. Generate audio via `generate_audio(reply)` → returns filename
-7. Return `ChatResponse(reply, audio_url, mode, topic, drill_type)`
+### Shared scoring pipeline (the heart of the app)
+1. An engine generates the target French text via Mistral (or it comes from user/custom content)
+2. Browser Web Speech API (fr-FR, Chrome/Edge) transcribes the user's spoken attempt; the frontend contracts elisions before sending
+3. Frontend POSTs `{ target, transcription }` to the exercise's `…/analyze` route
+4. `score_utils.normalize()` tokenizes both sides, applying elision/homophone/gender-ending normalization from `elision.py` and noun/adj tags from `pos_tagger.py`
+5. `run_sequence_match()` (difflib `SequenceMatcher`) aligns tokens → per-word hit/miss
+6. `build_display_results()` maps the result back onto the original tokens for display
+7. `analyze_mismatches()` asks Mistral to explain the likely pronunciation issue per miss
+8. `server.generate_audio()` renders the target with edge-tts for playback
 
-### Session modes
-- `CHAT` — free conversation
-- `SCENARIO` — roleplay as native French speaker in a real-world context
-- `DRILL` — focused exercise (numbers, connectors, Marseille districts)
-- `RAG` — lesson grounded only in uploaded PDF documents
+### Exercise types (route families)
+- **Shadow / phrase** — `/shadow/phrase`, `/shadow/analyze`, `/shadow/rhythm`: repeat a single generated phrase
+- **Paragraph** — `/paragraph/start`, `/paragraph/analyze` (per chunk), `/paragraph/analyze-patterns`: read a paragraph chunk-by-chunk, then a cross-chunk pattern summary
+- **Prosody** — `/prosody/targets`, `/prosody/phrase`, `/prosody/analyze`: phrases focused on a specific sound/rhythm target
+- **Practice list** — `/practice-list` CRUD, `/practice-list/pronunciation`, `/practice-list/context-phrase`, `/analyze_word_drill`: user's saved words
+- **Comprehension** — `/comprehension/generate`: passage + questions
+- **Dictation** — `/dictation/generate`, `/dictation/check`, `/dictation/check-inline`
+- **Vocab** — `/vocab/generate`: 4-round oral vocabulary session (spec in `vocabulary.md`)
+- **Custom content** — `/custom/*`: user-supplied passages, persisted in `user_content.json`
+- **Analytics / coach** — `/track`, `/analytics/*`, `/coach`: event logging + teacher dashboard (see `analytics.md`)
 
 ## Frontend features
-- **Two-panel layout**: dark left panel (controls) + light right panel (chat)
-- **Listening mode**: blurs all tutor bubbles; click bubble or eye icon to reveal individually
-- **Stop button**: red square on each tutor bubble, shows only while audio is playing
-- **Mic button**: Web Speech API, fr-FR, toggles red pulsing state while recording
-- **AbortController**: cancels in-flight fetch + pauses audio on stop
-- **Clarification bubbles**: teal left border + italic style, `drill_type === 'clarification'`
+`static/index.html` is a single-file app with a left nav and a set of swappable views (`home`, `phrase`/`phrase-hub`, `paragraph`, `practice`, `comprehension`, `vocab`, `custom`, …). It opens on `home`. Each exercise view shares the same control atoms:
+- **Play / pause** — `pa-ctrl-play`, plays the edge-tts audio of the target
+- **Mic** — Web Speech API, fr-FR; the `…-mic-btn` toggles a `listening` class; works only in Chrome/Edge
+- **Skip / Next / Continue** — `pv-func-skip` and the per-view advance buttons, laid out in the centered `.pv-func` controls row
+- **Per-sentence / per-word scores** — colour-coded score bars rendered from the analyze response
 
 ## Known constraints
 - **Python 3.9**: use `Optional[str]` from `typing`, NOT `str | None` union syntax — this will crash the server
@@ -75,15 +84,11 @@ python server.py
 - **`clean_for_tts()`** in `server.py` strips emoji, markdown (`**`, `*`, `_`), bullets, em-dashes before sending to TTS
 - **Audio security**: filename validated with `re.fullmatch(r"[a-f0-9]{32}\.mp3", filename)`
 - **Upload security**: filenames sanitized with `Path(filename).name`
-
-## Pending / next features (as of last session)
-- **Confidence threshold + phonetic check**: The user frequently mispronounces a key word, which speech recognition transcribes incorrectly, ruining the conversation flow. Planned approach:
-  1. **Frontend**: capture `event.results[0][0].confidence` from Web Speech API; if below ~0.65, warn the user inline before sending (amber indicator, offer to retry or proceed)
-  2. **Backend**: pass `confidence: float` in the chat request body; when confidence is low, use a more targeted coherence prompt that identifies the specific likely-mispronounced word and says something like "Le verbe 'X' semble incorrect — tu peux répéter ?" rather than a generic clarification
+- **spaCy model**: `pos_tagger.py` loads `fr_core_news_sm` — it must be installed (`python -m spacy download fr_core_news_sm`) or scoring that depends on noun/adj tagging will fail
 
 ## Completed work (elision scoring — single-token approach)
 - **Problem**: elided words like `t'as`, `l'heure`, `j'ai` were being scored incorrectly. The old approach expanded elisions into 2 tokens for comparison (e.g. `j'ai` → `["je", "ai"]`), causing alignment failures and requiring a fragile dropout correction hack.
-- **Fix**: elisions are now kept as single tokens end-to-end. `elision.py` holds the canonical rule list (`FRENCH_ELISION_RULES`) — it contracts expanded forms (e.g. `"je ai"` → `"j'ai"`) rather than expanding them. Both `shadow_engine.py` and `paragraph_engine.py` import `normalize_french()` from it. The frontend `contractElisions()` in `static/index.html` mirrors the same rules in JS so the live transcript display and what gets sent to the backend are already in contracted form.
+- **Fix**: elisions are now kept as single tokens end-to-end. `elision.py` holds the canonical rule list (`FRENCH_ELISION_RULES`) — it contracts expanded forms (e.g. `"je ai"` → `"j'ai"`) rather than expanding them. `score_utils.py` imports `normalize_french()` (and the homophone/gender helpers) from it, and the engines call into `score_utils`. The frontend `contractElisions()` in `static/index.html` mirrors the same rules in JS so the live transcript display and what gets sent to the backend are already in contracted form.
 - **Scoring**: `_normalize()` no longer expands elisions. `_norm_parts()` and the dropout correction pass have been removed. `display_results` is now a clean 1:1 mapping between original tokens and normalized tokens.
 
 ## Hyphenated and underscore-linked words in scoring
