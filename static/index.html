@@ -2934,7 +2934,7 @@
               </svg>
             </button>
             <button class="pv-func-skip" id="phrase-skip-btn" onclick="fetchNextPhrase()">skip</button>
-            <button id="phrase-next-btn" class="vk-btn vk-btn-outline-accent" onclick="fetchNextPhrase()" style="display:none; position:absolute; right:0;">Next →</button>
+            <button id="phrase-next-btn" class="vk-btn vk-btn-outline-accent" onclick="fetchNextPhrase()" style="display:none;">Next →</button>
           </div>
 
           <span id="phrase-retry-hint" style="display:none;"></span>
@@ -4273,19 +4273,8 @@
   let _shadowingViewStart = null;
   let _shadowingViewType  = null;
 
-  let currentMode = 'CHAT';
-  let busy = false;
   let currentAudio = null;
-  let activeController = null;
   let activeBubbleStop = null;
-  let listeningMode = false;
-  let lastSpeechConfidence = null;
-
-  const chatEl       = document.getElementById('chat');
-  const textInput    = document.getElementById('text-input');
-  const sendBtn      = document.getElementById('send-btn');
-  const micBtn       = document.getElementById('mic-btn');
-  const headerStatus = document.getElementById('header-status');
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function esc(s) {
@@ -4459,15 +4448,6 @@
       } else if (view === 'practice') {
         document.getElementById('practice-para-drill-mic-btn').classList.remove('listening');
         handleDrillResult(text, confidence);
-      } else {
-        micBtn.classList.remove('listening');
-        if (confidence < 0.65) {
-          lastSpeechConfidence = confidence;
-          showConfidenceWarning(confidence);
-        } else {
-          lastSpeechConfidence = confidence;
-          send(text);
-        }
       }
     };
 
@@ -4545,19 +4525,11 @@
         return;
       }
 
-      textInput.value = t;
-      silenceTimeoutId = setTimeout(() => {
-        if (micBtn.classList.contains('listening')) {
-          const conf = lastResult[0].confidence || 0.9;
-          submitTranscript(t, conf, 'chat');
-        }
-      }, silenceDelay);
     };
     recognition.onerror = e => {
       // Check if mic was active before stripping listening classes — onerror fires
       // before onend, so we must record restart intent here or onend will miss it.
       const micActiveAtError = !userStoppedRecognition && (
-        micBtn.classList.contains('listening') ||
         document.getElementById('phrase-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-drill-mic-btn')?.classList.contains('listening') ||
@@ -4567,7 +4539,6 @@
       const recoverableError = ['no-speech', 'audio-capture', 'network', 'aborted'].includes(e.error);
       if (micActiveAtError && recoverableError) errorWantedRestart = true;
 
-      micBtn?.classList.remove('listening');
       document.getElementById('phrase-mic-btn')?.classList.remove('listening');
       document.getElementById('para-mic-btn')?.classList.remove('listening');
       document.getElementById('para-drill-mic-btn')?.classList.remove('listening');
@@ -4595,7 +4566,6 @@
     recognition.onend = () => {
       // Check if any mic was active before clearing state — needed for auto-restart
       const micWasActive = !userStoppedRecognition && (
-        micBtn.classList.contains('listening') ||
         document.getElementById('phrase-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-drill-mic-btn')?.classList.contains('listening') ||
@@ -4612,7 +4582,6 @@
         return;
       }
 
-      micBtn?.classList.remove('listening');
       document.getElementById('phrase-mic-btn')?.classList.remove('listening');
       document.getElementById('para-mic-btn')?.classList.remove('listening');
       document.getElementById('para-drill-mic-btn')?.classList.remove('listening');
@@ -4634,25 +4603,7 @@
         }
       }
     };
-  } else {
-    if (micBtn) { micBtn.title = 'Speech recognition requires Chrome or Edge'; micBtn.style.opacity = '0.4'; }
   }
-
-  if (micBtn) micBtn.addEventListener('click', async () => {
-    if (!recognition) return;
-    if (micBtn.classList.contains('listening')) {
-      if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
-      userStoppedRecognition = true;
-      recognition.stop();
-    } else {
-      const ok = await ensureMicPermission();
-      if (!ok) { addSys('Microphone access denied. Check your browser settings.'); return; }
-      textInput.value = '';
-      lastTranscriptSubmitted = ''; finalTranscriptBuffer = '';
-      micBtn.classList.add('listening');
-      recognition.start();
-    }
-  });
 
   // ── File Upload ────────────────────────────────────────────────────────────
   const dropZone = document.getElementById('drop-zone');
@@ -4711,24 +4662,8 @@
     loadFiles();
   }
 
-  // ── Confidence bar actions ─────────────────────────────────────────────────
-  document.getElementById('confidence-retry')?.addEventListener('click', async () => {
-    lastSpeechConfidence = null;
-    hideConfidenceWarning();
-    if (textInput) textInput.value = '';
-    if (recognition) {
-      await ensureMicPermission();
-      if (micBtn) micBtn.classList.add('listening');
-      recognition.start();
-    }
-  });
-
-  document.getElementById('confidence-dismiss')?.addEventListener('click', () => {
-    hideConfidenceWarning();
-  });
-
   // ── View switching ─────────────────────────────────────────────────────────
-  let currentView = 'chat';
+  let currentView = 'home';
 
   // Sub-views that keep the "Generate" nav button active
   const GENERATE_SUBVIEWS = new Set(['phrase-hub', 'phrase', 'paragraph']);
@@ -4747,7 +4682,6 @@
     }
 
     currentView = view;
-    const inChat      = view === 'chat';
     const inShadow    = view === 'phrase';
     const inPractice  = view === 'practice';
     const inParagraph = view === 'paragraph';
@@ -4766,11 +4700,6 @@
       _shadowingViewType  = inShadow ? 'phrase' : 'paragraph';
     }
 
-    setDisplay('chat-header',    inChat ? '' : 'none');
-    setDisplay('chat',           inChat ? '' : 'none');
-    setDisplay('confidence-bar', inChat ? '' : 'none');
-    setDisplay('input-bar',      inChat ? '' : 'none');
-
     setDisplay('phrase-view',         inShadow       ? 'flex' : 'none');
     setDisplay('practice-view',       inPractice     ? 'flex' : 'none');
     setDisplay('paragraph-view',      inParagraph    ? 'flex' : 'none');
@@ -4785,7 +4714,7 @@
     setDisplay('vocab-view',          inVocab        ? 'flex' : 'none');
 
     const VIEW_LABELS = {
-      'chat': 'Chat', 'phrase': 'Exercises', 'phrase-hub': 'Exercises',
+      'phrase': 'Exercises', 'phrase-hub': 'Exercises',
       'practice': 'Practice List', 'paragraph': 'Exercises',
       'home': 'Home', 'custom': 'My Content',
       'comprehension-hub': 'Comprehension', 'comprehension': 'Comprehension',
@@ -4808,9 +4737,6 @@
         (b.dataset.view === 'vocab-hub' && inVocab);
       b.classList.toggle('is-active', isActive);
     });
-    document.querySelectorAll('[data-mode]').forEach(b =>
-      b.classList.toggle('is-active', inChat && b.dataset.mode === currentMode)
-    );
 
     if (inShadow && !currentPhrase) fetchNextPhrase();
     if (inPractice) {
@@ -8239,7 +8165,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   // ── Init ───────────────────────────────────────────────────────────────────
   loadFiles();
   updatePracticeCount();
-  if (textInput) textInput.focus();
 
   // ── Comprehension ───────────────────────────────────────────────────────────
   let comprLevel        = 'B1';
