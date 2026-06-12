@@ -12,3 +12,6 @@ build/
 uploads/*.pdf
 data/
 user_content.json
+
+# Archived scratch files (design mockups, old planning notes) — kept locally, not tracked
+old/

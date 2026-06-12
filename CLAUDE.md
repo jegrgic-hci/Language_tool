@@ -1,8 +1,7 @@
 # French Tutor — Claude Session Instructions
 
 ## Active frontend file — index.html
-The vraiKronos rebuild is complete and `index-v3.html` has been copied into **`static/index.html`**, which is now the live, active frontend. Do all frontend work in `static/index.html`.
-The older versions (`index-v3.html`, `index_v2.html`) are **sunset** — do not edit them; they are kept only for reference.
+`static/index.html` is the live, active frontend (the vraiKronos rebuild). Do all frontend work there.
 Design system files (still the source of truth for tokens/components): `static/vk-tokens.css`, `static/vk-components.css`, `static/vk-atelier-components.css`, `static/vk-theme-light.css`, `static/vk-theme-atelier.css`.
 
 ## Project purpose
@@ -20,7 +19,6 @@ A French language learning webapp built for a user living in Marseille who wants
 | File | Purpose |
 |---|---|
 | `server.py` | FastAPI app, all routes, coherence check, TTS generation |
-| `tutor.py` | System prompts and `get_response()` — calls mistral-large |
 | `router.py` | Intent classification via mistral-small → `(mode, topic)` tuple |
 | `document_engine.py` | PDF ingestion for RAG mode, `UPLOADS_DIR` |
 | `audio_engine.py` | Legacy CLI audio (not used by webapp) |
@@ -29,6 +27,7 @@ A French language learning webapp built for a user living in Marseille who wants
 | `static/analytics.html` | Teacher dashboard — standalone static file, fetches data from API endpoints |
 | `analytics.py` | SQLite event tracking, all aggregation functions, coach system |
 | `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |
+| `future_updates.md` | Tech roadmap — updates deferred on a capability gap (e.g. STT upgrade → restore /r/, open/closed e, rhythm sound focuses) |
 | `requirements.txt` | All dependencies |
 | `.env` | `MISTRAL_API_KEY=...` |
 
