@@ -251,6 +251,7 @@
     </div>
 
     <div class="sb-footer">
+      <a href="/" target="_blank" style="display:block; font-family:var(--vkg-font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--vk-fg-2); text-decoration:none; padding:8px 0; border-top:1px solid var(--vk-border); margin-bottom:10px;" onmouseover="this.style.color='var(--vk-fg-1)'" onmouseout="this.style.color='var(--vk-fg-2)'">&#8599; Open Tool</a>
       <div class="sb-email" id="sb-email">—</div>
       <button class="sb-signout" onclick="signOut()">Sign Out</button>
     </div>
@@ -302,10 +303,17 @@
 
     <!-- ── Performance page ────────────────────────────────────────────── -->
     <div class="page" id="page-performance">
-      <div class="page-header">
-        <div class="page-title">Performance</div>
-        <div class="page-sub">Platform-wide usage and scoring metrics</div>
+      <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+        <div>
+          <div class="page-title">Performance</div>
+          <div class="page-sub">Platform-wide usage and scoring metrics</div>
+        </div>
+        <div style="display:flex; gap:0; border:1px solid var(--vk-border); align-self:center;">
+          <button id="ds-current" onclick="switchDataset('current')" style="padding:6px 14px; font-family:var(--vkg-font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; border:none; cursor:pointer; background:var(--vk-accent); color:var(--vk-accent-fg);">Current</button>
+          <button id="ds-legacy" onclick="switchDataset('legacy')" style="padding:6px 14px; font-family:var(--vkg-font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; border:none; cursor:pointer; background:var(--vk-surface); color:var(--vk-fg-2);">Legacy</button>
+        </div>
       </div>
+      <div id="legacy-banner" style="display:none; background:var(--vk-accent-bg); border:1px solid var(--vk-accent); color:var(--vk-accent-text); font-size:0.72rem; font-family:var(--vkg-font-mono); padding:8px 12px; margin-bottom:16px; letter-spacing:0.04em;">VIEWING LEGACY DATA — collected before current deployment</div>
       <div class="page-body">
 
         <!-- KPIs -->
@@ -527,9 +535,22 @@
     students.classList.toggle('open');
   }
 
+  // ── Dataset toggle ────────────────────────────────────────────────────────
+  let _dataset = 'current';
+
+  function switchDataset(ds) {
+    _dataset = ds;
+    document.getElementById('ds-current').style.background = ds === 'current' ? 'var(--vk-accent)' : 'var(--vk-surface)';
+    document.getElementById('ds-current').style.color      = ds === 'current' ? 'var(--vk-accent-fg)' : 'var(--vk-fg-2)';
+    document.getElementById('ds-legacy').style.background  = ds === 'legacy'  ? 'var(--vk-accent)' : 'var(--vk-surface)';
+    document.getElementById('ds-legacy').style.color       = ds === 'legacy'  ? 'var(--vk-accent-fg)' : 'var(--vk-fg-2)';
+    document.getElementById('legacy-banner').style.display = ds === 'legacy'  ? 'block' : 'none';
+    loadPerformance();
+  }
+
   // ── Performance page ──────────────────────────────────────────────────────
   async function loadPerformance() {
-    const r = await fetch('/admin/platform-stats', { headers: authHeaders() });
+    const r = await fetch(`/admin/platform-stats?dataset=${_dataset}`, { headers: authHeaders() });
     if (!r.ok) { return; }
     const d = await r.json();
 

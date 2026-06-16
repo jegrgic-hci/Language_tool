@@ -3,6 +3,7 @@ import sqlite3
 import json
 import secrets
 import string
+from contextvars import ContextVar
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from collections import defaultdict, Counter
@@ -12,11 +13,14 @@ from elision import FRENCH_ELISION_RULES, FRENCH_HOMOPHONES, normalize_french
 from phonetic_lookup import get_phonetic_categories
 
 _DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent / "data"))
-DB_PATH = _DATA_DIR / "analytics.db"
+DB_PATH        = _DATA_DIR / "analytics.db"
+LEGACY_DB_PATH = _DATA_DIR / "analytics_legacy.db"
+
+_active_db: ContextVar[Path] = ContextVar("active_db", default=DB_PATH)
 
 
 def _conn():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(str(_active_db.get()))
     conn.row_factory = sqlite3.Row
     return conn
 

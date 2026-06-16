@@ -86,6 +86,18 @@ async def _send_email(to: str, subject: str, html: str) -> bool:
         return r.status_code == 200
 
 
+from contextlib import contextmanager
+
+@contextmanager
+def _use_dataset(dataset: str):
+    path = _analytics.LEGACY_DB_PATH if dataset == "legacy" else _analytics.DB_PATH
+    token = _analytics._active_db.set(path)
+    try:
+        yield
+    finally:
+        _analytics._active_db.reset(token)
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 VOICE = "fr-FR-DeniseNeural"
@@ -766,13 +778,15 @@ async def admin_update_user(
 
 
 @app.get("/admin/platform-stats")
-async def admin_platform_stats(current_user: dict = Depends(_auth.require_admin)):
-    return _analytics.get_platform_stats()
+async def admin_platform_stats(dataset: str = "current", current_user: dict = Depends(_auth.require_admin)):
+    with _use_dataset(dataset):
+        return _analytics.get_platform_stats()
 
 
 @app.get("/admin/user-hierarchy")
-async def admin_user_hierarchy(current_user: dict = Depends(_auth.require_admin)):
-    return _analytics.get_user_hierarchy()
+async def admin_user_hierarchy(dataset: str = "current", current_user: dict = Depends(_auth.require_admin)):
+    with _use_dataset(dataset):
+        return _analytics.get_user_hierarchy()
 
 
 # ── Current user info ──────────────────────────────────────────────────────────
