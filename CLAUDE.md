@@ -1,5 +1,8 @@
 # French Tutor — Claude Session Instructions
 
+## Testing responsibility
+The user tests all frontend and browser behaviour directly in Chrome. Do not attempt Playwright, headless browser automation, or any automated UI verification. After implementing a frontend change, describe what to check and hand off — do not try to verify it yourself.
+
 ## Active frontend file — index.html
 `static/index.html` is the live, active frontend (the vraiKronos rebuild). Do all frontend work there.
 Design system files (still the source of truth for tokens/components): `static/vk-tokens.css`, `static/vk-components.css`, `static/vk-atelier-components.css`, `static/vk-theme-light.css`, `static/vk-theme-atelier.css`.
@@ -29,6 +32,8 @@ A French language learning webapp built for a user living in Marseille who wants
 | `practice_list.py` | JSON-backed practice word list CRUD (stored under `data/`) |
 | `document_engine.py` | PDF text extraction for uploaded docs, `UPLOADS_DIR` |
 | `analytics.py` | SQLite event tracking, all aggregation functions, coach system |
+| `phonetic_lookup.py` | Loads `data/Lexique383.tsv` once at import; `get_phonetic_categories(word)` → list of `nasal`/`u_sound`/`eu_sound` labels; consumed by `analytics.py` |
+| `data/Lexique383.tsv` | Lexique383 French lexical database (25 MB, 142k rows) — `ortho` + `phon` columns used; downloaded from lexique.fr |
 | `static/index.html` | Full single-file frontend (vraiKronos) — all student exercise views |
 | `static/analytics.html` | Teacher dashboard — standalone static file, fetches from `/analytics/*` endpoints |
 | `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VraiFrench — Admin Hub</title>
+  <link rel="stylesheet" href="/static/vk-tokens.css">
+  <link rel="stylesheet" href="/static/vk-components.css">
+  <link rel="stylesheet" href="/static/vk-theme-light.css">
+  <link rel="stylesheet" href="/static/vk-theme-atelier.css">
+  <style>
+    /* ── Shell ──────────────────────────────────────────────────────────── */
+    body { margin: 0; font-family: var(--vk-font-ui); background: var(--vk-bg); color: var(--vk-fg-1); }
+
+    .shell { display: flex; height: 100dvh; overflow: hidden; }
+
+    /* ── Sidebar ────────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      background: var(--vk-surface);
+      border-right: 1px solid var(--vk-border-mid);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    .sb-wordmark {
+      padding: 24px 20px 8px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--vk-fg-1);
+    }
+    .sb-badge {
+      display: inline-block; margin-left: 6px;
+      font-size: 0.55rem; letter-spacing: 0.08em;
+      background: var(--vk-accent); color: var(--vk-accent-fg);
+      padding: 2px 5px; vertical-align: middle;
+    }
+    .sb-byline { padding: 0 20px 20px; font-size: 0.65rem; color: var(--vk-fg-2); }
+
+    .sb-nav { padding: 4px 0; flex: 1; }
+    .sb-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px; cursor: pointer;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--vk-fg-2); transition: background 80ms, color 80ms;
+      border-left: 2px solid transparent;
+    }
+    .sb-item:hover { background: var(--vk-accent-bg); color: var(--vk-fg-1); }
+    .sb-item.active {
+      border-left-color: var(--vk-accent); background: var(--vk-accent-bg);
+      color: var(--vk-accent-text);
+    }
+    .sb-icon { font-size: 0.9rem; width: 18px; text-align: center; }
+
+    .sb-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--vk-border);
+      font-size: 0.65rem; color: var(--vk-fg-3);
+    }
+    .sb-email { font-size: 0.68rem; color: var(--vk-fg-2); margin-bottom: 8px; word-break: break-all; }
+    .sb-signout {
+      font-family: var(--vk-font-ui); font-size: 0.65rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      background: none; border: 1px solid var(--vk-border-mid);
+      color: var(--vk-fg-2); padding: 6px 12px; cursor: pointer;
+      transition: background 80ms, color 80ms;
+    }
+    .sb-signout:hover { background: var(--vk-border-mid); color: var(--vk-fg-1); }
+
+    /* ── Main ───────────────────────────────────────────────────────────── */
+    .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+    .page { display: none; flex-direction: column; min-height: 100%; }
+    .page.active { display: flex; }
+
+    .page-header {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--vk-surface);
+      border-bottom: 1px solid var(--vk-border);
+      padding: 20px 32px 16px;
+    }
+    .page-title {
+      font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em;
+      color: var(--vk-fg-1); margin: 0 0 4px;
+    }
+    .page-sub { font-size: 0.72rem; color: var(--vk-fg-2); }
+    .page-body { padding: 28px 32px; flex: 1; }
+
+    /* ── KPI strip ──────────────────────────────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px; margin-bottom: 32px;
+    }
+    .kpi-card {
+      background: var(--vk-surface);
+      border: 1px solid var(--vk-border-mid);
+      padding: 18px 20px;
+    }
+    .kpi-label {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--vk-fg-3); margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 1.8rem; font-weight: 700; color: var(--vk-fg-1); line-height: 1;
+    }
+    .kpi-sub { font-size: 0.68rem; color: var(--vk-fg-2); margin-top: 4px; }
+
+    /* ── Section heading ────────────────────────────────────────────────── */
+    .section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 0 0 14px;
+    }
+    .section-title {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--vk-fg-2);
+    }
+
+    /* ── Teacher accordion ──────────────────────────────────────────────── */
+    .teacher-block { margin-bottom: 16px; border: 1px solid var(--vk-border-mid); }
+    .teacher-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px; background: var(--vk-surface);
+      cursor: pointer; transition: background 80ms;
+    }
+    .teacher-row:hover { background: var(--vk-accent-bg); }
+    .teacher-row.open { border-bottom: 1px solid var(--vk-border); }
+
+    .tr-chevron {
+      font-size: 0.65rem; color: var(--vk-fg-3); transition: transform 150ms;
+      flex-shrink: 0;
+    }
+    .teacher-row.open .tr-chevron { transform: rotate(90deg); }
+
+    .tr-name { font-size: 0.82rem; font-weight: 600; color: var(--vk-fg-1); flex: 1; }
+    .tr-email { font-size: 0.7rem; color: var(--vk-fg-3); }
+    .tr-count {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--vk-fg-3); background: var(--vk-border-mid);
+      padding: 3px 8px; flex-shrink: 0;
+    }
+
+    .teacher-students { display: none; background: var(--vk-bg); }
+    .teacher-students.open { display: block; }
+
+    /* ── User table ─────────────────────────────────────────────────────── */
+    .user-table { width: 100%; border-collapse: collapse; }
+    .user-table th {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--vk-fg-3);
+      text-align: left; padding: 8px 18px;
+      border-bottom: 1px solid var(--vk-border);
+    }
+    .user-table td {
+      padding: 10px 18px; font-size: 0.75rem; color: var(--vk-fg-2);
+      border-bottom: 1px solid var(--vk-border);
+    }
+    .user-table tr:last-child td { border-bottom: none; }
+    .user-table tr:hover td { background: var(--vk-accent-bg); }
+
+    .td-name { font-weight: 600; color: var(--vk-fg-1); }
+    .td-code {
+      font-family: var(--vk-font-ui); font-size: 0.7rem;
+      color: var(--vk-accent-text); letter-spacing: 0.05em;
+    }
+
+    .badge {
+      display: inline-block; font-size: 0.58rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 2px 7px;
+    }
+    .badge-active { background: rgba(31,90,64,0.15); color: #1F5A40; }
+    .badge-inactive { background: rgba(180,35,24,0.1); color: #B42318; }
+    .badge-solo { background: var(--vk-accent-bg); color: var(--vk-accent-text); }
+
+    .action-btn {
+      font-family: var(--vk-font-ui); font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      border: 1px solid var(--vk-border-mid); background: none;
+      color: var(--vk-fg-2); padding: 4px 10px; cursor: pointer;
+      transition: background 80ms, color 80ms; text-decoration: none;
+      display: inline-block;
+    }
+    .action-btn:hover { background: var(--vk-border-mid); color: var(--vk-fg-1); }
+    .action-btn + .action-btn { margin-left: 4px; }
+
+    .action-btn-accent {
+      border-color: var(--vk-accent-border); color: var(--vk-accent-text);
+    }
+    .action-btn-accent:hover { background: var(--vk-accent-bg); }
+
+    /* ── Exercise bar chart ──────────────────────────────────────────────── */
+    .chart-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+    .chart-row { display: flex; align-items: center; gap: 12px; }
+    .chart-label { font-size: 0.68rem; color: var(--vk-fg-2); width: 180px; flex-shrink: 0; }
+    .chart-bar-bg { flex: 1; height: 10px; background: var(--vk-border-mid); position: relative; }
+    .chart-bar-fill { height: 100%; background: var(--vk-accent); transition: width 400ms; }
+    .chart-val { font-size: 0.68rem; color: var(--vk-fg-3); width: 50px; text-align: right; flex-shrink: 0; }
+
+    /* ── Daily sparkline ─────────────────────────────────────────────────── */
+    .sparkline-wrap { margin-bottom: 32px; }
+    .sparkline-label { font-size: 0.62rem; color: var(--vk-fg-3); margin-bottom: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+    #sparkline-svg { width: 100%; height: 80px; display: block; }
+
+    /* ── Top users table ─────────────────────────────────────────────────── */
+    .top-table { width: 100%; border-collapse: collapse; }
+    .top-table th {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--vk-fg-3);
+      text-align: left; padding: 6px 12px;
+      border-bottom: 1px solid var(--vk-border);
+    }
+    .top-table td {
+      padding: 9px 12px; font-size: 0.74rem; color: var(--vk-fg-2);
+      border-bottom: 1px solid var(--vk-border);
+    }
+    .top-table tr:last-child td { border-bottom: none; }
+    .rank { color: var(--vk-fg-3); }
+
+    /* ── Two-column layout ───────────────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+    .col-card { border: 1px solid var(--vk-border-mid); padding: 20px; }
+
+    /* ── Empty state ─────────────────────────────────────────────────────── */
+    .empty { color: var(--vk-fg-3); font-size: 0.75rem; padding: 24px; text-align: center; }
+
+    /* ── Loading skeleton ────────────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--vk-border) 25%, var(--vk-border-mid) 50%, var(--vk-border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      height: 14px; margin-bottom: 8px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sb-wordmark">VraiFrench <span class="sb-badge">ADMIN</span></div>
+    <div class="sb-byline">Super Admin Hub</div>
+
+    <div class="sb-nav">
+      <div class="sb-item active" data-page="users" onclick="showPage('users', this)">
+        <span class="sb-icon">&#9776;</span> Users
+      </div>
+      <div class="sb-item" data-page="performance" onclick="showPage('performance', this)">
+        <span class="sb-icon">&#9650;</span> Performance
+      </div>
+    </div>
+
+    <div class="sb-footer">
+      <div class="sb-email" id="sb-email">—</div>
+      <button class="sb-signout" onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ── Users page ──────────────────────────────────────────────────── -->
+    <div class="page active" id="page-users">
+      <div class="page-header">
+        <div class="page-title">Users</div>
+        <div class="page-sub">All teachers, their students, and solo learners</div>
+      </div>
+      <div class="page-body">
+        <!-- Teachers -->
+        <div class="section-head">
+          <span class="section-title">Teachers</span>
+          <button class="action-btn action-btn-accent" onclick="openCreateTeacher()">+ Add Teacher</button>
+        </div>
+        <div id="teachers-list">
+          <div class="skeleton" style="width:60%;height:48px"></div>
+          <div class="skeleton" style="width:45%;height:48px;margin-top:8px"></div>
+        </div>
+
+        <!-- Solo students -->
+        <div class="section-head" style="margin-top:32px">
+          <span class="section-title">Solo Learners</span>
+        </div>
+        <div id="solo-wrap" style="border:1px solid var(--vk-border-mid)">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Name / Email</th>
+                <th>Access Code</th>
+                <th>Status</th>
+                <th>Last Active</th>
+                <th>Events</th>
+                <th>Links</th>
+              </tr>
+            </thead>
+            <tbody id="solo-body">
+              <tr><td colspan="6" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Performance page ────────────────────────────────────────────── -->
+    <div class="page" id="page-performance">
+      <div class="page-header">
+        <div class="page-title">Performance</div>
+        <div class="page-sub">Platform-wide usage and scoring metrics</div>
+      </div>
+      <div class="page-body">
+
+        <!-- KPIs -->
+        <div class="kpi-row" id="kpi-row">
+          <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Teachers</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Students</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Total Events</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Events (7d)</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Active Users (7d)</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Avg Score</div><div class="kpi-value">—</div></div>
+        </div>
+
+        <!-- Daily sparkline -->
+        <div class="sparkline-wrap">
+          <div class="sparkline-label">Daily Events — Last 30 Days</div>
+          <svg id="sparkline-svg" viewBox="0 0 800 80" preserveAspectRatio="none">
+            <text x="400" y="44" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.5)">Loading…</text>
+          </svg>
+        </div>
+
+        <!-- Two columns: exercise breakdown + top users -->
+        <div class="two-col">
+          <div class="col-card">
+            <div class="section-title" style="margin-bottom:16px">Exercise Breakdown</div>
+            <div class="chart-wrap" id="exercise-chart">
+              <div class="empty">Loading…</div>
+            </div>
+          </div>
+          <div class="col-card">
+            <div class="section-title" style="margin-bottom:16px">Top Active Users (30d)</div>
+            <table class="top-table">
+              <thead>
+                <tr><th>#</th><th>User</th><th>Code</th><th>Events</th><th></th></tr>
+              </thead>
+              <tbody id="top-users-body">
+                <tr><td colspan="5" class="empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Create teacher modal ──────────────────────────────────────────────── -->
+<div id="modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;width:380px;max-width:90vw;">
+    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:20px;">Add Teacher</div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-3);margin-bottom:6px;">Email</label>
+      <input id="modal-email" type="email" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="teacher@example.com">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-3);margin-bottom:6px;">Password</label>
+      <input id="modal-pw" type="password" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="Temporary password">
+    </div>
+    <div style="color:#B42318;font-size:0.72rem;min-height:1.2em;margin-bottom:14px;" id="modal-err"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="action-btn" onclick="closeModal()">Cancel</button>
+      <button class="action-btn action-btn-accent" onclick="doCreateTeacher()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = '';
+
+  // ── Auth ─────────────────────────────────────────────────────────────────
+  function token() { return localStorage.getItem('ft_jwt') || ''; }
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() };
+  }
+
+  async function guardAuth() {
+    if (!token()) { location.href = '/login'; return false; }
+    try {
+      const r = await fetch('/auth/me', { headers: authHeaders() });
+      if (!r.ok) { location.href = '/login'; return false; }
+      const data = await r.json();
+      if (data.role !== 'super_admin') { location.href = '/login'; return false; }
+      document.getElementById('sb-email').textContent = data.email || '';
+      return true;
+    } catch { location.href = '/login'; return false; }
+  }
+
+  function signOut() {
+    localStorage.removeItem('ft_jwt');
+    localStorage.removeItem('ft_refresh_token');
+    localStorage.removeItem('ft_access_code');
+    location.href = '/login';
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  function showPage(name, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    el.classList.add('active');
+  }
+
+  // ── Format helpers ────────────────────────────────────────────────────────
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso.replace(' ', 'T')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+    } catch { return '—'; }
+  }
+
+  function fmtLabel(s) {
+    const m = {
+      phrase_attempted: 'Phrase shadowing',
+      paragraph_attempted: 'Paragraph',
+      paragraph_drilled: 'Paragraph drill',
+      word_attempted: 'Word drill',
+      prosody_attempted: 'Prosody',
+    };
+    return m[s] || s;
+  }
+
+  function toolLink(accessCode) {
+    return `/app`;
+  }
+
+  function analyticsLink(accessCode) {
+    return `/analytics/dashboard${accessCode ? '?key=' + encodeURIComponent(accessCode) : ''}`;
+  }
+
+  function userDisplayName(u) {
+    return u.username || u.email || `User #${u.id}`;
+  }
+
+  function userEmail(u) {
+    return u.email ? `<span style="color:var(--vk-fg-3);font-size:0.68rem;">${u.email}</span>` : '';
+  }
+
+  function statusBadge(u) {
+    return u.is_active
+      ? '<span class="badge badge-active">Active</span>'
+      : '<span class="badge badge-inactive">Inactive</span>';
+  }
+
+  // ── Users page ────────────────────────────────────────────────────────────
+  async function loadUsers() {
+    const r = await fetch('/admin/user-hierarchy', { headers: authHeaders() });
+    if (!r.ok) { document.getElementById('teachers-list').innerHTML = '<div class="empty">Failed to load users.</div>'; return; }
+    const { teachers, solo } = await r.json();
+
+    // Teachers
+    const tList = document.getElementById('teachers-list');
+    if (!teachers.length) {
+      tList.innerHTML = '<div class="empty">No teachers yet.</div>';
+    } else {
+      tList.innerHTML = teachers.map((t, i) => `
+        <div class="teacher-block">
+          <div class="teacher-row" id="tr-${i}" onclick="toggleTeacher(${i})">
+            <span class="tr-chevron">&#9658;</span>
+            <div style="flex:1">
+              <div class="tr-name">${escHtml(userDisplayName(t))}</div>
+              ${t.email ? `<div class="tr-email">${escHtml(t.email)}</div>` : ''}
+            </div>
+            <span class="tr-count">${t.students.length} student${t.students.length !== 1 ? 's' : ''}</span>
+            ${statusBadge(t)}
+            <a class="action-btn action-btn-accent" href="${analyticsLink(t.access_code || '')}" target="_blank" onclick="event.stopPropagation()">Dashboard</a>
+          </div>
+          <div class="teacher-students" id="ts-${i}">
+            ${renderStudentTable(t.students, true)}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Solo
+    const soloBody = document.getElementById('solo-body');
+    if (!solo.length) {
+      soloBody.innerHTML = '<tr><td colspan="6" class="empty">No solo learners yet.</td></tr>';
+    } else {
+      soloBody.innerHTML = solo.map(u => renderUserRow(u)).join('');
+    }
+  }
+
+  function renderStudentTable(students, nested) {
+    if (!students.length) return '<div class="empty">No students assigned.</div>';
+    return `<table class="user-table">
+      <thead><tr>
+        <th>Name / Email</th><th>Access Code</th><th>Status</th>
+        <th>Last Active</th><th>Events</th><th>Links</th>
+      </tr></thead>
+      <tbody>${students.map(u => renderUserRow(u)).join('')}</tbody>
+    </table>`;
+  }
+
+  function renderUserRow(u) {
+    const code = u.access_code || '';
+    const name = escHtml(userDisplayName(u));
+    const email = u.email ? `<div style="color:var(--vk-fg-3);font-size:0.68rem;">${escHtml(u.email)}</div>` : '';
+    const toolBtn = `<a class="action-btn" title="Open the student exercise app" href="${toolLink(code)}" target="_blank">Open Tool</a>`;
+    const analyticsBtn = code
+      ? `<a class="action-btn action-btn-accent" href="${analyticsLink(code)}" target="_blank">Analytics</a>`
+      : '';
+    return `<tr>
+      <td><div class="td-name">${name}</div>${email}</td>
+      <td><span class="td-code">${escHtml(code) || '—'}</span></td>
+      <td>${statusBadge(u)}</td>
+      <td>${fmtDate(u.last_active)}</td>
+      <td>${u.event_count || 0}</td>
+      <td>${toolBtn}${analyticsBtn}</td>
+    </tr>`;
+  }
+
+  function toggleTeacher(i) {
+    const row = document.getElementById('tr-' + i);
+    const students = document.getElementById('ts-' + i);
+    row.classList.toggle('open');
+    students.classList.toggle('open');
+  }
+
+  // ── Performance page ──────────────────────────────────────────────────────
+  async function loadPerformance() {
+    const r = await fetch('/admin/platform-stats', { headers: authHeaders() });
+    if (!r.ok) { return; }
+    const d = await r.json();
+
+    // KPIs
+    const counts = d.user_counts || {};
+    const teacherCount = counts['teacher'] || 0;
+    const studentCount = (counts['student_teacher'] || 0) + (counts['student_solo'] || 0);
+    const kpis = [
+      { label: 'Total Users',        value: d.total_users ?? '—' },
+      { label: 'Teachers',           value: teacherCount },
+      { label: 'Students',           value: studentCount },
+      { label: 'Total Events',       value: fmtNum(d.total_events) },
+      { label: 'Events (7d)',         value: fmtNum(d.events_7d) },
+      { label: 'Active Users (7d)',   value: d.active_users_7d ?? '—' },
+      { label: 'Avg Score',          value: d.avg_score != null ? (d.avg_score * 100).toFixed(1) + '%' : '—' },
+    ];
+    document.getElementById('kpi-row').innerHTML = kpis.map(k => `
+      <div class="kpi-card">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+      </div>
+    `).join('');
+
+    // Sparkline
+    renderSparkline(d.daily_events || []);
+
+    // Exercise breakdown
+    const breakdown = d.exercise_breakdown || [];
+    const maxCount = breakdown.length ? Math.max(...breakdown.map(b => b.count)) : 1;
+    const chartEl = document.getElementById('exercise-chart');
+    if (!breakdown.length) {
+      chartEl.innerHTML = '<div class="empty">No exercise data yet.</div>';
+    } else {
+      chartEl.innerHTML = breakdown.map(b => `
+        <div class="chart-row">
+          <div class="chart-label">${fmtLabel(b.type)}</div>
+          <div class="chart-bar-bg">
+            <div class="chart-bar-fill" style="width:${Math.round(b.count / maxCount * 100)}%"></div>
+          </div>
+          <div class="chart-val">${fmtNum(b.count)}</div>
+        </div>
+      `).join('');
+    }
+
+    // Top users
+    const topBody = document.getElementById('top-users-body');
+    const topUsers = d.top_active_users || [];
+    if (!topUsers.length) {
+      topBody.innerHTML = '<tr><td colspan="5" class="empty">No activity yet.</td></tr>';
+    } else {
+      topBody.innerHTML = topUsers.map((u, i) => `
+        <tr>
+          <td class="rank">${i + 1}</td>
+          <td style="font-weight:600;color:var(--vk-fg-1)">${escHtml(u.email || u.username || u.access_code)}</td>
+          <td><span class="td-code">${escHtml(u.access_code)}</span></td>
+          <td>${fmtNum(u.events_30d)}</td>
+          <td><a class="action-btn action-btn-accent" href="${analyticsLink(u.access_code)}" target="_blank">Analytics</a></td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  function renderSparkline(daily) {
+    const svg = document.getElementById('sparkline-svg');
+    if (!daily.length) {
+      svg.innerHTML = '<text x="400" y="44" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.4)">No data</text>';
+      return;
+    }
+    const W = 800; const H = 80; const PAD = 8;
+    const max = Math.max(...daily.map(d => d.count), 1);
+    const pts = daily.map((d, i) => {
+      const x = PAD + (i / (daily.length - 1 || 1)) * (W - PAD * 2);
+      const y = PAD + (1 - d.count / max) * (H - PAD * 2);
+      return [x, y];
+    });
+    const line = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(' ');
+    const area = line + ` L${pts[pts.length-1][0]},${H} L${pts[0][0]},${H} Z`;
+
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--vk-accent').trim() || '#c9954a';
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${accentColor}" stop-opacity="0.25"/>
+          <stop offset="100%" stop-color="${accentColor}" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <path d="${area}" fill="url(#sg)" stroke="none"/>
+      <path d="${line}" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    `;
+  }
+
+  // ── Modal: create teacher ─────────────────────────────────────────────────
+  function openCreateTeacher() {
+    document.getElementById('modal-email').value = '';
+    document.getElementById('modal-pw').value = '';
+    document.getElementById('modal-err').textContent = '';
+    document.getElementById('modal-backdrop').style.display = 'flex';
+    document.getElementById('modal-email').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('modal-backdrop').style.display = 'none';
+  }
+
+  async function doCreateTeacher() {
+    const email = document.getElementById('modal-email').value.trim();
+    const password = document.getElementById('modal-pw').value;
+    const errEl = document.getElementById('modal-err');
+    if (!email || !password) { errEl.textContent = 'Email and password required.'; return; }
+    const r = await fetch('/admin/teachers', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await r.json();
+    if (!r.ok) { errEl.textContent = data.detail || 'Failed to create teacher.'; return; }
+    closeModal();
+    loadUsers();
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────────────────
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtNum(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString();
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  (async () => {
+    const ok = await guardAuth();
+    if (!ok) return;
+    loadUsers();
+    loadPerformance();
+  })();
+</script>
+</body>
+</html>

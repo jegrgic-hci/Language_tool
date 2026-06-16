@@ -1258,6 +1258,94 @@ html { scrollbar-color: var(--vk-scrollbar-thumb) transparent; scrollbar-width: 
   letter-spacing: 0.05em;
 }
 
+/* ── Sidebar profile block ────────────────────────────────────────────────────
+   Pinned to the bottom of .vk-sidebar via .sb-footer { margin-top: auto }.
+   Usage:
+     <div class="vk-sb-profile">
+       <div class="vk-sb-avatar"> …SVG… </div>
+       <div class="vk-sb-profile-info">
+         <div class="vk-sb-profile-name">…</div>
+         <div class="vk-sb-profile-role">…</div>
+       </div>
+       <button class="vk-sb-signout">Sign out</button>
+     </div>                                                                     */
+.vk-sb-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--vk-border);
+}
+.vk-sb-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  border-radius: 0;
+  transition: opacity var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-sb-profile-btn:hover { opacity: 0.8; }
+.vk-sb-profile-btn.is-active .vk-sb-avatar {
+  background: var(--vk-accent);
+  border-color: var(--vk-accent);
+  color: var(--vk-accent-fg);
+}
+.vk-sb-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--vk-accent-bg);
+  border: 1px solid var(--vk-accent-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vk-accent-text);
+  flex-shrink: 0;
+}
+.vk-sb-avatar svg { display: block; }
+.vk-sb-profile-info {
+  flex: 1;
+  min-width: 0;
+}
+.vk-sb-profile-name {
+  font-family: var(--vk-font-ui);
+  font-size: var(--vk-text-xs);
+  font-weight: 600;
+  color: var(--vk-fg-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vk-sb-profile-role {
+  font-family: var(--vk-font-ui);
+  font-size: 9px;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-3);
+  margin-top: 1px;
+}
+.vk-sb-signout {
+  font-family: var(--vk-font-ui);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: var(--vk-track-wider);
+  text-transform: var(--vk-ui-case);
+  color: var(--vk-fg-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  flex-shrink: 0;
+  transition: color var(--vk-dur-quick) var(--vk-ease);
+}
+.vk-sb-signout:hover { color: var(--vk-error); }
+
 
 /* ── Mobile menu toggle (hamburger) ───────────────────────────────────────────
    Place inside the sticky topnav / topbar. Visible below md only; opens the

@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="fr" data-mode="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VraiFrench — Speak French. Sound real.</title>
+  <link rel="stylesheet" href="/static/vk-tokens.css">
+  <link rel="stylesheet" href="/static/vk-components.css">
+  <link rel="stylesheet" href="/static/vk-theme-light.css">
+  <link rel="stylesheet" href="/static/vk-theme-atelier.css">
+  <link rel="stylesheet" href="/static/vk-atelier-components.css">
+  <style>
+    /* ── Layout shell ─────────────────────────────────────────────────────── */
+    .lp-page {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Navbar ───────────────────────────────────────────────────────────── */
+    .lp-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      padding: 0 var(--vk-sp-6);
+      background: var(--vk-bg);
+      border-bottom: 1px solid var(--vk-border);
+      transition: background var(--vk-dur-base) var(--vk-ease),
+                  box-shadow  var(--vk-dur-base) var(--vk-ease);
+    }
+    .lp-nav.scrolled {
+      background: rgba(250, 247, 242, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 1px 0 var(--vk-border);
+    }
+
+    .lp-wordmark {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-sm);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--vk-fg-1);
+      text-decoration: none;
+    }
+
+    .lp-nav-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--vk-sp-3);
+    }
+
+    /* ── Hero ─────────────────────────────────────────────────────────────── */
+    .lp-hero {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: var(--vk-sp-8) var(--vk-sp-6);
+      min-height: calc(100dvh - 60px);
+    }
+
+    .lp-hero-inner {
+      width: 100%;
+      max-width: var(--vk-content-max);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--vk-sp-8);
+      align-items: center;
+    }
+
+    .lp-eyebrow {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      font-weight: 500;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--vk-accent-text);
+      margin-bottom: var(--vk-sp-4);
+    }
+
+    .lp-headline {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-display);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      color: var(--vk-fg-1);
+      margin-bottom: var(--vk-sp-5);
+    }
+
+    .lp-subhead {
+      font-size: var(--vk-text-lg);
+      line-height: 1.6;
+      color: var(--vk-fg-2);
+      margin-bottom: var(--vk-sp-6);
+      max-width: 42ch;
+    }
+
+    .lp-ctas {
+      display: flex;
+      gap: var(--vk-sp-3);
+      flex-wrap: wrap;
+    }
+
+    .lp-ctas .vk-btn.lg {
+      height: 48px;
+      padding: 0 28px;
+      font-size: var(--vk-text-sm);
+    }
+
+    .lp-teacher-jump {
+      display: inline-block;
+      margin-top: var(--vk-sp-4);
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2);
+      text-decoration: none;
+      transition: color var(--vk-dur-base) var(--vk-ease);
+    }
+    .lp-teacher-jump:hover {
+      color: var(--vk-accent-text);
+    }
+
+    /* ── Hero demo card ───────────────────────────────────────────────────── */
+    .lp-demo-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    .lp-demo-card {
+      background: var(--vk-surface);
+      border: 1px solid var(--vk-border-mid);
+      border-radius: var(--vk-radius-card);
+      padding: var(--vk-sp-5);
+      width: 100%;
+      max-width: 440px;
+      box-shadow: var(--vk-elev-1);
+    }
+
+    .demo-eyebrow {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      margin-bottom: var(--vk-sp-3);
+    }
+
+    .demo-phrase-display {
+      font-family: var(--pa-font-display, 'Hanken Grotesk', sans-serif);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--vk-fg-1);
+      margin-bottom: var(--vk-sp-5);
+      padding-bottom: var(--vk-sp-4);
+      border-bottom: 1px solid var(--vk-border);
+    }
+
+    .demo-section {
+      opacity: 0;
+      transition: opacity 240ms var(--vk-ease);
+    }
+    .demo-section.visible { opacity: 1; }
+
+    /* No spring animation on the score number in the demo — it's already animated in */
+    .lp-demo-card .pa-score-num { animation: none; }
+
+    /* Keep word list margin consistent inside demo */
+    .lp-demo-card .pa-word-list { margin-top: var(--vk-sp-4); }
+
+    /* ── Sections shared ──────────────────────────────────────────────────── */
+    .lp-section {
+      padding: var(--vk-sp-8) var(--vk-sp-6);
+      border-top: 1px solid var(--vk-border);
+    }
+
+    .lp-section-inner {
+      max-width: var(--vk-content-max);
+      margin: 0 auto;
+    }
+
+    .lp-section-label {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      font-weight: 500;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      margin-bottom: var(--vk-sp-3);
+    }
+
+    .lp-section-title {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-h2);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--vk-fg-1);
+      margin-bottom: var(--vk-sp-7);
+    }
+
+    /* ── Feature cards ────────────────────────────────────────────────────── */
+    .lp-feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--vk-sp-5);
+    }
+
+    .lp-feature-card {
+      background: var(--vk-surface);
+      border: 1px solid var(--vk-border-mid);
+      border-radius: var(--vk-radius-card);
+      padding: var(--vk-sp-6);
+      transition: border-color var(--vk-dur-base) var(--vk-ease),
+                  box-shadow   var(--vk-dur-base) var(--vk-ease);
+    }
+    .lp-feature-card:hover {
+      border-color: var(--vk-border-accent);
+      box-shadow: var(--vk-accent-glow);
+    }
+
+    .lp-feature-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--vk-accent-bg);
+      border-radius: var(--vk-radius-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--vk-sp-5);
+      color: var(--vk-accent);
+    }
+
+    .lp-feature-name {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-h3);
+      font-weight: 700;
+      color: var(--vk-fg-1);
+      margin-bottom: var(--vk-sp-3);
+    }
+
+    .lp-feature-desc {
+      font-size: var(--vk-text-body);
+      line-height: 1.65;
+      color: var(--vk-fg-2);
+    }
+
+    .lp-feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--vk-sp-2);
+      margin-top: var(--vk-sp-4);
+    }
+
+    .lp-tag {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-2xs);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: var(--vk-accent-text);
+      background: var(--vk-accent-bg);
+      border: 1px solid var(--vk-accent-border);
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    /* ── How it works ─────────────────────────────────────────────────────── */
+    .lp-how-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+    }
+
+    .lp-how-step {
+      padding: var(--vk-sp-6) var(--vk-sp-6) var(--vk-sp-6) 0;
+      border-right: 1px solid var(--vk-border);
+    }
+    .lp-how-step:last-child {
+      border-right: none;
+      padding-right: 0;
+      padding-left: var(--vk-sp-6);
+    }
+    .lp-how-step:not(:first-child):not(:last-child) {
+      padding-left: var(--vk-sp-6);
+    }
+
+    .lp-step-num {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-h1);
+      font-weight: 700;
+      color: var(--vk-accent);
+      opacity: 0.35;
+      line-height: 1;
+      margin-bottom: var(--vk-sp-4);
+    }
+
+    .lp-step-title {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-h3);
+      font-weight: 700;
+      color: var(--vk-fg-1);
+      margin-bottom: var(--vk-sp-3);
+    }
+
+    .lp-step-desc {
+      font-size: var(--vk-text-body);
+      line-height: 1.65;
+      color: var(--vk-fg-2);
+    }
+
+    /* ── Method section ──────────────────────────────────────────────────── */
+    .lp-method-intro {
+      font-size: var(--vk-text-body);
+      line-height: 1.65;
+      color: var(--vk-fg-2);
+      max-width: 58ch;
+      margin-bottom: var(--vk-sp-7);
+    }
+
+    .lp-principle-card {
+      background: var(--vk-bg-alt);
+      border: 1px solid var(--vk-border-mid);
+      padding: var(--vk-sp-6);
+      transition: border-color var(--vk-dur-base) var(--vk-ease);
+    }
+    .lp-principle-card:hover {
+      border-color: var(--vk-border-accent);
+    }
+
+    .lp-principle-tag {
+      display: inline-block;
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-2xs);
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      border: 1px solid var(--vk-border-mid);
+      padding: 2px 7px;
+      margin-bottom: var(--vk-sp-4);
+    }
+
+    .lp-principle-name {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-h3);
+      font-weight: 700;
+      color: var(--vk-fg-1);
+      margin-bottom: var(--vk-sp-3);
+    }
+
+    .lp-principle-desc {
+      font-size: var(--vk-text-body);
+      line-height: 1.65;
+      color: var(--vk-fg-2);
+    }
+
+    /* ── Teacher section ─────────────────────────────────────────────────── */
+    .lp-teacher-section {
+      padding: var(--vk-sp-8) var(--vk-sp-6);
+      border-top: 1px solid var(--vk-border);
+      background: var(--vk-bg-alt);
+    }
+
+    .lp-teacher-inner {
+      max-width: var(--vk-content-max);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--vk-sp-8);
+      align-items: center;
+    }
+
+    .lp-teacher-props {
+      list-style: none;
+      padding: 0;
+      margin: var(--vk-sp-6) 0 var(--vk-sp-7) 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--vk-sp-5);
+    }
+
+    .lp-teacher-prop {
+      display: flex;
+      gap: var(--vk-sp-4);
+      align-items: flex-start;
+    }
+
+    .lp-teacher-prop-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--vk-accent);
+      flex-shrink: 0;
+      margin-top: 9px;
+    }
+
+    .lp-teacher-prop-title {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-body);
+      font-weight: 700;
+      color: var(--vk-fg-1);
+      margin-bottom: 2px;
+    }
+
+    .lp-teacher-prop-desc {
+      font-size: var(--vk-text-body);
+      line-height: 1.6;
+      color: var(--vk-fg-2);
+    }
+
+    /* Mock teacher card */
+    .lp-tc-card {
+      background: var(--vk-surface);
+      border: 1px solid var(--vk-border-mid);
+      width: 100%;
+      max-width: 460px;
+    }
+
+    .lp-tc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--vk-sp-4) var(--vk-sp-5);
+      border-bottom: 1px solid var(--vk-border);
+    }
+
+    .lp-tc-title {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vk-fg-1);
+    }
+
+    .lp-tc-meta {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2);
+    }
+
+    .lp-tc-students {
+      padding: var(--vk-sp-3) 0;
+    }
+
+    .lp-tc-student-row {
+      display: grid;
+      grid-template-columns: 1fr 72px 56px 56px;
+      align-items: center;
+      gap: var(--vk-sp-3);
+      padding: var(--vk-sp-3) var(--vk-sp-5);
+      border-bottom: 1px solid var(--vk-border);
+      font-size: var(--vk-text-sm);
+    }
+    .lp-tc-student-row:last-child { border-bottom: none; }
+
+    .lp-tc-student-row-head {
+      display: grid;
+      grid-template-columns: 1fr 72px 56px 56px;
+      gap: var(--vk-sp-3);
+      padding: var(--vk-sp-2) var(--vk-sp-5);
+      border-bottom: 1px solid var(--vk-border);
+    }
+
+    .lp-tc-col-label {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+    }
+
+    .lp-tc-name {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-weight: 600;
+      color: var(--vk-fg-1);
+    }
+
+    .lp-tc-score {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-weight: 700;
+      font-size: var(--vk-text-sm);
+      text-align: right;
+    }
+    .lp-tc-score.good  { color: #1F5A40; }
+    .lp-tc-score.mid   { color: #8A5A00; }
+    .lp-tc-score.low   { color: var(--vk-error); }
+
+    .lp-tc-trend {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      text-align: right;
+      color: var(--vk-fg-2);
+    }
+    .lp-tc-trend.up   { color: #1F5A40; }
+    .lp-tc-trend.flat { color: var(--vk-fg-3); }
+    .lp-tc-trend.down { color: var(--vk-error); }
+
+    .lp-tc-sessions {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2);
+      text-align: right;
+    }
+
+    .lp-tc-focus {
+      padding: var(--vk-sp-4) var(--vk-sp-5);
+      background: var(--vk-accent-bg);
+      border-top: 1px solid var(--vk-accent-border);
+    }
+
+    .lp-tc-focus-label {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vk-accent-text);
+      display: block;
+      margin-bottom: var(--vk-sp-2);
+    }
+
+    .lp-tc-focus-text {
+      font-size: var(--vk-text-sm);
+      line-height: 1.5;
+      color: var(--vk-fg-1);
+    }
+
+    @media (max-width: 1023px) {
+      .lp-teacher-inner {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .lp-teacher-section {
+        padding: var(--vk-sp-7) var(--vk-sp-4);
+      }
+      .lp-tc-card {
+        max-width: 100%;
+      }
+    }
+
+    /* ── Bottom CTA ───────────────────────────────────────────────────────── */
+    .lp-cta-section {
+      padding: var(--vk-sp-8) var(--vk-sp-6);
+      border-top: 1px solid var(--vk-border);
+      background: var(--vk-bg-alt);
+      text-align: center;
+    }
+
+    .lp-cta-headline {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-h2);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--vk-fg-1);
+      margin-bottom: var(--vk-sp-3);
+    }
+
+    .lp-cta-sub {
+      font-size: var(--vk-text-body);
+      color: var(--vk-fg-2);
+      margin-bottom: var(--vk-sp-6);
+    }
+
+    .lp-cta-actions {
+      display: flex;
+      justify-content: center;
+      gap: var(--vk-sp-3);
+      flex-wrap: wrap;
+    }
+
+    .lp-cta-actions .vk-btn.lg {
+      height: 48px;
+      padding: 0 28px;
+      font-size: var(--vk-text-sm);
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    .lp-footer {
+      padding: var(--vk-sp-5) var(--vk-sp-6);
+      border-top: 1px solid var(--vk-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .lp-footer-copy {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2);
+    }
+
+    .lp-footer-link {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      color: var(--vk-accent-text);
+      text-decoration: none;
+    }
+    .lp-footer-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Scroll reveal ────────────────────────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 240ms var(--vk-ease),
+                  transform 240ms var(--vk-ease);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* ── Pricing ─────────────────────────────────────────────────────────── */
+    .lp-pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--vk-sp-5);
+      margin-top: var(--vk-sp-7);
+    }
+
+    .lp-plan {
+      border: 1px solid var(--vk-border-mid);
+      padding: var(--vk-sp-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--vk-sp-4);
+      background: var(--vk-surface);
+    }
+
+    .lp-plan.is-featured {
+      border-color: var(--vk-accent-border);
+      background: var(--vk-accent-bg);
+    }
+
+    .lp-plan-tag {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: var(--vk-text-xs);
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+    }
+
+    .lp-plan.is-featured .lp-plan-tag {
+      color: var(--vk-accent-text);
+    }
+
+    .lp-plan-name {
+      font-family: var(--pa-font-sans, 'Hanken Grotesk', system-ui, sans-serif);
+      font-size: var(--vk-text-h3, 1.25rem);
+      font-weight: 700;
+      color: var(--vk-fg-1);
+    }
+
+    .lp-plan-price {
+      font-family: var(--pa-font-mono, 'Geist Mono', monospace);
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--vk-fg-1);
+      line-height: 1;
+    }
+
+    .lp-plan-price span {
+      font-size: var(--vk-text-sm);
+      font-weight: 400;
+      color: var(--vk-fg-2);
+    }
+
+    .lp-plan-desc {
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.6;
+    }
+
+    .lp-plan-features {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--vk-sp-2);
+      flex: 1;
+    }
+
+    .lp-plan-features li {
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-1);
+      padding-left: 1.2em;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .lp-plan-features li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--vk-accent-text);
+      font-weight: 700;
+    }
+
+    .lp-plan-cta {
+      margin-top: var(--vk-sp-2);
+    }
+
+    .lp-plan-note {
+      font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2);
+      text-align: center;
+      margin-top: var(--vk-sp-5);
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 1023px) {
+      .lp-hero-inner {
+        grid-template-columns: 1fr;
+      }
+      .lp-demo-wrap {
+        justify-content: flex-start;
+      }
+      .lp-demo-card {
+        max-width: 100%;
+      }
+      .lp-hero {
+        min-height: auto;
+        padding-top: var(--vk-sp-8);
+        padding-bottom: var(--vk-sp-8);
+      }
+    }
+
+    @media (max-width: 767px) {
+      .lp-nav {
+        padding: 0 var(--vk-sp-4);
+      }
+      .lp-hero {
+        padding: var(--vk-sp-7) var(--vk-sp-4);
+      }
+      .lp-section {
+        padding: var(--vk-sp-7) var(--vk-sp-4);
+      }
+      .lp-feature-grid {
+        grid-template-columns: 1fr;
+        gap: var(--vk-sp-4);
+      }
+      .lp-pricing-grid {
+        grid-template-columns: 1fr;
+      }
+      .lp-how-grid {
+        grid-template-columns: 1fr;
+      }
+      .lp-how-step,
+      .lp-how-step:not(:first-child):not(:last-child),
+      .lp-how-step:last-child {
+        padding: var(--vk-sp-5) 0;
+        border-right: none;
+        border-bottom: 1px solid var(--vk-border);
+      }
+      .lp-how-step:last-child {
+        border-bottom: none;
+      }
+      .lp-cta-section {
+        padding: var(--vk-sp-7) var(--vk-sp-4);
+      }
+      .lp-footer {
+        padding: var(--vk-sp-4);
+        flex-direction: column;
+        gap: var(--vk-sp-3);
+        text-align: center;
+      }
+      .lp-subhead {
+        font-size: var(--vk-text-body);
+      }
+    }
+  </style>
+</head>
+<body data-theme="atelier">
+
+<script>
+  (function() {
+    var token = localStorage.getItem('ft_jwt');
+    if (token) {
+      var role = null;
+      try { role = JSON.parse(atob(token.split('.')[1])).role; } catch(e) {}
+      window.location.replace(
+        role === 'super_admin' ? '/static/admin.html'
+          : role === 'teacher' ? '/static/analytics.html'
+          : '/static/index.html'
+      );
+    }
+  })();
+</script>
+
+<div class="lp-page">
+
+  <!-- Navbar -->
+  <nav class="lp-nav" id="lp-nav">
+    <a class="lp-wordmark" href="/">VraiFrench</a>
+    <div class="lp-nav-actions">
+      <a class="vk-btn vk-btn-outline" href="/login">Sign in</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="lp-hero">
+    <div class="lp-hero-inner">
+      <div class="lp-hero-text">
+        <p class="lp-eyebrow">French pronunciation training</p>
+        <h1 class="lp-headline">Sound like<br>you live there.</h1>
+        <p class="lp-subhead">VraiFrench scores every word you speak against real French phonetic rules — liaisons, elisions, nasals — then explains each miss in plain English. Not just a score. A diagnosis.</p>
+        <div class="lp-ctas">
+          <a class="vk-btn vk-btn-primary lg" href="/login">Get started</a>
+          <a class="vk-btn vk-btn-outline lg" href="/login">Sign in</a>
+        </div>
+        <a class="lp-teacher-jump" href="#for-teachers">Are you a tutor or teacher? ↓</a>
+      </div>
+
+      <div class="lp-demo-wrap">
+        <div class="lp-demo-card" id="demo-card">
+          <div class="demo-eyebrow">Phrase exercise</div>
+          <div class="demo-phrase-display">les enfants jouent dehors</div>
+
+          <!-- Transcript diff: target row + heard row -->
+          <div class="pa-transcript demo-section" id="demo-transcript">
+            <div class="pa-transcript-row">
+              <span class="pa-transcript-label">target</span>
+              <div class="pa-transcript-target">
+                <span class="pa-token">les en·fants</span>
+                <span class="pa-token">jouent</span>
+                <span class="pa-token">dehors</span>
+              </div>
+            </div>
+            <div class="pa-transcript-row">
+              <span class="pa-transcript-label">heard</span>
+              <div class="pa-transcript-heard" id="demo-heard-row">
+                <!-- populated by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Score -->
+          <div class="pa-score is-progress demo-section" id="demo-score" style="margin-top: 16px;">
+            <div class="pa-score-head">
+              <span class="pa-score-num">67%</span>
+              <span class="pa-score-word">2 of 3 matched</span>
+            </div>
+            <div class="pa-bar">
+              <div class="pa-bar-fill" id="demo-bar-fill"></div>
+              <div class="pa-bar-thresh at-70"></div>
+              <div class="pa-bar-thresh at-90"></div>
+            </div>
+          </div>
+
+          <!-- Mismatch feedback -->
+          <div class="pa-word-list demo-section" id="demo-word-list">
+            <div class="pa-word-list-header">Words to work on</div>
+            <div class="pa-word-item">
+              <div class="pa-wi-head">
+                <span class="pa-wi-target">jouent</span>
+                <span class="pa-wi-arrow">&#8592;</span>
+                <span class="pa-wi-said">you said: jouait</span>
+              </div>
+              <div class="pa-wi-tip">jouent (present) is /ʒu/ — the -ent is fully silent. jouait (imperfect) is /ʒwɛ/. You added an audible vowel at the end that the microphone caught.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="lp-section">
+    <div class="lp-section-inner">
+      <p class="lp-section-label">What you practice</p>
+      <h2 class="lp-section-title">Three areas. One goal.</h2>
+      <div class="lp-feature-grid">
+
+        <!-- Speaking -->
+        <div class="lp-feature-card reveal">
+          <div class="lp-feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+              <line x1="8" y1="22" x2="16" y2="22"/>
+            </svg>
+          </div>
+          <h3 class="lp-feature-name">Speaking</h3>
+          <p class="lp-feature-desc">Precision exercises targeting the real sounds of French — liaisons, elisions, nasals, and rhythm — with per-word instant feedback on every attempt.</p>
+          <div class="lp-feature-tags">
+            <span class="lp-tag">Liaisons</span>
+            <span class="lp-tag">Elisions</span>
+            <span class="lp-tag">Rhythm</span>
+            <span class="lp-tag">Homophones</span>
+          </div>
+        </div>
+
+        <!-- Listening -->
+        <div class="lp-feature-card reveal">
+          <div class="lp-feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+            </svg>
+          </div>
+          <h3 class="lp-feature-name">Listening</h3>
+          <p class="lp-feature-desc">Comprehension passages and dictation drills that train your ear for natural spoken French — not the slow, clear French of textbooks.</p>
+          <div class="lp-feature-tags">
+            <span class="lp-tag">Comprehension</span>
+            <span class="lp-tag">Dictation</span>
+            <span class="lp-tag">Native-paced speech</span>
+          </div>
+        </div>
+
+        <!-- Vocab & Grammar -->
+        <div class="lp-feature-card reveal">
+          <div class="lp-feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <h3 class="lp-feature-name">Vocabulary</h3>
+          <p class="lp-feature-desc">Four-round oral sessions where you hear, use, and recall new words by speaking — not typing. Build the words you actually need, practiced the way you'll actually use them.</p>
+          <div class="lp-feature-tags">
+            <span class="lp-tag">Oral sessions</span>
+            <span class="lp-tag">4-round format</span>
+            <span class="lp-tag">Active recall</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="lp-section">
+    <div class="lp-section-inner">
+      <p class="lp-section-label">How it works</p>
+      <h2 class="lp-section-title">A simple loop. Repeat it daily.</h2>
+      <div class="lp-how-grid">
+
+        <div class="lp-how-step reveal">
+          <div class="lp-step-num">01</div>
+          <h3 class="lp-step-title">Listen</h3>
+          <p class="lp-step-desc">The tool reads a French phrase aloud using a native voice. You hear the real rhythm, liaisons, and elisions — the way French actually sounds.</p>
+        </div>
+
+        <div class="lp-how-step reveal">
+          <div class="lp-step-num">02</div>
+          <h3 class="lp-step-title">Speak</h3>
+          <p class="lp-step-desc">Repeat the phrase out loud. Your microphone captures what you actually said, and the tool aligns it word-by-word against the target.</p>
+        </div>
+
+        <div class="lp-how-step reveal">
+          <div class="lp-step-num">03</div>
+          <h3 class="lp-step-title">Improve</h3>
+          <p class="lp-step-desc">See exactly which sounds landed and which need work, with a plain-language explanation of the likely pronunciation issue for each miss.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Method / Science -->
+  <section class="lp-section">
+    <div class="lp-section-inner">
+      <p class="lp-section-label">The method</p>
+      <h2 class="lp-section-title">Built on how the brain acquires language.</h2>
+      <p class="lp-method-intro">VraiFrench exercises are grounded in language acquisition research and cognitive science — not the passive memorization patterns of traditional apps. The difference is what you do: you speak, you hear, you correct.</p>
+      <div class="lp-feature-grid">
+
+        <div class="lp-principle-card reveal">
+          <span class="lp-principle-tag">Production effect</span>
+          <h3 class="lp-principle-name">Speaking encodes. Reading doesn't.</h3>
+          <p class="lp-principle-desc">Research on the production effect consistently shows that saying something aloud creates a far stronger memory trace than reading or typing it. Every VraiFrench exercise is oral-first — you hear, you speak, and you are scored on what you produced.</p>
+        </div>
+
+        <div class="lp-principle-card reveal">
+          <span class="lp-principle-tag">Corrective feedback</span>
+          <h3 class="lp-principle-name">Feedback must be immediate and specific.</h3>
+          <p class="lp-principle-desc">Delayed or vague feedback does not build skill. Per-word feedback delivered the moment you finish speaking lets you connect each correction to the exact attempt — before the memory trace fades. That precision is what turns a missed sound into a learned one.</p>
+        </div>
+
+        <div class="lp-principle-card reveal">
+          <span class="lp-principle-tag">Motor learning</span>
+          <h3 class="lp-principle-name">Pronunciation is a motor skill.</h3>
+          <p class="lp-principle-desc">You do not think your way to a clean liaison — you drill it until it is automatic. Like any motor skill, pronunciation improves through repeated, corrected attempts rather than memorization. The hear → speak → correct loop mirrors the same acquisition cycle studied in motor learning research.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Why VraiFrench -->
+  <section class="lp-section">
+    <div class="lp-section-inner">
+      <p class="lp-section-label">Why VraiFrench</p>
+      <h2 class="lp-section-title">Not another red-or-green score.</h2>
+      <div class="lp-how-grid">
+
+        <div class="lp-how-step reveal">
+          <h3 class="lp-step-title">A diagnosis, not a grade</h3>
+          <p class="lp-step-desc">Most apps tell you a word was wrong. VraiFrench tells you why — the specific phonetic difference between what you said and what the microphone expected, explained in plain English for each miss.</p>
+        </div>
+
+        <div class="lp-how-step reveal">
+          <h3 class="lp-step-title">Built for the hard parts of French</h3>
+          <p class="lp-step-desc">Liaisons, elisions, silent letters, nasals — the rules that make spoken French sound nothing like written French. Every exercise is tuned to these specifically, not generic speech recognition.</p>
+        </div>
+
+        <div class="lp-how-step reveal">
+          <h3 class="lp-step-title">Works for students and teachers</h3>
+          <p class="lp-step-desc">Students get per-word feedback on every attempt. Teachers get a dedicated analytics dashboard, access codes per student, and progress tracking across exercises and sessions.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Teachers -->
+  <section class="lp-teacher-section" id="for-teachers">
+    <div class="lp-teacher-inner">
+
+      <!-- Left: value props -->
+      <div class="reveal">
+        <p class="lp-section-label">For tutors &amp; teachers</p>
+        <h2 class="lp-section-title" style="margin-bottom: var(--vk-sp-4);">The nuance is yours to teach.</h2>
+        <p class="lp-method-intro" style="margin-bottom: 0;">The liaisons that feel natural, the intonation that carries meaning, the rhythm that makes French sound alive — those come from a teacher who has lived the language. VraiFrench is not here to replace that. It is here to make sure your students arrive at every session ready for it.</p>
+        <ul class="lp-teacher-props">
+          <li class="lp-teacher-prop">
+            <span class="lp-teacher-prop-dot"></span>
+            <div>
+              <div class="lp-teacher-prop-title">Reserve your time for what only you can do.</div>
+              <div class="lp-teacher-prop-desc">Cultural nuance, register, the feeling of real spoken French — these require a human ear and a native speaker's instinct. Let the tool handle repetition so you can handle depth.</div>
+            </div>
+          </li>
+          <li class="lp-teacher-prop">
+            <span class="lp-teacher-prop-dot"></span>
+            <div>
+              <div class="lp-teacher-prop-title">Know where your student has hit a ceiling.</div>
+              <div class="lp-teacher-prop-desc">See which sounds they have already internalized through practice, and which ones have stalled — the ones that will not improve without direct coaching from someone who knows how they should feel to produce.</div>
+            </div>
+          </li>
+          <li class="lp-teacher-prop">
+            <span class="lp-teacher-prop-dot"></span>
+            <div>
+              <div class="lp-teacher-prop-title">Make your impact visible.</div>
+              <div class="lp-teacher-prop-desc">Motivation is part of learning. Showing a student an objective score trend — not just reassurance — gives them proof that the work is working, and makes your role in that progress undeniable.</div>
+            </div>
+          </li>
+        </ul>
+        <a class="vk-btn vk-btn-outline" href="mailto:jegrgic@gmail.com?subject=Teacher access request — VraiFrench">Request teacher access &rarr;</a>
+        <p style="font-size:var(--vk-text-xs);color:var(--vk-fg-2);margin-top:var(--vk-sp-3);line-height:1.5;">Teacher accounts are set up directly — drop us a line and we'll get you onboarded.</p>
+      </div>
+
+      <!-- Right: mock teacher dashboard card -->
+      <div class="reveal" style="display:flex; justify-content:flex-end;">
+        <div class="lp-tc-card">
+          <div class="lp-tc-header">
+            <span class="lp-tc-title">Student overview</span>
+            <span class="lp-tc-meta">3 students · this week</span>
+          </div>
+          <div class="lp-tc-students">
+            <div class="lp-tc-student-row-head">
+              <span class="lp-tc-col-label">Student</span>
+              <span class="lp-tc-col-label" style="text-align:right">Avg score</span>
+              <span class="lp-tc-col-label" style="text-align:right">Trend</span>
+              <span class="lp-tc-col-label" style="text-align:right">Sessions</span>
+            </div>
+            <div class="lp-tc-student-row">
+              <span class="lp-tc-name">Marie B.</span>
+              <span class="lp-tc-score good">84%</span>
+              <span class="lp-tc-trend up">+9%</span>
+              <span class="lp-tc-sessions">12</span>
+            </div>
+            <div class="lp-tc-student-row">
+              <span class="lp-tc-name">Thomas K.</span>
+              <span class="lp-tc-score mid">61%</span>
+              <span class="lp-tc-trend flat">+1%</span>
+              <span class="lp-tc-sessions">8</span>
+            </div>
+            <div class="lp-tc-student-row">
+              <span class="lp-tc-name">Sara L.</span>
+              <span class="lp-tc-score low">43%</span>
+              <span class="lp-tc-trend down">−4%</span>
+              <span class="lp-tc-sessions">5</span>
+            </div>
+          </div>
+          <div class="lp-tc-focus">
+            <span class="lp-tc-focus-label">Next lesson focus</span>
+            <span class="lp-tc-focus-text">Thomas &amp; Sara: elision before vowels — avg 52%, stalled across 3 sessions. Direct practice recommended.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Pricing — set display:none on the section to hide until ready -->
+  <section class="lp-section" id="pricing">
+    <div class="lp-section-inner">
+      <div class="lp-section-label">Pricing</div>
+      <div class="lp-section-title">Simple, honest pricing.</div>
+
+      <div class="lp-pricing-grid">
+
+        <!-- Free -->
+        <div class="lp-plan reveal">
+          <div class="lp-plan-tag">Solo Learner</div>
+          <div class="lp-plan-name">Free</div>
+          <div class="lp-plan-price">€0 <span>/ month</span></div>
+          <div class="lp-plan-desc">Self-paced practice for independent learners. No teacher required.</div>
+          <ul class="lp-plan-features">
+            <li>All exercise types (shadow, paragraph, prosody, dictation)</li>
+            <li>Per-word scoring with Mistral feedback</li>
+            <li>Vocabulary oral sessions</li>
+            <li>Custom content &amp; PDF upload</li>
+            <li>Personal practice list</li>
+          </ul>
+          <div class="lp-plan-cta">
+            <a class="vk-btn vk-btn-outline" href="/login" style="width:100%;display:block;text-align:center;box-sizing:border-box;">Get started free</a>
+          </div>
+        </div>
+
+        <!-- Teacher -->
+        <div class="lp-plan is-featured reveal">
+          <div class="lp-plan-tag">Teacher</div>
+          <div class="lp-plan-name">Pro</div>
+          <div class="lp-plan-price">TBD <span>/ month</span></div>
+          <div class="lp-plan-desc">For tutors and teachers who want objective data on every student's pronunciation.</div>
+          <ul class="lp-plan-features">
+            <li>Everything in Free</li>
+            <li>Up to 20 students</li>
+            <li>Teacher analytics dashboard</li>
+            <li>Per-student score trends &amp; session history</li>
+            <li>Next-lesson focus recommendations</li>
+            <li>Student roster management</li>
+          </ul>
+          <div class="lp-plan-cta">
+            <a class="vk-btn vk-btn-primary" href="mailto:jegrgic@gmail.com?subject=Teacher access request — VraiFrench" style="width:100%;display:block;text-align:center;box-sizing:border-box;">Request access</a>
+          </div>
+        </div>
+
+        <!-- School -->
+        <div class="lp-plan reveal">
+          <div class="lp-plan-tag">School / Institution</div>
+          <div class="lp-plan-name">Custom</div>
+          <div class="lp-plan-price">— <span></span></div>
+          <div class="lp-plan-desc">Multiple teachers, large student cohorts, and custom integrations. Let's talk.</div>
+          <ul class="lp-plan-features">
+            <li>Everything in Pro</li>
+            <li>Unlimited teachers &amp; students</li>
+            <li>Platform-wide analytics</li>
+            <li>Priority support</li>
+            <li>Custom onboarding</li>
+          </ul>
+          <div class="lp-plan-cta">
+            <a class="vk-btn vk-btn-outline" href="mailto:jegrgic@gmail.com?subject=VraiFrench school inquiry" style="width:100%;display:block;text-align:center;box-sizing:border-box;">Get in touch</a>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="lp-plan-note">All plans include native French TTS audio (Denise Neural), Mistral-powered feedback, and Chrome mic support. No credit card required to start.</p>
+    </div>
+  </section>
+
+  <!-- Bottom CTA -->
+  <section class="lp-cta-section">
+    <h2 class="lp-cta-headline">Start closing the gap.</h2>
+    <p class="lp-cta-sub">Pick up where textbooks leave off — the real sounds of spoken French, with feedback on every word.</p>
+    <div class="lp-cta-actions">
+      <a class="vk-btn vk-btn-primary lg" href="/login">Create an account</a>
+      <a class="vk-btn vk-btn-outline lg" href="/login">Sign in</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="lp-footer">
+    <span class="lp-footer-copy">VraiFrench &mdash; Built for real French</span>
+    <a class="lp-footer-link" href="/login">Sign in &rarr;</a>
+  </footer>
+
+</div>
+
+<script>
+  // Navbar scroll effect
+  var nav = document.getElementById('lp-nav');
+  window.addEventListener('scroll', function() {
+    nav.classList.toggle('scrolled', window.scrollY > 8);
+  }, { passive: true });
+
+  // Demo animation — phrase exercise result reveal
+  window.addEventListener('load', function() {
+    var heardRow  = document.getElementById('demo-heard-row');
+    var transcript = document.getElementById('demo-transcript');
+    var scoreEl   = document.getElementById('demo-score');
+    var wordList  = document.getElementById('demo-word-list');
+    var barFill   = document.getElementById('demo-bar-fill');
+    if (!heardRow) return;
+
+    var runs = [
+      { text: 'les en·fants', cls: 'is-pass'    },
+      { text: 'jouait',           cls: 'is-fail'    },
+      { text: 'dehors',           cls: 'is-unheard' }
+    ];
+
+    // Step 1: show transcript diff
+    setTimeout(function() {
+      transcript.classList.add('visible');
+      // Heard row: stagger each run
+      runs.forEach(function(r, i) {
+        setTimeout(function() {
+          var span = document.createElement('span');
+          span.className = 'pa-run ' + r.cls;
+          span.textContent = r.text;
+          span.style.opacity = '0';
+          span.style.transition = 'opacity 200ms';
+          heardRow.appendChild(span);
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() { span.style.opacity = '1'; });
+          });
+        }, i * 200);
+      });
+    }, 500);
+
+    // Step 2: score appears + bar fills
+    var scoreDelay = 500 + runs.length * 200 + 280;
+    setTimeout(function() {
+      scoreEl.classList.add('visible');
+      setTimeout(function() {
+        if (barFill) barFill.style.width = '67%';
+      }, 60);
+    }, scoreDelay);
+
+    // Step 3: word feedback appears
+    setTimeout(function() {
+      wordList.classList.add('visible');
+    }, scoreDelay + 560);
+  });
+
+  // Scroll reveal
+  var reveals = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var el = entry.target;
+          var delay = el.dataset.delay || 0;
+          setTimeout(function() { el.classList.add('visible'); }, delay);
+          io.unobserve(el);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    reveals.forEach(function(el, i) {
+      el.dataset.delay = (i % 3) * 80;
+      io.observe(el);
+    });
+  } else {
+    reveals.forEach(function(el) { el.classList.add('visible'); });
+  }
+</script>
+
+</body>
+</html>

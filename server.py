@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import date, timedelta
 
-from fastapi import FastAPI, Request, UploadFile, File, HTTPException
+from fastapi import Depends, FastAPI, Header, Request, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 import asyncio
 import edge_tts
 from mistralai import Mistral
+import httpx
+import auth as _auth
 
 BASE_DIR = Path(__file__).parent
 
@@ -52,8 +54,37 @@ _ANALYTICS_KEYS: set = {
 
 _analytics.init_db()
 
+_sa_email    = os.environ.get("SUPER_ADMIN_EMAIL", "")
+_sa_password = os.environ.get("SUPER_ADMIN_PASSWORD", "")
+if _sa_email and _sa_password:
+    _analytics.seed_super_admin(_sa_email, _auth.hash_password(_sa_password))
+else:
+    import logging
+    logging.getLogger("auth").warning(
+        "SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD not set — no super admin created."
+    )
+
 AUDIO_DIR = Path(tempfile.gettempdir()) / "vraifrench_audio"
 AUDIO_DIR.mkdir(exist_ok=True)
+
+_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+_EMAIL_FROM     = os.environ.get("EMAIL_FROM", "VraiFrench <onboarding@resend.dev>")
+_APP_BASE_URL   = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+
+
+async def _send_email(to: str, subject: str, html: str) -> bool:
+    """Send one transactional email via Resend. Returns True on success."""
+    if not _RESEND_API_KEY:
+        return False
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {_RESEND_API_KEY}", "Content-Type": "application/json"},
+            json={"from": _EMAIL_FROM, "to": [to], "subject": subject, "html": html},
+            timeout=10,
+        )
+        return r.status_code == 200
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -274,7 +305,24 @@ class CustomStartRequest(BaseModel):
 
 @app.get("/")
 async def root():
+    return FileResponse(BASE_DIR / "static" / "landing.html")
+
+@app.get("/login")
+async def login_page():
+    return FileResponse(BASE_DIR / "static" / "login.html")
+
+@app.get("/app")
+async def app_page():
     return FileResponse(BASE_DIR / "static" / "index.html")
+
+@app.get("/admin")
+async def admin_page():
+    return FileResponse(BASE_DIR / "static" / "admin.html")
+
+
+@app.get("/dev")
+async def dev_launcher():
+    return FileResponse(BASE_DIR / "static" / "dev.html")
 
 
 class AccessCodeRequest(BaseModel):
@@ -282,9 +330,446 @@ class AccessCodeRequest(BaseModel):
 
 @app.post("/validate-code")
 async def validate_code(req: AccessCodeRequest):
-    if not req.code.strip() or req.code.strip() not in _ACCESS_CODES:
-        raise HTTPException(status_code=401, detail="Invalid access code")
+    return {"ok": False, "deprecated": True}
+
+
+# ── Auth schemas ───────────────────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    invite_token: Optional[str] = None
+    is_teacher: bool = False
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class AddTeacherStudentRequest(BaseModel):
+    email: str
+    name: Optional[str] = ""
+    lesson_days: Optional[list] = []
+    lesson_time: Optional[str] = ""
+    notes: Optional[str] = ""
+
+
+class InviteStudentRequest(BaseModel):
+    email: str
+
+
+class UpdateUserRequest(BaseModel):
+    role: Optional[str] = None
+    is_active: Optional[int] = None
+
+
+class CreateTeacherRequest(BaseModel):
+    email: str
+    name: Optional[str] = ""
+    password: str
+
+
+# ── Auth routes ────────────────────────────────────────────────────────────────
+
+def _make_token_response(user: dict) -> dict:
+    payload = {
+        "sub": str(user["id"]),
+        "role": user["role"],
+        "access_code": user.get("access_code") or "",
+    }
+    access_token = _auth.create_access_token(payload)
+    raw_refresh, refresh_hash, expires_at = _auth.create_refresh_token(user["id"])
+    _analytics.store_refresh_token(user["id"], refresh_hash, expires_at)
+    return {
+        "access_token": access_token,
+        "refresh_token": raw_refresh,
+        "role": user["role"],
+        "access_code": user.get("access_code") or "",
+        "force_pw_change": bool(user.get("force_pw_change")),
+    }
+
+
+@app.post("/auth/login")
+async def auth_login(req: LoginRequest):
+    user = _analytics.get_user_by_email(req.email.strip().lower())
+    if not user or not _auth.verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user["is_active"]:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+    return _make_token_response(user)
+
+
+@app.post("/auth/register")
+async def auth_register(req: RegisterRequest):
+    email = req.email.strip().lower()
+    if not email or not req.password:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    if _analytics.get_user_by_email(email):
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    invite = None
+    teacher_id = None
+    if req.invite_token:
+        invite = _analytics.get_invite_token(req.invite_token.strip())
+        if not invite:
+            raise HTTPException(status_code=400, detail="Invite link is invalid or has expired")
+        if invite["email"].lower() != email:
+            raise HTTPException(status_code=400, detail="This invite was sent to a different email address")
+        teacher_id = invite["teacher_id"]
+
+    # Teacher-initiated invite → student_teacher; self-invite → student_solo; is_teacher → teacher
+    if req.is_teacher:
+        role = "teacher"
+    elif invite and invite.get("teacher_id"):
+        role = "student_teacher"
+    else:
+        role = "student_solo"
+
+    access_code = _auth.generate_access_code()
+    user = _analytics.create_user(
+        role=role,
+        email=email,
+        password_hash=_auth.hash_password(req.password),
+        access_code=access_code,
+        teacher_id=teacher_id,
+    )
+
+    if invite:
+        _analytics.mark_invite_used(req.invite_token.strip())
+        _analytics.create_student_from_invite(invite, access_code)
+
+    return _make_token_response(user)
+
+
+@app.post("/auth/refresh")
+async def auth_refresh(req: RefreshRequest):
+    from passlib.context import CryptContext
+    _ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    with __import__("sqlite3").connect(str(_analytics.DB_PATH)) as conn:
+        conn.row_factory = __import__("sqlite3").Row
+        rows = conn.execute(
+            "SELECT * FROM refresh_tokens WHERE expires_at > datetime('now') ORDER BY created_at DESC"
+        ).fetchall()
+    matched_row = None
+    for row in rows:
+        try:
+            if _ctx.verify(req.refresh_token, row["token_hash"]):
+                matched_row = dict(row)
+                break
+        except Exception:
+            continue
+    if not matched_row:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    user = _analytics.get_user_by_id(matched_row["user_id"])
+    if not user or not user["is_active"]:
+        raise HTTPException(status_code=401, detail="User not found or deactivated")
+    payload = {
+        "sub": str(user["id"]),
+        "role": user["role"],
+        "access_code": user.get("access_code") or "",
+    }
+    return {"access_token": _auth.create_access_token(payload)}
+
+
+@app.post("/auth/logout")
+async def auth_logout(req: RefreshRequest):
+    from passlib.context import CryptContext
+    _ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    with __import__("sqlite3").connect(str(_analytics.DB_PATH)) as conn:
+        conn.row_factory = __import__("sqlite3").Row
+        rows = conn.execute("SELECT * FROM refresh_tokens").fetchall()
+    for row in rows:
+        try:
+            if _ctx.verify(req.refresh_token, row["token_hash"]):
+                _analytics.delete_refresh_token(row["token_hash"])
+                break
+        except Exception:
+            continue
     return {"ok": True}
+
+
+@app.post("/auth/change-password")
+async def auth_change_password(
+    req: ChangePasswordRequest,
+    current_user: dict = Depends(_auth.get_current_user),
+):
+    user = _analytics.get_user_by_id(int(current_user["sub"]))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not _auth.verify_password(req.current_password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Current password incorrect")
+    _analytics.update_user_password(user["id"], _auth.hash_password(req.new_password))
+    return {"ok": True}
+
+
+# ── Teacher routes ─────────────────────────────────────────────────────────────
+
+@app.get("/teacher/students")
+async def teacher_list_students(
+    teacher_id: Optional[int] = None,
+    current_user: dict = Depends(_auth.require_teacher),
+):
+    if current_user["role"] == "super_admin" and teacher_id:
+        return {"students": _analytics.get_students_for_teacher_user(teacher_id)}
+    if current_user["role"] == "super_admin":
+        return {"students": _analytics.get_all_users()}
+    return {"students": _analytics.get_students_for_teacher_user(int(current_user["sub"]))}
+
+
+@app.post("/teacher/students")
+async def teacher_add_student(
+    req: AddTeacherStudentRequest,
+    current_user: dict = Depends(_auth.require_teacher),
+):
+    import secrets as _secrets
+    from datetime import datetime, timedelta
+
+    email = req.email.strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    if _analytics.get_user_by_email(email):
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
+
+    teacher_user_id = int(current_user["sub"])
+    token = _secrets.token_hex(24)
+    expires_at = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    lesson_days = json.dumps(req.lesson_days or [])
+
+    _analytics.create_invite_token(
+        token=token,
+        teacher_id=teacher_user_id,
+        email=email,
+        expires_at=expires_at,
+        name=req.name or "",
+        lesson_days=lesson_days,
+        lesson_time=req.lesson_time or "",
+        notes=req.notes or "",
+    )
+
+    invite_url = f"{_APP_BASE_URL}/login?invite={token}&email={email}"
+
+    teacher = _analytics.get_user_by_id(teacher_user_id)
+    teacher_name = teacher.get("username") or teacher.get("email", "Your teacher")
+
+    email_html = f"""
+<p>Bonjour,</p>
+<p>{escHtml(teacher_name)} has added you to <strong>VraiFrench</strong>, a French pronunciation training tool.</p>
+<p>Click the link below to create your account:</p>
+<p><a href="{invite_url}">{invite_url}</a></p>
+<p>This invitation expires in 7 days.</p>
+<p>— VraiFrench</p>
+"""
+    sent = await _send_email(email, "You've been added to VraiFrench", email_html)
+
+    return {"ok": True, "invite_url": invite_url, "email_sent": sent, "email": email}
+
+
+@app.post("/teacher/students/{user_id}/reset-password")
+async def teacher_reset_student_password(
+    user_id: int,
+    current_user: dict = Depends(_auth.require_teacher),
+):
+    student = _analytics.get_user_by_id(user_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    if current_user["role"] != "super_admin" and student.get("teacher_id") != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    username, plain_password, hashed = _auth.generate_temp_credentials()
+    _analytics.reset_user_password(user_id, hashed)
+    with __import__("sqlite3").connect(str(_analytics.DB_PATH)) as conn:
+        conn.execute("UPDATE users SET username=? WHERE id=?", (username, user_id))
+    _analytics.delete_refresh_tokens_for_user(user_id)
+    return {"ok": True, "username": username, "temp_password": plain_password}
+
+
+@app.patch("/teacher/students/{user_id}/status")
+async def teacher_set_student_status(
+    user_id: int,
+    req: UpdateUserRequest,
+    current_user: dict = Depends(_auth.require_teacher),
+):
+    student = _analytics.get_user_by_id(user_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    if current_user["role"] != "super_admin" and student.get("teacher_id") != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if req.is_active is not None:
+        if req.is_active:
+            with __import__("sqlite3").connect(str(_analytics.DB_PATH)) as conn:
+                conn.execute("UPDATE users SET is_active=1 WHERE id=?", (user_id,))
+        else:
+            _analytics.deactivate_user(user_id)
+            _analytics.delete_refresh_tokens_for_user(user_id)
+    return {"ok": True}
+
+
+@app.delete("/teacher/students/{user_id}")
+async def teacher_remove_student(
+    user_id: int,
+    current_user: dict = Depends(_auth.require_teacher),
+):
+    student = _analytics.get_user_by_id(user_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    if current_user["role"] != "super_admin" and student.get("teacher_id") != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    _analytics.deactivate_user(user_id)
+    _analytics.delete_refresh_tokens_for_user(user_id)
+    return {"ok": True}
+
+
+@app.post("/teacher/invite")
+async def teacher_invite_student(
+    req: InviteStudentRequest,
+    current_user: dict = Depends(_auth.require_teacher),
+):
+    import secrets as _secrets
+    from datetime import datetime, timedelta
+
+    email = req.email.strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+
+    existing = _analytics.get_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
+
+    token = _secrets.token_hex(24)
+    expires_at = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    teacher_id = int(current_user["sub"])
+    _analytics.create_invite_token(token, teacher_id, email, expires_at)
+
+    invite_url = f"{_APP_BASE_URL}/login?invite={token}&email={email}"
+
+    teacher = _analytics.get_user_by_id(teacher_id)
+    teacher_name = teacher.get("username") or teacher.get("email", "Your teacher")
+
+    email_html = f"""
+<p>Bonjour,</p>
+<p>{escHtml(teacher_name)} has invited you to join <strong>VraiFrench</strong>, a French pronunciation training tool.</p>
+<p>Click the link below to create your account:</p>
+<p><a href="{invite_url}">{invite_url}</a></p>
+<p>This invitation expires in 7 days.</p>
+<p>— VraiFrench</p>
+"""
+    sent = await _send_email(email, "You've been invited to VraiFrench", email_html)
+
+    return {"ok": True, "invite_url": invite_url, "email_sent": sent}
+
+
+def escHtml(s: str) -> str:
+    return (str(s)
+            .replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+# ── Admin routes ───────────────────────────────────────────────────────────────
+
+@app.get("/admin/users")
+async def admin_list_users(current_user: dict = Depends(_auth.require_admin)):
+    return {"users": _analytics.get_all_users()}
+
+
+@app.get("/admin/teachers")
+async def admin_list_teachers(current_user: dict = Depends(_auth.require_admin)):
+    return {"teachers": _analytics.get_users_by_role("teacher")}
+
+
+@app.post("/admin/teachers")
+async def admin_create_teacher(
+    req: CreateTeacherRequest,
+    current_user: dict = Depends(_auth.require_admin),
+):
+    email = req.email.strip().lower()
+    if not email or not req.password:
+        raise HTTPException(status_code=400, detail="Email and password required")
+    if _analytics.get_user_by_email(email):
+        raise HTTPException(status_code=409, detail="Email already registered")
+    user = _analytics.create_user(
+        role="teacher",
+        email=email,
+        password_hash=_auth.hash_password(req.password),
+    )
+    return {"ok": True, "user_id": user["id"], "email": email}
+
+
+@app.put("/admin/users/{user_id}")
+async def admin_update_user(
+    user_id: int,
+    req: UpdateUserRequest,
+    current_user: dict = Depends(_auth.require_admin),
+):
+    if req.role is not None:
+        _analytics.update_user_role(user_id, req.role)
+    if req.is_active is not None:
+        if req.is_active:
+            with __import__("sqlite3").connect(str(_analytics.DB_PATH)) as conn:
+                conn.execute("UPDATE users SET is_active=1 WHERE id=?", (user_id,))
+        else:
+            _analytics.deactivate_user(user_id)
+    return {"ok": True}
+
+
+@app.get("/admin/platform-stats")
+async def admin_platform_stats(current_user: dict = Depends(_auth.require_admin)):
+    return _analytics.get_platform_stats()
+
+
+@app.get("/admin/user-hierarchy")
+async def admin_user_hierarchy(current_user: dict = Depends(_auth.require_admin)):
+    return _analytics.get_user_hierarchy()
+
+
+# ── Current user info ──────────────────────────────────────────────────────────
+
+@app.get("/auth/me")
+async def auth_me(current_user: dict = Depends(_auth.get_current_user)):
+    user = _analytics.get_user_by_id(int(current_user["sub"]))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    next_lesson = None
+    access_code = user.get("access_code")
+    if access_code:
+        import sqlite3 as _sqlite3
+        with _sqlite3.connect(str(_analytics.DB_PATH)) as _c:
+            _c.row_factory = _sqlite3.Row
+            row = _c.execute(
+                "SELECT lesson_days FROM students WHERE access_code=?", (access_code,)
+            ).fetchone()
+            if row:
+                from datetime import date as _date
+                next_lesson = _analytics.next_lesson_date(row["lesson_days"])
+                next_lesson = next_lesson.isoformat() if next_lesson else None
+    teacher_name = None
+    if user.get("teacher_id"):
+        teacher = _analytics.get_user_by_id(user["teacher_id"])
+        if teacher:
+            teacher_name = teacher.get("username") or teacher.get("email")
+
+    return {
+        "id": user["id"],
+        "role": user["role"],
+        "email": user["email"],
+        "username": user.get("username"),
+        "access_code": access_code,
+        "force_pw_change": bool(user.get("force_pw_change")),
+        "created_at": user.get("created_at"),
+        "plan_name": user.get("plan_name"),
+        "plan_price": user.get("plan_price"),
+        "billing_date": user.get("billing_date"),
+        "next_lesson": next_lesson,
+        "teacher_name": teacher_name,
+    }
 
 
 class TrackRequest(BaseModel):
@@ -300,26 +785,32 @@ async def track_event(req: TrackRequest):
     return {"ok": True}
 
 
+def _require_analytics_key(key: str = "", authorization: Optional[str] = Header(None)) -> dict:
+    """Accept either the legacy ?key= query param or a Bearer JWT (teacher/super_admin)."""
+    if key and key in _ANALYTICS_KEYS:
+        return {"role": "teacher", "sub": None, "is_legacy": True}
+    if authorization and authorization.startswith("Bearer "):
+        payload = _auth.decode_token(authorization[7:])
+        if payload.get("role") not in ("teacher", "super_admin"):
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return payload
+    raise HTTPException(status_code=403, detail="Forbidden")
+
+
 @app.get("/analytics")
-async def get_analytics(key: str = ""):
-    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
-        raise HTTPException(status_code=403, detail="Forbidden")
+async def get_analytics(auth: dict = Depends(_require_analytics_key)):
     return _analytics.get_analytics()
 
 
 @app.get("/analytics/sessions")
-async def get_session_history(key: str = "", access_code: str = ""):
-    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
-        raise HTTPException(status_code=403, detail="Forbidden")
+async def get_session_history(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     return {"sessions": _analytics.get_session_history(access_code)}
 
 
 @app.get("/analytics/word-accuracy/download")
-async def download_word_accuracy(key: str = "", access_code: str = ""):
-    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
-        raise HTTPException(status_code=403, detail="Forbidden")
+async def download_word_accuracy(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     words = _analytics.get_word_accuracy(access_code)
@@ -336,9 +827,7 @@ async def download_word_accuracy(key: str = "", access_code: str = ""):
 
 
 @app.post("/analytics/reset")
-async def reset_analytics(key: str = "", access_code: str = ""):
-    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
-        raise HTTPException(status_code=403, detail="Forbidden")
+async def reset_analytics(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     deleted = _analytics.delete_events(access_code)
@@ -367,7 +856,7 @@ async def coach_refresh(access_code: str = ""):
 
 
 @app.get("/analytics/progress")
-async def analytics_progress(access_code: str = ""):
+async def analytics_progress(access_code: str = "", days: int = 30):
     """Student-facing progress data for the landing page.
 
     Access-code only (no teacher key), mirroring /coach — the student tool has
@@ -376,12 +865,8 @@ async def analytics_progress(access_code: str = ""):
     """
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
-    return _analytics.get_home_data(access_code)
-
-
-def _require_analytics_key(key: str):
-    if not _ANALYTICS_KEYS or key not in _ANALYTICS_KEYS:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    since_days = max(1, min(days, 365))
+    return _analytics.get_home_data(access_code, since_days=since_days)
 
 
 def _window_to_since_days(window: str, access_code: str) -> Optional[int]:
@@ -413,16 +898,14 @@ def _window_to_since_date(window: str, access_code: str) -> date:
 
 
 @app.get("/analytics/trend")
-async def analytics_trend(key: str = "", access_code: str = ""):
-    _require_analytics_key(key)
+async def analytics_trend(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     return _analytics.get_score_trend(access_code)
 
 
 @app.get("/analytics/practice")
-async def analytics_practice(key: str = "", access_code: str = "", window: str = "since"):
-    _require_analytics_key(key)
+async def analytics_practice(access_code: str = "", window: str = "since", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     since = _window_to_since_date(window, access_code)
@@ -432,8 +915,7 @@ async def analytics_practice(key: str = "", access_code: str = "", window: str =
 
 
 @app.get("/analytics/paragraph")
-async def analytics_paragraph(key: str = "", access_code: str = "", window: str = "all"):
-    _require_analytics_key(key)
+async def analytics_paragraph(access_code: str = "", window: str = "all", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     return _analytics.get_paragraph_exercise_stats(
@@ -441,8 +923,7 @@ async def analytics_paragraph(key: str = "", access_code: str = "", window: str 
 
 
 @app.get("/analytics/phrase")
-async def analytics_phrase(key: str = "", access_code: str = "", window: str = "all"):
-    _require_analytics_key(key)
+async def analytics_phrase(access_code: str = "", window: str = "all", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     return _analytics.get_phrase_exercise_stats(
@@ -450,16 +931,21 @@ async def analytics_phrase(key: str = "", access_code: str = "", window: str = "
 
 
 @app.get("/analytics/words")
-async def analytics_words(key: str = "", access_code: str = ""):
-    _require_analytics_key(key)
+async def analytics_words(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     return {"words": _analytics.get_word_accuracy(access_code)}
 
 
+@app.get("/analytics/recent-struggles")
+async def analytics_recent_struggles(access_code: str = "", sessions: int = 3, auth: dict = Depends(_require_analytics_key)):
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return {"words": _analytics.get_recent_struggles(access_code, sessions=sessions)}
+
+
 @app.get("/analytics/content")
-async def analytics_content(key: str = "", access_code: str = ""):
-    _require_analytics_key(key)
+async def analytics_content(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     return {
@@ -485,31 +971,27 @@ class UpdateStudentRequest(BaseModel):
 
 
 @app.get("/analytics/students")
-async def list_students(key: str = ""):
-    _require_analytics_key(key)
+async def list_students(auth: dict = Depends(_require_analytics_key)):
     return {"students": _analytics.get_roster()}
 
 
 @app.post("/analytics/students")
-async def add_student(req: AddStudentRequest, key: str = ""):
-    _require_analytics_key(key)
+async def add_student(req: AddStudentRequest, auth: dict = Depends(_require_analytics_key)):
     return _analytics.add_student(
         req.name, req.email, req.lesson_days, req.lesson_time, req.notes,
     )
 
 
 @app.get("/analytics/students/seed")
-async def seed_students(key: str = "", codes: str = ""):
+async def seed_students(codes: str = "", auth: dict = Depends(_require_analytics_key)):
     """Insert student rows for comma-separated access codes that don't already exist."""
-    _require_analytics_key(key)
     if not codes:
         raise HTTPException(status_code=400, detail="codes required")
     return _analytics.seed_students([c.strip() for c in codes.split(",") if c.strip()])
 
 
 @app.put("/analytics/students/{access_code}")
-async def update_student(access_code: str, req: UpdateStudentRequest, key: str = ""):
-    _require_analytics_key(key)
+async def update_student(access_code: str, req: UpdateStudentRequest, auth: dict = Depends(_require_analytics_key)):
     updated = _analytics.update_student(
         access_code,
         name=req.name, email=req.email,
@@ -524,13 +1006,11 @@ async def update_student(access_code: str, req: UpdateStudentRequest, key: str =
 @app.get("/dashboard")
 async def dashboard_shortcut():
     from fastapi.responses import RedirectResponse
-    key = next(iter(_ANALYTICS_KEYS), "")
-    return RedirectResponse(url=f"/analytics/dashboard?key={key}")
+    return RedirectResponse(url="/static/analytics.html")
 
 
 @app.get("/analytics/dashboard")
-async def analytics_dashboard(key: str = ""):
-    _require_analytics_key(key)
+async def analytics_dashboard():
     return FileResponse(BASE_DIR / "static" / "analytics.html")
 
 
@@ -1389,6 +1869,265 @@ async def vocab_generate(req: VocabGenerateRequest):
         return VocabGenerateResponse(cards=cards)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
+
+
+_WRITING_PROMPT_SYSTEM = """You generate French writing prompts for language learners.
+Generate a brief, clear writing task in French that asks the learner to write 1-2 sentences in French.
+The task must be natural, engaging, and calibrated to the CEFR level and topic.
+
+CEFR guidelines:
+- A1: Simple personal questions (name, age, likes, family, colours, numbers)
+- A2: Describe familiar objects, places, or recent events
+- B1: Express an opinion or preference with a simple reason
+- B2: Compare two things, argue a position, or describe a cause and effect
+- C1: Nuanced argument, formal register, idiomatic expression challenge
+
+Vary the task type naturally: description, opinion, question-answer, short narrative, or sentence completion.
+Return ONLY the French prompt text — no quotes, no English, no explanation."""
+
+_WRITING_CHECK_SYSTEM = """You are a French writing coach. Guide the learner toward the correction — do NOT state the correct form directly.
+
+The learner was asked (in French): {prompt}
+They wrote: {response}
+Their CEFR level: {level}
+This is attempt number: {attempt} of 3.
+
+Return a JSON object with exactly these fields:
+{{
+  "has_errors": true or false,
+  "tips": [
+    "A pedagogical hint calibrated to the learner's level"
+  ],
+  "overall": "one sentence in English: honest and encouraging"
+}}
+
+NEVER give the correct word or form. Tips must guide, not reveal.
+
+Each tip MUST name the grammar rule involved. Use the rule vocabulary appropriate to the level:
+
+A1/A2 — Plain English rule names: "noun-adjective gender agreement", "present tense ending for -er verbs",
+  "past tense with être", "definite vs. indefinite article", "negation with ne…pas".
+  Maximum scaffolding: name the exact word, state the rule plainly, say exactly where to look.
+  Example: "Look at the word 'allée' — you are using être to form the past tense (passé composé).
+  With être verbs, the past participle must match the gender and number of the subject. Your subject
+  is masculine singular. Check the ending of the past participle."
+
+B1 — Introduce French rule names alongside English: "passé composé vs. imparfait", "subjonctif présent",
+  "pronoun placement with infinitives", "partitive article (du/de la/des)".
+  Name the rule and the word, explain briefly without spelling out every step.
+  Example: "Check your use of passé composé vs. imparfait here — one describes a completed action,
+  the other an ongoing state or background. Which applies to what you're describing?"
+
+B2 — French grammatical terms only: "accord du participe passé", "subjonctif", "conditionnel passé",
+  "concordance des temps", "gérondif", "register (familier vs. soutenu)".
+  Targeted nudge — name the rule, point to the concept, no step-by-step.
+  Example: "Consider whether the subjonctif is required after this expression and whether you've used it."
+
+C1 — Technical terms, minimal framing: "subjonctif passé", "conditionnel présent vs. passé",
+  "nominalisation", "style indirect libre", "euphonie", "register".
+  One-line prompt only.
+  Example: "Concordance des temps in the reported speech clause."
+
+Attempt progression (within the level style above):
+- Attempt 1: slightly broader — name the rule, point to the area
+- Attempt 2+: zoom in precisely on the same issue if still wrong
+
+Maximum 3 tips. For B2/C1, also flag vocabulary choice and register where relevant.
+If has_errors is false, tips must be an empty array [].
+Return ONLY the raw JSON object, no markdown fences, no extra text."""
+
+
+class WritingPromptRequest(BaseModel):
+    level: str = "B1"
+    topic: str = "la vie quotidienne"
+
+
+class WritingCheckRequest(BaseModel):
+    prompt: str
+    response: str
+    level: str = "B1"
+    attempt: int = 1
+
+
+@app.post("/writing/prompt")
+async def writing_prompt(req: WritingPromptRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": _WRITING_PROMPT_SYSTEM},
+            {"role": "user", "content": f"CEFR level: {req.level}\nTopic: {req.topic}"},
+        ],
+        temperature=0.9,
+        max_tokens=120,
+    ))
+    prompt_text = resp.choices[0].message.content.strip().strip('"').strip("'")
+    return {"prompt": prompt_text}
+
+
+@app.post("/writing/check")
+async def writing_check(req: WritingCheckRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    if not req.prompt.strip() or not req.response.strip():
+        raise HTTPException(status_code=400, detail="prompt and response are required")
+
+    system = _WRITING_CHECK_SYSTEM.format(
+        prompt=req.prompt,
+        response=req.response,
+        level=req.level,
+        attempt=req.attempt,
+    )
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": "Provide feedback on my writing."},
+        ],
+        temperature=0.3,
+        max_tokens=800,
+    ))
+    raw = resp.choices[0].message.content.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    try:
+        result = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Feedback parse error")
+    return result
+
+
+_TRANSFORM_GENERATE_SYSTEM = """You generate French sentence transformation exercises for language learners.
+
+Return a JSON object with exactly two fields:
+{
+  "source": "the original French sentence",
+  "instruction": "a brief instruction in French telling the learner what transformation to apply"
+}
+
+CEFR guidelines:
+- A1/A2: Present tense, basic negation, singular→plural agreement
+- B1: Passé composé ↔ imparfait, futur simple, direct object pronouns (le/la/les/lui/leur)
+- B2: Conditionnel présent/passé, subjonctif présent, gérondif, multiple pronouns
+- C1: Subjonctif passé, concordance des temps, nominalisation, style indirect
+
+Focus types and examples:
+- tense: change the tense of the main verb (name the target tense in the instruction)
+- negation: make an affirmative sentence negative, or a negative sentence affirmative
+- pronoun: replace a noun subject or object with the correct pronoun
+- register: convert between tu/vous, or informal→formal vocabulary
+- number: change singular to plural (or plural to singular), adjusting all agreements
+
+Write the instruction in French as a direct command. One sentence only.
+Keep the source sentence natural and calibrated to the CEFR level.
+Return ONLY the raw JSON object, no markdown fences, no extra text."""
+
+_TRANSFORM_CHECK_SYSTEM = """You are a French grammar coach evaluating a sentence transformation exercise.
+
+Source sentence: {source}
+Transformation instruction: {instruction}
+Learner's attempt: {response}
+CEFR level: {level}
+Attempt number: {attempt} of 3
+
+Return a JSON object with exactly these fields:
+{{
+  "has_errors": true or false,
+  "tips": [
+    "A pedagogical hint calibrated to the learner's level"
+  ],
+  "overall": "one sentence in English: honest and encouraging"
+}}
+
+Evaluate whether the learner correctly applied the transformation. Check:
+1. Did they apply the requested transformation correctly?
+2. Are there grammar errors in their version (agreement, conjugation, etc.)?
+3. Did they preserve the meaning and structure of the rest of the sentence?
+
+NEVER give the correct form directly. Guide with hints.
+Use level-appropriate rule vocabulary:
+
+A1/A2 — Plain English rule names, maximum scaffolding, name the exact word and state the rule plainly.
+B1 — Introduce French grammatical terms alongside English: "passé composé", "accord du participe passé", "pronom COD".
+B2 — French grammatical terms only: "subjonctif", "conditionnel passé", "concordance des temps". Targeted nudge.
+C1 — Technical terms only, one-line prompt.
+
+Attempt progression:
+- Attempt 1: name the rule and point to the area
+- Attempt 2+: zoom in precisely on the same issue if still wrong
+
+Maximum 3 tips. If has_errors is false, tips must be [].
+Return ONLY the raw JSON object, no markdown fences, no extra text."""
+
+
+class TransformGenerateRequest(BaseModel):
+    level: str = "B1"
+    focus: str = "tense"
+
+
+class TransformCheckRequest(BaseModel):
+    source: str
+    instruction: str
+    response: str
+    level: str = "B1"
+    attempt: int = 1
+
+
+@app.post("/transform/generate")
+async def transform_generate(req: TransformGenerateRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": _TRANSFORM_GENERATE_SYSTEM},
+            {"role": "user", "content": f"CEFR level: {req.level}\nFocus: {req.focus}"},
+        ],
+        temperature=0.9,
+        max_tokens=200,
+    ))
+    raw = resp.choices[0].message.content.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    try:
+        result = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Generation parse error")
+    return result
+
+
+@app.post("/transform/check")
+async def transform_check(req: TransformCheckRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    if not req.source.strip() or not req.response.strip():
+        raise HTTPException(status_code=400, detail="source and response are required")
+
+    system = _TRANSFORM_CHECK_SYSTEM.format(
+        source=req.source,
+        instruction=req.instruction,
+        response=req.response,
+        level=req.level,
+        attempt=req.attempt,
+    )
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": "Evaluate my transformation."},
+        ],
+        temperature=0.3,
+        max_tokens=800,
+    ))
+    raw = resp.choices[0].message.content.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    try:
+        result = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Feedback parse error")
+    return result
 
 
 if __name__ == "__main__":

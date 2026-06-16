@@ -100,13 +100,16 @@
     #sidebar {
       width: var(--sb-width);
       transition: width var(--sb-transition);
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       height: 100vh;
       position: sticky;
       top: 0;
     }
+    #sidebar::-webkit-scrollbar { width: 0; }
+    #sidebar { scrollbar-width: none; }
     #app.sb-collapsed #sidebar { width: var(--sb-collapsed); }
 
     /* Light bg hover — override dark-surface default in vk-components.css */
@@ -168,79 +171,98 @@
 
     /* ── Section labels ── */
     .sb-sec-speaking::after      { content: "Speaking"; }
+    .sb-sec-listening::after     { content: "Listening"; }
+    .sb-sec-writing::after       { content: "Writing"; }
     .sb-sec-vocabulary::after    { content: "Vocabulary"; }
-    .sb-sec-comprehension::after { content: "Comprehension"; }
+    .sb-sec-personal::after      { content: "Personal"; }
 
     /* ── Nav item labels ── */
-    .sb-nav-home::after       { content: "Home"; }
-    .sb-nav-exercises::after  { content: "Exercises"; }
-    .sb-nav-my-content::after { content: "My Content"; }
-    .sb-nav-practice::after   { content: "Practice List"; }
-    .sb-nav-flashcards::after { content: "Flashcards"; }
-    .sb-nav-listen::after     { content: "Listen & Answer"; }
-    .sb-nav-dictation::after  { content: "Dictation"; }
-
-    /* ── Session widget ── */
-    .sb-session {
-      padding: 12px var(--vk-sp-5) 14px;
-      border-bottom: 1px solid var(--vk-border);
-      margin-bottom: var(--vk-sp-2);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .sb-session-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .sb-session-header::before {
-      content: "Session";
-      font-family: var(--font-ui);
-      font-size: var(--vk-text-2xs);
-      font-weight: 600;
-      letter-spacing: var(--vk-track-widest);
-      text-transform: uppercase;
-      color: var(--vk-fg-3);
-    }
-    .sb-timer {
-      font-family: var(--vk-font-ui);
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: var(--vk-fg-1);
-      font-variant-numeric: tabular-nums;
-    }
+    .sb-nav-home::after        { content: "Progress"; }
+    .sb-nav-exercises::after   { content: "Speaking"; }
+    .sb-nav-listen::after      { content: "Listen & Answer"; }
+    .sb-nav-dictation::after   { content: "Dictation"; }
+    .sb-nav-writing::after     { content: "Prompted Writing"; }
+    .sb-nav-transform::after   { content: "Transformation"; }
+    .sb-nav-flashcards::after  { content: "Flashcards"; }
+    .sb-nav-practice::after    { content: "Practice List"; }
+    .sb-nav-my-content::after  { content: "My Content"; }
+    .sb-nav-shadowing::after   { content: "Shadowing"; }
 
     /* ── Footer ── */
-    .sb-footer {
-      margin-top: auto;
-      border-top: 1px solid var(--vk-border);
-      padding: var(--vk-sp-2) 0;
-      overflow: hidden;
-    }
-    .sb-sign-out {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .sb-footer { margin-top: auto; }
+
+    /* ── Account view ── */
+    #account-view {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: var(--vk-sp-8) var(--vk-sp-5);
       width: 100%;
-      padding: 8px var(--vk-sp-5);
-      background: none;
-      border: none;
-      color: var(--vk-fg-3);
+    }
+    .acct-section {
+      border: 1px solid var(--vk-border);
+      padding: var(--vk-sp-5);
+      margin-bottom: var(--vk-sp-5);
+    }
+    .acct-section-title {
       font-family: var(--vk-font-ui);
       font-size: var(--vk-text-xs);
-      font-weight: 500;
+      font-weight: 600;
       letter-spacing: var(--vk-track-wide);
       text-transform: uppercase;
-      cursor: pointer;
-      text-align: left;
-      transition: color var(--vk-dur-quick) var(--vk-ease);
+      color: var(--vk-fg-2);
+      margin-bottom: var(--vk-sp-4);
     }
-    .sb-sign-out:hover  { color: var(--vk-error); }
-    .sb-sign-out::after { content: "Sign Out"; }
-    .sb-collapse-btn {
+    .acct-email {
+      font-family: var(--vk-font-ui);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-1);
+      font-weight: 500;
+    }
+    .acct-role {
+      font-family: var(--vk-font-ui);
+      font-size: var(--vk-text-xs);
+      color: var(--vk-fg-2);
+      margin-top: 4px;
+    }
+    .acct-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--vk-sp-3); }
+    .acct-label {
+      font-family: var(--vk-font-ui);
+      font-size: var(--vk-text-xs);
+      font-weight: 600;
+      letter-spacing: var(--vk-track-wide);
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+    }
+    .acct-input {
+      font-family: var(--vk-font-ui);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-1);
+      background: var(--vk-surface);
+      border: 1px solid var(--vk-border);
+      padding: 8px 10px;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+      transition: border-color var(--vk-dur-quick) var(--vk-ease);
+    }
+    .acct-input:focus { border-color: var(--vk-accent); }
+    .acct-error { font-family: var(--vk-font-ui); font-size: var(--vk-text-xs); color: var(--vk-error); min-height: 16px; margin-bottom: var(--vk-sp-3); }
+    .acct-success { font-family: var(--vk-font-ui); font-size: var(--vk-text-xs); color: #1F5A40; min-height: 16px; margin-bottom: var(--vk-sp-3); }
+    .acct-actions { display: flex; gap: var(--vk-sp-3); align-items: center; flex-wrap: wrap; }
+    .acct-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--vk-sp-4) var(--vk-sp-5);
+      margin-top: var(--vk-sp-2);
+    }
+    .acct-meta-item { display: flex; flex-direction: column; gap: 3px; }
+    .acct-meta-val {
+      font-family: var(--vk-font-ui);
+      font-size: var(--vk-text-sm);
+      font-weight: 600;
+      color: var(--vk-fg-1);
+    }
+.sb-collapse-btn {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -251,6 +273,7 @@
       color: var(--vk-fg-3);
       cursor: pointer;
       padding: 0;
+      margin-left: auto;
       transition: color var(--vk-dur-quick) var(--vk-ease);
     }
     .sb-collapse-btn:hover { color: var(--vk-fg-1); }
@@ -262,20 +285,19 @@
 
     /* ── Collapsed state ── */
     #app.sb-collapsed .vk-sb-section,
-    #app.sb-collapsed .sb-timer,
-    #app.sb-collapsed .sb-session-header::before,
     #app.sb-collapsed .vk-sb-item::after,
-    #app.sb-collapsed .sb-sign-out::after,
     #app.sb-collapsed .vk-sb-brand .version {
       display: none;
     }
-    #app.sb-collapsed .sb-session        { justify-content: center; padding: 8px 0; border-bottom: none; }
-    #app.sb-collapsed .sb-session-header { justify-content: center; }
     #app.sb-collapsed .vk-sb-brand    { align-items: center; padding-left: 0; padding-right: 0; justify-content: center; }
+    #app.sb-collapsed .sb-collapse-btn { display: none; }
     #app.sb-collapsed .vk-sb-brand::after { display: none; }
     #app.sb-collapsed .vk-sb-item     { justify-content: center; padding-left: 0; padding-right: 0; }
     #app.sb-collapsed .vk-sb-item.is-active { padding-left: 0; }
-    #app.sb-collapsed .sb-sign-out    { justify-content: center; }
+    #app.sb-collapsed .vk-sb-profile  { padding-left: 0; padding-right: 0; justify-content: center; }
+    #app.sb-collapsed .vk-sb-profile-btn { justify-content: center; }
+    #app.sb-collapsed .vk-sb-profile-info,
+    #app.sb-collapsed .vk-sb-signout  { display: none; }
 
     #main {
       overflow-y: auto;
@@ -616,6 +638,7 @@
     }
     #hub-content {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       padding: 48px;
       display: grid;
@@ -760,8 +783,12 @@
       color: var(--vk-fg-2);
       line-height: 1.55;
     }
+    .hub-footer {
+      flex-shrink: 0;
+      padding: 28px 48px 48px calc(48px + 180px + 52px);
+      border-top: 1px solid var(--vk-border);
+    }
     .hub-start-btn {
-      margin-top: 28px;
       font-family: var(--vkg-font-mono);
       font-size: 0.72rem;
       letter-spacing: 0.14em;
@@ -772,10 +799,87 @@
       border: none;
       cursor: pointer;
       transition: background 0.15s, opacity 0.15s;
-      align-self: flex-start;
     }
     .hub-start-btn:disabled          { opacity: 0.3; cursor: not-allowed; }
     .hub-start-btn:not(:disabled):hover { background: var(--vk-accent-dim); }
+
+    /* ── SHADOW HUB + SHADOW DRILL VIEW ─────────────────────────────────────── */
+    #shadow-hub {
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #sd-hub-content {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 48px;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      column-gap: 52px;
+      align-content: start;
+    }
+    #sd-hub-content::-webkit-scrollbar { width: 4px; }
+    #sd-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
+    .sd-headphone-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin: 0 48px 0;
+      padding: 12px 16px;
+      background: var(--vk-accent-bg);
+      border: 1px solid var(--vk-accent-border);
+      color: var(--vk-accent-text);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+    .sd-headphone-notice svg { flex-shrink: 0; margin-top: 2px; }
+    #shadow-view {
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sd-headphone-bar {
+      flex-shrink: 0;
+      padding: 8px 24px;
+      background: var(--vk-accent-bg);
+      border-bottom: 1px solid var(--vk-accent-border);
+      color: var(--vk-accent-text);
+      font-family: var(--vk-font-ui);
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .sd-placeholder {
+      font-family: var(--vk-font-ui);
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      color: var(--vk-fg-3);
+      text-align: center;
+      padding: 8px 0 4px;
+    }
+    .sd-auto-listen {
+      font-family: var(--vk-font-ui);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vk-accent-text);
+      text-align: center;
+      padding-top: 6px;
+    }
+    .sd-word-count {
+      font-family: var(--vk-font-ui);
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      color: var(--vk-fg-2);
+      margin-top: 8px;
+    }
+    .sd-reveal-section {
+      margin-top: 16px;
+      border-top: 1px solid var(--vk-border);
+      padding-top: 16px;
+    }
+    #sd-reveal-phrase { margin-bottom: 12px; }
 
     /* ── PARAGRAPH VIEW ──────────────────────────────────────────────────────
        pv-header / pv-title / pv-levels / pv-level-btn / pv-speed-btns /
@@ -2322,15 +2426,206 @@
     #dict-hub-content::-webkit-scrollbar { width: 4px; }
     #dict-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
 
+    /* ── Transform hub ── */
+    #transform-hub-levels, #transform-hub-focuses {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    #transform-hub-content {
+      flex: 1;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      align-content: start;
+      gap: 0;
+      padding: 48px 48px 40px;
+    }
+    #transform-hub-content::-webkit-scrollbar { width: 4px; }
+    #transform-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
+
+    .tr-source-card {
+      background: var(--vk-surface-1);
+      border: 1px solid var(--vk-border);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    .tr-source-eyebrow {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      margin-bottom: 6px;
+    }
+    .tr-source-text {
+      font-family: var(--vkg-font-sans);
+      font-size: 1.1rem;
+      color: var(--vk-fg-1);
+      line-height: 1.5;
+    }
+    .tr-instruction-card {
+      background: var(--vk-accent-bg);
+      border: 1px solid var(--vk-accent);
+      padding: 14px 20px;
+      margin-bottom: 20px;
+    }
+    .tr-instruction-eyebrow {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--vk-accent-text);
+      margin-bottom: 6px;
+    }
+    .tr-instruction-text {
+      font-family: var(--vkg-font-sans);
+      font-size: 0.95rem;
+      color: var(--vk-fg-1);
+      line-height: 1.5;
+    }
+
+    /* ── Writing hub ── */
+    #writing-hub-levels, #writing-hub-topics {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    #writing-hub-content {
+      flex: 1;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      align-content: start;
+      gap: 0;
+      padding: 48px 48px 40px;
+    }
+    #writing-hub-content::-webkit-scrollbar { width: 4px; }
+    #writing-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
+
+    /* ── Writing view chrome ── */
+    .wr-loading-text {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      padding: 32px 0;
+      text-align: center;
+    }
+    .wr-prompt-card {
+      border: 1px solid var(--vk-border);
+      padding: 20px 22px;
+      margin-bottom: 16px;
+    }
+    .wr-prompt-eyebrow {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      margin-bottom: 10px;
+    }
+    .wr-prompt-text {
+      font-family: var(--vkg-font-sans);
+      font-size: 1.05rem;
+      color: var(--vk-fg-1);
+      line-height: 1.5;
+    }
+    .wr-textarea {
+      width: 100%;
+      resize: vertical;
+      min-height: 80px;
+    }
+    .wr-input-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .wr-results { margin-top: 4px; }
+
+    /* Attempt history — stacks above the current rewrite area */
+    .wr-attempt-block { margin-bottom: 20px; }
+    .wr-attempt-eyebrow {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.55rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      margin-bottom: 6px;
+    }
+    .wr-attempt-text {
+      font-family: var(--vkg-font-sans);
+      font-size: 0.95rem;
+      color: var(--vk-fg-2);
+      line-height: 1.5;
+      padding: 12px 16px;
+      border: 1px solid var(--vk-border);
+      margin-bottom: 10px;
+    }
+    .wr-tips-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .wr-tip-item {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-family: var(--vkg-font-sans);
+      font-size: 0.85rem;
+      color: var(--vk-fg-2);
+      line-height: 1.5;
+      padding: 10px 14px;
+      border-left: 2px solid var(--vk-accent);
+      background: var(--vk-accent-bg);
+    }
+    .wr-tip-bullet {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.65rem;
+      color: var(--vk-accent-text);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .wr-overall {
+      font-family: var(--vkg-font-sans);
+      font-size: 0.85rem;
+      color: var(--vk-fg-2);
+      margin-bottom: 14px;
+      font-style: italic;
+    }
+    .wr-rewrite-label {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      margin-bottom: 8px;
+    }
+    .wr-next-row {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 8px;
+    }
+    .wr-perfect {
+      padding: 14px 16px;
+      font-family: var(--vkg-font-sans);
+      font-size: 0.9rem;
+      color: #1F5A40;
+      border-left: 2px solid #1F5A40;
+      margin-bottom: 16px;
+    }
+
     /* ── Hubs on mobile — collapse to a single column ──────────────────────────
        Placed after all hub grid definitions so these overrides win on source
        order (media queries add no specificity). Each row stacks its name +
        description ABOVE its selection chips instead of beside them. */
     @media (max-width: 768px) {
       #hub-content,
+      #sd-hub-content,
       #comp-hub-content,
       #vocab-hub-content,
-      #dict-hub-content {
+      #dict-hub-content,
+      #writing-hub-content,
+      #transform-hub-content {
         grid-template-columns: 1fr;
         column-gap: 0;
         padding: 24px 16px 32px;
@@ -2348,7 +2643,13 @@
         grid-template-columns: 1fr;
         gap: 12px;
       }
-      .hub-start-btn { width: 100%; text-align: center; }
+      .hub-footer {
+        padding: 0;
+        border-top: 1px solid var(--vk-border);
+        background: var(--vk-surface);
+      }
+      .hub-footer .hub-start-btn { width: 100%; padding: 16px; text-align: center; }
+      .sd-headphone-notice { margin: 0 16px; }
     }
 
     /* ── Dictation view chrome ── */
@@ -2531,7 +2832,9 @@
     /* View-enter fade — fires when JS switches display:none → flex */
     #phrase-view, #phrase-hub, #paragraph-view, #practice-view,
     #custom-view, #comprehension-hub, #comprehension-view,
-    #dictation-hub, #dictation-view, #vocab-hub, #vocab-view {
+    #dictation-hub, #dictation-view, #vocab-hub, #vocab-view,
+    #writing-hub, #writing-view, #transform-hub, #transform-view,
+    #shadow-hub, #shadow-view {
       transition: opacity 120ms var(--vk-ease);
       @starting-style { opacity: 0; }
     }
@@ -2548,7 +2851,9 @@
       .word-check-mic.listening { animation: none; }
       #phrase-view, #phrase-hub, #paragraph-view, #practice-view,
       #custom-view, #comprehension-hub, #comprehension-view,
-      #dictation-hub, #dictation-view, #vocab-hub, #vocab-view {
+      #dictation-hub, #dictation-view, #vocab-hub, #vocab-view,
+      #writing-hub, #writing-view, #transform-hub, #transform-view,
+      #shadow-hub, #shadow-view {
         transition: none;
       }
     }
@@ -2557,66 +2862,42 @@
 </head>
 <body data-theme="atelier">
 
-<!-- ══════════════════════════════════════
-     GATE — access-code overlay
-══════════════════════════════════════ -->
-<div id="gate" class="hidden">
-  <div class="gate-card">
-
-    <div>
-      <div class="gate-wordmark">
-        vraiFrench
-        <span class="gate-beta">Beta</span>
-      </div>
-      <div class="gate-byline">by vraifactors</div>
-    </div>
-
-    <p class="gate-intro">
-      A <strong>French pronunciation tool</strong> built for building real pronunciation — not grammar drills.
-      Load a passage, listen to a native speaker, then shadow along. The tool scores your attempt word by word
-      and highlights what to work on. Add words to your practice list and drill them until they stick.
-    </p>
-
-    <div class="gate-notices">
-      <div class="gate-notice">
-        <span class="gate-notice-icon">&#9650;</span>
-        <span><strong>Beta — expect imperfections.</strong> Speech recognition and analysis will make errors. The scores are a guide, not a verdict. Use them directionally.</span>
-      </div>
-      <div class="gate-notice">
-        <span class="gate-notice-icon">&#9670;</span>
-        <span><strong>Chrome required.</strong> The Web Speech API is only supported in Chrome and Edge. Other browsers will not have microphone input.</span>
-      </div>
-    </div>
-
-    <hr class="gate-divider">
-
-    <div>
-      <div class="gate-field-label">Access Code</div>
-      <div class="gate-row">
-        <input
-          id="welcome-key-input"
-          class="vk-input"
-          type="password"
-          placeholder="Enter your access code"
-          autocomplete="off"
-          spellcheck="false"
-          onkeydown="if(event.key==='Enter') submitApiKey()"
-        >
-        <button id="welcome-submit" class="vk-btn vk-btn-primary" onclick="submitApiKey()">
-          Enter
-        </button>
-      </div>
-      <div id="welcome-error"></div>
-      <div class="gate-hint" style="margin-top:10px;">
-        Access code provided by your tutor.
-      </div>
-    </div>
-
-  </div>
-</div>
+<!-- Gate removed — auth is handled by login.html -->
 
 
 <div id="app">
+
+  <!-- ── First-time onboarding modal ──────────────────────────────────────── -->
+  <div id="onboarding-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center;padding:24px;">
+    <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);max-width:480px;width:100%;padding:36px 32px;">
+      <div style="font-family:var(--vk-font-ui);font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--vk-accent-text);margin-bottom:12px;">Welcome to VraiFrench</div>
+      <div style="font-family:var(--vk-font-ui);font-size:1.1rem;font-weight:700;color:var(--vk-fg-1);margin-bottom:8px;">Sound like you live there.</div>
+      <p style="font-size:0.82rem;color:var(--vk-fg-2);line-height:1.7;margin-bottom:20px;">This tool listens to you speak French and gives you per-word feedback on every attempt. Each exercise follows the same loop: listen to the target, speak it back, see exactly what you got right and what to fix.</p>
+
+      <div style="border:1px solid var(--vk-border-mid);padding:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="font-family:var(--vk-font-ui);font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--vk-accent-text);flex-shrink:0;padding-top:2px;">Start here</div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:600;color:var(--vk-fg-1);margin-bottom:2px;">Pronunciation Drills</div>
+            <div style="font-size:0.75rem;color:var(--vk-fg-2);line-height:1.5;">Single French phrases — the fastest way to get feedback on your pronunciation. Try a few and see your score.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="font-family:var(--vk-font-ui);font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--vk-fg-2);flex-shrink:0;padding-top:2px;">Then</div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:600;color:var(--vk-fg-1);margin-bottom:2px;">Paragraph &amp; Prosody</div>
+            <div style="font-size:0.75rem;color:var(--vk-fg-2);line-height:1.5;">Longer passages and sound-focused drills for when you want to go deeper on a specific pattern.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--vk-accent-bg);border:1px solid var(--vk-accent-border);padding:12px 14px;margin-bottom:24px;font-size:0.75rem;color:var(--vk-accent-text);line-height:1.6;">
+        <strong>Chrome or Edge only.</strong> The microphone uses the Web Speech API — it works in Chrome and Edge. Safari and Firefox are not supported.
+      </div>
+
+      <button onclick="dismissOnboarding()" style="font-family:var(--vk-font-ui);font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:var(--vk-accent);color:var(--vk-accent-fg);border:none;padding:13px 24px;cursor:pointer;width:100%;transition:background 100ms;">Start practising</button>
+    </div>
+  </div>
 
   <!-- ── SIDEBAR ── -->
   <nav id="sidebar" class="vk-sidebar">
@@ -2625,54 +2906,70 @@
       <span class="version">
         <span class="wm"></span>
       </span>
+      <button class="sb-collapse-btn" onclick="toggleSidebar()">
+        <svg class="sb-collapse-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
+          <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
 
-    <div class="sb-session">
-      <div class="sb-session-header">
-        <button class="sb-collapse-btn" onclick="toggleSidebar()">
-          <svg class="sb-collapse-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
-            <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
-      <div id="session-timer" class="sb-timer">
-        <span class="timer-full">00:00</span>
-        <span class="timer-min" style="display:none;">0m</span>
-      </div>
-    </div>
-
-    <button class="vk-sb-item sb-nav-home is-active" data-view="home" onclick="switchView('home')" title="Home">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 7l6-5 6 5M4 6.5V13h8V6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <button class="vk-sb-item sb-nav-home is-active" data-view="home" onclick="switchView('home')" title="Progress">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><polyline points="2,12 6,7 9,9 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
 
     <div class="vk-sb-section sb-sec-speaking"></div>
-    <button class="vk-sb-item sb-nav-exercises" data-view="phrase-hub" onclick="switchView('phrase-hub')">
+    <button class="vk-sb-item sb-nav-exercises" data-view="phrase-hub" onclick="switchView('phrase-hub')" title="Speaking">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h2M5 5v6M8 3v10M11 5v6M14 8h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
-    <button class="vk-sb-item sb-nav-my-content" data-view="custom" onclick="switchView('custom')">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3V2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 5h6M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-practice" data-view="practice" onclick="switchView('practice')">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v10H2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 7l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <button class="vk-sb-item sb-nav-shadowing" data-view="shadow-hub" onclick="switchView('shadow-hub')" title="Shadowing">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8a5 5 0 0110 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M1 9.5C1 8.7 1.7 8 2.5 8H4v4H2.5C1.7 12 1 11.3 1 10.5v-1zM15 9.5C15 8.7 14.3 8 13.5 8H12v4h1.5c.8 0 1.5-.7 1.5-1.5v-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
     </button>
 
-    <div class="vk-sb-section sb-sec-vocabulary"></div>
-    <button class="vk-sb-item sb-nav-flashcards" data-view="vocab-hub" onclick="switchView('vocab-hub')">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 3V1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-
-    <div class="vk-sb-section sb-sec-comprehension"></div>
-    <button class="vk-sb-item sb-nav-listen" data-view="comprehension-hub" onclick="switchView('comprehension-hub')">
+    <div class="vk-sb-section sb-sec-listening"></div>
+    <button class="vk-sb-item sb-nav-listen" data-view="comprehension-hub" onclick="switchView('comprehension-hub')" title="Listen & Answer">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 6.5c0-1.1.9-2 2-2s2 .9 2 2c0 .8-.5 1.5-1.2 1.8L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="13" r="0.5" fill="currentColor"/></svg>
     </button>
-    <button class="vk-sb-item sb-nav-dictation" data-view="dictation-hub" onclick="switchView('dictation-hub')">
+    <button class="vk-sb-item sb-nav-dictation" data-view="dictation-hub" onclick="switchView('dictation-hub')" title="Dictation">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 10l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
 
+    <div class="vk-sb-section sb-sec-writing"></div>
+    <button class="vk-sb-item sb-nav-writing" data-view="writing-hub" onclick="switchView('writing-hub')" title="Prompted Writing">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12l1-4L10 2l3 3-7 6-4 1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 3l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <button class="vk-sb-item sb-nav-transform" data-view="transform-hub" onclick="switchView('transform-hub')" title="Transformation">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 5h9M8 3l3 2-3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11H5M8 9l-3 2 3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <div class="vk-sb-section sb-sec-vocabulary"></div>
+    <button class="vk-sb-item sb-nav-flashcards" data-view="vocab-hub" onclick="switchView('vocab-hub')" title="Flashcards">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 3V1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+
+    <div class="vk-sb-section sb-sec-personal"></div>
+    <button class="vk-sb-item sb-nav-practice" data-view="practice" onclick="switchView('practice')" title="Practice List">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v10H2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 7l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="vk-sb-item sb-nav-my-content" data-view="custom" onclick="switchView('custom')" title="My Content">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3V2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 5h6M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+
     <div class="sb-footer">
-      <button class="sb-sign-out" onclick="signOut()">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="vk-sb-profile">
+        <button class="vk-sb-profile-btn" data-view="account" onclick="switchView('account')" title="Account">
+          <div class="vk-sb-avatar">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.25"/>
+              <path d="M2 12c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="vk-sb-profile-info">
+            <div class="vk-sb-profile-name" id="sb-student-name">—</div>
+            <div class="vk-sb-profile-role" id="sb-student-role">Student</div>
+          </div>
+        </button>
+        <button class="vk-sb-signout" onclick="signOut()" title="Sign out">Sign out</button>
+      </div>
     </div>
 
   </nav>
@@ -2725,74 +3022,129 @@
       .home-section { margin-top: 36px; }
       .home-section-title { font-family: var(--vk-font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-2); margin: 0 0 4px; }
       .home-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
-      .home-action { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left; border: 1px solid var(--vk-border-mid); background: var(--vk-surface); padding: 16px; cursor: pointer;
+      .home-action { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left; border: 1px solid var(--vk-border-mid); background: var(--vk-surface); padding: 16px; cursor: pointer; position: relative;
         transition: border-color 120ms cubic-bezier(0.4,0,0.2,1), background 120ms cubic-bezier(0.4,0,0.2,1); }
       .home-action:hover { border-color: var(--vk-accent); background: var(--vk-accent-bg); }
       .home-action-icon { color: var(--vk-accent-text); }
       .home-action-name { font-family: var(--vk-font-ui); font-size: 13px; font-weight: 700; color: var(--vk-fg-1); }
       .home-action-desc { font-family: var(--vk-font-body); font-size: 12px; color: var(--vk-fg-2); line-height: 1.4; }
+      /* Next lesson indicator */
+      .home-next-lesson-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--vk-border-mid); background: var(--vk-surface); width: fit-content; }
+      .home-next-lesson-label { font-family: var(--vk-font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-3); }
+      .home-next-lesson-date { font-family: var(--vk-font-ui); font-size: 13px; font-weight: 700; color: var(--vk-fg-1); }
+      .home-next-lesson-countdown { font-family: var(--vk-font-ui); font-size: 11px; color: var(--vk-fg-2); }
     </style>
     <div id="home-view" style="display:none; flex:1; flex-direction:column; overflow-y:auto;">
       <div class="home-wrap">
 
         <div class="home-header">
-          <span class="hub-intro-eyebrow">Your progress</span>
-          <h2 class="hub-intro-heading">You're speaking French better</h2>
-          <!-- Subtitle doubles as the data-driven tip -->
-          <p class="hub-intro-text" id="home-greeting-sub">Here's how your spoken French is coming along.</p>
+          <span class="hub-intro-eyebrow" id="home-eyebrow">Progress</span>
+          <h2 class="hub-intro-heading" id="home-heading">Your spoken French</h2>
+          <p class="hub-intro-text" id="home-greeting-sub">Here's where things stand.</p>
         </div>
 
-        <!-- Three primary speaking KPIs -->
-        <div class="home-kpis" id="home-kpis"></div>
+        <!-- Next lesson indicator — shown when lesson schedule is set -->
+        <div id="home-next-lesson" style="display:none; margin-top:16px;">
+          <div class="home-next-lesson-row">
+            <span class="home-next-lesson-label">Next lesson</span>
+            <span id="home-next-lesson-date" class="home-next-lesson-date"></span>
+            <span id="home-next-lesson-countdown" class="home-next-lesson-countdown"></span>
+          </div>
+        </div>
 
-        <!-- Chart — detail view of the highlighted KPI -->
-        <div class="vk-chart is-visible" style="margin-top:16px">
-          <div class="vk-chart-header">
-            <div>
-              <p class="vk-chart-title home-chart-title">Performance over time</p>
-              <p class="vk-chart-subtitle home-chart-sub">Paragraph accuracy by level, weekly</p>
+        <!-- State A: new user — preview cards + CTA (hidden until signals.new confirmed) -->
+        <div id="home-empty-state" style="display:none; margin-top:20px;">
+          <div class="home-kpis">
+            <div class="vk-kpi-card">
+              <p class="vk-kpi-label">Performance</p>
+              <p class="home-kpi-tests">Your accuracy when speaking a whole passage — all of it together.</p>
+            </div>
+            <div class="vk-kpi-card">
+              <p class="vk-kpi-label">Precision</p>
+              <p class="home-kpi-tests">Your accuracy on individual sentences and phrases.</p>
+            </div>
+            <div class="vk-kpi-card">
+              <p class="vk-kpi-label">Words mastered</p>
+              <p class="home-kpi-tests">Words you can pronounce reliably, scored across 3 or more attempts.</p>
             </div>
           </div>
-          <div class="home-trend-chart"><div class="empty">No practice data yet</div></div>
+          <p style="font-family:var(--vk-font-body); font-size:0.85rem; color:var(--vk-fg-2); margin:18px 0 16px;">These scores will fill in after your first exercise.</p>
+          <button class="vk-btn vk-btn-primary" onclick="switchView('phrase-hub')">Start a phrase &rarr;</button>
         </div>
-        <p class="home-chart-hint">Showing the highlighted skill. The biggest recent gain is highlighted automatically.</p>
 
-        <!-- Secondary KPIs — vocabulary + listening (hidden until instrumented) -->
-        <div class="home-secondary" id="home-secondary" style="display:none">
-          <p class="home-secondary-label">Also tracking</p>
-          <div class="home-secondary-grid" id="home-secondary-grid"></div>
+        <!-- States B/C: data section (hidden for new users) -->
+        <div id="home-data-section">
+
+          <!-- State C: returning user banner -->
+          <div id="home-returning-banner" class="phv-coach-banner" style="display:none; margin-top:20px;">
+            <div class="phv-coach-left">
+              <span class="phv-coach-chip">Welcome back</span>
+              <span id="home-returning-text" class="phv-coach-word">Pick up where you left off</span>
+            </div>
+            <div class="phv-coach-right">
+              <button class="vk-btn vk-btn-outline sm" onclick="switchView('phrase-hub')">Start warmup</button>
+            </div>
+          </div>
+
+          <!-- Three primary speaking KPIs -->
+          <div class="home-kpis" id="home-kpis"></div>
+
+          <!-- Chart — detail view of the highlighted KPI -->
+          <div class="vk-chart is-visible" style="margin-top:16px">
+            <div class="vk-chart-header">
+              <div>
+                <p class="vk-chart-title home-chart-title">Performance over time</p>
+                <p class="vk-chart-subtitle home-chart-sub">Paragraph accuracy by level, weekly</p>
+              </div>
+            </div>
+            <div class="home-trend-chart"><div class="empty">No practice data yet</div></div>
+          </div>
+          <p class="home-chart-hint">Showing the highlighted skill. The biggest recent gain is highlighted automatically.</p>
+
+          <!-- Secondary KPIs — vocabulary + listening (hidden until instrumented) -->
+          <div class="home-secondary" id="home-secondary" style="display:none">
+            <p class="home-secondary-label">Also tracking</p>
+            <div class="home-secondary-grid" id="home-secondary-grid"></div>
+          </div>
+
+        </div><!-- /#home-data-section -->
+
+        <!-- Coach insight — shown for active/returning users when there's something to focus on -->
+        <div id="home-coach-insight" class="pv-insight" style="display:none; margin-top:28px;">
+          <p class="pv-insight-label">Focus</p>
+          <p class="pv-insight-text" id="home-coach-insight-text"></p>
         </div>
 
         <!-- What's next -->
         <section class="home-section">
           <h3 class="home-section-title">Practice now</h3>
           <div class="home-actions">
-            <button class="home-action" onclick="switchView('phrase-hub')">
+            <button class="home-action" data-action-key="phrase-hub" onclick="switchView('phrase-hub')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 8h2M5 5v6M8 3v10M11 5v6M14 8h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
-              <span class="home-action-name">Exercises</span>
+              <span class="home-action-name">Speaking</span>
               <span class="home-action-desc">Listen, speak & get scored</span>
             </button>
-            <button class="home-action" onclick="switchView('practice')">
+            <button class="home-action" data-action-key="practice" onclick="switchView('practice')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v10H2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 7l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
               <span class="home-action-name">Practice List</span>
-              <span class="home-action-desc">Drill your saved words</span>
+              <span class="home-action-desc">Drill your saved material</span>
             </button>
-            <button class="home-action" onclick="switchView('vocab-hub')">
+            <button class="home-action" data-action-key="vocab-hub" onclick="switchView('vocab-hub')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
               <span class="home-action-name">Flashcards</span>
               <span class="home-action-desc">Build vocabulary aloud</span>
             </button>
-            <button class="home-action" onclick="switchView('comprehension-hub')">
+            <button class="home-action" data-action-key="comprehension-hub" onclick="switchView('comprehension-hub')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 6.5c0-1.1.9-2 2-2s2 .9 2 2c0 .8-.5 1.5-1.2 1.8L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
-              <span class="home-action-name">Comprehension</span>
+              <span class="home-action-name">Listen & Answer</span>
               <span class="home-action-desc">Train your ear</span>
             </button>
-            <button class="home-action" onclick="switchView('dictation-hub')">
+            <button class="home-action" data-action-key="dictation-hub" onclick="switchView('dictation-hub')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 10l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
               <span class="home-action-name">Dictation</span>
               <span class="home-action-desc">Write what you hear</span>
             </button>
-            <button class="home-action" onclick="switchView('custom')">
+            <button class="home-action" data-action-key="custom" onclick="switchView('custom')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3V2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 5h6M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
               <span class="home-action-name">My Content</span>
               <span class="home-action-desc">Practice your own text</span>
@@ -3062,13 +3414,156 @@
                   <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 7h10M2 11h12M2 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 </div>
                 <div class="hub-mode-title">Paragraphs</div>
-                <div class="hub-mode-desc">Longer passages with block-by-block shadowing and a scored summary.</div>
+                <div class="hub-mode-desc">Longer passages with block-by-block reading practice and a scored summary.</div>
               </button>
             </div>
-            <button id="hub-start-btn" class="hub-start-btn" disabled onclick="launchShadowing()">Start</button>
           </div>
         </div>
 
+      </div>
+      <div class="hub-footer">
+        <button id="hub-start-btn" class="hub-start-btn" disabled onclick="launchShadowing()">Start</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SHADOW HUB — setup for shadowing exercise
+    ══════════════════════════════════════ -->
+    <div id="shadow-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="hub-intro">
+        <span class="hub-intro-eyebrow">Shadowing</span>
+        <h2 class="hub-intro-heading">Hear it. Mimic it. Score it.</h2>
+        <p class="hub-intro-text">A phrase plays through your headphones while the mic records simultaneously. Speak along in real time — mimicking rhythm, sounds, and flow. The phrase stays hidden until you choose to reveal it.</p>
+        <div class="hub-intro-chips">
+          <span class="hub-intro-chip">Headphones required</span>
+          <span class="hub-intro-chip">Mic starts automatically</span>
+          <span class="hub-intro-chip">Phrase hidden</span>
+        </div>
+      </div>
+      <div class="sd-headphone-notice">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M3 8a5 5 0 0110 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M1 9.5C1 8.7 1.7 8 2.5 8H4v4H2.5C1.7 12 1 11.3 1 10.5v-1zM15 9.5C15 8.7 14.3 8 13.5 8H12v4h1.5c.8 0 1.5-.7 1.5-1.5v-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        <div>Wear headphones with <strong>one ear uncovered</strong> so you can hear yourself speak. The mic starts as soon as audio plays — speak simultaneously, don't wait for the phrase to finish.</div>
+      </div>
+      <div id="sd-hub-content">
+
+        <!-- Level -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Level</span>
+            <span class="hub-row-desc">Difficulty</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="sd-hub-levels">
+              <button class="hub-subject-chip active" data-level="A1" onclick="selectSdLevel(this)">A1</button>
+              <button class="hub-subject-chip" data-level="A2" onclick="selectSdLevel(this)">A2</button>
+              <button class="hub-subject-chip" data-level="B1" onclick="selectSdLevel(this)">B1</button>
+              <button class="hub-subject-chip" data-level="B2" onclick="selectSdLevel(this)">B2</button>
+              <button class="hub-subject-chip" data-level="C1" onclick="selectSdLevel(this)">C1</button>
+              <button class="hub-subject-chip" data-level="C2" onclick="selectSdLevel(this)">C2</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Subject</span>
+            <span class="hub-row-desc">What the phrase is about</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="sd-hub-subjects">
+              <button class="hub-subject-chip active" data-topic="la nature" onclick="selectSdSubject(this)">Nature</button>
+              <button class="hub-subject-chip" data-topic="au restaurant" onclick="selectSdSubject(this)">Restaurant</button>
+              <button class="hub-subject-chip" data-topic="les salutations" onclick="selectSdSubject(this)">Greetings</button>
+              <button class="hub-subject-chip" data-topic="les loisirs" onclick="selectSdSubject(this)">Hobbies</button>
+              <button class="hub-subject-chip" data-topic="la météo" onclick="selectSdSubject(this)">Weather</button>
+              <button class="hub-subject-chip" data-topic="la famille" onclick="selectSdSubject(this)">Family</button>
+              <button class="hub-subject-chip" data-topic="les transports" onclick="selectSdSubject(this)">Transport</button>
+              <button class="hub-subject-chip" data-topic="le marché" onclick="selectSdSubject(this)">Market</button>
+            </div>
+            <div class="vocab-custom-row">
+              <input id="sd-hub-custom-topic" class="vk-input" type="text" placeholder="e.g. asking for directions" maxlength="80"
+                autocomplete="off" oninput="onSdCustomTopic(this)" onkeydown="if(event.key==='Enter') launchShadowDrill()" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Style + Start -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Style</span>
+            <span class="hub-row-desc">Content type</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="sd-hub-styles">
+              <button class="hub-subject-chip active" data-style="story" onclick="selectSdStyle(this)">Story</button>
+              <button class="hub-subject-chip" data-style="dialogue" onclick="selectSdStyle(this)">Dialogue</button>
+              <button class="hub-subject-chip" data-style="vocabulary" onclick="selectSdStyle(this)">Vocabulary</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="hub-footer">
+        <button id="sd-hub-start-btn" class="hub-start-btn" disabled onclick="launchShadowDrill()">Start</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SHADOW DRILL VIEW — phrase hidden, auto mic
+    ══════════════════════════════════════ -->
+    <div id="shadow-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="pv-header">
+        <span class="pv-title">Shadowing</span>
+        <div class="pv-header-right">
+          <span class="header-status">LEVEL</span>
+          <span id="sd-level-chip" style="font-family:var(--vk-font-ui);font-size:0.65rem;font-weight:700;letter-spacing:0.08em;color:var(--vk-fg-1);margin-left:6px;">A1</span>
+        </div>
+      </div>
+      <div class="sd-headphone-bar">Headphones on — speak simultaneously with the audio</div>
+
+      <div class="pv-body">
+        <div class="pv-col">
+
+          <!-- Phrase card — phrase hidden until revealed -->
+          <div class="pv-card" id="sd-card">
+            <div id="sd-placeholder" class="sd-placeholder">••• ••• •••</div>
+            <div id="sd-auto-listen-label" class="sd-auto-listen" style="display:none;">Listening…</div>
+
+            <!-- Score block (hidden until attempt completes) -->
+            <div id="sd-score-block" class="phv-score-block" style="display:none;">
+              <div class="pa-score">
+                <div class="pa-score-head">
+                  <span class="pa-score-num" id="sd-score-num">—</span>
+                </div>
+                <div class="pa-bar">
+                  <div class="pa-bar-fill" id="sd-bar-fill" style="width:0%"></div>
+                </div>
+              </div>
+              <div class="sd-word-count" id="sd-word-count"></div>
+
+              <!-- Reveal section (hidden until user taps Reveal) -->
+              <div class="sd-reveal-section" id="sd-reveal-section" style="display:none;">
+                <div id="sd-reveal-phrase" class="pa-utterance"></div>
+                <div class="pa-transcript feedback-phrase-diff" id="sd-reveal-diff"></div>
+              </div>
+
+              <button class="vk-btn vk-btn-outline sm" id="sd-reveal-btn" onclick="revealShadowPhrase()" style="margin-top:16px;">Reveal phrase</button>
+            </div>
+          </div>
+
+          <!-- Controls row -->
+          <div class="pv-func" id="sd-actions">
+            <button class="pa-ctrl pa-ctrl-play is-outline" id="sd-replay-btn" onclick="toggleSdAudio()" title="Replay audio" disabled>
+              <svg id="sd-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="sd-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+            </button>
+            <button class="pv-func-skip" id="sd-skip-btn" onclick="startShadowDrill()">skip</button>
+            <button id="sd-next-btn" class="vk-btn vk-btn-outline-accent" onclick="startShadowDrill()" style="display:none;">Next →</button>
+            <button id="sd-retry-btn" class="vk-btn vk-btn-outline sm" onclick="retryShadowDrill()" style="display:none;">Try Again</button>
+          </div>
+
+        </div>
       </div>
     </div>
 
@@ -4043,6 +4538,322 @@
 
     </div><!-- /#dictation-view -->
 
+    <!-- ── Writing Hub ── -->
+    <div id="writing-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="hub-intro">
+        <span class="hub-intro-eyebrow">Writing</span>
+        <h2 class="hub-intro-heading">Practice writing in French</h2>
+        <p class="hub-intro-text">You'll be given a short prompt in French. Write 1–2 sentences in response, then get grammar and vocabulary feedback word by word.</p>
+        <div class="hub-intro-chips">
+          <span class="hub-intro-chip">Grammar</span>
+          <span class="hub-intro-chip">Vocabulary</span>
+          <span class="hub-intro-chip">Corrections explained</span>
+        </div>
+      </div>
+      <div id="writing-hub-content">
+
+        <!-- Level -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Level</span>
+            <span class="hub-row-desc">Prompt complexity</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="writing-hub-levels">
+              <button class="hub-subject-chip" data-level="A1" onclick="selectWritingLevel(this)">A1</button>
+              <button class="hub-subject-chip" data-level="A2" onclick="selectWritingLevel(this)">A2</button>
+              <button class="hub-subject-chip active" data-level="B1" onclick="selectWritingLevel(this)">B1</button>
+              <button class="hub-subject-chip" data-level="B2" onclick="selectWritingLevel(this)">B2</button>
+              <button class="hub-subject-chip" data-level="C1" onclick="selectWritingLevel(this)">C1</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Topic -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Topic</span>
+            <span class="hub-row-desc">What you'll write about</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="writing-hub-topics">
+              <button class="hub-subject-chip active" data-topic="la vie quotidienne" onclick="selectWritingTopic(this)">Daily life</button>
+              <button class="hub-subject-chip" data-topic="la nature" onclick="selectWritingTopic(this)">Nature</button>
+              <button class="hub-subject-chip" data-topic="la culture française" onclick="selectWritingTopic(this)">French culture</button>
+              <button class="hub-subject-chip" data-topic="la gastronomie" onclick="selectWritingTopic(this)">Food</button>
+              <button class="hub-subject-chip" data-topic="les voyages" onclick="selectWritingTopic(this)">Travel</button>
+              <button class="hub-subject-chip" data-topic="le travail" onclick="selectWritingTopic(this)">Work</button>
+              <button class="hub-subject-chip" data-topic="Marseille" onclick="selectWritingTopic(this)">Marseille</button>
+            </div>
+            <div class="vocab-custom-row">
+              <input id="writing-custom-topic-input" class="vk-input" type="text" placeholder="Custom topic…" maxlength="80"
+                autocomplete="off" onkeydown="if(event.key==='Enter') addWritingCustomTopic()" />
+              <button class="vk-btn vk-btn-outline" onclick="addWritingCustomTopic()">Add</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start -->
+        <div class="hub-row">
+          <div class="hub-row-label"></div>
+          <div class="hub-row-controls">
+            <button id="writing-generate-btn" class="hub-start-btn" onclick="startWriting()">Start →</button>
+          </div>
+        </div>
+
+      </div><!-- /#writing-hub-content -->
+    </div><!-- /#writing-hub -->
+
+    <!-- ── Writing View ── -->
+    <div id="writing-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+
+      <div class="sv-header">
+        <span class="header-title">Writing</span>
+      </div>
+
+      <div class="pv-body">
+        <div class="pv-col">
+
+          <!-- Loading -->
+          <div id="wr-loading" style="display:none;">
+            <div class="wr-loading-text">Generating prompt…</div>
+          </div>
+
+          <!-- Prompt + input -->
+          <div id="wr-prompt-area" style="display:none;">
+            <div class="wr-prompt-card">
+              <div class="wr-prompt-eyebrow">Your task</div>
+              <div id="wr-prompt-text" class="wr-prompt-text"></div>
+            </div>
+            <textarea id="wr-response-input" class="vk-input wr-textarea"
+              placeholder="Écrivez votre réponse ici…"
+              rows="4"
+              onkeydown="if(event.key==='Enter'&&event.ctrlKey){event.preventDefault();submitWriting();}"></textarea>
+            <div class="wr-input-actions">
+              <button id="wr-submit-btn" class="vk-btn vk-btn-primary" onclick="submitWriting()">Check →</button>
+            </div>
+          </div>
+
+          <!-- Progressive results — attempt history + current rewrite -->
+          <div id="wr-results" class="wr-results" style="display:none;">
+            <!-- Previous attempts with tips are appended here by JS -->
+            <div id="wr-history"></div>
+
+            <!-- Rewrite textarea (shown when more attempts remain) -->
+            <div id="wr-rewrite-area" style="display:none;">
+              <div class="wr-rewrite-label">Rewrite</div>
+              <textarea id="wr-rewrite-input" class="vk-input wr-textarea"
+                placeholder="Écrivez votre nouvelle version…"
+                rows="4"
+                onkeydown="if(event.key==='Enter'&&event.ctrlKey){event.preventDefault();submitWritingRewrite();}"></textarea>
+              <div class="wr-input-actions">
+                <button id="wr-rewrite-btn" class="vk-btn vk-btn-primary" onclick="submitWritingRewrite()">Check →</button>
+              </div>
+            </div>
+
+            <!-- Done state -->
+            <div id="wr-done-row" class="wr-next-row" style="display:none;">
+              <button class="vk-btn vk-btn-outline-accent" onclick="writingNextPrompt()">Next prompt →</button>
+            </div>
+          </div>
+
+        </div><!-- /.pv-col -->
+      </div><!-- /.pv-body -->
+
+    </div><!-- /#writing-view -->
+
+    <!-- ── Transform Hub ── -->
+    <div id="transform-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="hub-intro">
+        <span class="hub-intro-eyebrow">Writing</span>
+        <h2 class="hub-intro-heading">Sentence transformation</h2>
+        <p class="hub-intro-text">You'll see a French sentence and an instruction. Rewrite the sentence applying the transformation, then get targeted grammar feedback.</p>
+        <div class="hub-intro-chips">
+          <span class="hub-intro-chip">Tense</span>
+          <span class="hub-intro-chip">Negation</span>
+          <span class="hub-intro-chip">Pronouns</span>
+          <span class="hub-intro-chip">Register</span>
+        </div>
+      </div>
+      <div id="transform-hub-content">
+
+        <!-- Level -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Level</span>
+            <span class="hub-row-desc">Grammar complexity</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="transform-hub-levels">
+              <button class="hub-subject-chip" data-level="A1" onclick="selectTransformLevel(this)">A1</button>
+              <button class="hub-subject-chip" data-level="A2" onclick="selectTransformLevel(this)">A2</button>
+              <button class="hub-subject-chip active" data-level="B1" onclick="selectTransformLevel(this)">B1</button>
+              <button class="hub-subject-chip" data-level="B2" onclick="selectTransformLevel(this)">B2</button>
+              <button class="hub-subject-chip" data-level="C1" onclick="selectTransformLevel(this)">C1</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Focus -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Focus</span>
+            <span id="transform-focus-desc" class="hub-row-desc">Change the tense of the verb</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="transform-hub-focuses">
+              <button class="hub-subject-chip active" data-focus="tense" onclick="selectTransformFocus(this)">Tense</button>
+              <button class="hub-subject-chip" data-focus="negation" onclick="selectTransformFocus(this)">Negation</button>
+              <button class="hub-subject-chip" data-focus="pronoun" onclick="selectTransformFocus(this)">Pronouns</button>
+              <button class="hub-subject-chip" data-focus="register" onclick="selectTransformFocus(this)">Register</button>
+              <button class="hub-subject-chip" data-focus="number" onclick="selectTransformFocus(this)">Number</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start -->
+        <div class="hub-row">
+          <div class="hub-row-label"></div>
+          <div class="hub-row-controls">
+            <button id="transform-generate-btn" class="hub-start-btn" onclick="startTransform()">Start →</button>
+          </div>
+        </div>
+
+      </div><!-- /#transform-hub-content -->
+    </div><!-- /#transform-hub -->
+
+    <!-- ── Transform View ── -->
+    <div id="transform-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+
+      <div class="sv-header">
+        <span class="header-title">Transformation</span>
+      </div>
+
+      <div class="pv-body">
+        <div class="pv-col">
+
+          <!-- Loading -->
+          <div id="tr-loading" style="display:none;">
+            <div class="wr-loading-text">Generating sentence…</div>
+          </div>
+
+          <!-- Source + instruction + input -->
+          <div id="tr-exercise-area" style="display:none;">
+            <div class="tr-source-card">
+              <div class="tr-source-eyebrow">Original sentence</div>
+              <div id="tr-source-text" class="tr-source-text"></div>
+            </div>
+            <div class="tr-instruction-card">
+              <div class="tr-instruction-eyebrow">Your task</div>
+              <div id="tr-instruction-text" class="tr-instruction-text"></div>
+            </div>
+            <textarea id="tr-response-input" class="vk-input wr-textarea"
+              placeholder="Écrivez votre transformation ici…"
+              rows="3"
+              onkeydown="if(event.key==='Enter'&&event.ctrlKey){event.preventDefault();submitTransform();}"></textarea>
+            <div class="wr-input-actions">
+              <button id="tr-submit-btn" class="vk-btn vk-btn-primary" onclick="submitTransform()">Check →</button>
+            </div>
+          </div>
+
+          <!-- Results — attempt history + rewrite -->
+          <div id="tr-results" class="wr-results" style="display:none;">
+            <div id="tr-history"></div>
+
+            <div id="tr-rewrite-area" style="display:none;">
+              <div class="wr-rewrite-label">Rewrite</div>
+              <textarea id="tr-rewrite-input" class="vk-input wr-textarea"
+                placeholder="Écrivez votre nouvelle version…"
+                rows="3"
+                onkeydown="if(event.key==='Enter'&&event.ctrlKey){event.preventDefault();submitTransformRewrite();}"></textarea>
+              <div class="wr-input-actions">
+                <button id="tr-rewrite-btn" class="vk-btn vk-btn-primary" onclick="submitTransformRewrite()">Check →</button>
+              </div>
+            </div>
+
+            <div id="tr-done-row" class="wr-next-row" style="display:none;">
+              <button class="vk-btn vk-btn-outline-accent" onclick="transformNext()">Next sentence →</button>
+            </div>
+          </div>
+
+        </div><!-- /.pv-col -->
+      </div><!-- /.pv-body -->
+
+    </div><!-- /#transform-view -->
+
+    <!-- ── ACCOUNT VIEW ── -->
+    <div id="account-view" style="display:none; flex:1; flex-direction:column; overflow-y:auto;">
+      <div id="account-view-inner">
+
+        <div class="acct-section">
+          <div class="acct-section-title">Account</div>
+          <div class="acct-email" id="acct-email-display">—</div>
+          <div class="acct-role" id="acct-role-display"></div>
+        </div>
+
+        <div class="acct-section">
+          <div class="acct-section-title">Membership</div>
+          <div class="acct-meta-grid">
+            <div class="acct-meta-item">
+              <div class="acct-label">Member since</div>
+              <div class="acct-meta-val" id="acct-member-since">—</div>
+            </div>
+            <div class="acct-meta-item">
+              <div class="acct-label">Plan</div>
+              <div class="acct-meta-val" id="acct-plan">—</div>
+            </div>
+            <div class="acct-meta-item">
+              <div class="acct-label">Next billing</div>
+              <div class="acct-meta-val" id="acct-billing-date">—</div>
+            </div>
+            <div class="acct-meta-item">
+              <div class="acct-label">Next lesson</div>
+              <div class="acct-meta-val" id="acct-next-lesson">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="acct-section" id="acct-teacher-section" style="display:none;">
+          <div class="acct-section-title">Teacher</div>
+          <div class="acct-meta-grid">
+            <div class="acct-meta-item">
+              <div class="acct-label">Linked to</div>
+              <div class="acct-meta-val" id="acct-teacher-name">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="acct-section">
+          <div class="acct-section-title">Change Password</div>
+          <div class="acct-field">
+            <label class="acct-label" for="acct-cur-pw">Current password</label>
+            <input class="acct-input" id="acct-cur-pw" type="password" autocomplete="current-password" placeholder="Current password">
+          </div>
+          <div class="acct-field">
+            <label class="acct-label" for="acct-new-pw">New password</label>
+            <input class="acct-input" id="acct-new-pw" type="password" autocomplete="new-password" placeholder="New password">
+          </div>
+          <div class="acct-field">
+            <label class="acct-label" for="acct-new-pw2">Confirm new password</label>
+            <input class="acct-input" id="acct-new-pw2" type="password" autocomplete="new-password" placeholder="Confirm new password">
+          </div>
+          <div class="acct-error" id="acct-pw-error"></div>
+          <div class="acct-success" id="acct-pw-success"></div>
+          <div class="acct-actions">
+            <button class="vk-btn vk-btn-primary" id="acct-pw-btn" onclick="acctChangePw()">Update password</button>
+          </div>
+        </div>
+
+        <div class="acct-section">
+          <div class="acct-section-title">Session</div>
+          <div class="acct-actions">
+            <button class="vk-btn vk-btn-outline" style="color:var(--vk-error);border-color:var(--vk-error);" onclick="signOut()">Sign out</button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /#account-view -->
+
   </main>
 
 </div>
@@ -4075,6 +4886,13 @@
   function toggleSidebar() {
     document.getElementById('app').classList.toggle('sb-collapsed');
   }
+
+  document.getElementById('sidebar').addEventListener('click', function(e) {
+    const app = document.getElementById('app');
+    if (app.classList.contains('sb-collapsed') && !e.target.closest('.sb-collapse-btn')) {
+      app.classList.remove('sb-collapsed');
+    }
+  });
 
   // ── Mobile sidebar ─────────────────────────────────────────────────────────
   function openMobileSidebar() {
@@ -4119,67 +4937,33 @@
   }
   document.addEventListener('click', () => { closeDiffChip(); closePvChip(); closeSpeedChip(); });
 
-  // ── Access Code / Welcome ──────────────────────────────────────────────────
-  async function submitApiKey() {
-    const input = document.getElementById('welcome-key-input');
-    const errEl = document.getElementById('welcome-error');
-    const btn   = document.getElementById('welcome-submit');
-    const code  = input.value.trim();
-    if (!code) { errEl.textContent = 'Please enter your access code.'; return; }
-    btn.disabled = true;
-    errEl.textContent = '';
-    try {
-      const res = await fetch('/validate-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
-      if (!res.ok) { throw new Error('Invalid access code. Please check with your tutor.'); }
-      localStorage.setItem('ft_access_code', code);
-      document.getElementById('gate').classList.add('hidden');
-      trackEvent('session_start', { session_id: sessionId });
-      switchView('home');
-    } catch (e) {
-      errEl.textContent = e.message;
-      btn.disabled = false;
+  // ── Auth helpers ───────────────────────────────────────────────────────────
+  async function apiFetch(url, opts = {}) {
+    const token = localStorage.getItem('ft_jwt');
+    opts.headers = Object.assign({}, opts.headers || {});
+    if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+    let res = await fetch(url, opts);
+    if (res.status === 401) {
+      // Try refresh
+      const rt = localStorage.getItem('ft_refresh_token');
+      if (rt) {
+        try {
+          const rr = await fetch('/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: rt }),
+          });
+          if (rr.ok) {
+            const rd = await rr.json();
+            localStorage.setItem('ft_jwt', rd.access_token);
+            opts.headers['Authorization'] = 'Bearer ' + rd.access_token;
+            res = await fetch(url, opts);
+          }
+        } catch (_) {}
+      }
     }
+    return res;
   }
-
-  function showApiKeyScreen() {
-    document.getElementById('welcome-key-input').value = '';
-    document.getElementById('welcome-error').textContent = '';
-    document.getElementById('welcome-submit').disabled = false;
-    document.getElementById('gate').classList.remove('hidden');
-    document.getElementById('welcome-key-input').focus();
-  }
-
-  document.getElementById('welcome-key-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitApiKey();
-  });
-
-  // Restore saved code on load and re-validate (handles server restarts / code revocation)
-  (async () => {
-    const saved = localStorage.getItem('ft_access_code');
-    if (saved) {
-      try {
-        const res = await fetch('/validate-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: saved }),
-        });
-        if (res.ok) {
-          document.getElementById('gate').classList.add('hidden');
-          trackEvent('session_start', { session_id: sessionId });
-          setTimeout(() => switchView('home'), 0);
-          return;
-        }
-      } catch (_) {}
-      // Saved code no longer valid — clear it
-      localStorage.removeItem('ft_access_code');
-    }
-    document.getElementById('gate').classList.remove('hidden');
-    document.getElementById('welcome-key-input').focus();
-  })();
 
   // ── Session ────────────────────────────────────────────────────────────────
   // sessionId: persistent user identity (never rotates)
@@ -4193,18 +4977,37 @@
   let visitId = crypto.randomUUID();
   let _visitStart = Date.now();
 
-  // Session timer
-  const _sessionStart = Date.now();
-  const _timerEl = document.getElementById('session-timer');
-  const _timerFull = _timerEl.querySelector('.timer-full');
-  const _timerMin  = _timerEl.querySelector('.timer-min');
-  setInterval(() => {
-    const elapsed = Math.floor((Date.now() - _sessionStart) / 1000);
-    const h = Math.floor(elapsed / 3600);
-    const m = Math.floor((elapsed % 3600) / 60);
-    _timerFull.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-    _timerMin.textContent  = `${h * 60 + m}m`;
-  }, 1000);
+  // Auth gate — redirect to login if no valid token
+  (async () => {
+    const token = localStorage.getItem('ft_jwt');
+    if (!token) { location.href = '/login'; return; }
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 < Date.now()) {
+        // Token expired — attempt silent refresh on next request; still let page load
+      }
+    } catch (_) {
+      location.href = '/login';
+      return;
+    }
+    // ft_access_code was populated by login.html — exercise calls continue unchanged
+    trackEvent('session_start', { session_id: sessionId });
+    setTimeout(() => switchView('home'), 0);
+    window.addEventListener('popstate', () => switchView(location.hash.slice(1) || 'home'));
+    // Populate sidebar profile + check onboarding
+    try {
+      const meRes = await apiFetch('/auth/me');
+      if (meRes.ok) {
+        const me = await meRes.json();
+        document.getElementById('sb-student-name').textContent = me.username || me.email || '—';
+        const roleLabels = { student_solo: 'Independent learner', student_teacher: 'Student', teacher: 'Teacher', super_admin: 'Admin' };
+        document.getElementById('sb-student-role').textContent = roleLabels[me.role] || me.role || 'Student';
+        if (!localStorage.getItem('vf_onboarded') && me.role === 'student_solo') {
+          document.getElementById('onboarding-modal').style.display = 'flex';
+        }
+      }
+    } catch (_) {}
+  })();
 
   function _endVisit(reason) {
     const accessCode = localStorage.getItem('ft_access_code') || '';
@@ -4389,11 +5192,97 @@
     });
   }
 
-  function signOut() {
+  function dismissOnboarding() {
+    localStorage.setItem('vf_onboarded', '1');
+    document.getElementById('onboarding-modal').style.display = 'none';
+  }
+
+  async function signOut() {
+    const rt = localStorage.getItem('ft_refresh_token');
+    if (rt) {
+      try {
+        await fetch('/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: rt }),
+        });
+      } catch (_) {}
+    }
     localStorage.removeItem('ft_access_code');
-    document.getElementById('gate').classList.remove('hidden');
-    document.getElementById('welcome-key-input').value = '';
-    document.getElementById('welcome-key-input').focus();
+    localStorage.removeItem('ft_jwt');
+    localStorage.removeItem('ft_refresh_token');
+    location.href = '/login';
+  }
+
+  // ── Account view ───────────────────────────────────────────────────────────
+  async function loadAccountView() {
+    document.getElementById('acct-pw-error').textContent = '';
+    document.getElementById('acct-pw-success').textContent = '';
+    document.getElementById('acct-cur-pw').value = '';
+    document.getElementById('acct-new-pw').value = '';
+    document.getElementById('acct-new-pw2').value = '';
+    try {
+      const res = await apiFetch('/auth/me');
+      if (res.ok) {
+        const me = await res.json();
+        document.getElementById('acct-email-display').textContent = me.email || '—';
+        const roleLabels = { student_solo: 'Independent learner', student_teacher: 'Student', teacher: 'Teacher', super_admin: 'Admin' };
+        document.getElementById('acct-role-display').textContent = roleLabels[me.role] || me.role || '';
+
+        const fmtDate = iso => {
+          if (!iso) return '—';
+          const d = new Date(iso);
+          return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        };
+        document.getElementById('acct-member-since').textContent = fmtDate(me.created_at);
+        document.getElementById('acct-plan').textContent =
+          me.plan_name ? (me.plan_price ? `${me.plan_name} · ${me.plan_price}` : me.plan_name) : '—';
+        document.getElementById('acct-billing-date').textContent = fmtDate(me.billing_date);
+        document.getElementById('acct-next-lesson').textContent = fmtDate(me.next_lesson);
+
+        const teacherSection = document.getElementById('acct-teacher-section');
+        if (me.teacher_name) {
+          document.getElementById('acct-teacher-name').textContent = me.teacher_name;
+          teacherSection.style.display = '';
+        } else {
+          teacherSection.style.display = 'none';
+        }
+      }
+    } catch (_) {}
+  }
+
+  async function acctChangePw() {
+    const cur   = document.getElementById('acct-cur-pw').value;
+    const newPw = document.getElementById('acct-new-pw').value;
+    const conf  = document.getElementById('acct-new-pw2').value;
+    const errEl = document.getElementById('acct-pw-error');
+    const okEl  = document.getElementById('acct-pw-success');
+    const btn   = document.getElementById('acct-pw-btn');
+    errEl.textContent = '';
+    okEl.textContent = '';
+    if (!cur || !newPw || !conf) { errEl.textContent = 'All fields are required.'; return; }
+    if (newPw !== conf) { errEl.textContent = 'New passwords do not match.'; return; }
+    if (newPw.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
+    btn.disabled = true;
+    try {
+      const res = await apiFetch('/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: cur, new_password: newPw }),
+      });
+      if (res.ok) {
+        okEl.textContent = 'Password updated.';
+        document.getElementById('acct-cur-pw').value = '';
+        document.getElementById('acct-new-pw').value = '';
+        document.getElementById('acct-new-pw2').value = '';
+      } else {
+        const data = await res.json();
+        errEl.textContent = data.detail || 'Failed to update password.';
+      }
+    } catch (_) {
+      errEl.textContent = 'Connection error.';
+    }
+    btn.disabled = false;
   }
 
   // ── Speech Recognition ─────────────────────────────────────────────────────
@@ -4452,6 +5341,18 @@
     };
 
     recognition.onresult = e => {
+      // Shadow drill accumulates to its own buffer and exits early
+      if (_inShadowDrillMode) {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) _sdFinalBuffer += r[0].transcript + ' ';
+          else interim += r[0].transcript;
+        }
+        _sdAccumulated = contractElisions((_sdFinalBuffer + interim).trim());
+        return;
+      }
+
       // Accumulate isFinal results into buffer so restarts don't wipe earlier words
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -4530,6 +5431,7 @@
       // Check if mic was active before stripping listening classes — onerror fires
       // before onend, so we must record restart intent here or onend will miss it.
       const micActiveAtError = !userStoppedRecognition && (
+        _inShadowDrillMode ||
         document.getElementById('phrase-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-mic-btn')?.classList.contains('listening') ||
         document.getElementById('para-drill-mic-btn')?.classList.contains('listening') ||
@@ -4572,6 +5474,12 @@
         document.getElementById('practice-para-drill-mic-btn')?.classList.contains('listening') ||
         false
       );
+
+      // Shadow drill: browser timed out before audio ended — restart silently
+      if (_inShadowDrillMode && !userStoppedRecognition) {
+        try { recognition.start(); } catch (_) {}
+        return;
+      }
 
       // If the browser timed out mid-session (not a user stop), restart silently.
       // Also handle the case where onerror already stripped listening classes but
@@ -4666,7 +5574,19 @@
   let currentView = 'home';
 
   // Sub-views that keep the "Generate" nav button active
-  const GENERATE_SUBVIEWS = new Set(['phrase-hub', 'phrase', 'paragraph']);
+  const GENERATE_SUBVIEWS = new Set(['phrase-hub', 'phrase', 'paragraph', 'shadow-hub', 'shadow-drill']);
+
+  // Session views that are not bookmarkable — map to their parent hub for URL purposes
+  const SESSION_TO_HUB = {
+    'phrase':         'phrase-hub',
+    'paragraph':      'phrase-hub',
+    'shadow-drill':   'shadow-hub',
+    'comprehension':  'comprehension-hub',
+    'dictation':      'dictation-hub',
+    'vocab':          'vocab-hub',
+    'writing':        'writing-hub',
+    'transform':      'transform-hub',
+  };
 
   // Null-safe display setter — guards against elements not yet in the DOM during incremental rebuild
   function setDisplay(id, val) { const el = document.getElementById(id); if (el) el.style.display = val; }
@@ -4694,6 +5614,13 @@
     const inDictation       = view === 'dictation';
     const inVocabHub        = view === 'vocab-hub';
     const inVocab           = view === 'vocab';
+    const inWritingHub      = view === 'writing-hub';
+    const inWriting         = view === 'writing';
+    const inTransformHub    = view === 'transform-hub';
+    const inTransform       = view === 'transform';
+    const inAccount         = view === 'account';
+    const inShadowHub       = view === 'shadow-hub';
+    const inShadowDrill     = view === 'shadow-drill';
 
     if (inShadow || inParagraph) {
       _shadowingViewStart = Date.now();
@@ -4712,6 +5639,14 @@
     setDisplay('dictation-view',      inDictation    ? 'flex' : 'none');
     setDisplay('vocab-hub',           inVocabHub     ? 'flex' : 'none');
     setDisplay('vocab-view',          inVocab        ? 'flex' : 'none');
+    setDisplay('writing-hub',         inWritingHub   ? 'flex' : 'none');
+    setDisplay('writing-view',        inWriting      ? 'flex' : 'none');
+    setDisplay('transform-hub',       inTransformHub ? 'flex' : 'none');
+    setDisplay('transform-view',      inTransform    ? 'flex' : 'none');
+    setDisplay('account-view',        inAccount      ? 'flex' : 'none');
+    setDisplay('shadow-hub',          inShadowHub    ? 'flex' : 'none');
+    setDisplay('shadow-view',         inShadowDrill  ? 'flex' : 'none');
+    if (inAccount) loadAccountView();
 
     const VIEW_LABELS = {
       'phrase': 'Exercises', 'phrase-hub': 'Exercises',
@@ -4720,6 +5655,10 @@
       'comprehension-hub': 'Comprehension', 'comprehension': 'Comprehension',
       'dictation-hub': 'Dictation', 'dictation': 'Dictation',
       'vocab-hub': 'Flashcards', 'vocab': 'Flashcards',
+      'writing-hub': 'Writing', 'writing': 'Writing',
+      'transform-hub': 'Transformation', 'transform': 'Transformation',
+      'account': 'Account',
+      'shadow-hub': 'Shadowing', 'shadow-drill': 'Shadowing',
     };
     const _sbChip = document.getElementById('sb-mode-chip');
     const _mobChip = document.getElementById('mobile-mode-chip');
@@ -4734,11 +5673,15 @@
         (b.dataset.view === 'custom' && inCustom) ||
         (b.dataset.view === 'comprehension-hub' && inComprehension) ||
         (b.dataset.view === 'dictation-hub' && inDictation) ||
-        (b.dataset.view === 'vocab-hub' && inVocab);
+        (b.dataset.view === 'vocab-hub' && inVocab) ||
+        (b.dataset.view === 'writing-hub' && inWriting) ||
+        (b.dataset.view === 'transform-hub' && inTransform) ||
+        (b.dataset.view === 'shadow-hub' && inShadowDrill);
       b.classList.toggle('is-active', isActive);
     });
 
     if (inShadow && !currentPhrase) fetchNextPhrase();
+    if (inShadowDrill) startShadowDrill();
     if (inPractice) {
       if (_cachedPracticeItems.length) renderPracticeTab(_cachedPracticeItems);
       loadPracticeList();
@@ -4746,6 +5689,19 @@
     if (inParagraph && paragraphSentences.length === 0) fetchNextParagraph();
     if (inCustom) loadCustomList();
     if (inHome) loadHomeView();
+
+    // Sync URL hash so browser back/forward works.
+    // Session sub-views (mid-exercise) replace the hub's hash rather than pushing a new entry,
+    // so pressing back from inside an exercise returns to the hub, not the previous hub.
+    const hashView = SESSION_TO_HUB[view] || view;
+    const newHash = '#' + hashView;
+    if (location.hash !== newHash) {
+      if (SESSION_TO_HUB[view]) {
+        history.replaceState(null, '', newHash);
+      } else {
+        history.pushState(null, '', newHash);
+      }
+    }
   }
 
   // ── Shadowing Hub ──────────────────────────────────────────────────────────
@@ -4890,6 +5846,308 @@
     } else if (mode === 'custom') {
       switchView('custom');
     }
+  }
+
+  // ── Shadow Drill ───────────────────────────────────────────────────────────
+  let _sdLevel   = 'A1';
+  let _sdTopic   = 'la nature';
+  let _sdStyle   = 'story';
+
+  // Per-drill state
+  let _inShadowDrillMode = false;
+  let _sdFinalBuffer     = '';
+  let _sdAccumulated     = '';
+  let _sdPhrase          = '';
+  let _sdNounAdj         = [];
+  let _sdPhraseId        = null;
+  let _sdAudioUrl        = null;
+  let _sdCurrentAudio    = null;
+  let _sdSubmitTimer     = null;
+
+  function selectSdLevel(btn) {
+    _sdLevel = btn.dataset.level;
+    document.querySelectorAll('#sd-hub-levels .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateSdStartBtn();
+  }
+
+  function selectSdSubject(btn) {
+    _sdTopic = btn.dataset.topic;
+    document.querySelectorAll('#sd-hub-subjects .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const customInput = document.getElementById('sd-hub-custom-topic');
+    if (customInput) customInput.value = '';
+    updateSdStartBtn();
+  }
+
+  function selectSdStyle(btn) {
+    _sdStyle = btn.dataset.style;
+    document.querySelectorAll('#sd-hub-styles .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function onSdCustomTopic(input) {
+    if (input.value.trim()) {
+      _sdTopic = input.value.trim();
+      document.querySelectorAll('#sd-hub-subjects .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    }
+    updateSdStartBtn();
+  }
+
+  function updateSdStartBtn() {
+    const btn = document.getElementById('sd-hub-start-btn');
+    if (btn) btn.disabled = !(_sdLevel && _sdTopic);
+  }
+  updateSdStartBtn();  // both defaults are set so Start is enabled on first open
+
+  function launchShadowDrill() {
+    const customInput = document.getElementById('sd-hub-custom-topic');
+    if (customInput && customInput.value.trim()) _sdTopic = customInput.value.trim();
+    if (!_sdLevel || !_sdTopic) return;
+    const chip = document.getElementById('sd-level-chip');
+    if (chip) chip.textContent = _sdLevel;
+    switchView('shadow-drill');
+  }
+
+  async function startShadowDrill() {
+    // Reset UI
+    _sdPhrase = ''; _sdNounAdj = []; _sdPhraseId = null; _sdAudioUrl = null;
+    _sdFinalBuffer = ''; _sdAccumulated = '';
+    if (_sdSubmitTimer) { clearTimeout(_sdSubmitTimer); _sdSubmitTimer = null; }
+    if (_sdCurrentAudio) { _sdCurrentAudio.pause(); _sdCurrentAudio = null; }
+
+    const placeholder = document.getElementById('sd-placeholder');
+    const scoreBlock  = document.getElementById('sd-score-block');
+    const autoLabel   = document.getElementById('sd-auto-listen-label');
+    const skipBtn     = document.getElementById('sd-skip-btn');
+    const nextBtn     = document.getElementById('sd-next-btn');
+    const retryBtn    = document.getElementById('sd-retry-btn');
+    const replayBtn   = document.getElementById('sd-replay-btn');
+    const revealBtn   = document.getElementById('sd-reveal-btn');
+    const revealSec   = document.getElementById('sd-reveal-section');
+
+    if (placeholder) { placeholder.textContent = '•••'; placeholder.style.display = ''; }
+    if (scoreBlock)  scoreBlock.style.display = 'none';
+    if (autoLabel)   { autoLabel.textContent = 'Loading…'; autoLabel.style.display = ''; }
+    if (skipBtn)     skipBtn.style.display = '';
+    if (nextBtn)     nextBtn.style.display = 'none';
+    if (retryBtn)    retryBtn.style.display = 'none';
+    if (replayBtn)   { replayBtn.disabled = true; setSdPlayBtnState(false); }
+    if (revealBtn)   revealBtn.textContent = 'Reveal phrase';
+    if (revealSec)   revealSec.style.display = 'none';
+
+    try {
+      const res = await fetch('/shadow/phrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: _sdLevel, topic: _sdTopic, style: _sdStyle }),
+      });
+      if (!res.ok) throw new Error('phrase fetch failed');
+      const data = await res.json();
+      _sdPhrase   = data.phrase;
+      _sdNounAdj  = data.noun_adj_tokens || [];
+      _sdAudioUrl = data.audio_url;
+
+      if (autoLabel) autoLabel.textContent = 'Listening…';
+
+      // Start audio + mic simultaneously
+      _sdCurrentAudio = new Audio(_sdAudioUrl);
+      _sdCurrentAudio.playbackRate = audioPlaybackRate;
+      if (replayBtn) replayBtn.disabled = false;
+
+      // Reset recognition state
+      _inShadowDrillMode = true;
+      _sdFinalBuffer = ''; _sdAccumulated = '';
+      userStoppedRecognition = false;
+      finalTranscriptBuffer  = '';
+
+      // Start mic
+      await ensureMicPermission();
+      try { recognition.start(); } catch (_) {}
+
+      // Start audio playback
+      _sdCurrentAudio.play().catch(() => {});
+      setSdPlayBtnState(true);
+
+      _sdCurrentAudio.addEventListener('ended', () => {
+        setSdPlayBtnState(false);
+        // Give user 1.5 s after audio finishes before auto-submitting
+        _sdSubmitTimer = setTimeout(() => submitShadowDrill(), 1500);
+      });
+
+    } catch (err) {
+      if (autoLabel) autoLabel.textContent = 'Error loading phrase — skip to retry.';
+      _inShadowDrillMode = false;
+    }
+  }
+
+  async function submitShadowDrill() {
+    if (!_inShadowDrillMode) return;
+    _inShadowDrillMode = false;
+    userStoppedRecognition = true;
+    try { if (recognition) recognition.stop(); } catch (_) {}
+
+    const transcription = _sdAccumulated || '';
+
+    const autoLabel = document.getElementById('sd-auto-listen-label');
+    if (autoLabel) autoLabel.textContent = 'Scoring…';
+
+    try {
+      const res = await fetch('/shadow/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: _sdPhrase,
+          transcription,
+          noun_adj_tokens: _sdNounAdj,
+          ...getAnalyticsFields(),
+          level: _sdLevel,
+          topic: _sdTopic,
+        }),
+      });
+      if (!res.ok) throw new Error('analyze failed');
+      const data = await res.json();
+      renderShadowScore(data, transcription);
+    } catch (err) {
+      if (autoLabel) autoLabel.textContent = 'Scoring error — skip to try again.';
+    }
+  }
+
+  function renderShadowScore(data, transcription) {
+    const autoLabel  = document.getElementById('sd-auto-listen-label');
+    const scoreBlock = document.getElementById('sd-score-block');
+    const scoreNum   = document.getElementById('sd-score-num');
+    const barFill    = document.getElementById('sd-bar-fill');
+    const wordCount  = document.getElementById('sd-word-count');
+    const scoreWrap  = scoreBlock ? scoreBlock.querySelector('.pa-score') : null;
+    const skipBtn    = document.getElementById('sd-skip-btn');
+    const nextBtn    = document.getElementById('sd-next-btn');
+    const retryBtn   = document.getElementById('sd-retry-btn');
+
+    if (autoLabel) autoLabel.style.display = 'none';
+
+    const pct    = Math.round(data.score * 100);
+    const tier   = pct >= 70 ? 'is-pass' : pct >= 40 ? 'is-almost' : 'is-fail';
+    if (scoreWrap) scoreWrap.className = 'pa-score ' + tier;
+    if (scoreNum) { scoreNum.style.animation='none'; scoreNum.textContent = pct + '%'; void scoreNum.offsetHeight; scoreNum.style.animation=''; }
+    if (barFill)  { barFill.style.width = '0%'; requestAnimationFrame(() => { barFill.style.width = pct + '%'; }); }
+
+    const results = data.display_results || [];
+    const matched = results.filter(r => r.matched).length;
+    if (wordCount) wordCount.textContent = `${matched} of ${results.length} words matched`;
+
+    // Store results for reveal
+    scoreBlock._displayResults = results;
+    scoreBlock._phrase         = _sdPhrase;
+
+    if (scoreBlock) scoreBlock.style.display = '';
+    if (skipBtn)    skipBtn.style.display = 'none';
+    if (nextBtn)    nextBtn.style.display = '';
+    if (retryBtn)   retryBtn.style.display = '';
+  }
+
+  function revealShadowPhrase() {
+    const revealSec  = document.getElementById('sd-reveal-section');
+    const revealPhrase = document.getElementById('sd-reveal-phrase');
+    const revealDiff = document.getElementById('sd-reveal-diff');
+    const revealBtn  = document.getElementById('sd-reveal-btn');
+    const scoreBlock = document.getElementById('sd-score-block');
+
+    if (!revealSec) return;
+    const isHidden = revealSec.style.display === 'none';
+    if (!isHidden) { revealSec.style.display = 'none'; if (revealBtn) revealBtn.textContent = 'Reveal phrase'; return; }
+
+    revealSec.style.display = '';
+    if (revealBtn) revealBtn.textContent = 'Hide phrase';
+
+    // Populate phrase text
+    if (revealPhrase && scoreBlock._phrase) {
+      revealPhrase.innerHTML = phraseHTML(scoreBlock._phrase);
+    }
+
+    // Populate per-word diff
+    if (revealDiff) {
+      revealDiff.innerHTML = '';
+      const results = scoreBlock._displayResults || [];
+      const heardSpans = document.createElement('div');
+      heardSpans.className = 'pa-transcript-heard';
+      results.forEach(dr => {
+        const run = document.createElement('span');
+        if (dr.matched)     { run.className = 'pa-run is-pass';    run.textContent = dr.said || dr.word; }
+        else if (dr.said)   { run.className = 'pa-run is-fail';    run.textContent = dr.said; }
+        else                { run.className = 'pa-run is-unheard'; run.textContent = dr.word; }
+        heardSpans.appendChild(run);
+      });
+      revealDiff.appendChild(heardSpans);
+    }
+  }
+
+  async function retryShadowDrill() {
+    // Replay the same phrase
+    if (!_sdAudioUrl || !_sdPhrase) { startShadowDrill(); return; }
+
+    const scoreBlock = document.getElementById('sd-score-block');
+    const autoLabel  = document.getElementById('sd-auto-listen-label');
+    const nextBtn    = document.getElementById('sd-next-btn');
+    const retryBtn   = document.getElementById('sd-retry-btn');
+    const skipBtn    = document.getElementById('sd-skip-btn');
+    const revealSec  = document.getElementById('sd-reveal-section');
+    const revealBtn  = document.getElementById('sd-reveal-btn');
+
+    if (scoreBlock)  scoreBlock.style.display = 'none';
+    if (revealSec)   revealSec.style.display = 'none';
+    if (revealBtn)   revealBtn.textContent = 'Reveal phrase';
+    if (autoLabel)   { autoLabel.textContent = 'Listening…'; autoLabel.style.display = ''; }
+    if (nextBtn)     nextBtn.style.display = 'none';
+    if (retryBtn)    retryBtn.style.display = 'none';
+    if (skipBtn)     skipBtn.style.display = '';
+
+    _sdFinalBuffer = ''; _sdAccumulated = '';
+    if (_sdSubmitTimer) { clearTimeout(_sdSubmitTimer); _sdSubmitTimer = null; }
+    if (_sdCurrentAudio) { _sdCurrentAudio.pause(); _sdCurrentAudio = null; }
+
+    _inShadowDrillMode = true;
+    userStoppedRecognition = false;
+    finalTranscriptBuffer  = '';
+
+    await ensureMicPermission();
+    try { recognition.start(); } catch (_) {}
+
+    _sdCurrentAudio = new Audio(_sdAudioUrl);
+    _sdCurrentAudio.playbackRate = audioPlaybackRate;
+    _sdCurrentAudio.play().catch(() => {});
+    setSdPlayBtnState(true);
+
+    _sdCurrentAudio.addEventListener('ended', () => {
+      setSdPlayBtnState(false);
+      _sdSubmitTimer = setTimeout(() => submitShadowDrill(), 1500);
+    });
+  }
+
+  function toggleSdAudio() {
+    if (!_sdCurrentAudio && _sdAudioUrl) {
+      _sdCurrentAudio = new Audio(_sdAudioUrl);
+      _sdCurrentAudio.playbackRate = audioPlaybackRate;
+      _sdCurrentAudio.play().catch(() => {});
+      setSdPlayBtnState(true);
+      _sdCurrentAudio.addEventListener('ended', () => setSdPlayBtnState(false));
+      return;
+    }
+    if (!_sdCurrentAudio) return;
+    if (_sdCurrentAudio.paused) {
+      _sdCurrentAudio.play().catch(() => {});
+      setSdPlayBtnState(true);
+    } else {
+      _sdCurrentAudio.pause();
+      setSdPlayBtnState(false);
+    }
+  }
+
+  function setSdPlayBtnState(playing) {
+    const playIcon  = document.getElementById('sd-play-icon');
+    const pauseIcon = document.getElementById('sd-pause-icon');
+    if (playIcon)  playIcon.style.display  = playing ? 'none' : '';
+    if (pauseIcon) pauseIcon.style.display = playing ? '' : 'none';
   }
 
   // ── My Content (Custom) ────────────────────────────────────────────────────
@@ -5119,6 +6377,7 @@
   let phraseAdvanceTimer = null;
   let phraseAttemptNumber = 0;
   let phraseHighestScore  = -1;
+  let currentPhraseId     = null;
   const SHADOW_AUTO_ADVANCE = 3;
   let phraseAutoAdvance = false;
 
@@ -5381,6 +6640,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     isPhraseLoading = true;
     phraseAttemptNumber = 0;
     phraseHighestScore  = -1;
+    currentPhraseId     = crypto.randomUUID();
     document.getElementById('phrase-retry-hint').style.display = 'none';
 
     document.getElementById('phv-score-block').style.display = 'none'; document.getElementById('phv-word-list').style.display = 'none';
@@ -5537,7 +6797,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target: currentPhrase, transcription: text, confidence, noun_adj_tokens: currentNounAdjTokens,
-          ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber,
+          ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId,
         }),
       });
       const data = await res.json();
@@ -7926,6 +9186,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   };
 
   let _homeData = null;
+  let _homeCoachData = null;
   let _homeKpis = [];
   let _homeActiveKey = null;
   let _homeLoaded = false;
@@ -7944,25 +9205,150 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     }
     if (_homeLoaded && _homeData) { renderHome(); return; }
     try {
-      const res = await fetch(`/analytics/progress?access_code=${encodeURIComponent(code)}`);
-      if (!res.ok) throw new Error('fetch failed');
-      _homeData = await res.json();
+      const [progRes, coachRes, meRes] = await Promise.allSettled([
+        fetch(`/analytics/progress?access_code=${encodeURIComponent(code)}`),
+        fetch(`/coach?access_code=${encodeURIComponent(code)}`),
+        apiFetch('/auth/me'),
+      ]);
+      if (progRes.status !== 'fulfilled' || !progRes.value.ok) throw new Error('progress fetch failed');
+      _homeData = await progRes.value.json();
+      _homeCoachData = (coachRes.status === 'fulfilled' && coachRes.value.ok)
+        ? await coachRes.value.json() : null;
+      let meData = null;
+      if (meRes.status === 'fulfilled' && meRes.value && meRes.value.ok) {
+        try { meData = await meRes.value.json(); } catch (_) {}
+      }
       _homeLoaded = true;
       renderHome();
+      _renderHomeNextLesson(meData);
     } catch (e) {
       const chart = document.querySelector('.home-trend-chart');
       if (chart) chart.innerHTML = '<div class="empty">Could not load your progress right now.</div>';
     }
   }
 
+  function _renderHomeNextLesson(meData) {
+    const wrap = document.getElementById('home-next-lesson');
+    const dateEl = document.getElementById('home-next-lesson-date');
+    const countEl = document.getElementById('home-next-lesson-countdown');
+    if (!wrap || !dateEl || !countEl) return;
+    const raw = meData && meData.next_lesson;
+    if (!raw) { wrap.style.display = 'none'; return; }
+    const dt = new Date(raw + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Math.round((dt - today) / 86400000);
+    const opts = { weekday: 'long', month: 'short', day: 'numeric' };
+    dateEl.textContent = dt.toLocaleDateString('en-US', opts);
+    if (days === 0) countEl.textContent = 'Today';
+    else if (days === 1) countEl.textContent = 'Tomorrow';
+    else if (days > 1) countEl.textContent = `in ${days} days`;
+    else countEl.textContent = '';
+    wrap.style.display = '';
+  }
+
   function renderHome() {
+    const s = (_homeData && _homeData.signals) || {};
+    if (s.new) {
+      _renderHomeNewUser();
+    } else {
+      _renderHomeActiveUser(s);
+      _renderCoachInsight(_homeCoachData);
+    }
+  }
+
+  function _renderHomeNewUser() {
+    const emptyEl = document.getElementById('home-empty-state');
+    const dataEl  = document.getElementById('home-data-section');
+    const insightEl = document.getElementById('home-coach-insight');
+    if (emptyEl)   emptyEl.style.display   = '';
+    if (dataEl)    dataEl.style.display    = 'none';
+    if (insightEl) insightEl.style.display = 'none';
+    const eyebrow = document.querySelector('#home-view .hub-intro-eyebrow');
+    const heading = document.querySelector('#home-view .hub-intro-heading');
+    const sub     = document.getElementById('home-greeting-sub');
+    if (eyebrow) eyebrow.textContent = 'Getting started';
+    if (heading) heading.textContent = 'No data yet';
+    if (sub) sub.textContent = 'Complete your first exercise and your scores will appear here.';
+  }
+
+  function _renderHomeActiveUser(s) {
+    const emptyEl = document.getElementById('home-empty-state');
+    const dataEl  = document.getElementById('home-data-section');
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (dataEl)  dataEl.style.display  = '';
+
+    const banner  = document.getElementById('home-returning-banner');
+    const retText = document.getElementById('home-returning-text');
+    const eyebrow = document.querySelector('#home-view .hub-intro-eyebrow');
+    if (s.returning && s.gap_days) {
+      const d = s.gap_days;
+      if (retText) retText.textContent = `${d} day${d !== 1 ? 's' : ''} since your last session — start with a warmup phrase`;
+      if (banner)  banner.style.display = '';
+      if (eyebrow) eyebrow.textContent  = 'Welcome back';
+    } else {
+      if (banner)  banner.style.display = 'none';
+      if (eyebrow) eyebrow.textContent  = 'Your progress';
+    }
+
     _homeKpis = buildHomeKpis(_homeData);
-    renderHomeTip(_homeData.signals || {});
+    renderHomeTip(s);
     renderHomeKPIs();
     renderHomeSecondary(_homeData.secondary);
     const def = (_homeData.default_key && _homeKpis.some(k => k.key === _homeData.default_key))
       ? _homeData.default_key : (_homeKpis[0] && _homeKpis[0].key);
     if (def) selectHomeKPI(def);
+    _rankActionCards(s);
+  }
+
+  function _rankActionCards(s) {
+    const actions = document.querySelector('.home-actions');
+    if (!actions) return;
+    actions.querySelectorAll('.vk-tag.is-accent').forEach(t => t.remove());
+
+    let rec = null;
+    if (s.returning || s.dip) {
+      rec = 'phrase-hub';
+    } else if (s.ready_to_level_up) {
+      rec = 'phrase-hub';
+    } else {
+      const w = (_homeData && _homeData.kpis && _homeData.kpis.words) || {};
+      if ((w.total || 0) > 0 && (w.recent_gain || 0) === 0) rec = 'vocab-hub';
+    }
+    if (!rec) return;
+
+    const target = actions.querySelector(`[data-action-key="${rec}"]`);
+    if (!target) return;
+    const badge = document.createElement('span');
+    badge.className = 'vk-tag is-accent';
+    badge.style.cssText = 'position:absolute; top:8px; right:8px; font-size:0.6rem; pointer-events:none;';
+    badge.textContent = 'Recommended';
+    target.appendChild(badge);
+    actions.insertBefore(target, actions.firstChild);
+  }
+
+  function _renderCoachInsight(coachData) {
+    const el  = document.getElementById('home-coach-insight');
+    const txt = document.getElementById('home-coach-insight-text');
+    if (!el || !txt) return;
+    if (!coachData) { el.style.display = 'none'; return; }
+
+    const inconsistent = coachData.inconsistent_words || [];
+    const struggles    = coachData.phonetic_struggles  || {};
+    const struggleKeys = Object.keys(struggles);
+    let insight = null;
+
+    if (inconsistent.length >= 3) {
+      const n = inconsistent.length;
+      insight = `${n} words you've practiced are still inconsistent — a few focused reps in your Practice List will help.`;
+    } else if (struggleKeys.length > 0) {
+      const cat   = struggleKeys[0];
+      const label = cat === 'nasal' ? 'nasal sounds' : cat === 'u_sound' ? '[u] sounds' : '[eu] sounds';
+      insight = `Your ${label} are showing up as misses — worth a focused run through some phrases.`;
+    }
+
+    if (!insight) { el.style.display = 'none'; return; }
+    txt.textContent = insight;
+    el.style.display = '';
   }
 
   function buildHomeKpis(d) {
@@ -8043,21 +9429,21 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     return _homeKpis.reduce((a, b) => ((b.increaseScore || 0) > (a.increaseScore || 0) ? b : a), _homeKpis[0] || {});
   }
 
-  // Calm, encouraging, data-driven tip rendered as the page subtitle. No emoji.
+  // Data-driven subtitle — confirmation style, not motivational copy.
   function pickHomeTip(s) {
     s = s || {};
-    if (s.new) return `Start with a few phrases, and your progress will start to take shape here.`;
+    if (s.new) return `Complete your first exercise and your scores will appear here.`;
     const leveled = _homeKpis.find(k => k.newLevel);
-    if (leveled) return `You've moved up to ${leveled.newLevel}${s.first_level ? ` from ${s.first_level}` : ''}, and your accuracy is holding there. That's real progress.`;
-    if (s.ready_to_level_up && s.current_level && s.next_level) return `You've been consistently strong at ${s.current_level} — it might be time to try ${s.next_level}.`;
-    if (s.returning && s.last_level) return `Welcome back — you left off improving at ${s.last_level}. Pick up where you were.`;
+    if (leveled) return `Level updated to ${leveled.newLevel}${s.first_level ? ` (from ${s.first_level})` : ''} — accuracy is holding at the new level.`;
+    if (s.ready_to_level_up && s.current_level && s.next_level) return `${s.current_level} accuracy is consistent. Ready to move up to ${s.next_level}.`;
+    if (s.returning && s.last_level) return `Last session was at ${s.last_level}.`;
     const top = _homeTopGainer();
     if (top && top.trend && top.trend.dir === 'up' && (top.increaseScore || 0) >= 0.5)
-      return `Your ${top.label.toLowerCase()} is climbing — up ${top.trend.text} over the last few weeks.`;
-    if (s.new_words > 0) return `You've locked in ${s.new_words} new words this month, and counting.`;
-    if (s.dip) return `Your ${s.dip} dipped a little this week — a few focused reps will bring it back. Learning isn't linear.`;
-    if (top && top.trend) return `Your ${top.label.toLowerCase()} is trending up ${top.trend.text}.`;
-    return `Here's how your spoken French is coming along.`;
+      return `${top.label} is up ${top.trend.text} since last week.`;
+    if (s.new_words > 0) return `${s.new_words} new words confirmed this month.`;
+    if (s.dip) return `${s.dip} dipped this week — worth a few reps before next session.`;
+    if (top && top.trend) return `${top.label} trend: ${top.trend.text}.`;
+    return `Here's where things stand.`;
   }
 
   function renderHomeTip(signals) {
@@ -8740,6 +10126,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (phraseAdvanceTimer) { clearTimeout(phraseAdvanceTimer); phraseAdvanceTimer = null; }
     phraseAttemptNumber = 0;
     phraseHighestScore  = -1;
+    currentPhraseId     = crypto.randomUUID();
     currentPhrase = text;
     currentAudioUrl = '';
     currentNounAdjTokens = [];
@@ -9018,6 +10405,352 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function dictNextSentence() {
     if (dictAudio) { dictAudio.pause(); dictAudio = null; }
     startDictation();
+  }
+
+  // ── Writing ────────────────────────────────────────────────────────────────
+  let writingLevel = 'B1';
+  let writingTopic = 'la vie quotidienne';
+  let writingCurrentPrompt = '';
+  let writingAttempt = 1;
+  const WRITING_MAX_ATTEMPTS = 3;
+
+  function selectWritingLevel(btn) {
+    document.querySelectorAll('#writing-hub-levels .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    writingLevel = btn.dataset.level;
+  }
+
+  function selectWritingTopic(btn) {
+    document.querySelectorAll('#writing-hub-topics .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    writingTopic = btn.dataset.topic;
+    document.getElementById('writing-custom-topic-input').value = '';
+  }
+
+  function addWritingCustomTopic() {
+    const input = document.getElementById('writing-custom-topic-input');
+    const val = input.value.trim();
+    if (!val) return;
+    writingTopic = val;
+    document.querySelectorAll('#writing-hub-topics .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    input.blur();
+  }
+
+  function _writingSetState(state) {
+    document.getElementById('wr-loading').style.display       = state === 'loading'  ? '' : 'none';
+    document.getElementById('wr-prompt-area').style.display   = (state === 'input' || state === 'results') ? '' : 'none';
+    document.getElementById('wr-results').style.display       = state === 'results'  ? '' : 'none';
+    const submitBtn = document.getElementById('wr-submit-btn');
+    if (submitBtn) submitBtn.disabled = state === 'results';
+  }
+
+  async function startWriting() {
+    switchView('writing');
+    writingCurrentPrompt = '';
+    writingAttempt = 1;
+    _writingSetState('loading');
+    const btn = document.getElementById('writing-generate-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/writing/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: writingLevel, topic: writingTopic }),
+      });
+      const data = await res.json();
+      writingCurrentPrompt = data.prompt || '';
+      document.getElementById('wr-prompt-text').textContent = writingCurrentPrompt;
+      document.getElementById('wr-response-input').value = '';
+      document.getElementById('wr-history').innerHTML = '';
+      document.getElementById('wr-rewrite-area').style.display = 'none';
+      document.getElementById('wr-done-row').style.display = 'none';
+      _writingSetState('input');
+      document.getElementById('wr-response-input').focus();
+    } catch(e) {
+      _writingSetState('loading');
+      document.getElementById('wr-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function _submitWritingAttempt(responseText) {
+    try {
+      const res = await fetch('/writing/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: writingCurrentPrompt,
+          response: responseText,
+          level: writingLevel,
+          attempt: writingAttempt,
+        }),
+      });
+      const data = await res.json();
+      _appendAttemptToHistory(responseText, data, writingAttempt);
+      writingAttempt++;
+
+      const done = !data.has_errors || writingAttempt > WRITING_MAX_ATTEMPTS;
+      document.getElementById('wr-rewrite-area').style.display = done ? 'none' : '';
+      document.getElementById('wr-done-row').style.display     = done ? '' : 'none';
+      if (!done) {
+        document.getElementById('wr-rewrite-input').value = '';
+        document.getElementById('wr-rewrite-input').focus();
+      }
+      _writingSetState('results');
+    } catch(e) {
+      _writingSetState('results');
+    }
+  }
+
+  async function submitWriting() {
+    const responseText = document.getElementById('wr-response-input').value.trim();
+    if (!responseText || !writingCurrentPrompt) return;
+    const btn = document.getElementById('wr-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    _writingSetState('results');
+    document.getElementById('wr-history').innerHTML = '';
+    document.getElementById('wr-rewrite-area').style.display = 'none';
+    document.getElementById('wr-done-row').style.display = 'none';
+    await _submitWritingAttempt(responseText);
+  }
+
+  async function submitWritingRewrite() {
+    const responseText = document.getElementById('wr-rewrite-input').value.trim();
+    if (!responseText) return;
+    const btn = document.getElementById('wr-rewrite-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    document.getElementById('wr-rewrite-area').style.display = 'none';
+    await _submitWritingAttempt(responseText);
+    if (btn) { btn.disabled = false; btn.textContent = 'Check →'; }
+  }
+
+  function _appendAttemptToHistory(responseText, data, attemptNum) {
+    const history = document.getElementById('wr-history');
+    const block = document.createElement('div');
+    block.className = 'wr-attempt-block';
+
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'wr-attempt-eyebrow';
+    eyebrow.textContent = `Attempt ${attemptNum}`;
+    block.appendChild(eyebrow);
+
+    const attemptText = document.createElement('div');
+    attemptText.className = 'wr-attempt-text';
+    attemptText.textContent = responseText;
+    block.appendChild(attemptText);
+
+    if (!data.has_errors) {
+      const ok = document.createElement('div');
+      ok.className = 'wr-perfect';
+      ok.textContent = data.overall || 'Parfait — no errors found.';
+      block.appendChild(ok);
+    } else {
+      if (data.overall) {
+        const overall = document.createElement('div');
+        overall.className = 'wr-overall';
+        overall.textContent = data.overall;
+        block.appendChild(overall);
+      }
+      const tipsList = document.createElement('div');
+      tipsList.className = 'wr-tips-list';
+      (data.tips || []).forEach(tip => {
+        const item = document.createElement('div');
+        item.className = 'wr-tip-item';
+        item.innerHTML = `<span class="wr-tip-bullet">—</span><span>${esc(tip)}</span>`;
+        tipsList.appendChild(item);
+      });
+      block.appendChild(tipsList);
+
+      if (writingAttempt > WRITING_MAX_ATTEMPTS) {
+        const limit = document.createElement('div');
+        limit.className = 'wr-overall';
+        limit.textContent = 'Maximum attempts reached — try a new prompt.';
+        block.appendChild(limit);
+      }
+    }
+
+    history.appendChild(block);
+  }
+
+  function writingNextPrompt() {
+    startWriting();
+  }
+
+  // ── Sentence Transformation ───────────────────────────────────────────────
+  const TRANSFORM_MAX_ATTEMPTS = 3;
+  let transformLevel = 'B1';
+  let transformFocus = 'tense';
+  let transformCurrentSource = '';
+  let transformCurrentInstruction = '';
+  let transformAttempt = 1;
+
+  function selectTransformLevel(btn) {
+    document.querySelectorAll('#transform-hub-levels .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    transformLevel = btn.dataset.level;
+  }
+
+  const TRANSFORM_FOCUS_DESC = {
+    tense:    'Change the tense of the verb',
+    negation: 'Make an affirmative sentence negative, or remove the negation',
+    pronoun:  'Replace a noun subject or object with the correct pronoun',
+    register: 'Switch between tu/vous or informal and formal register',
+    number:   'Change singular to plural (or plural to singular), adjusting all agreements',
+  };
+
+  function selectTransformFocus(btn) {
+    document.querySelectorAll('#transform-hub-focuses .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    transformFocus = btn.dataset.focus;
+    const desc = document.getElementById('transform-focus-desc');
+    if (desc) desc.textContent = TRANSFORM_FOCUS_DESC[transformFocus] || '';
+  }
+
+  function _transformSetState(state) {
+    document.getElementById('tr-loading').style.display        = state === 'loading'  ? '' : 'none';
+    document.getElementById('tr-exercise-area').style.display  = (state === 'input' || state === 'results') ? '' : 'none';
+    document.getElementById('tr-results').style.display        = state === 'results'  ? '' : 'none';
+    const submitBtn = document.getElementById('tr-submit-btn');
+    if (submitBtn) submitBtn.disabled = state === 'results';
+  }
+
+  async function startTransform() {
+    switchView('transform');
+    transformCurrentSource = '';
+    transformCurrentInstruction = '';
+    transformAttempt = 1;
+    _transformSetState('loading');
+    const btn = document.getElementById('transform-generate-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/transform/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: transformLevel, focus: transformFocus }),
+      });
+      const data = await res.json();
+      transformCurrentSource = data.source || '';
+      transformCurrentInstruction = data.instruction || '';
+      document.getElementById('tr-source-text').textContent = transformCurrentSource;
+      document.getElementById('tr-instruction-text').textContent = transformCurrentInstruction;
+      document.getElementById('tr-response-input').value = '';
+      document.getElementById('tr-history').innerHTML = '';
+      document.getElementById('tr-rewrite-area').style.display = 'none';
+      document.getElementById('tr-done-row').style.display = 'none';
+      _transformSetState('input');
+      document.getElementById('tr-response-input').focus();
+    } catch(e) {
+      _transformSetState('loading');
+      document.getElementById('tr-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function _submitTransformAttempt(responseText) {
+    try {
+      const res = await fetch('/transform/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: transformCurrentSource,
+          instruction: transformCurrentInstruction,
+          response: responseText,
+          level: transformLevel,
+          attempt: transformAttempt,
+        }),
+      });
+      const data = await res.json();
+      _appendTransformAttempt(responseText, data, transformAttempt);
+      transformAttempt++;
+
+      const done = !data.has_errors || transformAttempt > TRANSFORM_MAX_ATTEMPTS;
+      document.getElementById('tr-rewrite-area').style.display = done ? 'none' : '';
+      document.getElementById('tr-done-row').style.display     = done ? '' : 'none';
+      if (!done) {
+        document.getElementById('tr-rewrite-input').value = '';
+        document.getElementById('tr-rewrite-input').focus();
+      }
+      _transformSetState('results');
+    } catch(e) {
+      _transformSetState('results');
+    }
+  }
+
+  async function submitTransform() {
+    const responseText = document.getElementById('tr-response-input').value.trim();
+    if (!responseText || !transformCurrentSource) return;
+    const btn = document.getElementById('tr-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    _transformSetState('results');
+    document.getElementById('tr-history').innerHTML = '';
+    document.getElementById('tr-rewrite-area').style.display = 'none';
+    document.getElementById('tr-done-row').style.display = 'none';
+    await _submitTransformAttempt(responseText);
+    if (btn) { btn.disabled = false; btn.textContent = 'Check →'; }
+  }
+
+  async function submitTransformRewrite() {
+    const responseText = document.getElementById('tr-rewrite-input').value.trim();
+    if (!responseText) return;
+    const btn = document.getElementById('tr-rewrite-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    document.getElementById('tr-rewrite-area').style.display = 'none';
+    await _submitTransformAttempt(responseText);
+    if (btn) { btn.disabled = false; btn.textContent = 'Check →'; }
+  }
+
+  function _appendTransformAttempt(responseText, data, attemptNum) {
+    const history = document.getElementById('tr-history');
+    const block = document.createElement('div');
+    block.className = 'wr-attempt-block';
+
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'wr-attempt-eyebrow';
+    eyebrow.textContent = `Attempt ${attemptNum}`;
+    block.appendChild(eyebrow);
+
+    const attemptText = document.createElement('div');
+    attemptText.className = 'wr-attempt-text';
+    attemptText.textContent = responseText;
+    block.appendChild(attemptText);
+
+    if (!data.has_errors) {
+      const ok = document.createElement('div');
+      ok.className = 'wr-perfect';
+      ok.textContent = data.overall || 'Parfait — transformation correct.';
+      block.appendChild(ok);
+    } else {
+      if (data.overall) {
+        const overall = document.createElement('div');
+        overall.className = 'wr-overall';
+        overall.textContent = data.overall;
+        block.appendChild(overall);
+      }
+      const tipsList = document.createElement('div');
+      tipsList.className = 'wr-tips-list';
+      (data.tips || []).forEach(tip => {
+        const item = document.createElement('div');
+        item.className = 'wr-tip-item';
+        item.innerHTML = `<span class="wr-tip-bullet">—</span><span>${esc(tip)}</span>`;
+        tipsList.appendChild(item);
+      });
+      block.appendChild(tipsList);
+
+      if (transformAttempt > TRANSFORM_MAX_ATTEMPTS) {
+        const limit = document.createElement('div');
+        limit.className = 'wr-overall';
+        limit.textContent = 'Maximum attempts reached — try a new sentence.';
+        block.appendChild(limit);
+      }
+    }
+
+    history.appendChild(block);
+  }
+
+  function transformNext() {
+    startTransform();
   }
 
   // Shared helper: render dictation feedback items (phonetic + grammar notes)

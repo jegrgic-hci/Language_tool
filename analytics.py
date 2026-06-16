@@ -9,6 +9,7 @@ from collections import defaultdict, Counter
 from typing import Any, Optional
 
 from elision import FRENCH_ELISION_RULES, FRENCH_HOMOPHONES, normalize_french
+from phonetic_lookup import get_phonetic_categories
 
 _DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent / "data"))
 DB_PATH = _DATA_DIR / "analytics.db"
@@ -22,10 +23,15 @@ def _conn():
 
 SESSION_GAP_MINUTES = 20
 
-# Events that count as active practice for gap-based session splitting.
-# session_end is excluded — it fires on tab close, long after actual practice ends.
+# Events used to anchor session boundaries (includes passive events for duration accuracy).
+# session_start is excluded — it fires on app open with no guarantee the user did anything.
 _SESSION_EVENTS = frozenset({
-    'session_start', 'paragraph_started', 'chunk_listened',
+    'paragraph_started', 'chunk_listened',
+    'phrase_attempted', 'paragraph_attempted', 'paragraph_drilled', 'word_attempted',
+})
+
+# A session only counts if it contains at least one of these scored attempts.
+_SCORED_EVENTS = frozenset({
     'phrase_attempted', 'paragraph_attempted', 'paragraph_drilled', 'word_attempted',
 })
 
@@ -75,6 +81,11 @@ def _group_events_into_sessions(rows: list) -> list:
             current.append(row)
     sessions.append(current)
     return sessions
+
+
+def _filter_active_sessions(groups: list) -> list:
+    """Drop session groups that contain no scored attempt — login-and-leave noise."""
+    return [g for g in groups if any(row[1] in _SCORED_EVENTS for row in g)]
 
 
 def init_db():
@@ -131,6 +142,62 @@ def init_db():
                 ts           DATETIME DEFAULT (datetime('now'))
             )
         """)
+        # ── New user account tables ────────────────────────────────────────────
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                role             TEXT NOT NULL,
+                email            TEXT NOT NULL UNIQUE,
+                username         TEXT UNIQUE,
+                password_hash    TEXT NOT NULL,
+                is_active        INTEGER NOT NULL DEFAULT 1,
+                teacher_id       INTEGER REFERENCES users(id),
+                access_code      TEXT UNIQUE,
+                force_pw_change  INTEGER NOT NULL DEFAULT 0,
+                created_at       DATETIME DEFAULT (datetime('now'))
+            )
+        """)
+        # Billing fields — added after initial schema; safe to run on existing DBs
+        for col, defn in [
+            ("plan_name",    "TEXT"),
+            ("plan_price",   "TEXT"),
+            ("billing_date", "TEXT"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
+            except Exception:
+                pass  # column already exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL REFERENCES users(id),
+                token_hash TEXT NOT NULL UNIQUE,
+                expires_at DATETIME NOT NULL,
+                created_at DATETIME DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS invite_tokens (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                token        TEXT NOT NULL UNIQUE,
+                teacher_id   INTEGER NOT NULL REFERENCES users(id),
+                email        TEXT NOT NULL,
+                name         TEXT NOT NULL DEFAULT '',
+                lesson_days  TEXT NOT NULL DEFAULT '[]',
+                lesson_time  TEXT NOT NULL DEFAULT '',
+                notes        TEXT NOT NULL DEFAULT '',
+                used         INTEGER NOT NULL DEFAULT 0,
+                expires_at   DATETIME NOT NULL,
+                created_at   DATETIME DEFAULT (datetime('now'))
+            )
+        """)
+        # Migrate existing invite_tokens tables that lack metadata columns
+        for col, defn in [("name", "TEXT NOT NULL DEFAULT ''"), ("lesson_days", "TEXT NOT NULL DEFAULT '[]'"),
+                           ("lesson_time", "TEXT NOT NULL DEFAULT ''"), ("notes", "TEXT NOT NULL DEFAULT ''")]:
+            try:
+                conn.execute(f"ALTER TABLE invite_tokens ADD COLUMN {col} {defn}")
+            except Exception:
+                pass
 
 
 def track(session_id: str, access_code: str, event_type: str, payload: dict = None, visit_id: str = None):
@@ -247,6 +314,210 @@ def get_student_by_code(access_code: str) -> Optional[dict]:
     return dict(row) if row else None
 
 
+# ── User account helpers ───────────────────────────────────────────────────────
+
+def get_user_by_email(email: str) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def create_user(role: str, email: str, password_hash: str,
+                username: Optional[str] = None,
+                access_code: Optional[str] = None,
+                teacher_id: Optional[int] = None,
+                force_pw_change: int = 0) -> dict:
+    with _conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO users
+               (role, email, password_hash, username, access_code, teacher_id, force_pw_change)
+               VALUES (?,?,?,?,?,?,?)""",
+            (role, email, password_hash, username, access_code, teacher_id, force_pw_change),
+        )
+        user_id = cur.lastrowid
+    return get_user_by_id(user_id)
+
+
+def update_user_password(user_id: int, password_hash: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash=?, force_pw_change=0 WHERE id=?",
+            (password_hash, user_id),
+        )
+
+
+def deactivate_user(user_id: int) -> None:
+    with _conn() as conn:
+        conn.execute("UPDATE users SET is_active=0 WHERE id=?", (user_id,))
+
+
+def update_user_role(user_id: int, role: str) -> None:
+    with _conn() as conn:
+        conn.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
+
+
+def get_all_users() -> list:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, role, email, username, is_active, teacher_id, access_code, force_pw_change, created_at "
+            "FROM users ORDER BY created_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_users_by_role(role: str) -> list:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, role, email, username, is_active, teacher_id, access_code, force_pw_change, created_at "
+            "FROM users WHERE role=? ORDER BY created_at DESC",
+            (role,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_students_for_teacher_user(teacher_user_id: int) -> list:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, role, email, username, is_active, access_code, force_pw_change, created_at "
+            "FROM users WHERE teacher_id=? AND role IN ('student_teacher','student_solo') "
+            "ORDER BY created_at DESC",
+            (teacher_user_id,),
+        ).fetchall()
+        students = [dict(r) for r in rows]
+        codes = [s["access_code"] for s in students if s.get("access_code")]
+        if codes:
+            placeholders = ",".join("?" * len(codes))
+            counts = {r["access_code"]: r["cnt"] for r in conn.execute(
+                f"SELECT access_code, COUNT(*) AS cnt FROM events WHERE access_code IN ({placeholders}) GROUP BY access_code",
+                codes,
+            ).fetchall()}
+            last_active = {r["access_code"]: r["last_ts"] for r in conn.execute(
+                f"SELECT access_code, MAX(ts) AS last_ts FROM events WHERE access_code IN ({placeholders}) GROUP BY access_code",
+                codes,
+            ).fetchall()}
+            for s in students:
+                code = s.get("access_code")
+                s["event_count"] = counts.get(code, 0)
+                s["last_active"] = last_active.get(code)
+        else:
+            for s in students:
+                s["event_count"] = 0
+                s["last_active"] = None
+    return students
+
+
+def reset_user_password(user_id: int, new_hash: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash=?, force_pw_change=1 WHERE id=?",
+            (new_hash, user_id),
+        )
+
+
+# ── Refresh token helpers ──────────────────────────────────────────────────────
+
+def store_refresh_token(user_id: int, token_hash: str, expires_at: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?,?,?)",
+            (user_id, token_hash, expires_at),
+        )
+
+
+def get_refresh_token_row(token_hash: str) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM refresh_tokens WHERE token_hash=?", (token_hash,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def delete_refresh_token(token_hash: str) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM refresh_tokens WHERE token_hash=?", (token_hash,))
+
+
+def delete_refresh_tokens_for_user(user_id: int) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM refresh_tokens WHERE user_id=?", (user_id,))
+
+
+# ── Invite token helpers ───────────────────────────────────────────────────────
+
+def create_invite_token(token: str, teacher_id: int, email: str, expires_at: str,
+                        name: str = "", lesson_days: str = "[]",
+                        lesson_time: str = "", notes: str = "") -> None:
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO invite_tokens (token, teacher_id, email, name, lesson_days, lesson_time, notes, expires_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (token, teacher_id, email, name, lesson_days, lesson_time, notes, expires_at),
+        )
+
+
+def create_student_from_invite(invite: dict, access_code: str) -> None:
+    """Create the legacy students table record when an invited student registers."""
+    with _conn() as conn:
+        # Find the legacy teacher row matching the teacher's user account
+        teacher_user = get_user_by_id(invite["teacher_id"])
+        teacher_email = teacher_user["email"] if teacher_user else ""
+        teacher_row = conn.execute(
+            "SELECT id FROM teachers WHERE email=?", (teacher_email,)
+        ).fetchone()
+        legacy_teacher_id = teacher_row["id"] if teacher_row else None
+
+        conn.execute(
+            "INSERT OR IGNORE INTO students (access_code, teacher_id, name, email, lesson_days, lesson_time, notes) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (access_code, legacy_teacher_id,
+             invite.get("name", ""), invite.get("email", ""),
+             invite.get("lesson_days", "[]"), invite.get("lesson_time", ""),
+             invite.get("notes", "")),
+        )
+
+
+def get_invite_token(token: str) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM invite_tokens WHERE token=? AND used=0 AND expires_at > datetime('now')",
+            (token,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def mark_invite_used(token: str) -> None:
+    with _conn() as conn:
+        conn.execute("UPDATE invite_tokens SET used=1 WHERE token=?", (token,))
+
+
+# ── Super admin seed ───────────────────────────────────────────────────────────
+
+def seed_super_admin(email: str, password_hash: str) -> None:
+    """Create or update the super admin account from env credentials."""
+    with _conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM users WHERE role='super_admin'"
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE users SET email=?, password_hash=? WHERE id=?",
+                (email, password_hash, existing["id"]),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO users (role, email, password_hash) VALUES ('super_admin',?,?)",
+                (email, password_hash),
+            )
+    import logging
+    logging.getLogger("auth").info("Super admin synced: %s", email)
+
+
 def last_lesson_date(lesson_days_json: str) -> Optional[date]:
     """Return the most recent completed lesson date (never today — today's lesson may not have happened yet)."""
     try:
@@ -308,8 +579,12 @@ def get_roster() -> list:
             }
     students = list(students_map.values())
     today = date.today()
-    since_7d  = (today - timedelta(days=6)).isoformat()
-    since_30d = (today - timedelta(days=29)).isoformat()
+    since_7d   = (today - timedelta(days=6)).isoformat()
+    since_30d  = (today - timedelta(days=29)).isoformat()
+    prev_7d_start  = (today - timedelta(days=13)).isoformat()
+    prev_7d_end    = (today - timedelta(days=7)).isoformat()
+    prev_30d_start = (today - timedelta(days=59)).isoformat()
+    prev_30d_end   = (today - timedelta(days=30)).isoformat()
 
     with _conn() as conn:
         # Last practice event per student (excludes pure session/listen events)
@@ -322,35 +597,56 @@ def get_roster() -> list:
 
         # Session counts + durations via gap analysis (replaces visit_id counting)
         sess_ts_rows = conn.execute(
-            "SELECT access_code, ts FROM events "
+            "SELECT access_code, event_type, ts FROM events "
             "WHERE date(ts) >= ? AND ts IS NOT NULL "
-            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "AND event_type IN ('paragraph_started','chunk_listened',"
             "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
             "ORDER BY access_code, ts ASC",
-            (since_30d,),
+            (prev_30d_start,),
         ).fetchall()
-        ts_by_code: dict = defaultdict(list)
+        events_by_code: dict = defaultdict(list)
         for r in sess_ts_rows:
-            ts_by_code[r["access_code"]].append(r["ts"])
+            events_by_code[r["access_code"]].append((r["ts"], r["event_type"], {}))
 
-        sessions_7d: dict = {}
-        sessions_30d_map: dict = {}
-        duration_7d: dict = {}
-        for code, timestamps in ts_by_code.items():
-            groups = _split_session_groups(timestamps)
-            sessions_30d_map[code] = len(groups)
-            sev_7d = [g for g in groups if g[0] >= since_7d]
-            sessions_7d[code] = len(sev_7d)
-            total_secs = 0
-            for start, end in sev_7d:
+        def _session_secs(groups: list, start_cutoff: str, end_cutoff: Optional[str] = None) -> int:
+            total = 0
+            for g in groups:
+                ts0 = g[0][0]
+                if ts0 < start_cutoff:
+                    continue
+                if end_cutoff and ts0 > end_cutoff:
+                    continue
                 try:
-                    total_secs += int((
-                        datetime.fromisoformat(end.replace(' ', 'T')) -
-                        datetime.fromisoformat(start.replace(' ', 'T'))
+                    total += int((
+                        datetime.fromisoformat(g[-1][0].replace(' ', 'T')) -
+                        datetime.fromisoformat(g[0][0].replace(' ', 'T'))
                     ).total_seconds())
                 except Exception:
                     pass
-            duration_7d[code] = total_secs
+            return total
+
+        sessions_7d: dict = {}
+        sessions_30d_map: dict = {}
+        sessions_prev_7d: dict = {}
+        sessions_prev_30d: dict = {}
+        duration_7d: dict = {}
+        duration_30d: dict = {}
+        duration_prev_7d: dict = {}
+        duration_prev_30d: dict = {}
+        for code, evts in events_by_code.items():
+            groups = _filter_active_sessions(_group_events_into_sessions(evts))
+            sev_7d      = [g for g in groups if g[0][0] >= since_7d]
+            sev_30d     = [g for g in groups if g[0][0] >= since_30d]
+            sev_prev_7d = [g for g in groups if prev_7d_start <= g[0][0] <= prev_7d_end]
+            sev_prev_30d= [g for g in groups if prev_30d_start <= g[0][0] <= prev_30d_end]
+            sessions_7d[code]       = len(sev_7d)
+            sessions_30d_map[code]  = len(sev_30d)
+            sessions_prev_7d[code]  = len(sev_prev_7d)
+            sessions_prev_30d[code] = len(sev_prev_30d)
+            duration_7d[code]       = _session_secs(sev_7d,      since_7d)
+            duration_30d[code]      = _session_secs(sev_30d,     since_30d)
+            duration_prev_7d[code]  = _session_secs(sev_prev_7d, prev_7d_start,  prev_7d_end)
+            duration_prev_30d[code] = _session_secs(sev_prev_30d,prev_30d_start, prev_30d_end)
 
         # 7d: practice event count per day (for mini bar chart)
         daily_rows = conn.execute(
@@ -382,15 +678,21 @@ def get_roster() -> list:
 
         # Scoring events with timestamps — used for all-time, 7d, and since-lesson accuracy
         acc_rows = conn.execute(
-            "SELECT access_code, date(ts) AS day, "
+            "SELECT access_code, event_type, date(ts) AS day, "
             "CAST(json_extract(payload,'$.score') AS REAL) AS score "
             "FROM events "
             "WHERE event_type IN ('phrase_attempted','paragraph_attempted') "
             "AND json_extract(payload,'$.score') IS NOT NULL",
         ).fetchall()
         acc_events: dict = defaultdict(list)
+        phrase_events: dict = defaultdict(list)
+        para_events: dict = defaultdict(list)
         for r in acc_rows:
             acc_events[r["access_code"]].append((r["day"], float(r["score"])))
+            if r["event_type"] == "phrase_attempted":
+                phrase_events[r["access_code"]].append((r["day"], float(r["score"])))
+            else:
+                para_events[r["access_code"]].append((r["day"], float(r["score"])))
 
         def _avg(scores: list) -> Optional[float]:
             return round(sum(scores) / len(scores), 3) if scores else None
@@ -399,10 +701,22 @@ def get_roster() -> list:
         for code, pairs in acc_events.items():
             all_scores = [s for _, s in pairs]
             scores_7d  = [s for d, s in pairs if d >= since_7d]
+            ph  = phrase_events.get(code, [])
+            pa  = para_events.get(code, [])
             accuracy[code] = {
-                "score":        _avg(all_scores),
-                "attempts":     len(all_scores),
-                "avg_score_7d": _avg(scores_7d),
+                "score":                _avg(all_scores),
+                "attempts":             len(all_scores),
+                "avg_score_7d":         _avg(scores_7d),
+                "avg_phrase_score":     _avg([s for _, s in ph]),
+                "avg_phrase_score_7d":  _avg([s for d, s in ph if d >= since_7d]),
+                "avg_phrase_prev_7d":   _avg([s for d, s in ph if prev_7d_start <= d <= prev_7d_end]),
+                "avg_phrase_score_30d": _avg([s for d, s in ph if d >= since_30d]),
+                "avg_phrase_prev_30d":  _avg([s for d, s in ph if prev_30d_start <= d <= prev_30d_end]),
+                "avg_para_score":       _avg([s for _, s in pa]),
+                "avg_para_score_7d":    _avg([s for d, s in pa if d >= since_7d]),
+                "avg_para_prev_7d":     _avg([s for d, s in pa if prev_7d_start <= d <= prev_7d_end]),
+                "avg_para_score_30d":   _avg([s for d, s in pa if d >= since_30d]),
+                "avg_para_prev_30d":    _avg([s for d, s in pa if prev_30d_start <= d <= prev_30d_end]),
             }
 
     # Day buckets: [6 days ago … today]
@@ -457,15 +771,30 @@ def get_roster() -> list:
             "last_lesson":             last_lesson_str,
             "next_lesson":             next_lesson.isoformat() if next_lesson else None,
             "days_until_next":         days_until,
-            "sessions_7d":             sessions_7d.get(code, 0),
-            "practice_minutes_7d":     round(duration_7d.get(code, 0) / 60),
-            "activity_7d":             [daily_activity.get(code, {}).get(d, 0) for d in day_keys],
-            "sessions_30d":            sessions_30d_map.get(code, 0),
-            "topics":                  topics_map.get(code, []),
-            "avg_score":               acc.get("score"),
-            "avg_score_7d":            acc.get("avg_score_7d"),
-            "avg_score_since_lesson":  avg_score_since_lesson,
-            "health":                  health,
+            "sessions_7d":              sessions_7d.get(code, 0),
+            "sessions_prev_7d":         sessions_prev_7d.get(code, 0),
+            "sessions_30d":             sessions_30d_map.get(code, 0),
+            "sessions_prev_30d":        sessions_prev_30d.get(code, 0),
+            "practice_minutes_7d":      round(duration_7d.get(code, 0) / 60),
+            "practice_minutes_prev_7d": round(duration_prev_7d.get(code, 0) / 60),
+            "practice_minutes_30d":     round(duration_30d.get(code, 0) / 60),
+            "practice_minutes_prev_30d":round(duration_prev_30d.get(code, 0) / 60),
+            "activity_7d":              [daily_activity.get(code, {}).get(d, 0) for d in day_keys],
+            "topics":                   topics_map.get(code, []),
+            "avg_score":                acc.get("score"),
+            "avg_score_7d":             acc.get("avg_score_7d"),
+            "avg_score_since_lesson":   avg_score_since_lesson,
+            "avg_phrase_score":         acc.get("avg_phrase_score"),
+            "avg_phrase_score_7d":      acc.get("avg_phrase_score_7d"),
+            "avg_phrase_prev_7d":       acc.get("avg_phrase_prev_7d"),
+            "avg_phrase_score_30d":     acc.get("avg_phrase_score_30d"),
+            "avg_phrase_prev_30d":      acc.get("avg_phrase_prev_30d"),
+            "avg_para_score":           acc.get("avg_para_score"),
+            "avg_para_score_7d":        acc.get("avg_para_score_7d"),
+            "avg_para_prev_7d":         acc.get("avg_para_prev_7d"),
+            "avg_para_score_30d":       acc.get("avg_para_score_30d"),
+            "avg_para_prev_30d":        acc.get("avg_para_prev_30d"),
+            "health":                   health,
         })
 
     result.sort(key=lambda x: (x["days_until_next"] is None, x["days_until_next"] or 0))
@@ -484,14 +813,14 @@ def get_practice_since(access_code: str, since: date) -> dict:
         rows = conn.execute(
             "SELECT event_type, payload, ts FROM events "
             "WHERE access_code=? AND date(ts) > ? AND ts IS NOT NULL "
-            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "AND event_type IN ('paragraph_started','chunk_listened',"
             "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
             "ORDER BY ts ASC",
             (access_code, since_str),
         ).fetchall()
 
     events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in rows]
-    sess_groups = _group_events_into_sessions(events)
+    sess_groups = _filter_active_sessions(_group_events_into_sessions(events))
 
     days_active: set = set()
     total_attempts = 0
@@ -603,6 +932,7 @@ def get_word_accuracy(access_code: str, min_attempts: int = 5) -> list:
                 "accuracy": accuracy,
                 "top_substitutions": [{"said": s, "count": c} for s, c in top_subs],
                 "error_type": dominant_type,
+                "phonetic_categories": get_phonetic_categories(word),
             })
     return sorted(results, key=lambda x: x["accuracy"])
 
@@ -624,6 +954,7 @@ def get_score_trajectories(access_code: str) -> dict:
     # key → {attempt_number: score}
     item_attempts: dict = defaultdict(dict)
     item_level: dict = {}
+    item_text: dict = {}   # key → sentence text reconstructed from word_results
     for row in rows:
         p = json.loads(row["payload"])
         key = (p.get("paragraph_id", ""), p.get("chunk_index", 0), p.get("sentence_index", -1))
@@ -632,6 +963,10 @@ def get_score_trajectories(access_code: str) -> dict:
         if score is not None:
             item_attempts[key][attempt] = score
         item_level[key] = str(p.get("level", "?"))
+        if key not in item_text:
+            words = [wr[0] for wr in p.get("word_results", []) if wr and wr[0]]
+            if words:
+                item_text[key] = " ".join(words)
 
     counts = {"mastered": 0, "improving": 0, "plateaued": 0, "stuck": 0, "single_attempt": 0}
     stuck_items = []
@@ -660,7 +995,14 @@ def get_score_trajectories(access_code: str) -> dict:
             counts["plateaued"] += 1
         elif n >= 3 and last < 0.6:
             counts["stuck"] += 1
-            stuck_items.append({"key": str(key), "level": item_level.get(key, "?"), "best": round(best, 2), "last": round(last, 2), "attempts": n})
+            stuck_items.append({
+                "key": str(key),
+                "text": item_text.get(key, ""),
+                "level": item_level.get(key, "?"),
+                "best": round(best, 2),
+                "last": round(last, 2),
+                "attempts": n,
+            })
         else:
             counts["improving"] += 1
 
@@ -750,6 +1092,40 @@ def get_coach_data(access_code: str) -> dict:
     inconsistent     = [w for w in by_attempts if 0.5 <= w["accuracy"] < 0.7 and w["attempts"] >= high_att]
     quick_pickup     = [w for w in word_acc if w["accuracy"] >= 0.85 and w["attempts"] <= low_att]
 
+    # Phonetic category struggles — categories with ≥2 words below 65% accuracy
+    phonetic_struggles = {}
+    for cat in ("nasal", "u_sound", "eu_sound"):
+        cat_words = [
+            w for w in word_acc
+            if cat in w.get("phonetic_categories", [])
+            and w["accuracy"] < 0.65
+            and w["attempts"] >= 3
+        ]
+        if len(cat_words) >= 2:
+            avg_cat = _avg([w["accuracy"] for w in cat_words])
+            phonetic_struggles[cat] = {
+                "words": sorted(cat_words, key=lambda w: w["accuracy"]),
+                "avg_accuracy": round(avg_cat, 3),
+                "count": len(cat_words),
+            }
+
+    # Phonetic category strengths — categories with ≥2 words at ≥75% accuracy
+    phonetic_strengths = {}
+    for cat in ("nasal", "u_sound", "eu_sound"):
+        cat_words = [
+            w for w in word_acc
+            if cat in w.get("phonetic_categories", [])
+            and w["accuracy"] >= 0.75
+            and w["attempts"] >= 3
+        ]
+        if len(cat_words) >= 2:
+            avg_cat = _avg([w["accuracy"] for w in cat_words])
+            phonetic_strengths[cat] = {
+                "words": sorted(cat_words, key=lambda w: -w["accuracy"]),
+                "avg_accuracy": round(avg_cat, 3),
+                "count": len(cat_words),
+            }
+
     return {
         "overall_avg_accuracy": avg_acc,
         "total_words_tracked": len(word_acc),
@@ -765,6 +1141,8 @@ def get_coach_data(access_code: str) -> dict:
             "elision_variant": elision,
             "substitution": substitutions,
         },
+        "phonetic_struggles": phonetic_struggles,
+        "phonetic_strengths": phonetic_strengths,
         "trajectories": trajectories,
         "drill_breakdown": drill_breakdown,
     }
@@ -787,7 +1165,10 @@ def get_cached_coach(access_code: str, stale_after: int = 20) -> Any:
     current_count = _event_count(access_code)
     if current_count - row["events_at"] > stale_after:
         return None
-    return json.loads(row["payload"])
+    payload = json.loads(row["payload"])
+    if "phonetic_struggles" not in payload or "phonetic_strengths" not in payload:
+        return None  # schema evolved — force recompute
+    return payload
 
 
 def set_cached_coach(access_code: str, payload: dict):
@@ -848,14 +1229,14 @@ def get_session_history(access_code: str, limit: int = 20) -> list:
         rows = conn.execute(
             "SELECT event_type, payload, ts FROM events "
             "WHERE access_code=? AND ts IS NOT NULL "
-            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "AND event_type IN ('paragraph_started','chunk_listened',"
             "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
             "ORDER BY ts ASC",
             (access_code,),
         ).fetchall()
 
     events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in rows]
-    sess_groups = _group_events_into_sessions(events)
+    sess_groups = _filter_active_sessions(_group_events_into_sessions(events))
 
     seen_words: set = set()
     results = []
@@ -922,6 +1303,65 @@ def get_session_history(access_code: str, limit: int = 20) -> list:
 
     results.sort(key=lambda x: x["started_at"], reverse=True)
     return results[:limit]
+
+
+def get_recent_struggles(access_code: str, sessions: int = 3, threshold: float = 0.50) -> list:
+    """Words with accuracy below `threshold` across the last `sessions` sessions.
+
+    Returns a list of dicts sorted by accuracy asc:
+      { word, attempts, hits, accuracy, said: [most common substitutions] }
+    Only words with ≥2 attempts in those sessions are included.
+    """
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT event_type, payload, ts FROM events "
+            "WHERE access_code=? AND ts IS NOT NULL "
+            "AND event_type IN ('phrase_attempted','paragraph_attempted','paragraph_drilled') "
+            "ORDER BY ts ASC",
+            (access_code,),
+        ).fetchall()
+
+    events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in rows]
+    sess_groups = _filter_active_sessions(_group_events_into_sessions(events))
+
+    # Take only the last N sessions
+    recent_groups = sess_groups[-sessions:] if len(sess_groups) >= sessions else sess_groups
+
+    word_stats: dict = {}  # word -> {"attempts": int, "hits": int, "said": Counter}
+    for group in recent_groups:
+        for _ts, _et, p in group:
+            for wr in p.get("word_results", []):
+                if not wr or not wr[0]:
+                    continue
+                word = wr[0].lower()
+                matched = bool(wr[1]) if len(wr) > 1 else False
+                said = wr[2].lower() if len(wr) > 2 and wr[2] else ""
+                if word not in word_stats:
+                    word_stats[word] = {"attempts": 0, "hits": 0, "said": {}}
+                s = word_stats[word]
+                s["attempts"] += 1
+                if matched:
+                    s["hits"] += 1
+                elif said and said != word:
+                    s["said"][said] = s["said"].get(said, 0) + 1
+
+    out = []
+    for word, s in word_stats.items():
+        if s["attempts"] < 2:
+            continue
+        accuracy = s["hits"] / s["attempts"]
+        if accuracy < threshold:
+            top_said = sorted(s["said"].items(), key=lambda x: -x[1])[:3]
+            out.append({
+                "word":     word,
+                "attempts": s["attempts"],
+                "hits":     s["hits"],
+                "accuracy": round(accuracy, 3),
+                "said":     [w for w, _ in top_said],
+            })
+
+    out.sort(key=lambda x: x["accuracy"])
+    return out
 
 
 def _aggregate(rows) -> dict:
@@ -1088,6 +1528,130 @@ def get_paragraph_exercise_stats(access_code: str, since_days: Optional[int] = N
     }
 
 
+# ── Super admin platform stats ─────────────────────────────────────────────────
+
+def get_platform_stats() -> dict:
+    """Aggregate metrics across all users for the super admin hub."""
+    today = date.today()
+    since_7d  = (today - timedelta(days=7)).isoformat()
+    since_30d = (today - timedelta(days=30)).isoformat()
+
+    with _conn() as conn:
+        # User counts by role
+        role_rows = conn.execute(
+            "SELECT role, COUNT(*) AS cnt FROM users GROUP BY role"
+        ).fetchall()
+        user_counts = {r["role"]: r["cnt"] for r in role_rows}
+
+        # Total events
+        total_events = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+
+        # Events last 7d / 30d
+        events_7d  = conn.execute("SELECT COUNT(*) FROM events WHERE date(ts)>=?", (since_7d,)).fetchone()[0]
+        events_30d = conn.execute("SELECT COUNT(*) FROM events WHERE date(ts)>=?", (since_30d,)).fetchone()[0]
+
+        # Event type breakdown (practice events only)
+        type_rows = conn.execute(
+            "SELECT event_type, COUNT(*) AS cnt FROM events "
+            "WHERE event_type IN ('phrase_attempted','paragraph_attempted',"
+            "'paragraph_drilled','word_attempted','prosody_attempted') "
+            "GROUP BY event_type ORDER BY cnt DESC"
+        ).fetchall()
+        exercise_breakdown = [{"type": r["event_type"], "count": r["cnt"]} for r in type_rows]
+
+        # Avg score across all scored events
+        avg_row = conn.execute(
+            "SELECT AVG(CAST(json_extract(payload,'$.score') AS REAL)) "
+            "FROM events WHERE json_extract(payload,'$.score') IS NOT NULL"
+        ).fetchone()
+        avg_score = round(avg_row[0], 3) if avg_row and avg_row[0] is not None else None
+
+        # Users active in last 7d (distinct access codes with events)
+        active_7d = conn.execute(
+            "SELECT COUNT(DISTINCT access_code) FROM events WHERE date(ts)>=?", (since_7d,)
+        ).fetchone()[0]
+
+        # Top active users (by event count, last 30d)
+        top_rows = conn.execute(
+            "SELECT access_code, COUNT(*) AS cnt FROM events "
+            "WHERE date(ts)>=? GROUP BY access_code ORDER BY cnt DESC LIMIT 10",
+            (since_30d,)
+        ).fetchall()
+        top_users_by_code = [{"access_code": r["access_code"], "events_30d": r["cnt"]} for r in top_rows]
+
+        # Daily event counts last 30d (for sparkline)
+        daily_rows = conn.execute(
+            "SELECT date(ts) AS day, COUNT(*) AS cnt FROM events "
+            "WHERE date(ts)>=? GROUP BY day ORDER BY day",
+            (since_30d,)
+        ).fetchall()
+        daily_events = [{"day": r["day"], "count": r["cnt"]} for r in daily_rows]
+
+    # Annotate top_users with email/username from users table
+    all_users = get_all_users()
+    code_to_user = {u["access_code"]: u for u in all_users if u.get("access_code")}
+    for item in top_users_by_code:
+        u = code_to_user.get(item["access_code"], {})
+        item["email"] = u.get("email", "")
+        item["username"] = u.get("username", "")
+
+    return {
+        "user_counts": user_counts,
+        "total_users": sum(user_counts.values()),
+        "total_events": total_events,
+        "events_7d": events_7d,
+        "events_30d": events_30d,
+        "active_users_7d": active_7d,
+        "avg_score": avg_score,
+        "exercise_breakdown": exercise_breakdown,
+        "top_active_users": top_users_by_code,
+        "daily_events": daily_events,
+    }
+
+
+def get_user_hierarchy() -> dict:
+    """Return all users grouped as teachers→students and solo students."""
+    all_users = get_all_users()
+
+    teachers = {u["id"]: dict(u, students=[]) for u in all_users if u["role"] == "teacher"}
+    solo = []
+
+    for u in all_users:
+        if u["role"] in ("student_teacher",):
+            tid = u.get("teacher_id")
+            if tid and tid in teachers:
+                teachers[tid]["students"].append(dict(u))
+            else:
+                solo.append(dict(u))
+        elif u["role"] == "student_solo":
+            solo.append(dict(u))
+
+    # Attach event counts per access code
+    with _conn() as conn:
+        code_counts = dict(conn.execute(
+            "SELECT access_code, COUNT(*) FROM events GROUP BY access_code"
+        ).fetchall())
+        last_active = dict(conn.execute(
+            "SELECT access_code, MAX(ts) FROM events GROUP BY access_code"
+        ).fetchall())
+
+    def _annotate(user: dict) -> dict:
+        code = user.get("access_code") or ""
+        user["event_count"] = code_counts.get(code, 0)
+        user["last_active"] = last_active.get(code)
+        return user
+
+    for t in teachers.values():
+        _annotate(t)
+        t["students"] = [_annotate(s) for s in t["students"]]
+    solo = [_annotate(s) for s in solo]
+
+    return {
+        "teachers": list(teachers.values()),
+        "solo": solo,
+    }
+
+
 # ── Phrase exercise stats ──────────────────────────────────────────────────────
 
 def get_phrase_exercise_stats(access_code: str, since_days: Optional[int] = None) -> dict:
@@ -1099,38 +1663,60 @@ def get_phrase_exercise_stats(access_code: str, since_days: Optional[int] = None
             (access_code,),
         ).fetchall()
 
-    phrases_started = 0
-    phrases_completed = 0
-    completion_attempts: list = []
-    phrases_stuck = 0
+    # Group attempts by phrase_id so multiple attempts on one phrase count as
+    # one started phrase. Old events without phrase_id fall back to treating
+    # attempt_number==1 as the start of a new phrase.
+    _fallback_counter = 0
+    phrase_groups: dict = {}  # phrase_key -> {"level": str, "passed": bool, "max_att": int}
     words_practiced = 0
-
-    lvl_started: dict     = defaultdict(int)
-    lvl_completed: dict   = defaultdict(int)
-    lvl_stuck: dict       = defaultdict(int)
-    lvl_comp_att: dict    = defaultdict(list)
 
     for row in rows:
         t = row["event_type"]
         p = json.loads(row["payload"])
         if t == "phrase_attempted":
-            level  = str(p.get("level", "?"))
-            phrases_started += 1
-            lvl_started[level] += 1
-            passed = p.get("passed") or (p.get("score", 0) >= _PASS)
+            pid = p.get("phrase_id")
             att = p.get("attempt_number", 1)
+            if pid is None:
+                # Legacy event — only the first attempt marks a new phrase
+                if att != 1:
+                    continue
+                _fallback_counter += 1
+                pid = f"__legacy_{_fallback_counter}"
+            level  = str(p.get("level", "?"))
+            passed = bool(p.get("passed")) or (p.get("score", 0) >= _PASS)
+            if pid not in phrase_groups:
+                phrase_groups[pid] = {"level": level, "passed": False, "max_att": att or 1}
+            g = phrase_groups[pid]
             if passed:
-                phrases_completed += 1
-                lvl_completed[level] += 1
-                if att is not None:
-                    completion_attempts.append(att)
-                    lvl_comp_att[level].append(att)
-            elif att >= 3:
-                phrases_stuck += 1
-                lvl_stuck[level] += 1
+                g["passed"] = True
+            if att is not None and att > g["max_att"]:
+                g["max_att"] = att
         elif t == "word_attempted":
             if p.get("source") == "phrase_exercise":
                 words_practiced += 1
+
+    phrases_started   = 0
+    phrases_completed = 0
+    phrases_stuck     = 0
+    completion_attempts: list = []
+
+    lvl_started: dict   = defaultdict(int)
+    lvl_completed: dict = defaultdict(int)
+    lvl_stuck: dict     = defaultdict(int)
+    lvl_comp_att: dict  = defaultdict(list)
+
+    for g in phrase_groups.values():
+        lvl = g["level"]
+        phrases_started += 1
+        lvl_started[lvl] += 1
+        if g["passed"]:
+            phrases_completed += 1
+            lvl_completed[lvl] += 1
+            completion_attempts.append(g["max_att"])
+            lvl_comp_att[lvl].append(g["max_att"])
+        elif g["max_att"] >= 3:
+            phrases_stuck += 1
+            lvl_stuck[lvl] += 1
 
     all_levels = sorted(set(list(lvl_started.keys())))
     by_level = {}
@@ -1592,13 +2178,13 @@ def get_progress_summary(access_code: str) -> dict:
     with _conn() as conn:
         srows = conn.execute(
             "SELECT event_type, payload, ts FROM events WHERE access_code=? AND ts IS NOT NULL "
-            "AND event_type IN ('session_start','paragraph_started','chunk_listened',"
+            "AND event_type IN ('paragraph_started','chunk_listened',"
             "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
             "ORDER BY ts ASC",
             (access_code,),
         ).fetchall()
     events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in srows]
-    groups = _group_events_into_sessions(events)
+    groups = _filter_active_sessions(_group_events_into_sessions(events))
 
     recent_durs: list = []
     prior_durs: list = []
@@ -1644,7 +2230,7 @@ _HOME_SKILL = {
 _NEXT_LEVEL = {"A1": "A2", "A2": "B1", "B1": "B2", "B2": "C1", "C1": "C2", "C2": None}
 
 
-def get_home_data(access_code: str, weeks: int = 8) -> dict:
+def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30) -> dict:
     """Everything the redesigned student Home needs, in one payload.
 
     Three speaking KPIs (Performance, Precision, Words mastered), each with a
@@ -1659,8 +2245,8 @@ def get_home_data(access_code: str, weeks: int = 8) -> dict:
     week_index = {ws: i for i, ws in enumerate(week_starts)}
     week_labels = [ws.strftime("%m/%d") for ws in week_starts]
 
-    cutoff_30 = today - timedelta(days=30)
-    cutoff_60 = today - timedelta(days=60)
+    cutoff_recent = today - timedelta(days=since_days)
+    cutoff_prior  = today - timedelta(days=since_days * 2)
 
     with _conn() as conn:
         rows = conn.execute(
@@ -1725,11 +2311,11 @@ def get_home_data(access_code: str, weeks: int = 8) -> dict:
         wi = week_index.get(d - timedelta(days=d.weekday()))
         if wi is not None:
             acc[skill][level][wi].append(score)
-        if d >= cutoff_30:
+        if d >= cutoff_recent:
             lvl_recent[skill][level].append(score)
             recent_all[skill].append(score)
             recent_lvl_attempts[skill][level] += 1
-        elif d >= cutoff_60:
+        elif d >= cutoff_prior:
             lvl_prior[skill][level].append(score)
 
     # ── Level history (sessions → dominant level) for level-up + tip signals ──
@@ -1809,13 +2395,13 @@ def get_home_data(access_code: str, weeks: int = 8) -> dict:
 
     # ── Words mastered ──
     cumulative = [sum(1 for md in mastered.values() if md.date() <= ws + timedelta(days=6)) for ws in week_starts]
-    gain_30d = sum(1 for md in mastered.values() if md.date() >= cutoff_30)
-    gain_prev_30d = sum(1 for md in mastered.values() if cutoff_60 <= md.date() < cutoff_30)
+    gain_recent = sum(1 for md in mastered.values() if md.date() >= cutoff_recent)
+    gain_prev   = sum(1 for md in mastered.values() if cutoff_prior <= md.date() < cutoff_recent)
     kpis["words"] = {
         "total": len(mastered),
-        "recent_gain": gain_30d,
-        "trend": ({"dir": "up", "text": "+" + str(gain_30d)} if gain_30d > 0 else None),
-        "momentum": _clamp01(gain_30d / 20.0),
+        "recent_gain": gain_recent,
+        "trend": ({"dir": "up", "text": "+" + str(gain_recent)} if gain_recent > 0 else None),
+        "momentum": _clamp01(gain_recent / 20.0),
         "cumulative": cumulative,
         "has_data": len(mastered) > 0,
     }
@@ -1944,7 +2530,7 @@ def get_home_data(access_code: str, weeks: int = 8) -> dict:
         "returning": bool(gap_days is not None and gap_days >= 5 and has_speaking),
         "last_level": last_level,
         "gap_days": gap_days,
-        "new_words": gain_30d,
+        "new_words": gain_recent,
         "top_skill": top,
         "top_trend_text": (kpis[top]["trend"] or {}).get("text"),
         "dip": dip,
@@ -1957,4 +2543,5 @@ def get_home_data(access_code: str, weeks: int = 8) -> dict:
         "kpis": kpis,
         "default_key": default_key,
         "signals": signals,
+        "period_days": since_days,
     }

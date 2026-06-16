@@ -14,7 +14,24 @@
     .vk-app   { align-items: stretch; }
     .vk-sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; }
     .vk-main  { padding: 0; overflow-y: auto; height: 100vh; }
-    .sb-footer { margin-top: auto; padding: 12px 16px 16px; }
+    .sb-footer { margin-top: auto; }
+    /* Day-of-week checkbox chips on Add Student form */
+    .add-day-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border: 1px solid var(--vk-border-mid);
+      background: var(--vk-surface); cursor: pointer;
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-xs);
+      font-weight: 600; letter-spacing: var(--vk-track-wide);
+      text-transform: uppercase; color: var(--vk-fg-2);
+      transition: border-color 100ms, background 100ms, color 100ms;
+      user-select: none;
+    }
+    .add-day-chip input[type=checkbox] { display: none; }
+    .add-day-chip:has(input:checked) {
+      border-color: var(--vk-accent); background: var(--vk-accent-bg);
+      color: var(--vk-accent-text);
+    }
+    .add-day-chip:hover { border-color: var(--vk-accent); }
 
     /* ── Panels ─────────────────────────────────────────────────────────── */
     .dash-panel            { display: flex; flex-direction: column; min-height: 100vh; }
@@ -27,6 +44,10 @@
       padding: 20px 32px 16px;
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+    }
+    .panel-header.has-tabs {
+      padding-bottom: 0;
+      border-bottom: none;
     }
     .panel-header-top {
       display: flex; align-items: flex-start;
@@ -67,33 +88,7 @@
     }
 
     /* ── Roster KPI list cards (Topics + Insights) ──────────────────────── */
-    .r-kpi-topics {
-      display: flex; flex-wrap: wrap; gap: 4px;
-      margin-top: 6px;
-    }
-    .r-kpi-insights {
-      list-style: none; margin: 6px 0 0; padding: 0;
-      display: flex; flex-direction: column; gap: 5px;
-    }
-    .r-kpi-insight-item {
-      display: flex; align-items: flex-start; gap: 6px;
-      font-family: var(--vk-font-body); font-size: var(--vk-text-xs);
-      color: var(--vk-fg-2); line-height: 1.3;
-    }
-    .r-kpi-insight-item::before {
-      content: '→';
-      font-family: var(--vk-font-ui); font-size: 10px;
-      color: var(--vk-fg-4); flex-shrink: 0; margin-top: 1px;
-    }
-    .r-kpi-insight-item.is-ok {
-      color: var(--vk-fg-2); font-style: italic;
-    }
-    .r-kpi-insight-item.is-ok::before { content: '✓'; }
-    .r-kpi-insight-item.is-warn { color: var(--vk-warning-text, #8A5A00); }
-    .r-kpi-empty {
-      font-family: var(--vk-font-ui); font-size: var(--vk-text-xs);
-      color: var(--vk-fg-2); margin-top: 6px;
-    }
+
 
     /* ── Tab panes ──────────────────────────────────────────────────────── */
     .tab-body  { padding-top: 24px; }
@@ -147,34 +142,34 @@
       color: var(--vk-fg-2); margin-top: 2px;
     }
 
-    /* ── Tutor insights strip (top of panel) ────────────────────────────── */
-    .tutor-insights {
-      border: 1px solid var(--vk-border-mid); background: var(--vk-surface);
-      padding: 16px 20px; margin-bottom: 24px;
-      display: flex; align-items: center; justify-content: space-between; gap: 24px;
-      flex-wrap: wrap;
+
+    /* ── Insight indicator strip ────────────────────────────────────────── */
+    .ind-strip {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      border: 1px solid var(--vk-border); overflow: hidden; margin-bottom: 24px;
     }
-    .ti-head { flex: 1 1 320px; min-width: 0; }
-    .ti-headline {
-      font-family: var(--vk-font-body); font-size: var(--vk-text-base);
-      color: var(--vk-fg-1); line-height: 1.4; margin: 4px 0 0; font-weight: 500;
+    @media (max-width: 900px) { .ind-strip { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px) { .ind-strip { grid-template-columns: repeat(2, 1fr); } }
+    .ind-card {
+      padding: 14px 16px; border-right: 1px solid var(--vk-border);
+      background: var(--vk-surface);
     }
-    .ti-tiles { display: flex; gap: 10px; flex-wrap: wrap; }
-    .ti-tile {
-      min-width: 76px; padding: 10px 14px; text-align: center;
-      border: 1px solid var(--vk-border); background: var(--vk-surface-2, var(--vk-surface));
+    .ind-card:last-child { border-right: none; }
+    .ind-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .ind-label {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      font-weight: 600; letter-spacing: var(--vk-track-wide);
+      text-transform: uppercase; color: var(--vk-fg-2);
     }
-    .ti-num { font-family: var(--vk-font-body); font-size: var(--vk-text-h3);
-      font-weight: 700; line-height: 1; color: var(--vk-fg-1); margin: 0; }
-    .ti-lbl { font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
-      letter-spacing: var(--vk-track-wide); text-transform: uppercase;
-      color: var(--vk-fg-2); margin: 6px 0 0; }
-    .ti-tile.tone-accent { border-color: var(--vk-accent); }
-    .ti-tile.tone-accent .ti-num { color: var(--vk-accent-text); }
-    .ti-tile.tone-warn  { border-color: var(--vk-error); }
-    .ti-tile.tone-warn  .ti-num { color: var(--vk-error); }
-    .ti-tile.tone-green { border-color: #1F5A40; }
-    .ti-tile.tone-green .ti-num { color: #1F5A40; }
+    .ind-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .ind-dot.green  { background: #1F5A40; }
+    .ind-dot.amber  { background: #8A5A00; }
+    .ind-dot.red    { background: var(--vk-error); }
+    .ind-dot.grey   { background: var(--vk-border-strong); }
+    .ind-reading {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-xs);
+      color: var(--vk-fg-1); margin: 0; line-height: 1.4;
+    }
 
     /* ── Progress tab — student-mirror KPI cards (ported from Home) ──────── */
     .prog-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -260,10 +255,7 @@
       color: var(--vk-fg-2); margin: 0 0 6px;
     }
 
-    /* 7-day activity section */
-    .rc-activity {
-      display: flex; flex-direction: column; gap: 0;
-    }
+    .rc-activity { display: flex; flex-direction: column; gap: 0; }
     .rc-activity-stats { display: flex; gap: 16px; }
     .rc-stat { display: flex; flex-direction: column; gap: 1px; }
     .rc-stat-val {
@@ -274,26 +266,6 @@
       font-family: var(--vk-font-ui); font-size: 9px;
       letter-spacing: 0.08em; text-transform: uppercase; color: var(--vk-fg-2);
     }
-
-    /* mini 7-day bar chart */
-    .rc-bars-wrap { display: flex; flex-direction: column; gap: 3px; }
-    .rc-bars-body {
-      display: flex; align-items: flex-end; gap: 2px; height: 28px;
-    }
-    .rc-bar {
-      flex: 1; min-height: 2px;
-      background: var(--vk-chart-1);
-      border-radius: 1px 1px 0 0;
-      opacity: 0.75;
-    }
-    .rc-bar.is-empty { background: var(--vk-border-mid); opacity: 1; }
-    .rc-bars-labels { display: flex; gap: 2px; }
-    .rc-bar-lbl {
-      flex: 1; text-align: center;
-      font-family: var(--vk-font-ui); font-size: 8px;
-      color: var(--vk-fg-2); line-height: 1;
-    }
-    .rc-bar-lbl.is-today { color: var(--vk-accent-text); font-weight: 700; }
 
     /* topics row */
     .rc-topics { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
@@ -337,6 +309,62 @@
       color: var(--vk-fg-2); min-width: 34px; text-align: right;
     }
 
+    /* ── Clickable indicator cards ──────────────────────────────────────── */
+    .ind-card-link { cursor: pointer; }
+    .ind-card-link:hover { background: var(--vk-surface-tint, var(--vk-accent-bg)); }
+    .ind-card.is-active { background: var(--vk-accent-bg); border-right-color: var(--vk-accent-border); }
+    .ind-card.is-active .ind-label { color: var(--vk-accent-text); }
+    .ind-card-link .ind-head { justify-content: space-between; }
+    .ind-goto-arrow {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      color: var(--vk-fg-3); transition: color 80ms, transform 80ms;
+    }
+    .ind-card-link:hover .ind-goto-arrow,
+    .ind-card.is-active .ind-goto-arrow { color: var(--vk-accent-text); }
+
+    /* ── Indicator expansion panel ──────────────────────────────────────── */
+    .s-ind-detail {
+      border: 1px solid var(--vk-accent-border); background: var(--vk-accent-bg);
+      padding: 16px 20px; margin-bottom: 20px;
+    }
+    .ind-detail-label {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      font-weight: 600; letter-spacing: var(--vk-track-widest);
+      text-transform: uppercase; color: var(--vk-accent-text); margin: 0 0 10px;
+    }
+    .ind-detail-footer {
+      margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--vk-accent-border);
+      display: flex; justify-content: flex-end;
+    }
+    .ind-detail-goto {
+      background: none; border: none; cursor: pointer; padding: 0;
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      letter-spacing: var(--vk-track-wide); text-transform: uppercase;
+      color: var(--vk-accent-text);
+    }
+    .ind-detail-goto:hover { text-decoration: underline; }
+
+    /* ── Diagnosis filter chips ─────────────────────────────────────────── */
+    .diag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .diag-chip {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      font-weight: 600; letter-spacing: var(--vk-track-wide); text-transform: uppercase;
+      padding: 5px 10px; border: 1px solid var(--vk-border-mid);
+      background: var(--vk-surface); color: var(--vk-fg-2); cursor: pointer;
+      transition: border-color 80ms, background 80ms, color 80ms;
+    }
+    .diag-chip:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
+    .diag-chip.is-active {
+      border-color: var(--vk-accent); background: var(--vk-accent-bg);
+      color: var(--vk-accent-text);
+    }
+    .diag-match-row td { background: color-mix(in srgb, var(--vk-accent-bg) 60%, transparent); }
+    .diag-sep-cell {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      letter-spacing: var(--vk-track-widest); text-transform: uppercase;
+      color: var(--vk-fg-2); padding: 10px 0 4px; border-bottom-color: transparent;
+    }
+
     /* ── Diagnosis / session tables ─────────────────────────────────────── */
     .diag-table { width: 100%; border-collapse: collapse; font-family: var(--vk-font-body); }
     .diag-table th {
@@ -370,6 +398,58 @@
     .focus-block.tone-green  { border-left-color: #1F5A40; }
     .fb-title { font-family: var(--vk-font-ui); font-size: var(--vk-text-sm); font-weight: 700; color: var(--vk-fg-1); margin: 0 0 4px; }
     .fb-desc  { font-family: var(--vk-font-body); font-size: var(--vk-text-xs); color: var(--vk-fg-2); margin: 0; line-height: 1.4; }
+    .fb-link  {
+      display: inline-block; margin-top: 10px; padding: 0; background: none; border: none; cursor: pointer;
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      letter-spacing: var(--vk-track-wide); text-transform: uppercase;
+      color: var(--vk-accent-text);
+    }
+    .fb-link:hover { text-decoration: underline; }
+
+    /* ── Teacher profile panel ─────────────────────────────────────────── */
+    .prof-info-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 12px 24px; padding: 16px 0;
+      border-top: 1px solid var(--vk-border); border-bottom: 1px solid var(--vk-border);
+    }
+    .prof-label {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs); font-weight: 600;
+      letter-spacing: var(--vk-track-wide); text-transform: uppercase;
+      color: var(--vk-fg-2); margin-bottom: 2px;
+    }
+    .prof-val {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-sm); color: var(--vk-fg-1);
+    }
+    .prof-msg {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-xs); min-height: 18px; margin-bottom: 8px;
+    }
+
+    /* ── Lesson summary + score trend ─────────────────────────────────── */
+    .lesson-summary {
+      padding: 14px 16px;
+      border: 1px solid var(--vk-accent);
+      background: var(--vk-accent-bg);
+      margin-bottom: 20px;
+    }
+    .lesson-summary-label {
+      font-family: var(--vk-font-ui); font-size: var(--vk-text-2xs);
+      font-weight: 700; letter-spacing: var(--vk-track-wide); text-transform: uppercase;
+      color: var(--vk-accent-text); margin: 0 0 6px;
+    }
+    .lesson-summary-text {
+      font-family: var(--vk-font-body); font-size: var(--vk-text-sm);
+      color: var(--vk-fg-1); margin: 0; line-height: 1.5;
+    }
+    .recent-struggles { margin-top: 20px; }
+    .struggle-word-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .struggle-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border: 1px solid var(--vk-border);
+      background: var(--vk-surface); font-family: var(--vk-font-ui);
+    }
+    .struggle-chip-word { font-size: var(--vk-text-sm); font-weight: 600; color: var(--vk-fg-1); }
+    .struggle-chip-pct  { font-size: var(--vk-text-2xs); font-weight: 700; color: var(--vk-error); }
+    .struggle-chip-said { font-size: var(--vk-text-2xs); color: var(--vk-fg-2); }
   </style>
 </head>
 <body data-theme="atelier">
@@ -384,19 +464,42 @@
       <span class="version">Teacher Dashboard</span>
     </div>
 
+    <div style="padding: 0 12px 16px;">
+      <a class="vk-btn vk-btn-primary" style="width:100%;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;"
+         href="/" target="_blank">Go to Tool ↗</a>
+    </div>
+
     <div class="vk-sb-section">Overview</div>
     <button class="vk-sb-item is-active" id="nav-roster"
             onclick="selectPanel('roster', this)">
       All Students
       <span class="vk-sb-badge" id="sb-count">—</span>
     </button>
-
     <div class="vk-sb-section">Students</div>
     <div id="student-nav"></div>
 
+    <div class="vk-sb-section">Admin</div>
+    <button class="vk-sb-item" id="nav-manage-students"
+            onclick="selectPanel('manage-students', this)">Manage Students</button>
+    <button class="vk-sb-item" id="nav-add-student"
+            onclick="selectPanel('add-student', this)">+ Add Student</button>
+
     <div class="sb-footer">
-      <button class="vk-btn vk-btn-outline sm" style="width:100%"
-              onclick="selectPanel('add-student', null)">+ Add Student</button>
+      <div class="vk-sb-profile">
+        <button class="vk-sb-profile-btn" id="nav-profile" onclick="selectPanel('profile', this)" title="My profile">
+          <div class="vk-sb-avatar">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.25"/>
+              <path d="M2 12c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="vk-sb-profile-info">
+            <div class="vk-sb-profile-name" id="sb-profile-name">—</div>
+            <div class="vk-sb-profile-role">Teacher</div>
+          </div>
+        </button>
+        <button class="vk-sb-signout" onclick="signOut()" title="Sign out">Sign out</button>
+      </div>
     </div>
   </aside>
 
@@ -413,8 +516,6 @@
             <p class="vk-eyebrow no-line" style="margin-bottom:4px">Overview</p>
             <h1 class="vk-h2">All Students</h1>
           </div>
-          <button class="vk-btn vk-btn-outline sm"
-                  onclick="selectPanel('add-student', null)">+ Add Student</button>
         </div>
       </div>
 
@@ -442,17 +543,19 @@
             <p class="vk-kpi-delta" id="r-kpi-time-delta" hidden></p>
             <p class="vk-kpi-meta" id="r-kpi-time-sub">—</p>
           </div>
-          <!-- Topics Studied -->
+          <!-- Performance (paragraph accuracy) -->
           <div class="vk-kpi">
-            <p class="vk-kpi-label">Topics Studied</p>
-            <div class="r-kpi-topics" id="r-kpi-topics">
-              <span class="r-kpi-empty">—</span>
-            </div>
+            <p class="vk-kpi-label">Performance</p>
+            <p class="vk-kpi-num" id="r-kpi-performance">—</p>
+            <p class="vk-kpi-delta" id="r-kpi-performance-delta" hidden></p>
+            <p class="vk-kpi-meta">paragraph accuracy</p>
           </div>
-          <!-- Tutor Insights -->
+          <!-- Precision (phrase accuracy) -->
           <div class="vk-kpi">
-            <p class="vk-kpi-label">Tutor Insights</p>
-            <ul class="r-kpi-insights" id="r-kpi-insights"></ul>
+            <p class="vk-kpi-label">Precision</p>
+            <p class="vk-kpi-num" id="r-kpi-precision">—</p>
+            <p class="vk-kpi-delta" id="r-kpi-precision-delta" hidden></p>
+            <p class="vk-kpi-meta">phrase accuracy</p>
           </div>
         </div>
 
@@ -467,7 +570,7 @@
     <template id="tpl-student">
       <div class="dash-panel" hidden>
 
-        <div class="panel-header">
+        <div class="panel-header has-tabs">
           <div class="panel-header-top">
             <div>
               <p class="vk-eyebrow no-line s-code" style="margin-bottom:4px">—</p>
@@ -485,44 +588,25 @@
               <span class="s-days-since" style="color:var(--vk-fg-2)">—</span>
             </span>
           </div>
+
+          <!-- 4 question-driven tabs — part of the sticky header -->
+          <div class="vk-tabs" style="margin: 12px -32px 0; padding: 0 32px;">
+            <button class="vk-tab" aria-selected="true"  data-tab="insights">Insights</button>
+            <button class="vk-tab" aria-selected="false" data-tab="diagnosis">Diagnosis</button>
+            <button class="vk-tab" aria-selected="false" data-tab="progress">Progress</button>
+            <button class="vk-tab" aria-selected="false" data-tab="activity">Activity</button>
+          </div>
         </div>
 
         <div class="panel-content">
 
-          <!-- Tutor insights — the explicit "what to act on" strip (replaces the activity KPI row) -->
-          <div class="tutor-insights">
-            <div class="ti-head">
-              <p class="vk-eyebrow no-line">Focus this lesson</p>
-              <p class="ti-headline s-ti-headline">Loading insights…</p>
-            </div>
-            <div class="ti-tiles s-ti-tiles"></div>
-          </div>
+          <div class="tab-body" style="padding-top: 0;">
 
-          <!-- 4 question-driven tabs -->
-          <div class="vk-tabs">
-            <button class="vk-tab" aria-selected="true"  data-tab="progress">Progress</button>
-            <button class="vk-tab" aria-selected="false" data-tab="diagnosis">Diagnosis</button>
-            <button class="vk-tab" aria-selected="false" data-tab="nextlesson">Next Lesson</button>
-            <button class="vk-tab" aria-selected="false" data-tab="activity">Activity</button>
-          </div>
-
-          <div class="tab-body">
-
-            <!-- PROGRESS — the student-mirror dashboard (same view the student sees on Home) -->
-            <div class="tab-pane is-active" data-pane="progress" data-loaded="0">
-              <!-- Three speaking KPI cards — selectable, drive the chart -->
-              <div class="prog-kpis s-prog-kpis"></div>
-              <!-- Chart — detail view of the highlighted KPI -->
-              <div class="vk-chart is-visible" style="margin-top:16px">
-                <div class="vk-chart-header">
-                  <div>
-                    <p class="vk-chart-title s-prog-chart-title">Performance over time</p>
-                    <p class="vk-chart-subtitle s-prog-chart-sub">Paragraph accuracy by level, weekly</p>
-                  </div>
-                </div>
-                <div class="s-prog-chart"><div class="empty">No practice data yet</div></div>
-              </div>
-              <p class="prog-chart-hint">Showing the highlighted skill — the same progress view the student sees on their home screen.</p>
+            <!-- INSIGHTS — what do I do this lesson? (hero, default) -->
+            <div class="tab-pane is-active" data-pane="insights" data-loaded="0">
+              <div class="s-indicators ind-strip"></div>
+              <div class="s-ind-detail" hidden></div>
+              <div class="s-ti-recs"></div>
             </div>
 
             <!-- DIAGNOSIS — what do they struggle with? -->
@@ -541,11 +625,27 @@
               </div>
             </div>
 
-            <!-- NEXT LESSON — what do I teach next? (hero) -->
-            <div class="tab-pane" data-pane="nextlesson" data-loaded="0">
-              <div class="s-focus-blocks">
-                <div class="empty" style="padding:24px">Complete more practice for coaching insights</div>
+            <!-- PROGRESS — the student-mirror dashboard (same view the student sees on Home) -->
+            <div class="tab-pane" data-pane="progress" data-loaded="0">
+              <div class="kpi-section-header" style="margin-bottom:16px">
+                <div class="win-tabs">
+                  <button class="win-tab is-active" data-progwin="7">Last 7 Days</button>
+                  <button class="win-tab"            data-progwin="30">Last 30 Days</button>
+                </div>
               </div>
+              <!-- Three speaking KPI cards — selectable, drive the chart -->
+              <div class="prog-kpis s-prog-kpis"></div>
+              <!-- Chart — detail view of the highlighted KPI -->
+              <div class="vk-chart is-visible" style="margin-top:16px">
+                <div class="vk-chart-header">
+                  <div>
+                    <p class="vk-chart-title s-prog-chart-title">Performance over time</p>
+                    <p class="vk-chart-subtitle s-prog-chart-sub">Paragraph accuracy by level, weekly</p>
+                  </div>
+                </div>
+                <div class="s-prog-chart"><div class="empty">No practice data yet</div></div>
+              </div>
+              <p class="prog-chart-hint">Showing the highlighted skill — the same progress view the student sees on their home screen.</p>
             </div>
 
             <!-- ACTIVITY — drill-down / proof -->
@@ -557,9 +657,9 @@
                   <button class="win-tab"           data-actwin="all">All Time</button>
                 </div>
               </div>
-              <p class="sec-label">Paragraph Shadowing</p>
+              <p class="sec-label">Paragraph Practice</p>
               <div class="s-para-strip"></div>
-              <p class="sec-label" style="margin-top:24px">Phrase Shadowing</p>
+              <p class="sec-label" style="margin-top:24px">Pronunciation Drills</p>
               <div class="s-ph-strip"></div>
               <p class="sec-label" style="margin-top:24px">Session History</p>
               <div class="s-sessions-content"><div class="empty">No session data yet</div></div>
@@ -571,53 +671,234 @@
     </template>
 
 
-    <!-- ── ADD STUDENT ──────────────────────────────────────────────────── -->
+    <!-- ── MANAGE STUDENTS ────────────────────────────────────────────────── -->
+    <div id="panel-manage-students" class="dash-panel" hidden>
+      <div class="panel-header">
+        <div class="panel-header-top">
+          <div>
+            <p class="vk-eyebrow no-line" style="margin-bottom:4px">Admin</p>
+            <h1 class="vk-h2">Manage Students</h1>
+          </div>
+        </div>
+      </div>
+      <div class="panel-content">
+
+        <!-- Roster -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <p class="sec-label" style="margin:0">Roster</p>
+          <span id="mgmt-count"
+                style="font-family:var(--vk-font-body);font-size:var(--vk-text-xs);color:var(--vk-fg-2)"></span>
+        </div>
+        <div id="mgmt-table-wrap"><div class="empty">Loading…</div></div>
+
+      </div>
+    </div>
+
+    <!-- ── ADD STUDENT ──────────────────────────────────────────────────────── -->
     <div id="panel-add-student" class="dash-panel" hidden>
       <div class="panel-header">
         <div class="panel-header-top">
           <div>
-            <p class="vk-eyebrow no-line" style="margin-bottom:4px">Students</p>
+            <p class="vk-eyebrow no-line" style="margin-bottom:4px">Admin</p>
             <h1 class="vk-h2">Add Student</h1>
           </div>
         </div>
       </div>
-      <div class="panel-content" style="max-width:480px">
-        <form id="add-student-form" onsubmit="submitAddStudent(event)">
-          <div style="display:flex; flex-direction:column; gap:20px">
-            <div class="vk-field">
-              <label class="vk-field-label is-required">Student Name</label>
-              <input class="vk-input" id="new-name" type="text"
-                     placeholder="e.g. Marie Dupont" required>
-            </div>
-            <div class="vk-field">
-              <label class="vk-field-label is-required">Access Code</label>
-              <input class="vk-input" id="new-code" type="text"
-                     placeholder="e.g. MARIE01" required>
-              <span class="vk-field-helper">Student uses this to log in</span>
-            </div>
-            <div class="vk-field">
-              <label class="vk-field-label">Lesson Days</label>
-              <input class="vk-input" id="new-lesson-days" type="text"
-                     placeholder='["Monday","Wednesday"]'>
-              <span class="vk-field-helper">JSON array of day names</span>
-            </div>
-            <div class="vk-field">
-              <label class="vk-field-label">Lesson Time</label>
-              <input class="vk-input" id="new-lesson-time" type="text"
-                     placeholder="e.g. 10:00">
-            </div>
-            <div style="display:flex; gap:12px; padding-top:4px">
-              <button type="submit" class="vk-btn vk-btn-primary">Create Student</button>
-              <button type="button" class="vk-btn vk-btn-outline"
-                      onclick="selectPanel('roster', document.getElementById('nav-roster'))">Cancel</button>
-            </div>
+      <div class="panel-content" style="max-width:560px">
+
+        <div class="vk-field" style="margin-bottom:18px">
+          <label class="vk-field-label is-required">Email</label>
+          <input class="vk-input" id="add-new-email" type="email"
+                 placeholder="student@example.com" autocomplete="off">
+        </div>
+
+        <div class="vk-field" style="margin-bottom:18px">
+          <label class="vk-field-label is-required">Confirm Email</label>
+          <input class="vk-input" id="add-new-email-confirm" type="email"
+                 placeholder="Repeat email address" autocomplete="off">
+        </div>
+
+        <div class="vk-field" style="margin-bottom:18px">
+          <label class="vk-field-label">Name</label>
+          <input class="vk-input" id="add-new-name" type="text"
+                 placeholder="e.g. Marie Dupont">
+        </div>
+
+        <div class="vk-field" style="margin-bottom:18px">
+          <label class="vk-field-label">Lesson Days</label>
+          <div id="add-lesson-days" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <label class="add-day-chip"><input type="checkbox" value="Mon"> Mon</label>
+            <label class="add-day-chip"><input type="checkbox" value="Tue"> Tue</label>
+            <label class="add-day-chip"><input type="checkbox" value="Wed"> Wed</label>
+            <label class="add-day-chip"><input type="checkbox" value="Thu"> Thu</label>
+            <label class="add-day-chip"><input type="checkbox" value="Fri"> Fri</label>
+            <label class="add-day-chip"><input type="checkbox" value="Sat"> Sat</label>
+            <label class="add-day-chip"><input type="checkbox" value="Sun"> Sun</label>
           </div>
-        </form>
+        </div>
+
+        <div class="vk-field" style="margin-bottom:18px">
+          <label class="vk-field-label">Lesson Time</label>
+          <input class="vk-input" id="add-lesson-time" type="text"
+                 placeholder="e.g. 10:00 AM" style="max-width:180px">
+        </div>
+
+        <div class="vk-field" style="margin-bottom:24px">
+          <label class="vk-field-label">Notes</label>
+          <textarea class="vk-input" id="add-notes" rows="3"
+                    placeholder="Goals, level, anything relevant…"
+                    style="resize:vertical;font-family:var(--vk-font-body)"></textarea>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="vk-btn vk-btn-primary" id="add-submit-btn"
+                  onclick="mgmtAddStudent()">Add Student</button>
+          <div id="add-new-err"
+               style="font-family:var(--vk-font-body);font-size:var(--vk-text-xs);color:var(--vk-error)"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── PROFILE ──────────────────────────────────────────────────────── -->
+    <div id="panel-profile" class="dash-panel" hidden>
+      <div class="panel-header">
+        <div class="panel-header-top">
+          <div>
+            <p class="vk-eyebrow no-line" style="margin-bottom:4px">Account</p>
+            <h1 class="vk-h2">My Profile</h1>
+          </div>
+        </div>
+      </div>
+      <div class="panel-content" style="max-width:560px">
+
+        <p class="sec-label">Profile</p>
+        <div class="prof-info-grid">
+          <div>
+            <div class="prof-label">Email</div>
+            <div class="prof-val" id="prof-email">—</div>
+          </div>
+          <div>
+            <div class="prof-label">Role</div>
+            <div class="prof-val">Teacher</div>
+          </div>
+          <div>
+            <div class="prof-label">Member since</div>
+            <div class="prof-val" id="prof-member-since">—</div>
+          </div>
+        </div>
+
+        <p class="sec-label" style="margin-top:28px">Roster (last 7 days)</p>
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
+          <div class="vk-kpi">
+            <p class="vk-kpi-label">Students</p>
+            <p class="vk-kpi-num" id="prof-kpi-students">—</p>
+          </div>
+          <div class="vk-kpi">
+            <p class="vk-kpi-label">Sessions</p>
+            <p class="vk-kpi-num" id="prof-kpi-sessions">—</p>
+          </div>
+          <div class="vk-kpi">
+            <p class="vk-kpi-label">Avg Accuracy</p>
+            <p class="vk-kpi-num" id="prof-kpi-score">—</p>
+          </div>
+        </div>
+
+        <p class="sec-label" style="margin-top:28px">Change Password</p>
+        <div class="vk-field" style="margin-bottom:14px">
+          <label class="vk-field-label">Current password</label>
+          <input class="vk-input" id="prof-cur-pw" type="password" autocomplete="current-password" placeholder="Current password" style="max-width:320px">
+        </div>
+        <div class="vk-field" style="margin-bottom:14px">
+          <label class="vk-field-label">New password</label>
+          <input class="vk-input" id="prof-new-pw" type="password" autocomplete="new-password" placeholder="New password (min 8 characters)" style="max-width:320px">
+        </div>
+        <div class="vk-field" style="margin-bottom:14px">
+          <label class="vk-field-label">Confirm new password</label>
+          <input class="vk-input" id="prof-new-pw2" type="password" autocomplete="new-password" placeholder="Confirm new password" style="max-width:320px">
+        </div>
+        <div id="prof-pw-error" class="prof-msg" style="color:var(--vk-error)"></div>
+        <div id="prof-pw-success" class="prof-msg" style="color:#1F5A40"></div>
+        <div style="margin-bottom:36px">
+          <button class="vk-btn vk-btn-primary" onclick="profileChangePw()">Update password</button>
+        </div>
+
+        <p class="sec-label" style="margin-top:28px">Session</p>
+        <button class="vk-btn vk-btn-outline" style="color:var(--vk-error);border-color:var(--vk-error);" onclick="signOut()">Sign out</button>
+
       </div>
     </div>
 
   </main>
 </div><!-- /vk-app -->
+
+<!-- ── Credential modal ────────────────────────────────────────────────────── -->
+<div id="mgmt-cred-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;max-width:440px;width:90%">
+    <p class="sec-label" style="margin-bottom:12px">Student Credentials</p>
+    <p style="font-family:var(--vk-font-body);font-size:var(--vk-text-xs);color:var(--vk-fg-2);margin-bottom:20px;line-height:1.6">
+      Share these with your student. The password shown here will <strong>not</strong> be displayed again.
+      The student will be prompted to change it on first login.
+    </p>
+    <div style="background:var(--vk-bg);border:1px solid var(--vk-border-mid);padding:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <span style="font-family:var(--vk-font-ui);font-size:var(--vk-text-2xs);letter-spacing:var(--vk-track-widest);text-transform:uppercase;color:var(--vk-fg-2)">Email</span><br>
+          <strong id="cred-email" style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-1)"></strong>
+        </div>
+        <button class="vk-btn vk-btn-outline sm" onclick="mgmtCopyField('cred-email', this)">Copy</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <span style="font-family:var(--vk-font-ui);font-size:var(--vk-text-2xs);letter-spacing:var(--vk-track-widest);text-transform:uppercase;color:var(--vk-fg-2)">Username</span><br>
+          <strong id="cred-username" style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-1)"></strong>
+        </div>
+        <button class="vk-btn vk-btn-outline sm" onclick="mgmtCopyField('cred-username', this)">Copy</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <span style="font-family:var(--vk-font-ui);font-size:var(--vk-text-2xs);letter-spacing:var(--vk-track-widest);text-transform:uppercase;color:var(--vk-fg-2)">Temp Password</span><br>
+          <strong id="cred-password" style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-1)"></strong>
+        </div>
+        <button class="vk-btn vk-btn-outline sm" onclick="mgmtCopyField('cred-password', this)">Copy</button>
+      </div>
+    </div>
+    <button class="vk-btn vk-btn-outline" style="width:100%;margin-bottom:10px"
+            onclick="mgmtCopyAllCreds(this)">Copy All</button>
+    <button class="vk-btn vk-btn-primary" style="width:100%"
+            onclick="mgmtCloseCredModal()">Done — I've saved these</button>
+  </div>
+</div>
+
+<!-- ── Invite sent modal ───────────────────────────────────────────────────── -->
+<div id="mgmt-invite-sent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;max-width:440px;width:90%">
+    <p class="sec-label" style="margin-bottom:12px">Invitation Sent</p>
+    <p id="invite-sent-msg" style="font-family:var(--vk-font-body);font-size:var(--vk-text-xs);color:var(--vk-fg-2);margin-bottom:16px;line-height:1.6"></p>
+    <div style="background:var(--vk-bg);border:1px solid var(--vk-border-mid);padding:14px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <span id="invite-sent-url" style="font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);color:var(--vk-fg-1);word-break:break-all"></span>
+      <button class="vk-btn vk-btn-outline sm" style="flex-shrink:0"
+              onclick="navigator.clipboard.writeText(document.getElementById('invite-sent-url').textContent).then(()=>{this.textContent='Copied';setTimeout(()=>this.textContent='Copy',1500)})">Copy</button>
+    </div>
+    <button class="vk-btn vk-btn-primary" style="width:100%" onclick="mgmtCloseInviteSentModal()">Done</button>
+  </div>
+</div>
+
+<!-- ── Confirm modal ───────────────────────────────────────────────────────── -->
+<div id="mgmt-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;max-width:380px;width:90%">
+    <p class="sec-label" style="margin-bottom:8px" id="mgmt-confirm-label">Confirm</p>
+    <p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-1);margin-bottom:24px;line-height:1.5" id="mgmt-confirm-msg"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="vk-btn vk-btn-outline" onclick="mgmtCloseConfirm()">Cancel</button>
+      <button class="vk-btn" id="mgmt-confirm-ok"
+              style="background:var(--vk-error);color:#fff;border-color:var(--vk-error)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ───────────────────────────────────────────────────────────────── -->
+<div id="mgmt-toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--vk-surface);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);padding:12px 20px;z-index:400;display:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.12)"></div>
 
 <script src="/static/vk-animations.js" defer></script>
 <script>
@@ -632,6 +913,8 @@ function selectPanel(id, navBtn) {
   allNavBtns.forEach(b => b.classList.remove('is-active'));
   if (navBtn) navBtn.classList.add('is-active');
   if (panel && panel.dataset.code) ensureStudentLoaded(panel);
+  if (id === 'manage-students') loadManageRoster();
+  if (id === 'profile') loadProfilePanel();
 }
 
 // ── Tab switching (scoped to panel) — lazy-loads data on first open ──
@@ -661,6 +944,15 @@ function initWinTabs(panel) {
       renderActivityWindow(panel, panel.dataset.code);
     });
   });
+  // Progress window toggle — drives the Progress KPI values and chart
+  panel.querySelectorAll('.win-tab[data-progwin]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      panel.querySelectorAll('.win-tab[data-progwin]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      panel._progDays = parseInt(btn.dataset.progwin, 10);
+      renderProgress(panel, panel.dataset.code, panel._progDays);
+    });
+  });
 }
 
 // ── Build student panel from template ───────────────────────────
@@ -671,6 +963,7 @@ function createStudentPanel(s) {
   el.id = 'panel-student-' + s.access_code;
   el.dataset.code = s.access_code;
   el._actWin = 'since';
+  el._progDays = 7;
   el.querySelector('.s-name').textContent = s.name || s.access_code;
   el.querySelector('.s-code').textContent = s.access_code;
   // Meta strip from roster data
@@ -688,9 +981,15 @@ function createStudentPanel(s) {
 // ════════════════════════════════════════════════════════════════
 //  STUDENT DETAIL — data loading + rendering
 // ════════════════════════════════════════════════════════════════
-const K_QS = 'key=' + encodeURIComponent(KEY);
+const K_QS = KEY ? 'key=' + encodeURIComponent(KEY) : '';
+function _authHeaders() {
+  const jwt = localStorage.getItem('ft_jwt');
+  return jwt ? { 'Authorization': 'Bearer ' + jwt } : {};
+}
 async function fetchJSON(path) {
-  const res = await fetch(path + (path.includes('?') ? '&' : '?') + K_QS);
+  const sep = path.includes('?') ? '&' : '?';
+  const url = K_QS ? path + sep + K_QS : path;
+  const res = await fetch(url, { headers: _authHeaders() });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
@@ -709,60 +1008,19 @@ function scoreBar(x) {
 function ensureStudentLoaded(panel) {
   if (panel.dataset.inited === '1') return;
   panel.dataset.inited = '1';
-  loadTutorInsights(panel);
-  loadTab(panel, 'progress');  // default active tab
+  loadTab(panel, 'insights');  // default active tab
 }
 
 // Tutor insights — the explicit "what to act on" strip at the top of the panel.
-// Deterministic, derived from the coach payload. The detailed chips live in the
-// Next Lesson tab; this is the at-a-glance headline + count tiles.
-async function loadTutorInsights(panel) {
-  const code = panel.dataset.code;
-  const headEl  = panel.querySelector('.s-ti-headline');
-  const tilesEl = panel.querySelector('.s-ti-tiles');
-  try {
-    const d   = await fetchJSON('/coach?access_code=' + code);
-    const ec  = d.error_clusters || {};
-    const sub    = (ec.substitution || []).length;
-    const eli    = (ec.elision_variant || []).length;
-    const tech   = (d.tech_suspect_words || []).length;
-    const inc    = (d.inconsistent_words || []).length;
-    const almost = (d.almost_there_words || []).length;
-    const stuck  = ((d.trajectories && d.trajectories.stuck_items) || []).length;
-    const plural = n => (n === 1 ? '' : 's');
-
-    let head;
-    if (tech)        head = 'Check the mic first — ' + tech + ' word' + plural(tech) + ' never register. Verify before drilling.';
-    else if (sub)    head = 'Top focus: ' + sub + ' word' + plural(sub) + ' consistently misheard — drill these next lesson.';
-    else if (stuck)  head = stuck + ' item' + plural(stuck) + ' plateaued below 60% — try a different angle or an easier level.';
-    else if (eli)    head = eli + ' elision / liaison error' + plural(eli) + ' worth a focused drill.';
-    else if (inc)    head = inc + ' inconsistent word' + plural(inc) + ' — a little more repetition should lock them in.';
-    else if (almost) head = almost + ' word' + plural(almost) + ' almost mastered — quick wins to celebrate.';
-    else             head = 'No clear focus yet — more practice needed for coaching insights.';
-    headEl.textContent = head;
-
-    const tiles = [
-      ['To drill',     sub,    'accent'],
-      ['Check mic',    tech,   tech ? 'warn' : 'plain'],
-      ['Stuck',        stuck,  'plain'],
-      ['Almost there', almost, almost ? 'green' : 'plain'],
-    ];
-    tilesEl.innerHTML = tiles.map(([lbl, n, tone]) =>
-      '<div class="ti-tile tone-' + tone + '"><p class="ti-num">' + n + '</p>' +
-      '<p class="ti-lbl">' + lbl + '</p></div>').join('');
-  } catch (e) {
-    headEl.textContent = 'Insights unavailable — ' + e.message;
-  }
-}
 
 function loadTab(panel, tab) {
   const pane = panel.querySelector('.tab-pane[data-pane="' + tab + '"]');
   if (!pane || pane.dataset.loaded === '1') return;
   pane.dataset.loaded = '1';
   const code = panel.dataset.code;
-  if (tab === 'progress')   renderProgress(panel, code);
+  if (tab === 'insights')   renderInsights(panel, code);
   else if (tab === 'diagnosis')  renderDiagnosis(panel, code);
-  else if (tab === 'nextlesson') renderNextLesson(panel, code);
+  else if (tab === 'progress')   renderProgress(panel, code, panel._progDays || 7);
   else if (tab === 'activity')   renderActivity(panel, code);
 }
 
@@ -816,8 +1074,9 @@ function buildProgKpis(d) {
   const w = k.words;
   if (w) {
     const m = PROG_SKILL_META.words;
+    const periodLabel = d.period_days === 7 ? '7 days' : '30 days';
     const context = (w.total === 0) ? 'none mastered yet'
-      : (w.recent_gain > 0 ? '+' + w.recent_gain + ' in the last 30 days' : 'words pronounced reliably');
+      : (w.recent_gain > 0 ? '+' + w.recent_gain + ' in the last ' + periodLabel : 'words pronounced reliably');
     out.push({
       key: 'words', label: m.label, tests: m.tests, value: String(w.total || 0), trend: w.trend, context,
       newLevel: null, increaseScore: w.momentum || 0,
@@ -829,7 +1088,8 @@ function buildProgKpis(d) {
   return out;
 }
 
-async function renderProgress(panel, code) {
+async function renderProgress(panel, code, days) {
+  days = days || panel._progDays || 7;
   const host  = panel.querySelector('.s-prog-kpis');
   const chart = panel.querySelector('.s-prog-chart');
   // .vk-chart is opacity:0 until the scroll IntersectionObserver tags it .is-visible,
@@ -837,7 +1097,7 @@ async function renderProgress(panel, code) {
   const chartCard = panel.querySelector('.vk-chart');
   if (chartCard) chartCard.classList.add('is-visible');
   try {
-    const res = await fetch('/analytics/progress?access_code=' + encodeURIComponent(code));
+    const res = await fetch('/analytics/progress?access_code=' + encodeURIComponent(code) + '&days=' + days, { headers: _authHeaders() });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     panel._progKpis = buildProgKpis(d);
@@ -974,17 +1234,8 @@ async function renderDiagnosis(panel, code) {
   const wc = panel.querySelector('.s-words-content');
   try {
     const d = await fetchJSON('/analytics/words?access_code=' + code);
-    const words = d.words || [];
-    if (!words.length) wc.innerHTML = '<div class="empty">No word data yet (min. 5 attempts)</div>';
-    else wc.innerHTML =
-      '<table class="diag-table"><thead><tr><th>Word</th><th>Att.</th><th>Accuracy</th><th>Error</th></tr></thead><tbody>' +
-      words.slice(0, 25).map(w =>
-        '<tr><td class="dt-word">' + esc(w.word) +
-        (w.top_substitutions && w.top_substitutions.length
-          ? '<span class="dt-sub">→ ' + esc(w.top_substitutions[0].said) + '</span>' : '') +
-        '</td><td>' + w.attempts + '</td><td>' + scoreBar(w.accuracy) + '</td>' +
-        '<td>' + (w.error_type ? '<span class="vk-tag">' + w.error_type.replace('_', ' ') + '</span>' : '—') + '</td></tr>'
-      ).join('') + '</tbody></table>';
+    panel._diagnosisWords = d.words || [];
+    _renderDiagWords(panel);
   } catch (e) { wc.innerHTML = '<div class="empty">Erreur — ' + e.message + '</div>'; }
 
   try {
@@ -1005,53 +1256,553 @@ async function renderDiagnosis(panel, code) {
   } catch (e) { /* leave */ }
 }
 
+function _matchesFilter(word, filter) {
+  if (!filter) return false;
+  if (filter === 'acoustic_miss')   return word.error_type === 'acoustic_miss';
+  if (filter === 'elision_variant') return word.error_type === 'elision_variant';
+  if (filter === 'substitution')    return word.error_type === 'substitution';
+  if (filter === 'inconsistent')    return word.accuracy != null && word.accuracy >= 0.50 && word.accuracy < 0.70;
+  if (filter.startsWith('phonetic:')) {
+    const cat = filter.slice(9);
+    return (word.phonetic_categories || []).includes(cat);
+  }
+  return false;
+}
+
+
+const _DIAG_CHIP_DEFS = [
+  { key: null,               label: 'All' },
+  { key: 'elision_variant',  label: 'Elision' },
+  { key: 'acoustic_miss',    label: 'Mic issues' },
+  { key: 'substitution',     label: 'Substitution' },
+  { key: 'inconsistent',     label: 'Inconsistent' },
+  { key: 'phonetic:nasal',   label: 'Nasals' },
+  { key: 'phonetic:u_sound', label: '[u] sound' },
+  { key: 'phonetic:eu_sound',label: '[eu] sound' },
+];
+
+function _renderDiagWords(panel) {
+  const words  = panel._diagnosisWords || [];
+  const wc     = panel.querySelector('.s-words-content');
+  const filter = panel._diagnosisFilter || null;
+
+  if (!words.length) {
+    wc.innerHTML = '<div class="empty">No word data yet (min. 5 attempts)</div>';
+    return;
+  }
+
+  // Only show chips that have at least one matching word (always show All)
+  const available = _DIAG_CHIP_DEFS.filter(c => c.key === null || words.some(w => _matchesFilter(w, c.key)));
+
+  const chipsHtml = available.length > 1
+    ? '<div class="diag-chips">' +
+      available.map(c =>
+        '<button class="diag-chip' + (filter === c.key ? ' is-active' : '') + '" data-filter="' + (c.key || '') + '">' +
+        esc(c.label) + '</button>'
+      ).join('') + '</div>'
+    : '';
+
+  // Sort matching words to top
+  const sorted = filter
+    ? [...words].sort((a, b) => (_matchesFilter(b, filter) ? 1 : 0) - (_matchesFilter(a, filter) ? 1 : 0))
+    : words;
+
+  const hasMatches = filter && sorted.some(w => _matchesFilter(w, filter));
+  let passedBoundary = false;
+  const rows = sorted.slice(0, 25).map(w => {
+    const isMatch = filter ? _matchesFilter(w, filter) : false;
+    let sep = '';
+    if (filter && hasMatches && !isMatch && !passedBoundary) {
+      passedBoundary = true;
+      sep = '<tr><td colspan="4" class="diag-sep-cell">Other words</td></tr>';
+    }
+    return sep +
+      '<tr' + (isMatch ? ' class="diag-match-row"' : '') + '>' +
+      '<td class="dt-word">' + esc(w.word) +
+      (w.top_substitutions && w.top_substitutions.length
+        ? '<span class="dt-sub">→ ' + esc(w.top_substitutions[0].said) + '</span>' : '') +
+      '</td><td>' + w.attempts + '</td><td>' + scoreBar(w.accuracy) + '</td>' +
+      '<td>' + (w.error_type ? '<span class="vk-tag">' + w.error_type.replace('_', ' ') + '</span>' : '—') + '</td></tr>';
+  }).join('');
+
+  wc.innerHTML = chipsHtml +
+    '<table class="diag-table"><thead><tr><th>Word</th><th>Att.</th><th>Accuracy</th><th>Error</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
+
+  // Wire chip clicks
+  wc.querySelectorAll('.diag-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      panel._diagnosisFilter = chip.dataset.filter || null;
+      _renderDiagWords(panel);
+    });
+  });
+}
+
 function kpiMini(val, lbl) {
   return '<div class="stats-strip-item" style="border:1px solid var(--vk-border)">' +
     '<div class="stats-val">' + val + '</div><div class="stats-lbl">' + lbl + '</div></div>';
 }
 
-// ── Next Lesson (hero) ────────────────────────────────────────────
-async function renderNextLesson(panel, code) {
-  const host = panel.querySelector('.s-focus-blocks');
-  try {
-    const d = await fetchJSON('/coach?access_code=' + code);
-    const blocks = [];
-    const ec = d.error_clusters || {};
-    const fmtWords = arr => arr.slice(0, 6).map(w => '<span class="vk-tag">' + esc(w.word) + ' ' + pctStr(w.accuracy) + '</span>').join('');
+// ── Insights (hero, default) ──────────────────────────────────────
+// Recommendations derived from coach data + supporting evidence blocks
+// (error clusters + phonetic category blocks with colour-coded chips).
 
-    if ((d.tech_suspect_words || []).length)
-      blocks.push(focusBlock('Check mic / pronunciation', 'warn',
-        'These never register — likely a mic issue or a sound not being produced at all. Verify before drilling.',
-        fmtWords(d.tech_suspect_words)));
-    if ((ec.substitution || []).length)
-      blocks.push(focusBlock('Drill these words', 'accent',
-        'Consistently heard as a different word — the top pronunciation targets.', fmtWords(ec.substitution)));
-    if ((ec.elision_variant || []).length)
-      blocks.push(focusBlock('Elision / liaison', 'accent',
-        'Contraction and liaison errors — worth a focused drill.', fmtWords(ec.elision_variant)));
-    if ((d.inconsistent_words || []).length)
-      blocks.push(focusBlock('Inconsistent — reinforce', 'plain',
-        'Sometimes right, sometimes not. A little more repetition should lock these in.', fmtWords(d.inconsistent_words)));
-    const stuck = (d.trajectories && d.trajectories.stuck_items) || [];
-    if (stuck.length)
-      blocks.push(focusBlock('Revisit stuck material', 'plain',
-        stuck.length + ' item' + (stuck.length === 1 ? '' : 's') + ' plateaued below 60% after 3+ attempts — try a different angle or easier level.', ''));
-    if ((d.almost_there_words || []).length)
-      blocks.push(focusBlock('Almost there', 'green',
-        'Close to mastery (70–89%) — a quick win to celebrate next lesson.', fmtWords(d.almost_there_words)));
+const _SOUND_TIPS = {
+  nasal:    'Nasals (an, on, in) require air through the nose — contrast with the pure vowel equivalent.',
+  u_sound:  'The French [u] (as in "tu") has no English equivalent — lips forward, tongue back.',
+  eu_sound: 'The [eu/œ] sound (as in "feu", "peur") is mid-front rounded — often confused with [e] or [o].',
+};
+const _CAT_LABELS = { nasal: 'Nasal sounds', u_sound: '[u] sound', eu_sound: '[eu] sound' };
+const _CAT_SHORT  = { nasal: 'Nasals',       u_sound: '[u]',       eu_sound: '[eu/œ]'    };
 
-    host.innerHTML = blocks.length
-      ? blocks.join('')
-      : '<div class="empty" style="padding:24px">No clear focus yet — more practice needed for coaching insights</div>';
-  } catch (e) { host.innerHTML = '<div class="empty">Erreur — ' + e.message + '</div>'; }
+function _buildRecs(d) {
+  const ec      = d.error_clusters || {};
+  const sub     = (ec.substitution     || []).length;
+  const eli     = (ec.elision_variant  || []).length;
+  const tech    = (d.tech_suspect_words  || []).length;
+  const inc     = (d.inconsistent_words  || []).length;
+  const almost  = (d.almost_there_words  || []).length;
+  const stuck   = ((d.trajectories && d.trajectories.stuck_items) || []).length;
+  const phonetic = d.phonetic_struggles || {};
+  const phoneticCats = Object.entries(phonetic)
+    .filter(([, v]) => v && v.count >= 2)
+    .sort((a, b) => (a[1].avg_accuracy || 1) - (b[1].avg_accuracy || 1));
+
+  const recs = [];
+
+  if (tech >= 2)
+    recs.push(_tiRec('warn', 'Verify mic setup',
+      'Several words never register at all. Check the microphone and the student\'s ability to produce these sounds before drilling further.',
+      true, 'acoustic_miss'));
+
+  if (stuck >= 2) {
+    const stuckItems = (d.trajectories && d.trajectories.stuck_items) || [];
+    const stuckTexts = stuckItems
+      .filter(x => x.text)
+      .slice(0, 3)
+      .map(x => '"' + x.text + '" (' + Math.round(x.best * 100) + '% best, ' + x.attempts + ' attempts)');
+    const stuckDetail = stuckTexts.length
+      ? 'Stuck sentences: ' + stuckTexts.join(' · ')
+      : stuck + ' sentences stuck below 60%.';
+    recs.push(_tiRec('plain', 'Step back a level',
+      stuckDetail + ' Try easier content at the same theme, or drop one CEFR level to rebuild confidence.',
+      false));
+  }
+
+  if (eli >= 2)
+    recs.push(_tiRec('accent', 'Address elision as a structural rule',
+      'Elision and liaison errors suggest the student is reading written French rather than hearing spoken patterns. Drill the rule, not the words.',
+      true, 'elision_variant'));
+
+  if (phoneticCats.length > 1) {
+    const names = phoneticCats.map(([c]) => _CAT_LABELS[c] || c);
+    const last  = names.pop();
+    const list  = names.length ? names.join(', ') + ' and ' + last : last;
+    recs.push(_tiRec('accent', 'Multiple sound patterns need work',
+      list + ' are all below 65%. Isolate each sound in turn rather than drilling full phrases — the student needs the individual motor pattern before they can combine them.',
+      true, 'phonetic:' + phoneticCats[0][0]));
+  } else if (phoneticCats.length === 1) {
+    const [cat] = phoneticCats[0];
+    const tip = _SOUND_TIPS[cat] || 'Focus on this sound pattern in isolation before practising in context.';
+    recs.push(_tiRec('accent', 'Dedicate lesson time to ' + (_CAT_LABELS[cat] || cat), tip, true, 'phonetic:' + cat));
+  }
+
+  if (recs.length < 3 && inc >= 3)
+    recs.push(_tiRec('plain', 'Stay at current level, build volume',
+      'Several words are inconsistent — sometimes right, sometimes not. More repetition at the same level should solidify them.',
+      true, 'inconsistent'));
+
+  if (recs.length < 3 && sub >= 2 && phoneticCats.length === 0)
+    recs.push(_tiRec('plain', 'Explore the underlying sound pattern',
+      'These substitution errors suggest a shared phonetic root. Identify what the misheard words have in common and drill that sound in isolation.',
+      true, 'substitution'));
+
+  if (almost >= 3 && stuck < 2)
+    recs.push(_tiRec('green', 'Increase difficulty',
+      almost + ' words are nearly mastered. The student is ready for more challenging material at the next level.',
+      false));
+
+  if (!recs.length)
+    return '<div class="empty" style="padding:24px">Not enough data yet — complete a few more practice sessions for coaching insights</div>';
+
+  return recs.slice(0, 3).join('');
 }
 
-function focusBlock(title, tone, desc, chips) {
+function _buildLessonSummary(coach, prog) {
+  const ec      = (coach && coach.error_clusters) || {};
+  const tech    = (coach && (coach.tech_suspect_words  || [])).length || 0;
+  const eli     = ((ec.elision_variant) || []).length;
+  const stuck   = ((coach && coach.trajectories && coach.trajectories.stuck_items) || []).length;
+  const almost  = ((coach && coach.almost_there_words) || []).length;
+  const phonetic = (coach && coach.phonetic_struggles) || {};
+  const cats = Object.entries(phonetic)
+    .filter(([, v]) => v && v.count >= 2)
+    .sort((a, b) => (a[1].avg_accuracy || 1) - (b[1].avg_accuracy || 1));
+  const below50 = cats.filter(([, v]) => (v.avg_accuracy || 0) < 0.50);
+
+  const sig = (prog && prog.signals) || {};
+
+  let text = '';
+
+  if (tech >= 2) {
+    text = 'Check mic setup before drilling — ' + tech + ' words are not registering at all.';
+  } else if (below50.length >= 2) {
+    const names = below50.map(([c]) => _CAT_LABELS[c] || c);
+    const last = names.pop();
+    text = 'Focus today on ' + (names.join(', ') + ' and ' + last) + ' — both are below 50% accuracy.';
+  } else if (cats.length === 1) {
+    const [cat, data] = cats[0];
+    const pct = Math.round((data.avg_accuracy || 0) * 100);
+    text = 'Prioritise ' + (_CAT_LABELS[cat] || cat).toLowerCase() + ' this session — averaging ' + pct + '%.';
+  } else if (sig.ready_to_level_up && sig.next_level) {
+    text = 'Ready to advance — test ' + sig.next_level + ' content today and see how it goes.';
+  } else if (eli >= 2) {
+    text = 'Drill elision as a spoken rule, not word by word — the pattern is the gap.';
+  } else if (stuck >= 2) {
+    const stuckItems = (coach && coach.trajectories && coach.trajectories.stuck_items) || [];
+    const examples = stuckItems.filter(x => x.text).slice(0, 2).map(x => '"' + x.text + '"').join(', ');
+    text = 'Step back a level — ' + (examples || stuck + ' sentences') + ' stuck below 60%. Rebuild confidence before pushing further.';
+  } else if (almost >= 3 && stuck < 2) {
+    text = 'Strong momentum — push to harder material or a higher level.';
+  } else if (!coach) {
+    return '';
+  } else {
+    text = 'No dominant issue detected — continue at current level and keep volume up.';
+  }
+
+  return '<div class="lesson-summary">' +
+    '<p class="lesson-summary-label">Lesson focus</p>' +
+    '<p class="lesson-summary-text">' + esc(text) + '</p>' +
+    '</div>';
+}
+
+function _buildRecentStruggles(words) {
+  if (!words || !words.length)
+    return '<div class="recent-struggles"><p class="sec-label">Recent struggles</p>' +
+      '<div class="empty" style="padding:12px 0;font-size:var(--vk-text-sm)">No words below 50% in the last 3 sessions</div></div>';
+
+  const chips = words.map(w => {
+    const pct = Math.round(w.accuracy * 100) + '%';
+    const said = w.said && w.said.length ? ' → ' + w.said.slice(0, 2).join(', ') : '';
+    return '<div class="struggle-chip">' +
+      '<span class="struggle-chip-word">' + esc(w.word) + '</span>' +
+      '<span class="struggle-chip-pct">' + esc(pct) + '</span>' +
+      (said ? '<span class="struggle-chip-said">' + esc(said) + '</span>' : '') +
+      '</div>';
+  }).join('');
+
+  return '<div class="recent-struggles">' +
+    '<p class="sec-label">Recent struggles <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--vk-fg-2)">— last 3 sessions, below 50%</span></p>' +
+    '<div class="struggle-word-list">' + chips + '</div>' +
+    '</div>';
+}
+
+function _tiRec(tone, title, desc, showWords, diagFilter) {
+  const link = showWords
+    ? '<button class="fb-link" data-goto-tab="diagnosis"' +
+      (diagFilter ? ' data-diagnosis-filter="' + diagFilter + '"' : '') +
+      '>See the words →</button>'
+    : '';
   return '<div class="focus-block tone-' + tone + '">' +
     '<p class="fb-title">' + esc(title) + '</p>' +
     '<p class="fb-desc">' + esc(desc) + '</p>' +
-    (chips ? '<div class="chip-row" style="margin-top:8px">' + chips + '</div>' : '') + '</div>';
+    link + '</div>';
 }
+
+// ── Indicator builders ────────────────────────────────────────────
+
+function _indCard(label, status, reading, indKey) {
+  return '<div class="ind-card' + (indKey ? ' ind-card-link' : '') + '"' +
+    (indKey ? ' data-ind-key="' + indKey + '"' : '') + '>' +
+    '<div class="ind-head"><span class="ind-dot ' + status + '"></span>' +
+    '<span class="ind-label">' + esc(label) + '</span>' +
+    (indKey ? '<span class="ind-goto-arrow">→</span>' : '') +
+    '</div>' +
+    '<p class="ind-reading">' + esc(reading) + '</p></div>';
+}
+
+function _indSounds(coach) {
+  if (!coach) return _indCard('French sounds', 'grey', 'No data yet', 'sounds');
+  const tech = (coach.tech_suspect_words || []).length;
+  const ec   = coach.error_clusters || {};
+  const eli  = (ec.elision_variant || []).length;
+  const phonetic = coach.phonetic_struggles || {};
+  const cats = Object.entries(phonetic)
+    .filter(([, v]) => v && v.count >= 2)
+    .sort((a, b) => (a[1].avg_accuracy || 1) - (b[1].avg_accuracy || 1));
+
+  if (cats.length > 0) {
+    const below50 = cats.filter(([, v]) => (v.avg_accuracy || 0) < 0.50);
+    const display = below50.length >= 2 ? below50 : cats.slice(0, 1);
+    const worstPct = Math.round((display[0][1].avg_accuracy || 0) * 100);
+    const status = worstPct < 40 ? 'red' : 'amber';
+    if (display.length > 1) {
+      const parts = display.map(([c, v]) => (_CAT_SHORT[c] || c) + ' ' + Math.round((v.avg_accuracy || 0) * 100) + '%');
+      return _indCard('French sounds', status, parts.join(' · ') + ' — multiple patterns', 'sounds');
+    }
+    const [cat, data] = display[0];
+    const pct = Math.round((data.avg_accuracy || 0) * 100);
+    return _indCard('French sounds', status, (_CAT_LABELS[cat] || cat) + ' — avg ' + pct + '%', 'sounds');
+  }
+  if (eli >= 2)
+    return _indCard('French sounds', 'amber', 'Elision / liaison — ' + eli + ' consistent errors', 'sounds');
+  if (tech >= 2)
+    return _indCard('French sounds', 'amber', tech + ' words never register — check mic', 'sounds');
+  return _indCard('French sounds', 'green', 'No clear sound pattern detected', 'sounds');
+}
+
+function _indLevel(prog) {
+  if (!prog || !prog.kpis) return _indCard('Level progress', 'grey', 'No data yet', 'level');
+  const sig  = prog.signals || {};
+  const perf = prog.kpis.performance || {};
+  const prec = prog.kpis.precision   || {};
+  const lvl  = sig.current_level || '—';
+
+  if (sig.new_level)         return _indCard('Level progress', 'green', 'New level — ' + sig.new_level, 'level');
+  if (sig.ready_to_level_up) return _indCard('Level progress', 'green', lvl + ' — ready to advance', 'level');
+
+  const trend = (perf.trend || prec.trend || {}).dir;
+  if (trend === 'up')        return _indCard('Level progress', 'green', lvl + ' — improving', 'level');
+  if (sig.dip || trend === 'down')
+                             return _indCard('Level progress', 'amber', lvl + ' — dipped recently', 'level');
+  return _indCard('Level progress', 'grey', lvl !== '—' ? lvl + ' — steady' : 'Not enough data', 'level');
+}
+
+function _indMix(para, phrase) {
+  const pgs = (para   && para.paragraphs_started) || 0;
+  const phs = (phrase && phrase.phrases_started)   || 0;
+  const tot = pgs + phs;
+  if (tot === 0) return _indCard('Exercise mix', 'grey', 'No exercise data yet', 'mix');
+  if (phs / tot >= 0.90) return _indCard('Exercise mix', 'amber', 'Phrase-heavy — no paragraph work', 'mix');
+  if (pgs / tot >= 0.90) return _indCard('Exercise mix', 'amber', 'Paragraph-heavy — no pronunciation drills', 'mix');
+  return _indCard('Exercise mix', 'green', 'Good mix — paragraph and phrase', 'mix');
+}
+
+function _indBalance(content) {
+  const ls = (content && content.listen_speak) || {};
+  if (ls.ratio == null || (ls.speak_attempts || 0) < 5)
+    return _indCard('Listen / speak', 'grey', 'Not enough data yet', 'balance');
+  if (ls.ratio > 5)  return _indCard('Listen / speak', 'amber', 'Mostly listening — few speaking attempts', 'balance');
+  if (ls.ratio < 0.5) return _indCard('Listen / speak', 'amber', 'Speaking without much listening', 'balance');
+  return _indCard('Listen / speak', 'green', ls.ratio.toFixed(1) + ' listens per speaking attempt', 'balance');
+}
+
+function _indConsistency(s) {
+  const days = s.days_since_practice;
+  const s7   = s.sessions_7d || 0;
+  if (days == null) return _indCard('Consistency', 'grey', 'No practice recorded yet', 'consistency');
+  if (days > 14)   return _indCard('Consistency', 'red',   'No practice in ' + days + ' days', 'consistency');
+  if (days > 7)    return _indCard('Consistency', 'amber', 'No practice in ' + days + ' days', 'consistency');
+  if (s7 >= 4)     return _indCard('Consistency', 'green', s7 + ' sessions this week — strong', 'consistency');
+  if (s7 >= 2)     return _indCard('Consistency', 'green', s7 + ' sessions this week', 'consistency');
+  if (s7 === 1)    return _indCard('Consistency', 'amber', '1 session this week — light', 'consistency');
+  return _indCard('Consistency', 'amber', 'Last practiced ' + days + ' day' + (days === 1 ? '' : 's') + ' ago', 'consistency');
+}
+
+// ── Insights tab ──────────────────────────────────────────────────
+
+function _buildIndDetail(key, insightsData) {
+  const { coach, prog, para, phrase, content, roster } = insightsData;
+
+  if (key === 'sounds') {
+    const phonetic = (coach && coach.phonetic_struggles) || {};
+    const cats = Object.entries(phonetic)
+      .filter(([, v]) => v && v.count >= 2)
+      .sort((a, b) => (a[1].avg_accuracy || 1) - (b[1].avg_accuracy || 1));
+    const ec   = (coach && coach.error_clusters) || {};
+    const eli  = (ec.elision_variant || []).length;
+    const tech = (coach && (coach.tech_suspect_words || [])).length || 0;
+
+    let bodyHtml = '', diagFilter = null;
+    if (cats.length) {
+      diagFilter = 'phonetic:' + cats[0][0];
+      bodyHtml = '<table class="diag-table" style="margin-bottom:0"><tbody>' +
+        cats.map(([c, v]) =>
+          '<tr><td class="dt-word">' + esc(_CAT_LABELS[c] || c) + '</td>' +
+          '<td>' + v.count + ' words</td>' +
+          '<td>' + scoreBar(v.avg_accuracy) + '</td></tr>'
+        ).join('') + '</tbody></table>';
+    } else if (eli >= 2) {
+      diagFilter = 'elision_variant';
+      bodyHtml = '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-1);margin:0">' + eli + ' consistent elision / liaison errors</p>';
+    } else if (tech >= 2) {
+      diagFilter = 'acoustic_miss';
+      bodyHtml = '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-1);margin:0">' + tech + ' words never registering — likely mic issue</p>';
+    } else {
+      bodyHtml = '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-2);margin:0">No clear pattern detected</p>';
+    }
+    return { label: 'French sounds', bodyHtml, gotoTab: diagFilter ? 'diagnosis' : null, diagFilter, gotoLabel: 'See the words in Diagnosis →' };
+  }
+
+  if (key === 'level') {
+    const k   = prog && prog.kpis;
+    const sig = (prog && prog.signals) || {};
+    const perf = (k && k.performance) || {};
+    const prec = (k && k.precision)   || {};
+    const lvl  = sig.current_level || '—';
+    const perfPct = perf.value != null ? Math.round(perf.value * 100) + '%' : '—';
+    const precPct = prec.value != null ? Math.round(prec.value * 100) + '%' : '—';
+    const perfTrend = (perf.trend && perf.trend.text) ? ' · ' + perf.trend.text : '';
+    const precTrend = (prec.trend && prec.trend.text) ? ' · ' + prec.trend.text : '';
+    const bodyHtml = k
+      ? '<div class="three-col">' +
+        kpiMini(lvl, 'current level') +
+        kpiMini(perfPct + (perfTrend ? '<br><span style="font-size:var(--vk-text-2xs);color:var(--vk-fg-2)">' + esc(perfTrend) + '</span>' : ''), 'performance') +
+        kpiMini(precPct + (precTrend ? '<br><span style="font-size:var(--vk-text-2xs);color:var(--vk-fg-2)">' + esc(precTrend) + '</span>' : ''), 'precision') +
+        '</div>'
+      : '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-2);margin:0">No progress data yet</p>';
+    return { label: 'Level progress', bodyHtml, gotoTab: 'progress', diagFilter: null, gotoLabel: 'See full trend in Progress →' };
+  }
+
+  if (key === 'mix') {
+    const pgs = (para   && para.paragraphs_started) || 0;
+    const phs = (phrase && phrase.phrases_started)   || 0;
+    const tot = pgs + phs;
+    const bodyHtml = tot
+      ? '<div class="three-col">' +
+        kpiMini(pgs, 'paragraphs') +
+        kpiMini(phs, 'phrases') +
+        kpiMini(Math.round(pgs / tot * 100) + '% / ' + Math.round(phs / tot * 100) + '%', 'para / phrase') +
+        '</div>'
+      : '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-2);margin:0">No exercise data yet</p>';
+    return { label: 'Exercise mix', bodyHtml, gotoTab: 'activity', diagFilter: null, gotoLabel: 'See activity breakdown →' };
+  }
+
+  if (key === 'balance') {
+    const ls = (content && content.listen_speak) || {};
+    const bodyHtml = ls.ratio != null
+      ? '<div class="three-col">' +
+        kpiMini(ls.listens ?? 0, 'listens') +
+        kpiMini(ls.speak_attempts ?? 0, 'speak attempts') +
+        kpiMini(ls.ratio != null ? ls.ratio.toFixed(1) : '—', 'listen / speak') +
+        '</div>'
+      : '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-2);margin:0">Not enough data yet</p>';
+    return { label: 'Listen / speak', bodyHtml, gotoTab: 'diagnosis', diagFilter: null, gotoLabel: 'See full breakdown in Diagnosis →' };
+  }
+
+  if (key === 'consistency') {
+    const days = roster.days_since_practice;
+    const s7   = roster.sessions_7d || 0;
+    const bodyHtml = '<div class="three-col">' +
+      kpiMini(s7, 'sessions this week') +
+      kpiMini(days != null ? days + 'd' : '—', 'days since practice') +
+      kpiMini(roster.practice_minutes_7d > 0 ? roster.practice_minutes_7d + 'm' : '—', 'practice this week') +
+      '</div>';
+    return { label: 'Consistency', bodyHtml, gotoTab: 'activity', diagFilter: null, gotoLabel: 'See session history →' };
+  }
+
+  return null;
+}
+
+async function renderInsights(panel, code) {
+  const indEl    = panel.querySelector('.s-indicators');
+  const detailEl = panel.querySelector('.s-ind-detail');
+  const recsEl   = panel.querySelector('.s-ti-recs');
+
+  // Loading skeleton
+  indEl.innerHTML = Array(5).fill(
+    '<div class="ind-card"><div class="ind-head"><span class="ind-dot grey"></span>' +
+    '<span class="ind-label">Loading</span></div><p class="ind-reading"> </p></div>'
+  ).join('');
+  recsEl.innerHTML = '';
+
+  // Fetch all signals in parallel
+  const [coachR, progR, paraR, phraseR, contentR, strugglesR] = await Promise.allSettled([
+    fetchJSON('/coach?access_code=' + code),
+    fetch('/analytics/progress?access_code=' + encodeURIComponent(code), { headers: _authHeaders() }).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetchJSON('/analytics/paragraph?access_code=' + code + '&window=30d'),
+    fetchJSON('/analytics/phrase?access_code='    + code + '&window=30d'),
+    fetchJSON('/analytics/content?access_code='   + code),
+    fetchJSON('/analytics/recent-struggles?access_code=' + code),
+  ]);
+
+  const coach     = coachR.status     === 'fulfilled' ? coachR.value     : null;
+  const prog      = progR.status      === 'fulfilled' ? progR.value      : null;
+  const para      = paraR.status      === 'fulfilled' ? paraR.value      : null;
+  const phrase    = phraseR.status    === 'fulfilled' ? phraseR.value    : null;
+  const content   = contentR.status   === 'fulfilled' ? contentR.value   : null;
+  const struggles = strugglesR.status === 'fulfilled' ? (strugglesR.value.words || []) : null;
+  const roster    = (window._rosterStudents || []).find(s => s.access_code === code) || {};
+
+  // Store for detail expansion
+  panel._insightsData = { coach, prog, para, phrase, content, roster };
+
+  // Indicator strip
+  indEl.innerHTML =
+    _indSounds(coach) +
+    _indLevel(prog) +
+    _indMix(para, phrase) +
+    _indBalance(content) +
+    _indConsistency(roster);
+
+  // Lesson summary + recommendations + recent struggles
+  const summaryHtml   = _buildLessonSummary(coach, prog);
+  const recsHtml      = coach ? _buildRecs(coach) : '';
+  const strugglesHtml = struggles !== null ? _buildRecentStruggles(struggles) : '';
+
+  recsEl.innerHTML =
+    summaryHtml +
+    (recsHtml ? '<p class="sec-label" style="margin-top:4px">Recommendations</p>' + recsHtml : '') +
+    strugglesHtml +
+    (!coach && !prog ? '<div class="empty" style="padding:16px 0">Could not load coaching data</div>' : '');
+
+  // ── Navigate to tab (from recs "See the words →" or ind-detail "Go to" buttons) ──
+  function _navigateToTab(targetTab, diagFilter) {
+    if (diagFilter) {
+      panel._diagnosisFilter = diagFilter;
+      if (panel._diagnosisWords) _renderDiagWords(panel);
+    }
+    const tabBtn = panel.querySelector('.vk-tab[data-tab="' + targetTab + '"]');
+    if (tabBtn) tabBtn.click();
+  }
+
+  // Wire all [data-goto-tab] buttons in the recs area
+  recsEl.querySelectorAll('[data-goto-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _navigateToTab(btn.dataset.gotoTab, btn.dataset.diagnosisFilter || null);
+    });
+  });
+
+  // ── Indicator card click — expand detail ──
+  let _activeIndKey = null;
+  indEl.querySelectorAll('.ind-card-link').forEach(card => {
+    card.addEventListener('click', () => {
+      const key = card.dataset.indKey;
+      if (_activeIndKey === key) {
+        // Toggle off
+        _activeIndKey = null;
+        indEl.querySelectorAll('.ind-card').forEach(c => c.classList.remove('is-active'));
+        detailEl.hidden = true;
+        detailEl.innerHTML = '';
+        return;
+      }
+      _activeIndKey = key;
+      indEl.querySelectorAll('.ind-card').forEach(c => c.classList.toggle('is-active', c.dataset.indKey === key));
+
+      const detail = _buildIndDetail(key, panel._insightsData);
+      if (!detail) { detailEl.hidden = true; return; }
+
+      const gotoBtn = detail.gotoTab
+        ? '<button class="ind-detail-goto" data-goto-tab="' + detail.gotoTab + '"' +
+          (detail.diagFilter ? ' data-diagnosis-filter="' + detail.diagFilter + '"' : '') +
+          '>' + esc(detail.gotoLabel) + '</button>'
+        : '';
+
+      detailEl.innerHTML =
+        '<p class="ind-detail-label">' + esc(detail.label) + '</p>' +
+        '<div class="ind-detail-body">' + detail.bodyHtml + '</div>' +
+        (gotoBtn ? '<div class="ind-detail-footer">' + gotoBtn + '</div>' : '');
+      detailEl.hidden = false;
+
+      detailEl.querySelectorAll('[data-goto-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _navigateToTab(btn.dataset.gotoTab, btn.dataset.diagnosisFilter || null);
+        });
+      });
+    });
+  });
+}
+
 
 // ── Activity ──────────────────────────────────────────────────────
 async function renderActivityWindow(panel, code) {
@@ -1201,10 +1952,15 @@ function createRosterCard(s) {
   // Footer: positive per-student insight
   const footerText = cardInsight(s);
 
+  const roleBadge = s.role === 'student_solo'
+    ? '<span style="font-family:var(--vk-font-ui);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--vk-fg-2);border:1px solid var(--vk-border-mid);padding:1px 6px;margin-left:8px;vertical-align:middle">Invited</span>'
+    : '';
+
   card.innerHTML =
     '<div class="rc-head">' +
       '<span class="rc-dot ' + health + '"></span>' +
       '<span class="rc-name">' + (s.name || s.access_code) + '</span>' +
+      roleBadge +
       nextHtml +
     '</div>' +
     (showNoPracticeWarning
@@ -1235,60 +1991,260 @@ function createRosterCard(s) {
   return card;
 }
 
-// ── Add student form ─────────────────────────────────────────────
-async function submitAddStudent(e) {
-  e.preventDefault();
-  const payload = {
-    access_code:  document.getElementById('new-code').value.trim(),
-    name:         document.getElementById('new-name').value.trim(),
-    lesson_days:  document.getElementById('new-lesson-days').value.trim() || '[]',
-    lesson_time:  document.getElementById('new-lesson-time').value.trim(),
-  };
-  const res = await fetch('/analytics/students?key=' + encodeURIComponent(KEY), {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-  });
-  if (res.ok) {
-    location.reload();
-  } else {
-    alert('Error — check that the access code is unique.');
+// ════════════════════════════════════════════════════════════════
+//  MANAGE STUDENTS — full student management (from students.html)
+// ════════════════════════════════════════════════════════════════
+
+async function _mgmtFetch(path, opts = {}) {
+  const jwt = localStorage.getItem('ft_jwt');
+  opts.headers = Object.assign({}, opts.headers || {}, jwt ? { 'Authorization': 'Bearer ' + jwt } : {});
+  let res = await fetch(path, opts);
+  if (res.status === 401) {
+    const rt = localStorage.getItem('ft_refresh_token');
+    if (rt) {
+      try {
+        const rr = await fetch('/auth/refresh', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: rt }),
+        });
+        if (rr.ok) {
+          const rd = await rr.json();
+          localStorage.setItem('ft_jwt', rd.access_token);
+          opts.headers['Authorization'] = 'Bearer ' + rd.access_token;
+          res = await fetch(path, opts);
+        }
+      } catch (_) {}
+    }
   }
+  return res;
+}
+
+let _mgmtStudents = [];
+
+async function loadManageRoster() {
+  const wrap = document.getElementById('mgmt-table-wrap');
+  wrap.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const r = await _mgmtFetch('/teacher/students');
+    if (r.status === 401 || r.status === 403) {
+      wrap.innerHTML = '<div class="empty">Teacher login required — sign in at <a href="/login" style="color:var(--vk-accent-text)">/login</a></div>';
+      return;
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    _mgmtStudents = data.students || [];
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty">Failed to load roster — ' + e.message + '</div>';
+    return;
+  }
+  _mgmtRenderTable();
+}
+
+function _mgmtRenderTable() {
+  const wrap = document.getElementById('mgmt-table-wrap');
+  const countEl = document.getElementById('mgmt-count');
+  countEl.textContent = _mgmtStudents.length + ' student' + (_mgmtStudents.length !== 1 ? 's' : '');
+
+  if (!_mgmtStudents.length) {
+    wrap.innerHTML = '<div class="empty">No students yet — add one above.</div>';
+    return;
+  }
+
+  const rows = _mgmtStudents.map(s => {
+    const name  = esc(s.username || s.email || '#' + s.id);
+    const email = s.email ? '<div style="font-size:var(--vk-text-2xs);color:var(--vk-fg-2)">' + esc(s.email) + '</div>' : '';
+    const code  = s.access_code || '';
+    const active = s.is_active;
+    const badge = active
+      ? '<span class="vk-tag" style="background:rgba(31,90,64,.12);color:#1F5A40">Active</span>'
+      : '<span class="vk-tag" style="background:rgba(138,90,0,.1);color:#8A5A00">Paused</span>';
+    const pauseBtn = active
+      ? '<button class="vk-btn vk-btn-outline sm" onclick="mgmtSetPause(' + s.id + ',true)">Pause</button>'
+      : '<button class="vk-btn vk-btn-outline sm" onclick="mgmtSetPause(' + s.id + ',false)">Reactivate</button>';
+    const lastActive = s.last_active ? _mgmtFmtDate(s.last_active) : '—';
+    const analyticsLink = code
+      ? '<button class="vk-btn vk-btn-outline sm" onclick="selectPanel(\'student-' + esc(code) + '\',document.getElementById(\'nav-' + esc(code) + '\'))">Analytics</button>'
+      : '';
+    return '<tr>' +
+      '<td class="dt-word">' + name + email + '</td>' +
+      '<td style="font-family:var(--vk-font-ui);color:var(--vk-accent-text)">' + esc(code) + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + lastActive + '</td>' +
+      '<td>' + (s.event_count ?? 0) + '</td>' +
+      '<td><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        analyticsLink +
+        '<button class="vk-btn vk-btn-outline sm" onclick="mgmtResetPassword(' + s.id + ',\'' + esc(s.email || '') + '\')">Reset Password</button>' +
+        pauseBtn +
+        '<button class="vk-btn sm" style="border:1px solid rgba(180,35,24,.3);color:#B42318;background:none" onclick="mgmtRemove(' + s.id + ',\'' + esc(s.email || s.username || '') + '\')">Remove</button>' +
+      '</div></td>' +
+      '</tr>';
+  }).join('');
+
+  wrap.innerHTML = '<table class="diag-table">' +
+    '<thead><tr><th>Student</th><th>Access Code</th><th>Status</th><th>Last Active</th><th>Events</th><th>Actions</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
+}
+
+async function mgmtAddStudent() {
+  const email       = document.getElementById('add-new-email').value.trim();
+  const name        = document.getElementById('add-new-name').value.trim();
+  const lesson_time = document.getElementById('add-lesson-time').value.trim();
+  const notes       = document.getElementById('add-notes').value.trim();
+  const lesson_days = Array.from(
+    document.querySelectorAll('#add-lesson-days input:checked')
+  ).map(cb => cb.value);
+  const errEl = document.getElementById('add-new-err');
+  const btn   = document.getElementById('add-submit-btn');
+  const emailConfirm = document.getElementById('add-new-email-confirm').value.trim().toLowerCase();
+  errEl.textContent = '';
+  if (!email) { errEl.textContent = 'Email is required.'; return; }
+  if (email !== emailConfirm) { errEl.textContent = 'Email addresses do not match.'; return; }
+  btn.disabled = true;
+  try {
+    const r = await _mgmtFetch('/teacher/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name, lesson_days, lesson_time, notes }),
+    });
+    const data = await r.json();
+    if (!r.ok) { errEl.textContent = data.detail || 'Error adding student.'; btn.disabled = false; return; }
+    // Clear form
+    document.getElementById('add-new-email').value = '';
+    document.getElementById('add-new-email-confirm').value = '';
+    document.getElementById('add-new-name').value = '';
+    document.getElementById('add-lesson-time').value = '';
+    document.getElementById('add-notes').value = '';
+    document.querySelectorAll('#add-lesson-days input').forEach(cb => cb.checked = false);
+    // Show invite confirmation instead of credential modal
+    mgmtShowInviteSent(data);
+    await loadManageRoster();
+  } catch { errEl.textContent = 'Connection error.'; }
+  btn.disabled = false;
+}
+
+function mgmtShowInviteSent(data) {
+  const emailSentMsg = data.email_sent
+    ? `An invitation email was sent to <strong>${data.email}</strong>.`
+    : `Email delivery is not configured. Share this link with <strong>${data.email}</strong>:`;
+  document.getElementById('invite-sent-msg').innerHTML = emailSentMsg;
+  document.getElementById('invite-sent-url').textContent = data.invite_url;
+  document.getElementById('mgmt-invite-sent-modal').style.display = 'flex';
+}
+
+function mgmtCloseInviteSentModal() {
+  document.getElementById('mgmt-invite-sent-modal').style.display = 'none';
+}
+
+async function mgmtResetPassword(userId, email) {
+  mgmtShowConfirm(
+    'Reset Password',
+    'Reset the password for ' + (email || 'this student') + '? New temporary credentials will be generated.',
+    async () => {
+      mgmtCloseConfirm();
+      const r = await _mgmtFetch('/teacher/students/' + userId + '/reset-password', { method: 'POST' });
+      if (!r.ok) { mgmtToast('Failed to reset password.', true); return; }
+      const data = await r.json();
+      mgmtShowCredModal({ email, username: data.username, temp_password: data.temp_password });
+    }
+  );
+}
+
+async function mgmtSetPause(userId, pause) {
+  const label = pause ? 'Pause' : 'Reactivate';
+  const s     = _mgmtStudents.find(s => s.id === userId);
+  const name  = s ? (s.email || s.username || '#' + userId) : '#' + userId;
+  mgmtShowConfirm(
+    label + ' Student',
+    label + ' access for ' + name + '?',
+    async () => {
+      mgmtCloseConfirm();
+      const r = await _mgmtFetch('/teacher/students/' + userId + '/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: pause ? 0 : 1 }),
+      });
+      if (!r.ok) { mgmtToast('Failed to ' + label.toLowerCase() + ' student.', true); return; }
+      mgmtToast('Student ' + label.toLowerCase() + 'd.');
+      await loadManageRoster();
+    }
+  );
+}
+
+async function mgmtRemove(userId, name) {
+  mgmtShowConfirm(
+    'Remove Student',
+    'Remove ' + (name || 'this student') + ' from your roster? Their account will be deactivated.',
+    async () => {
+      mgmtCloseConfirm();
+      const r = await _mgmtFetch('/teacher/students/' + userId, { method: 'DELETE' });
+      if (!r.ok) { mgmtToast('Failed to remove student.', true); return; }
+      mgmtToast('Student removed.');
+      await loadManageRoster();
+    }
+  );
+}
+
+function mgmtShowCredModal(data) {
+  document.getElementById('cred-email').textContent    = data.email    || '';
+  document.getElementById('cred-username').textContent = data.username || '';
+  document.getElementById('cred-password').textContent = data.temp_password || '';
+  document.getElementById('mgmt-cred-modal').style.display = 'flex';
+}
+function mgmtCloseCredModal() {
+  document.getElementById('mgmt-cred-modal').style.display = 'none';
+}
+function mgmtCopyField(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  });
+}
+function mgmtCopyAllCreds(btn) {
+  const text = 'Email: ' + document.getElementById('cred-email').textContent +
+    '\nUsername: ' + document.getElementById('cred-username').textContent +
+    '\nPassword: ' + document.getElementById('cred-password').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy All'; }, 2000);
+  });
+}
+
+let _mgmtConfirmCb = null;
+function mgmtShowConfirm(label, msg, cb) {
+  document.getElementById('mgmt-confirm-label').textContent = label;
+  document.getElementById('mgmt-confirm-msg').textContent   = msg;
+  _mgmtConfirmCb = cb;
+  document.getElementById('mgmt-confirm-modal').style.display = 'flex';
+}
+function mgmtCloseConfirm() {
+  document.getElementById('mgmt-confirm-modal').style.display = 'none';
+  _mgmtConfirmCb = null;
+}
+document.getElementById('mgmt-confirm-ok').addEventListener('click', () => {
+  if (_mgmtConfirmCb) _mgmtConfirmCb();
+});
+
+let _mgmtToastTimer = null;
+function mgmtToast(msg, isErr = false) {
+  const el = document.getElementById('mgmt-toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.borderColor = isErr ? 'rgba(180,35,24,.4)' : 'var(--vk-border-mid)';
+  el.style.color = isErr ? '#B42318' : 'var(--vk-fg-1)';
+  clearTimeout(_mgmtToastTimer);
+  _mgmtToastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function _mgmtFmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso.replace(' ', 'T')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }); }
+  catch { return '—'; }
 }
 
 // ── Roster KPI helpers ────────────────────────────────────────────
 
-function topTopics(students, n = 3) {
-  const counts = {};
-  students.forEach(s => {
-    (s.topics || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; });
-  });
-  return Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, n)
-    .map(e => e[0]);
-}
-
-function buildInsights(students, win) {
-  const items = [];
-  const inactiveDays = win === '7d' ? 7 : 14;
-
-  const inactive = students.filter(
-    s => s.days_since_practice != null && s.days_since_practice > inactiveDays
-  );
-  if (inactive.length) {
-    items.push({ text: inactive.length + ' inactive ' + inactiveDays + '+ days', warn: true });
-  }
-
-  const lowScore = students.filter(s => s.avg_score != null && s.avg_score < 0.6).length;
-  if (lowScore) {
-    items.push({ text: lowScore + ' student' + (lowScore > 1 ? 's' : '') + ' below 60% avg', warn: true });
-  }
-
-  if (!items.length) items.push({ text: 'All students on track', ok: true });
-
-  return items;
-}
 
 function setDelta(elId, ratio) {
   const el = document.getElementById(elId);
@@ -1315,71 +2271,58 @@ function renderRosterKpis(students, win) {
   document.getElementById('r-kpi-sessions-sub').textContent =
     students.length ? 'avg ' + avgSessions + ' / student' : '—';
 
-  // Sessions trend
-  if (is7d) {
-    // Prior 23 days normalised to a 7-day rate gives a like-for-like comparison
-    const prev7d_est = curr30d > curr7d ? (curr30d - curr7d) * (7 / 23) : null;
-    const ratio = (prev7d_est != null && prev7d_est > 0)
-      ? (curr7d - prev7d_est) / prev7d_est
-      : null;
-    setDelta('r-kpi-sessions-delta', ratio);
-  } else {
-    // prev_sessions_30d not yet in roster payload — needs backend field
-    const prev30d = students[0]?.prev_sessions_30d != null
-      ? students.reduce((sum, s) => sum + (s.prev_sessions_30d || 0), 0)
-      : null;
-    const ratio = (prev30d != null && prev30d > 0) ? (curr30d - prev30d) / prev30d : null;
-    setDelta('r-kpi-sessions-delta', ratio);
-  }
+  // Sessions trend — compare to prior same-length window
+  const prevSessions = is7d
+    ? students.reduce((sum, s) => sum + (s.sessions_prev_7d  || 0), 0)
+    : students.reduce((sum, s) => sum + (s.sessions_prev_30d || 0), 0);
+  const sessCurr = is7d ? curr7d : curr30d;
+  setDelta('r-kpi-sessions-delta', prevSessions > 0 ? (sessCurr - prevSessions) / prevSessions : null);
 
   // Avg time / session
-  const totalMins7d  = students.reduce((sum, s) => sum + (s.practice_minutes_7d  || 0), 0);
-  const totalMins30d = students.reduce((sum, s) => sum + (s.practice_minutes_30d || 0), 0);
+  const totalMins7d      = students.reduce((sum, s) => sum + (s.practice_minutes_7d      || 0), 0);
+  const totalMins30d     = students.reduce((sum, s) => sum + (s.practice_minutes_30d     || 0), 0);
+  const totalMinsPrev7d  = students.reduce((sum, s) => sum + (s.practice_minutes_prev_7d  || 0), 0);
+  const totalMinsPrev30d = students.reduce((sum, s) => sum + (s.practice_minutes_prev_30d || 0), 0);
+  const prevSess7d       = students.reduce((sum, s) => sum + (s.sessions_prev_7d  || 0), 0);
+  const prevSess30d      = students.reduce((sum, s) => sum + (s.sessions_prev_30d || 0), 0);
   const timeEl  = document.getElementById('r-kpi-time');
   const timeSub = document.getElementById('r-kpi-time-sub');
 
   if (is7d && curr7d > 0) {
-    const avgMin = Math.round(totalMins7d / curr7d);
-    timeEl.textContent  = avgMin + 'm';
-    timeSub.textContent = totalMins7d + 'm total';
-
-    // Time trend: needs practice_minutes_prev_7d from backend
-    const prevMins7d = students[0]?.practice_minutes_prev_7d != null
-      ? students.reduce((sum, s) => sum + (s.practice_minutes_prev_7d || 0), 0)
-      : null;
-    const prevSess7d = students[0]?.sessions_prev_7d != null
-      ? students.reduce((sum, s) => sum + (s.sessions_prev_7d || 0), 0)
-      : null;
-    const prevAvg = (prevMins7d != null && prevSess7d > 0) ? prevMins7d / prevSess7d : null;
     const currAvg = totalMins7d / curr7d;
-    const ratio = prevAvg != null ? (currAvg - prevAvg) / prevAvg : null;
-    setDelta('r-kpi-time-delta', ratio);
-  } else if (!is7d && curr30d > 0 && totalMins30d > 0) {
-    const avgMin = Math.round(totalMins30d / curr30d);
-    timeEl.textContent  = avgMin + 'm';
+    timeEl.textContent  = Math.round(currAvg) + 'm';
+    timeSub.textContent = totalMins7d + 'm total';
+    const prevAvg = prevSess7d > 0 ? totalMinsPrev7d / prevSess7d : null;
+    setDelta('r-kpi-time-delta', prevAvg != null ? (currAvg - prevAvg) / prevAvg : null);
+  } else if (!is7d && curr30d > 0) {
+    const currAvg = totalMins30d / curr30d;
+    timeEl.textContent  = Math.round(currAvg) + 'm';
     timeSub.textContent = totalMins30d + 'm total';
-    setDelta('r-kpi-time-delta', null);
+    const prevAvg = prevSess30d > 0 ? totalMinsPrev30d / prevSess30d : null;
+    setDelta('r-kpi-time-delta', prevAvg != null ? (currAvg - prevAvg) / prevAvg : null);
   } else {
     timeEl.textContent  = '—';
     timeSub.textContent = '';
     setDelta('r-kpi-time-delta', null);
   }
 
-  // Topics — top 3 across all students (topics field is 30d, used for both windows)
-  const topics = topTopics(students, 3);
-  const topicsEl = document.getElementById('r-kpi-topics');
-  topicsEl.innerHTML = topics.length
-    ? topics.map(t => '<span class="vk-tag">' + t + '</span>').join('')
-    : '<span class="r-kpi-empty">—</span>';
+  // helper: cohort avg for a per-student field
+  function cohortAvg(field) {
+    const vals = students.map(s => s[field]).filter(v => v != null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }
 
-  // Tutor insights
-  const insights = buildInsights(students, win);
-  const insightsEl = document.getElementById('r-kpi-insights');
-  insightsEl.innerHTML = insights.map(i =>
-    '<li class="r-kpi-insight-item' +
-    (i.ok ? ' is-ok' : i.warn ? ' is-warn' : '') +
-    '">' + i.text + '</li>'
-  ).join('');
+  // Performance (paragraph accuracy) — cohort average + delta
+  const paraAvg     = cohortAvg(is7d ? 'avg_para_score_7d'   : 'avg_para_score_30d');
+  const paraPrev    = cohortAvg(is7d ? 'avg_para_prev_7d'    : 'avg_para_prev_30d');
+  document.getElementById('r-kpi-performance').textContent = paraAvg != null ? Math.round(paraAvg * 100) + '%' : '—';
+  setDelta('r-kpi-performance-delta', (paraAvg != null && paraPrev != null) ? (paraAvg - paraPrev) / paraPrev : null);
+
+  // Precision (phrase accuracy) — cohort average + delta
+  const phraseAvg   = cohortAvg(is7d ? 'avg_phrase_score_7d' : 'avg_phrase_score_30d');
+  const phrasePrev  = cohortAvg(is7d ? 'avg_phrase_prev_7d'  : 'avg_phrase_prev_30d');
+  document.getElementById('r-kpi-precision').textContent = phraseAvg != null ? Math.round(phraseAvg * 100) + '%' : '—';
+  setDelta('r-kpi-precision-delta', (phraseAvg != null && phrasePrev != null) ? (phraseAvg - phrasePrev) / phrasePrev : null);
 }
 
 function setRosterWindow(win, btn) {
@@ -1390,15 +2333,18 @@ function setRosterWindow(win, btn) {
 
 // ── Init ─────────────────────────────────────────────────────────
 async function init() {
-  allNavBtns = [document.getElementById('nav-roster')];
+  allNavBtns = [
+    document.getElementById('nav-roster'),
+    document.getElementById('nav-manage-students'),
+    document.getElementById('nav-add-student'),
+    document.getElementById('nav-profile'),
+  ];
 
   const grid = document.getElementById('roster-grid');
 
   let students = [];
   try {
-    const res  = await fetch('/analytics/students?key=' + encodeURIComponent(KEY));
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const data = await fetchJSON('/analytics/students');
     students   = data.students || [];
   } catch (err) {
     grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Erreur de chargement — ' + err.message + '</div>';
@@ -1443,7 +2389,83 @@ async function init() {
   }
 }
 
+let _profileData = null;
+
+async function loadProfile() {
+  try {
+    _profileData = await fetchJSON('/auth/me');
+    document.getElementById('sb-profile-name').textContent = _profileData.username || _profileData.email || 'Teacher';
+  } catch (_) {}
+}
+
+function loadProfilePanel() {
+  if (_profileData) {
+    document.getElementById('prof-email').textContent = _profileData.email || '—';
+    if (_profileData.created_at) {
+      const d = new Date(_profileData.created_at.replace(' ', 'T') + 'Z');
+      const months = ['January','February','March','April','May','June','July',
+                      'August','September','October','November','December'];
+      document.getElementById('prof-member-since').textContent =
+        d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+  }
+  const students = window._rosterStudents || [];
+  document.getElementById('prof-kpi-students').textContent = students.length || '—';
+  const totalSessions = students.reduce((s, st) => s + (st.sessions_7d || 0), 0);
+  document.getElementById('prof-kpi-sessions').textContent = totalSessions;
+  const scored = students.filter(st => st.avg_score_7d != null);
+  if (scored.length) {
+    const avg = scored.reduce((s, st) => s + st.avg_score_7d, 0) / scored.length;
+    document.getElementById('prof-kpi-score').textContent = Math.round(avg * 100) + '%';
+  } else {
+    document.getElementById('prof-kpi-score').textContent = '—';
+  }
+  ['prof-cur-pw','prof-new-pw','prof-new-pw2'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('prof-pw-error').textContent = '';
+  document.getElementById('prof-pw-success').textContent = '';
+}
+
+async function profileChangePw() {
+  const cur = document.getElementById('prof-cur-pw').value;
+  const np1 = document.getElementById('prof-new-pw').value;
+  const np2 = document.getElementById('prof-new-pw2').value;
+  const err = document.getElementById('prof-pw-error');
+  const ok  = document.getElementById('prof-pw-success');
+  err.textContent = ''; ok.textContent = '';
+  if (!cur || !np1 || !np2) { err.textContent = 'All fields required.'; return; }
+  if (np1 !== np2) { err.textContent = 'New passwords do not match.'; return; }
+  if (np1.length < 8) { err.textContent = 'New password must be at least 8 characters.'; return; }
+  try {
+    const r = await _mgmtFetch('/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: cur, new_password: np1 }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      err.textContent = (d && d.detail) || 'Failed to update password.';
+      return;
+    }
+    ok.textContent = 'Password updated.';
+    ['prof-cur-pw','prof-new-pw','prof-new-pw2'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+  } catch (e) {
+    err.textContent = e.message || 'Failed to update password.';
+  }
+}
+
+function signOut() {
+  localStorage.removeItem('ft_jwt');
+  localStorage.removeItem('ft_refresh_token');
+  localStorage.removeItem('ft_access_code');
+  window.location.href = '/login';
+}
+
 init();
+loadProfile();
 </script>
 </body>
 </html>

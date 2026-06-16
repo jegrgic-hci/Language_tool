@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dev Launcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/vk-tokens.css">
+  <link rel="stylesheet" href="/static/vk-components.css">
+  <link rel="stylesheet" href="/static/vk-theme-light.css">
+  <link rel="stylesheet" href="/static/vk-theme-atelier.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--vkg-font-sans, 'Hanken Grotesk', sans-serif);
+      background: var(--vk-bg-1);
+      color: var(--vk-fg-1);
+      min-height: 100vh;
+      padding: 40px 24px 80px;
+    }
+
+    .dev-wrap {
+      max-width: 880px;
+      margin: 0 auto;
+    }
+
+    .dev-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .dev-title {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+    }
+
+    .dev-badge {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      background: var(--vk-error);
+      color: #fff;
+    }
+
+    .dev-sub {
+      font-size: 13px;
+      color: var(--vk-fg-2);
+      margin-bottom: 32px;
+    }
+
+    /* Current session banner */
+    #session-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border: 1px solid var(--vk-accent);
+      background: var(--vk-accent-bg, color-mix(in srgb, var(--vk-accent) 8%, transparent));
+      margin-bottom: 32px;
+      font-size: 13px;
+    }
+
+    #session-banner.visible { display: flex; }
+
+    .session-label {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+    }
+
+    #session-info {
+      flex: 1;
+      color: var(--vk-fg-1);
+      font-weight: 600;
+    }
+
+    .btn-ghost {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border: 1px solid var(--vk-border);
+      background: transparent;
+      color: var(--vk-fg-2);
+      cursor: pointer;
+      transition: color 100ms, border-color 100ms;
+    }
+
+    .btn-ghost:hover { color: var(--vk-fg-1); border-color: var(--vk-fg-2); }
+
+    /* Account grid */
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .account-card {
+      border: 1px solid var(--vk-border);
+      background: var(--vk-bg-2);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .account-card.is-active {
+      border-color: var(--vk-accent);
+      background: var(--vk-accent-bg, color-mix(in srgb, var(--vk-accent) 5%, transparent));
+    }
+
+    .card-role {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--vk-accent-text, var(--vk-accent));
+    }
+
+    .card-label {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--vk-fg-1);
+      line-height: 1.2;
+    }
+
+    .card-creds {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 12px;
+      color: var(--vk-fg-2);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .card-dest {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 11px;
+      color: var(--vk-fg-3);
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .btn-login {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border: none;
+      background: var(--vk-accent);
+      color: var(--vk-accent-fg, #fff);
+      cursor: pointer;
+      flex: 1;
+      transition: background 100ms;
+    }
+
+    .btn-login:hover { background: var(--vk-accent-dim, var(--vk-accent)); }
+    .btn-login:disabled { opacity: 0.5; cursor: default; }
+
+    .btn-open {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border: 1px solid var(--vk-border);
+      background: transparent;
+      color: var(--vk-fg-2);
+      cursor: pointer;
+      transition: color 100ms, border-color 100ms;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .btn-open:hover { color: var(--vk-fg-1); border-color: var(--vk-fg-2); }
+
+    .card-error {
+      font-size: 12px;
+      color: var(--vk-error);
+      display: none;
+    }
+
+    .card-error.visible { display: block; }
+
+    /* Admin manual login */
+    .admin-card {
+      border: 1px solid var(--vk-border);
+      background: var(--vk-bg-2);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .admin-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .admin-form input {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 12px;
+      padding: 8px 10px;
+      border: 1px solid var(--vk-border);
+      background: var(--vk-bg-1);
+      color: var(--vk-fg-1);
+      outline: none;
+    }
+
+    .admin-form input:focus { border-color: var(--vk-accent); }
+
+    /* Quick links */
+    .quick-links {
+      border-top: 1px solid var(--vk-border);
+      padding-top: 24px;
+    }
+
+    .quick-links-title {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      margin-bottom: 12px;
+    }
+
+    .links-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .quick-link {
+      font-family: var(--vkg-font-mono, 'Geist Mono', monospace);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border: 1px solid var(--vk-border);
+      color: var(--vk-fg-2);
+      text-decoration: none;
+      transition: color 100ms, border-color 100ms;
+    }
+
+    .quick-link:hover { color: var(--vk-fg-1); border-color: var(--vk-fg-2); }
+  </style>
+</head>
+<body>
+  <div class="dev-wrap">
+    <div class="dev-header">
+      <span class="dev-title">Dev Launcher</span>
+      <span class="dev-badge">Dev only</span>
+    </div>
+    <p class="dev-sub">One-click login for each account type. Run <code>python seed_test.py</code> first to create test accounts.</p>
+
+    <div id="session-banner">
+      <span class="session-label">Logged in as</span>
+      <span id="session-info"></span>
+      <button class="btn-ghost" onclick="logout()">Log out</button>
+    </div>
+
+    <div class="accounts-grid" id="cards-container">
+      <!-- cards injected by JS -->
+    </div>
+
+    <div class="quick-links">
+      <div class="quick-links-title">Pages</div>
+      <div class="links-row">
+        <a class="quick-link" href="/">App (index.html)</a>
+        <a class="quick-link" href="/analytics/dashboard">Analytics dashboard</a>
+        <a class="quick-link" href="/admin">Admin panel</a>
+        <a class="quick-link" href="/login">Login page</a>
+        <a class="quick-link" href="/landing">Landing page</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TEST_ACCOUNTS = [
+      {
+        role: 'teacher',
+        label: 'Teacher',
+        email: 'teacher@dev.test',
+        password: 'devtest123',
+        dest: '/analytics/dashboard',
+        destLabel: '/analytics/dashboard',
+      },
+      {
+        role: 'student_teacher',
+        label: 'Student (teacher-linked)',
+        email: 'student_t@dev.test',
+        password: 'devtest123',
+        dest: '/',
+        destLabel: '/  (index.html)',
+      },
+      {
+        role: 'student_solo',
+        label: 'Student (solo)',
+        email: 'student_s@dev.test',
+        password: 'devtest123',
+        dest: '/',
+        destLabel: '/  (index.html)',
+      },
+    ];
+
+    function currentPayload() {
+      try {
+        const token = localStorage.getItem('ft_jwt');
+        if (!token) return null;
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+        return payload;
+      } catch { return null; }
+    }
+
+    function renderBanner() {
+      const payload = currentPayload();
+      const banner = document.getElementById('session-banner');
+      const info = document.getElementById('session-info');
+      if (payload) {
+        info.textContent = `${payload.role}  ·  access_code: ${payload.access_code || '—'}  ·  id: ${payload.sub}`;
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+    }
+
+    function renderCards() {
+      const payload = currentPayload();
+      const container = document.getElementById('cards-container');
+      container.innerHTML = '';
+
+      TEST_ACCOUNTS.forEach(acct => {
+        const isActive = payload && payload.role === acct.role;
+        const card = document.createElement('div');
+        card.className = 'account-card' + (isActive ? ' is-active' : '');
+        card.innerHTML = `
+          <div class="card-role">${acct.role}</div>
+          <div class="card-label">${acct.label}</div>
+          <div class="card-creds">
+            <span>${acct.email}</span>
+            <span>${acct.password}</span>
+          </div>
+          <div class="card-dest">→ ${acct.destLabel}</div>
+          <div class="card-actions">
+            <button class="btn-login" onclick="loginAs(${JSON.stringify(acct).replace(/"/g, '&quot;')}, this)">Login</button>
+            <a class="btn-open" href="${acct.dest}" target="_blank">Open</a>
+          </div>
+          <div class="card-error" id="err-${acct.role}"></div>
+        `;
+        container.appendChild(card);
+      });
+
+      // Admin card (manual)
+      const adminCard = document.createElement('div');
+      adminCard.className = 'account-card' + (payload && payload.role === 'super_admin' ? ' is-active' : '');
+      adminCard.innerHTML = `
+        <div class="card-role">super_admin</div>
+        <div class="card-label">Super Admin</div>
+        <div class="card-creds"><span>Credentials from .env</span></div>
+        <div class="card-dest">→ /admin</div>
+        <div class="admin-form">
+          <input type="email" id="admin-email" placeholder="SUPER_ADMIN_EMAIL" autocomplete="off">
+          <input type="password" id="admin-pass" placeholder="SUPER_ADMIN_PASSWORD" autocomplete="off">
+        </div>
+        <div class="card-actions">
+          <button class="btn-login" onclick="loginAdmin(this)">Login</button>
+          <a class="btn-open" href="/admin" target="_blank">Open</a>
+        </div>
+        <div class="card-error" id="err-super_admin"></div>
+      `;
+      container.appendChild(adminCard);
+    }
+
+    async function loginAs(acct, btn) {
+      btn.disabled = true;
+      btn.textContent = 'Logging in…';
+      const errEl = document.getElementById('err-' + acct.role);
+      errEl.classList.remove('visible');
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: acct.email, password: acct.password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Login failed');
+        storeTokens(data);
+        window.location.href = acct.dest;
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    }
+
+    async function loginAdmin(btn) {
+      const email = document.getElementById('admin-email').value.trim();
+      const password = document.getElementById('admin-pass').value;
+      if (!email || !password) { return; }
+      btn.disabled = true;
+      btn.textContent = 'Logging in…';
+      const errEl = document.getElementById('err-super_admin');
+      errEl.classList.remove('visible');
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Login failed');
+        if (data.role !== 'super_admin') throw new Error('Not a super_admin account');
+        storeTokens(data);
+        window.location.href = '/admin';
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    }
+
+    function storeTokens(data) {
+      localStorage.setItem('ft_jwt', data.access_token);
+      if (data.refresh_token) localStorage.setItem('ft_refresh_token', data.refresh_token);
+      if (data.access_code) localStorage.setItem('ft_access_code', data.access_code);
+    }
+
+    function logout() {
+      localStorage.removeItem('ft_jwt');
+      localStorage.removeItem('ft_refresh_token');
+      localStorage.removeItem('ft_access_code');
+      renderBanner();
+      renderCards();
+    }
+
+    renderBanner();
+    renderCards();
+  </script>
+</body>
+</html>

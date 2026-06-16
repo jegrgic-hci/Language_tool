@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VraiFrench — Sign In</title>
+  <link rel="stylesheet" href="/static/vk-tokens.css">
+  <link rel="stylesheet" href="/static/vk-components.css">
+  <link rel="stylesheet" href="/static/vk-theme-light.css">
+  <link rel="stylesheet" href="/static/vk-theme-atelier.css">
+  <style>
+    body {
+      font-family: var(--vk-font-ui);
+      background: var(--vk-bg);
+      color: var(--vk-fg-1);
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--vk-surface);
+      border: 1px solid var(--vk-border-mid);
+      width: 100%;
+      max-width: 420px;
+      padding: 40px 36px 36px;
+    }
+
+    .wordmark {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vk-fg-1);
+      margin-bottom: 4px;
+    }
+
+    .byline {
+      font-size: 0.7rem;
+      color: var(--vk-fg-2);
+      letter-spacing: 0.05em;
+      margin-bottom: 32px;
+    }
+
+    .tab-row {
+      display: flex;
+      border-bottom: 1px solid var(--vk-border-mid);
+      margin-bottom: 28px;
+    }
+
+    .tab {
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 0 0 10px;
+      margin-bottom: -1px;
+      margin-right: 24px;
+      cursor: pointer;
+      transition: color 120ms, border-color 120ms;
+    }
+
+    .tab.active {
+      color: var(--vk-fg-1);
+      border-bottom-color: var(--vk-accent);
+    }
+
+    .field { margin-bottom: 16px; }
+
+    label {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      margin-bottom: 6px;
+    }
+
+    input[type="email"],
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.875rem;
+      background: var(--vk-bg);
+      border: 1px solid var(--vk-border-mid);
+      color: var(--vk-fg-1);
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 120ms;
+      box-sizing: border-box;
+    }
+
+    input:focus { border-color: var(--vk-accent); }
+
+    .btn {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--vk-accent);
+      color: var(--vk-accent-fg);
+      border: none;
+      padding: 12px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 120ms;
+    }
+
+    .btn:hover:not(:disabled) { background: var(--vk-accent-dim); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-ghost {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: none;
+      color: var(--vk-fg-2);
+      border: 1px solid var(--vk-border-mid);
+      padding: 10px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 120ms, color 120ms;
+    }
+
+    .btn-ghost:hover { background: var(--vk-border-mid); color: var(--vk-fg-1); }
+
+    .error {
+      font-size: 0.75rem;
+      color: var(--vk-error);
+      margin-top: 12px;
+      min-height: 1em;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      color: var(--vk-fg-2);
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Change password sub-form ── */
+    #change-pw-section {
+      display: none;
+      border-top: 1px solid var(--vk-border-mid);
+      margin-top: 24px;
+      padding-top: 24px;
+    }
+
+    .section-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      margin-bottom: 16px;
+    }
+
+    /* ── Forgot password panel ── */
+    .forgot-link {
+      display: inline-block;
+      font-size: 0.68rem;
+      color: var(--vk-accent-text);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+      margin-top: 10px;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .forgot-link:hover { color: var(--vk-fg-1); }
+
+    .forgot-box {
+      background: var(--vk-bg);
+      border: 1px solid var(--vk-border-mid);
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .forgot-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-fg-2);
+      margin-bottom: 10px;
+    }
+
+    .forgot-body {
+      font-size: 0.78rem;
+      color: var(--vk-fg-1);
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .forgot-body a {
+      color: var(--vk-accent-text);
+    }
+
+    .back-link {
+      font-size: 0.68rem;
+      color: var(--vk-fg-2);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 0.04em;
+    }
+
+    .back-link:hover { color: var(--vk-fg-1); }
+  </style>
+</head>
+<body data-theme="atelier">
+<div class="card">
+  <div class="wordmark">VraiFrench</div>
+  <div class="byline">French pronunciation training</div>
+
+  <div class="tab-row">
+    <button class="tab active" onclick="showPanel('login', this)">Sign In</button>
+    <button class="tab" onclick="showPanel('register', this)">Register</button>
+  </div>
+
+  <!-- Login panel -->
+  <div id="panel-login" class="panel active">
+    <div id="login-form-body">
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="email" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="btn" id="login-btn" onclick="doLogin()">Sign In</button>
+      <div class="error" id="login-error"></div>
+      <button class="forgot-link" onclick="showForgot()">Forgot your password?</button>
+    </div>
+
+    <!-- Forgot password box (shown inline) -->
+    <div id="forgot-box" class="forgot-box" style="display:none">
+      <div class="forgot-title">Reset your password</div>
+      <div class="forgot-body" id="forgot-message"></div>
+      <button class="back-link" onclick="hideForgot()">&larr; Back to sign in</button>
+    </div>
+
+    <!-- Force password change sub-form (shown inline after login if required) -->
+    <div id="change-pw-section">
+      <div class="section-label">Set a new password</div>
+      <div class="field">
+        <label for="new-pw">New Password</label>
+        <input type="password" id="new-pw" autocomplete="new-password" placeholder="Choose a strong password">
+      </div>
+      <div class="field">
+        <label for="new-pw-confirm">Confirm Password</label>
+        <input type="password" id="new-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
+      </div>
+      <button class="btn" id="change-pw-btn" onclick="doChangePw()">Set Password &amp; Continue</button>
+      <div class="error" id="change-pw-error"></div>
+    </div>
+  </div>
+
+  <!-- Register panel -->
+  <div id="panel-register" class="panel">
+    <div id="invite-banner" style="display:none; font-size:0.72rem; color:var(--vk-accent-text); background:var(--vk-accent-bg); border:1px solid var(--vk-accent); padding:10px 12px; margin-bottom:16px; line-height:1.5;"></div>
+    <div class="field">
+      <label for="reg-email">Email</label>
+      <input type="email" id="reg-email" autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label for="reg-password">Password</label>
+      <input type="password" id="reg-password" autocomplete="new-password" placeholder="Min. 8 characters">
+    </div>
+    <div class="field">
+      <label for="reg-password-confirm">Confirm Password</label>
+      <input type="password" id="reg-password-confirm" autocomplete="new-password" placeholder="Repeat password">
+    </div>
+    <div class="field" id="teacher-toggle-field" style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+      <input type="checkbox" id="reg-is-teacher" style="width:auto; accent-color:var(--vk-accent);">
+      <label for="reg-is-teacher" style="margin-bottom:0; text-transform:none; font-size:0.78rem; letter-spacing:0; cursor:pointer;">I am a teacher</label>
+    </div>
+    <button class="btn" id="reg-btn" onclick="doRegister()">Create Account</button>
+    <div class="error" id="reg-error"></div>
+    <p class="hint" id="reg-hint">Creating a solo learner account. If your teacher added you, use Sign In with the credentials they gave you.</p>
+  </div>
+</div>
+
+<script>
+  let _pendingToken = null;
+  let _inviteToken  = null;
+
+  // Read ?invite=<token>&email=<email> from URL
+  (() => {
+    const params = new URLSearchParams(location.search);
+    const invite = params.get('invite');
+    const email  = params.get('email');
+    if (!invite) return;
+    _inviteToken = invite;
+    // Switch to Register tab
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-register').classList.add('active');
+    document.querySelector('.tab[onclick*="register"]').classList.add('active');
+    // Pre-fill email and lock it
+    if (email) {
+      const el = document.getElementById('reg-email');
+      el.value = decodeURIComponent(email);
+      el.readOnly = true;
+    }
+    // Show invite banner
+    document.getElementById('invite-banner').style.display = 'block';
+    document.getElementById('invite-banner').textContent = 'You have been invited by your teacher. Create your account below.';
+    // Hide the "I am a teacher" toggle on invite registrations
+    document.getElementById('teacher-toggle-field').style.display = 'none';
+    document.getElementById('reg-hint').textContent = 'Your account will be linked to your teacher automatically.';
+  })();
+
+  function showPanel(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    btn.classList.add('active');
+    document.getElementById('change-pw-section').style.display = 'none';
+    hideForgot();
+    _pendingToken = null;
+  }
+
+  function showForgot() {
+    const email = document.getElementById('login-email').value.trim();
+    let msg;
+    if (!email) {
+      msg = `<strong>Teacher-added student?</strong> Ask your teacher to reset your password from their dashboard.<br><br>
+             <strong>Self-registered?</strong> Email us at <a href="mailto:jegrgic@gmail.com">jegrgic@gmail.com</a> with your registered email address and we'll reset it for you.`;
+    } else {
+      msg = `<strong>Teacher-added student?</strong> Ask your teacher to reset the password for <em>${escHtml(email)}</em>.<br><br>
+             <strong>Self-registered?</strong> Email <a href="mailto:jegrgic@gmail.com?subject=Password reset for ${encodeURIComponent(email)}">jegrgic@gmail.com</a> and we'll sort it out.`;
+    }
+    document.getElementById('forgot-message').innerHTML = msg;
+    document.getElementById('forgot-box').style.display = 'block';
+    document.getElementById('login-form-body').style.display = 'none';
+    document.getElementById('change-pw-section').style.display = 'none';
+  }
+
+  function hideForgot() {
+    document.getElementById('forgot-box').style.display = 'none';
+    document.getElementById('login-form-body').style.display = 'block';
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function storeAndRedirect(data) {
+    localStorage.setItem('ft_jwt', data.access_token);
+    localStorage.setItem('ft_refresh_token', data.refresh_token);
+    if (data.access_code) localStorage.setItem('ft_access_code', data.access_code);
+
+    const role = data.role;
+    if (role === 'super_admin') {
+      location.href = '/admin';
+    } else if (role === 'teacher') {
+      location.href = '/analytics/dashboard';
+    } else {
+      location.href = '/app';
+    }
+  }
+
+  async function doLogin() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl    = document.getElementById('login-error');
+    const btn      = document.getElementById('login-btn');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Email and password required.'; return; }
+    btn.disabled = true;
+    try {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.detail || 'Login failed.'; btn.disabled = false; return; }
+
+      if (data.force_pw_change) {
+        _pendingToken = data;
+        document.getElementById('change-pw-section').style.display = 'block';
+        document.getElementById('new-pw').focus();
+        btn.disabled = false;
+        return;
+      }
+      storeAndRedirect(data);
+    } catch (e) {
+      errEl.textContent = 'Connection error. Is the server running?';
+      btn.disabled = false;
+    }
+  }
+
+  async function doChangePw() {
+    const newPw      = document.getElementById('new-pw').value;
+    const confirm    = document.getElementById('new-pw-confirm').value;
+    const errEl      = document.getElementById('change-pw-error');
+    const btn        = document.getElementById('change-pw-btn');
+    errEl.textContent = '';
+    if (!newPw) { errEl.textContent = 'Password required.'; return; }
+    if (newPw !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
+    if (newPw.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
+    btn.disabled = true;
+
+    const currentPw = document.getElementById('login-password').value;
+    try {
+      const res = await fetch('/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + _pendingToken.access_token,
+        },
+        body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        errEl.textContent = data.detail || 'Failed to update password.';
+        btn.disabled = false;
+        return;
+      }
+      const refreshRes = await fetch('/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: _pendingToken.refresh_token }),
+      });
+      const refreshData = await refreshRes.json();
+      _pendingToken.access_token = refreshData.access_token;
+      _pendingToken.force_pw_change = false;
+      storeAndRedirect(_pendingToken);
+    } catch (e) {
+      errEl.textContent = 'Connection error.';
+      btn.disabled = false;
+    }
+  }
+
+  async function doRegister() {
+    const email      = document.getElementById('reg-email').value.trim();
+    const password   = document.getElementById('reg-password').value;
+    const confirm    = document.getElementById('reg-password-confirm').value;
+    const is_teacher = document.getElementById('reg-is-teacher').checked;
+    const errEl      = document.getElementById('reg-error');
+    const btn        = document.getElementById('reg-btn');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Email and password required.'; return; }
+    if (password !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
+    if (password.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
+    btn.disabled = true;
+    const body = { email, password, is_teacher };
+    if (_inviteToken) body.invite_token = _inviteToken;
+    try {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.detail || 'Registration failed.'; btn.disabled = false; return; }
+      storeAndRedirect(data);
+    } catch (e) {
+      errEl.textContent = 'Connection error. Is the server running?';
+      btn.disabled = false;
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const loginActive = document.getElementById('panel-login').classList.contains('active');
+    const regActive   = document.getElementById('panel-register').classList.contains('active');
+    const changePwVisible = document.getElementById('change-pw-section').style.display !== 'none';
+    const forgotVisible   = document.getElementById('forgot-box').style.display !== 'none';
+    if (forgotVisible) return;
+    if (loginActive && changePwVisible) doChangePw();
+    else if (loginActive) doLogin();
+    else if (regActive) doRegister();
+  });
+
+  // Redirect if already logged in
+  (() => {
+    const token = localStorage.getItem('ft_jwt');
+    if (!token) return;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 > Date.now()) {
+        if (payload.role === 'super_admin') {
+          location.href = '/admin';
+        } else if (payload.role === 'teacher') {
+          location.href = '/analytics/dashboard';
+        } else {
+          location.href = '/app';
+        }
+      }
+    } catch (_) {}
+  })();
+</script>
+</body>
+</html>
