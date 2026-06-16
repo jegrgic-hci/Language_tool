@@ -198,6 +198,52 @@ def init_db():
                 conn.execute(f"ALTER TABLE invite_tokens ADD COLUMN {col} {defn}")
             except Exception:
                 pass
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                token      TEXT NOT NULL UNIQUE,
+                user_id    INTEGER NOT NULL REFERENCES users(id),
+                used       INTEGER NOT NULL DEFAULT 0,
+                expires_at DATETIME NOT NULL,
+                created_at DATETIME DEFAULT (datetime('now'))
+            )
+        """)
+
+
+def count_recent_reset_tokens(user_id: int, within_hours: int = 1) -> int:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM password_reset_tokens WHERE user_id=? AND created_at > datetime('now', ?)",
+            (user_id, f"-{within_hours} hours"),
+        ).fetchone()
+    return row[0] if row else 0
+
+
+def create_password_reset_token(token: str, user_id: int, expires_at: str):
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?,?,?)",
+            (token, user_id, expires_at),
+        )
+
+
+def get_password_reset_token(token: str) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM password_reset_tokens WHERE token=? AND used=0 AND expires_at > datetime('now')",
+            (token,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def consume_password_reset_token(token: str, new_password_hash: str):
+    with _conn() as conn:
+        row = conn.execute("SELECT user_id FROM password_reset_tokens WHERE token=?", (token,)).fetchone()
+        if not row:
+            return False
+        conn.execute("UPDATE password_reset_tokens SET used=1 WHERE token=?", (token,))
+        conn.execute("UPDATE users SET password_hash=? WHERE id=?", (new_password_hash, row["user_id"]))
+    return True
 
 
 def track(session_id: str, access_code: str, event_type: str, payload: dict = None, visit_id: str = None):
@@ -315,6 +361,12 @@ def get_student_by_code(access_code: str) -> Optional[dict]:
 
 
 # ── User account helpers ───────────────────────────────────────────────────────
+
+def get_user_by_access_code(access_code: str) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE access_code=?", (access_code,)).fetchone()
+    return dict(row) if row else None
+
 
 def get_user_by_email(email: str) -> Optional[dict]:
     with _conn() as conn:

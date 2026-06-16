@@ -155,6 +155,26 @@
     .panel { display: none; }
     .panel.active { display: block; }
 
+    .type-pill {
+      flex: 1;
+      text-align: center;
+      padding: 8px 12px;
+      border: 1px solid var(--vk-border);
+      font-family: var(--vkg-font-mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--vk-fg-2);
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+    .type-pill.active {
+      border-color: var(--vk-accent);
+      background: var(--vk-accent-bg);
+      color: var(--vk-accent-text);
+    }
+    .type-pill:hover:not(.active) { border-color: var(--vk-fg-2); color: var(--vk-fg-1); }
+
     /* ── Change password sub-form ── */
     #change-pw-section {
       display: none;
@@ -260,8 +280,38 @@
     <!-- Forgot password box (shown inline) -->
     <div id="forgot-box" class="forgot-box" style="display:none">
       <div class="forgot-title">Reset your password</div>
-      <div class="forgot-body" id="forgot-message"></div>
+      <div id="forgot-sent" style="display:none; font-size:0.78rem; color:var(--vk-fg-1); line-height:1.6;">
+        Check your inbox — if that email is registered you'll receive a reset link shortly.
+      </div>
+      <div id="forgot-form">
+        <div class="field" style="margin-bottom:12px;">
+          <label for="forgot-email">Email address</label>
+          <input type="email" id="forgot-email" autocomplete="email" placeholder="you@example.com">
+        </div>
+        <button class="btn" id="forgot-btn" onclick="doForgot()">Send reset link</button>
+        <div class="error" id="forgot-error"></div>
+      </div>
       <button class="back-link" onclick="hideForgot()">&larr; Back to sign in</button>
+    </div>
+
+    <!-- Reset password box (shown when ?reset=<token> in URL) -->
+    <div id="reset-box" style="display:none">
+      <div class="forgot-title">Set a new password</div>
+      <div id="reset-done" style="display:none; font-size:0.78rem; color:var(--vk-fg-1); line-height:1.6;">
+        Password updated. <a href="/login" style="color:var(--vk-accent-text);">Sign in</a>
+      </div>
+      <div id="reset-form">
+        <div class="field">
+          <label for="reset-pw">New Password</label>
+          <input type="password" id="reset-pw" autocomplete="new-password" placeholder="Min. 8 characters">
+        </div>
+        <div class="field">
+          <label for="reset-pw-confirm">Confirm Password</label>
+          <input type="password" id="reset-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
+        </div>
+        <button class="btn" id="reset-btn" onclick="doReset()">Set New Password</button>
+        <div class="error" id="reset-error"></div>
+      </div>
     </div>
 
     <!-- Force password change sub-form (shown inline after login if required) -->
@@ -295,44 +345,76 @@
       <label for="reg-password-confirm">Confirm Password</label>
       <input type="password" id="reg-password-confirm" autocomplete="new-password" placeholder="Repeat password">
     </div>
-    <div class="field" id="teacher-toggle-field" style="display:flex; align-items:center; gap:10px; margin-top:4px;">
-      <input type="checkbox" id="reg-is-teacher" style="width:auto; accent-color:var(--vk-accent);">
-      <label for="reg-is-teacher" style="margin-bottom:0; text-transform:none; font-size:0.78rem; letter-spacing:0; cursor:pointer;">I am a teacher</label>
+    <div class="field" id="reg-type-field">
+      <label>I am a</label>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <label id="type-student" class="type-pill active" onclick="setAccountType('student')">Student</label>
+        <label id="type-teacher" class="type-pill" onclick="setAccountType('teacher')">Teacher</label>
+      </div>
+      <p class="hint" id="reg-hint" style="margin-top:8px;">Solo learner account — practice at your own pace.</p>
+    </div>
+    <div class="field" id="reg-code-field">
+      <label for="reg-code">Registration Code</label>
+      <input type="text" id="reg-code" autocomplete="off" placeholder="Enter the code you were given">
     </div>
     <button class="btn" id="reg-btn" onclick="doRegister()">Create Account</button>
     <div class="error" id="reg-error"></div>
-    <p class="hint" id="reg-hint">Creating a solo learner account. If your teacher added you, use Sign In with the credentials they gave you.</p>
   </div>
 </div>
 
 <script>
-  let _pendingToken = null;
-  let _inviteToken  = null;
+  let _pendingToken  = null;
+  let _inviteToken   = null;
+  let _accountType   = 'student';
 
-  // Read ?invite=<token>&email=<email> from URL
-  (() => {
-    const params = new URLSearchParams(location.search);
-    const invite = params.get('invite');
-    const email  = params.get('email');
-    if (!invite) return;
-    _inviteToken = invite;
-    // Switch to Register tab
+  function setAccountType(type) {
+    _accountType = type;
+    document.getElementById('type-student').classList.toggle('active', type === 'student');
+    document.getElementById('type-teacher').classList.toggle('active', type === 'teacher');
+    const hint = document.getElementById('reg-hint');
+    hint.textContent = type === 'teacher'
+      ? 'Teacher account — includes analytics dashboard and student management.'
+      : 'Solo learner account — practice at your own pace.';
+  }
+
+  function switchToRegister() {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('panel-register').classList.add('active');
     document.querySelector('.tab[onclick*="register"]').classList.add('active');
+  }
+
+  // Read URL params: ?tab=register | ?invite=… | ?reset=…
+  (() => {
+    const params = new URLSearchParams(location.search);
+    const tab    = params.get('tab');
+    const invite = params.get('invite');
+    const email  = params.get('email');
+    const reset  = params.get('reset');
+
+    if (reset) {
+      document.getElementById('login-form-body').style.display = 'none';
+      document.getElementById('change-pw-section').style.display = 'none';
+      document.getElementById('reset-box').style.display = 'block';
+      return;
+    }
+
+    if (tab === 'register') switchToRegister();
+
+    if (!invite) return;
+    _inviteToken = invite;
+    switchToRegister();
     // Pre-fill email and lock it
     if (email) {
       const el = document.getElementById('reg-email');
       el.value = decodeURIComponent(email);
       el.readOnly = true;
     }
-    // Show invite banner
+    // Show invite banner and hide type/code fields — invite determines role automatically
     document.getElementById('invite-banner').style.display = 'block';
     document.getElementById('invite-banner').textContent = 'You have been invited by your teacher. Create your account below.';
-    // Hide the "I am a teacher" toggle on invite registrations
-    document.getElementById('teacher-toggle-field').style.display = 'none';
-    document.getElementById('reg-hint').textContent = 'Your account will be linked to your teacher automatically.';
+    document.getElementById('reg-type-field').style.display = 'none';
+    document.getElementById('reg-code-field').style.display = 'none';
   })();
 
   function showPanel(name, btn) {
@@ -347,15 +429,7 @@
 
   function showForgot() {
     const email = document.getElementById('login-email').value.trim();
-    let msg;
-    if (!email) {
-      msg = `<strong>Teacher-added student?</strong> Ask your teacher to reset your password from their dashboard.<br><br>
-             <strong>Self-registered?</strong> Email us at <a href="mailto:jegrgic@gmail.com">jegrgic@gmail.com</a> with your registered email address and we'll reset it for you.`;
-    } else {
-      msg = `<strong>Teacher-added student?</strong> Ask your teacher to reset the password for <em>${escHtml(email)}</em>.<br><br>
-             <strong>Self-registered?</strong> Email <a href="mailto:jegrgic@gmail.com?subject=Password reset for ${encodeURIComponent(email)}">jegrgic@gmail.com</a> and we'll sort it out.`;
-    }
-    document.getElementById('forgot-message').innerHTML = msg;
+    if (email) document.getElementById('forgot-email').value = email;
     document.getElementById('forgot-box').style.display = 'block';
     document.getElementById('login-form-body').style.display = 'none';
     document.getElementById('change-pw-section').style.display = 'none';
@@ -364,6 +438,56 @@
   function hideForgot() {
     document.getElementById('forgot-box').style.display = 'none';
     document.getElementById('login-form-body').style.display = 'block';
+    document.getElementById('forgot-sent').style.display = 'none';
+    document.getElementById('forgot-form').style.display = 'block';
+    document.getElementById('forgot-error').textContent = '';
+  }
+
+  async function doForgot() {
+    const email = document.getElementById('forgot-email').value.trim();
+    const errEl = document.getElementById('forgot-error');
+    const btn   = document.getElementById('forgot-btn');
+    errEl.textContent = '';
+    if (!email) { errEl.textContent = 'Enter your email address.'; return; }
+    btn.disabled = true;
+    try {
+      await fetch('/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      document.getElementById('forgot-form').style.display = 'none';
+      document.getElementById('forgot-sent').style.display = 'block';
+    } catch (e) {
+      errEl.textContent = 'Connection error. Try again.';
+      btn.disabled = false;
+    }
+  }
+
+  async function doReset() {
+    const token   = new URLSearchParams(location.search).get('reset');
+    const pw      = document.getElementById('reset-pw').value;
+    const confirm = document.getElementById('reset-pw-confirm').value;
+    const errEl   = document.getElementById('reset-error');
+    const btn     = document.getElementById('reset-btn');
+    errEl.textContent = '';
+    if (pw !== confirm)  { errEl.textContent = 'Passwords do not match.'; return; }
+    if (pw.length < 8)   { errEl.textContent = 'Password must be at least 8 characters.'; return; }
+    btn.disabled = true;
+    try {
+      const res  = await fetch('/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: pw }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.detail || 'Reset failed.'; btn.disabled = false; return; }
+      document.getElementById('reset-form').style.display = 'none';
+      document.getElementById('reset-done').style.display = 'block';
+    } catch (e) {
+      errEl.textContent = 'Connection error. Try again.';
+      btn.disabled = false;
+    }
   }
 
   function escHtml(s) {
@@ -459,18 +583,18 @@
   }
 
   async function doRegister() {
-    const email      = document.getElementById('reg-email').value.trim();
-    const password   = document.getElementById('reg-password').value;
-    const confirm    = document.getElementById('reg-password-confirm').value;
-    const is_teacher = document.getElementById('reg-is-teacher').checked;
-    const errEl      = document.getElementById('reg-error');
-    const btn        = document.getElementById('reg-btn');
+    const email    = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const confirm  = document.getElementById('reg-password-confirm').value;
+    const errEl    = document.getElementById('reg-error');
+    const btn      = document.getElementById('reg-btn');
     errEl.textContent = '';
     if (!email || !password) { errEl.textContent = 'Email and password required.'; return; }
     if (password !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
-    if (password.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
+    if (password.length < 8)  { errEl.textContent = 'Password must be at least 8 characters.'; return; }
     btn.disabled = true;
-    const body = { email, password, is_teacher };
+    const regCode = document.getElementById('reg-code').value.trim();
+    const body = { email, password, is_teacher: _accountType === 'teacher', registration_code: regCode };
     if (_inviteToken) body.invite_token = _inviteToken;
     try {
       const res = await fetch('/auth/register', {

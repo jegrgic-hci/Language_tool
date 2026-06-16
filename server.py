@@ -344,6 +344,7 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     invite_token: Optional[str] = None
+    registration_code: Optional[str] = None
     is_teacher: bool = False
 
 
@@ -417,6 +418,9 @@ async def auth_register(req: RegisterRequest):
     if _analytics.get_user_by_email(email):
         raise HTTPException(status_code=409, detail="Email already registered")
 
+    if _ACCESS_CODES and req.registration_code not in _ACCESS_CODES:
+        raise HTTPException(status_code=403, detail="Invalid registration code")
+
     invite = None
     teacher_id = None
     if req.invite_token:
@@ -427,7 +431,6 @@ async def auth_register(req: RegisterRequest):
             raise HTTPException(status_code=400, detail="This invite was sent to a different email address")
         teacher_id = invite["teacher_id"]
 
-    # Teacher-initiated invite → student_teacher; self-invite → student_solo; is_teacher → teacher
     if req.is_teacher:
         role = "teacher"
     elif invite and invite.get("teacher_id"):
@@ -509,6 +512,48 @@ async def auth_change_password(
     if not _auth.verify_password(req.current_password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Current password incorrect")
     _analytics.update_user_password(user["id"], _auth.hash_password(req.new_password))
+    return {"ok": True}
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@app.post("/auth/forgot-password")
+async def auth_forgot_password(req: ForgotPasswordRequest):
+    import secrets as _secrets
+    from datetime import datetime, timedelta
+    email = req.email.strip().lower()
+    user = _analytics.get_user_by_email(email)
+    # Always return 200 to avoid leaking which emails are registered
+    if not user:
+        return {"ok": True}
+    if _analytics.count_recent_reset_tokens(user["id"], within_hours=1) >= 5:
+        return {"ok": True}  # silently swallow — don't reveal the limit to potential attackers
+    token = _secrets.token_urlsafe(32)
+    expires_at = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+    _analytics.create_password_reset_token(token, user["id"], expires_at)
+    reset_url = f"{_APP_BASE_URL}/login?reset={token}"
+    email_html = f"""
+<p>Hi,</p>
+<p>We received a request to reset your VraiFrench password. Click the link below to set a new password. This link expires in 1 hour.</p>
+<p><a href="{reset_url}">{reset_url}</a></p>
+<p>If you did not request this, you can ignore this email.</p>
+"""
+    await _send_email(email, "Reset your VraiFrench password", email_html)
+    return {"ok": True}
+
+
+@app.post("/auth/reset-password")
+async def auth_reset_password(req: ResetPasswordRequest):
+    if not req.new_password or len(req.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    ok = _analytics.consume_password_reset_token(req.token, _auth.hash_password(req.new_password))
+    if not ok:
+        raise HTTPException(status_code=400, detail="Reset link is invalid or has expired")
     return {"ok": True}
 
 
