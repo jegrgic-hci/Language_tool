@@ -191,6 +191,39 @@
     /* ── Footer ── */
     .sb-footer { margin-top: auto; }
 
+    /* ── Teach mode banner ── */
+    #teach-banner {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: var(--vk-accent);
+      color: var(--vk-accent-fg);
+      padding: 7px 20px;
+      font-family: var(--vk-font-ui);
+      font-size: var(--vk-text-xs);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      align-items: center;
+      gap: 12px;
+    }
+    #teach-banner.active { display: flex; }
+    #teach-banner-name { flex: 1; }
+    #teach-banner-end {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.45);
+      color: var(--vk-accent-fg);
+      font-family: var(--vk-font-ui);
+      font-size: var(--vk-text-2xs);
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      cursor: pointer;
+    }
+    #teach-banner-end:hover { background: rgba(255,255,255,0.12); }
+
     /* ── Account view ── */
     #account-view {
       max-width: 480px;
@@ -2867,6 +2900,12 @@
 
 <div id="app">
 
+  <!-- ── Teach mode banner (visible when teacher runs a lesson for a child student) ── -->
+  <div id="teach-banner">
+    <span id="teach-banner-name">Teaching —</span>
+    <button id="teach-banner-end" onclick="endTeachSession()">End Lesson</button>
+  </div>
+
   <!-- ── First-time onboarding modal ──────────────────────────────────────── -->
   <div id="onboarding-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center;padding:24px;">
     <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);max-width:480px;width:100%;padding:36px 32px;">
@@ -4977,6 +5016,30 @@
   let visitId = crypto.randomUUID();
   let _visitStart = Date.now();
 
+  // ── Teach mode — teacher opens tool for a specific child student ───────────
+  const _teachParams = new URLSearchParams(location.search);
+  const _teachAccessCode = _teachParams.get('teach') || null;
+  const _teachStudentName = _teachParams.get('name') || null;
+
+  function _activeAccessCode() {
+    return _teachAccessCode || localStorage.getItem('ft_access_code') || '';
+  }
+
+  if (_teachAccessCode) {
+    const banner = document.getElementById('teach-banner');
+    banner.classList.add('active');
+    document.getElementById('teach-banner-name').textContent =
+      'Teaching ' + (_teachStudentName ? decodeURIComponent(_teachStudentName) : _teachAccessCode);
+  }
+
+  function endTeachSession() {
+    if (window.opener || window.history.length <= 1) {
+      window.close();
+    } else {
+      window.location.href = '/analytics';
+    }
+  }
+
   // Auth gate — redirect to login if no valid token
   (async () => {
     const token = localStorage.getItem('ft_jwt');
@@ -4995,22 +5058,29 @@
     setTimeout(() => switchView('home'), 0);
     window.addEventListener('popstate', () => switchView(location.hash.slice(1) || 'home'));
     // Populate sidebar profile + check onboarding
-    try {
-      const meRes = await apiFetch('/auth/me');
-      if (meRes.ok) {
-        const me = await meRes.json();
-        document.getElementById('sb-student-name').textContent = me.username || me.email || '—';
-        const roleLabels = { student_solo: 'Independent learner', student_teacher: 'Student', teacher: 'Teacher', super_admin: 'Admin' };
-        document.getElementById('sb-student-role').textContent = roleLabels[me.role] || me.role || 'Student';
-        if (!localStorage.getItem('vf_onboarded') && me.role === 'student_solo') {
-          document.getElementById('onboarding-modal').style.display = 'flex';
+    if (_teachAccessCode) {
+      // Teach mode: show the student's name in the sidebar, suppress onboarding
+      document.getElementById('sb-student-name').textContent =
+        _teachStudentName ? decodeURIComponent(_teachStudentName) : _teachAccessCode;
+      document.getElementById('sb-student-role').textContent = 'Student';
+    } else {
+      try {
+        const meRes = await apiFetch('/auth/me');
+        if (meRes.ok) {
+          const me = await meRes.json();
+          document.getElementById('sb-student-name').textContent = me.username || me.email || '—';
+          const roleLabels = { student_solo: 'Independent learner', student_teacher: 'Student', teacher: 'Teacher', super_admin: 'Admin' };
+          document.getElementById('sb-student-role').textContent = roleLabels[me.role] || me.role || 'Student';
+          if (!localStorage.getItem('vf_onboarded') && me.role === 'student_solo') {
+            document.getElementById('onboarding-modal').style.display = 'flex';
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
   })();
 
   function _endVisit(reason) {
-    const accessCode = localStorage.getItem('ft_access_code') || '';
+    const accessCode = _activeAccessCode();
     if (!accessCode) return;
     const payload = JSON.stringify({
       session_id: sessionId,
@@ -5056,7 +5126,7 @@
 
   // ── Analytics helpers ──────────────────────────────────────────────────────
   function trackEvent(eventType, payload = {}) {
-    const accessCode = localStorage.getItem('ft_access_code') || '';
+    const accessCode = _activeAccessCode();
     fetch('/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5067,7 +5137,7 @@
   function getAnalyticsFields() {
     return {
       session_id: sessionId,
-      access_code: localStorage.getItem('ft_access_code') || '',
+      access_code: _activeAccessCode(),
       visit_id: visitId,
     };
   }
@@ -7639,9 +7709,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         logEl.classList.add('active');
         if (practicePanel) practicePanel.classList.add('active');
         navigator.sendBeacon('/track', new Blob([JSON.stringify({
-          session_id: localStorage.getItem('session_id') || '',
-          access_code: localStorage.getItem('access_code') || '',
-          visit_id: _visitId || '',
+          session_id: sessionId,
+          access_code: _activeAccessCode(),
+          visit_id: visitId,
           event_type: 'word_attempted',
           payload: {
             exercise_type: 'word',
@@ -9234,7 +9304,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let _homeResizeBound = false;
 
   async function loadHomeView() {
-    const code = localStorage.getItem('ft_access_code') || '';
+    const code = _activeAccessCode();
     if (!code) return;
     if (!_homeResizeBound) {
       let rt;

@@ -582,6 +582,9 @@
               <p class="vk-eyebrow no-line s-code" style="margin-bottom:4px">—</p>
               <h1 class="vk-h2 s-name">Student</h1>
             </div>
+            <button class="vk-btn vk-btn-primary s-lesson-btn"
+                    style="margin-left:auto;align-self:flex-end"
+                    onclick="">Start Lesson</button>
           </div>
           <div class="panel-meta-strip">
             <span class="vk-label">Last lesson:
@@ -966,6 +969,13 @@
 const KEY = new URLSearchParams(location.search).get('key') || '';
 let allNavBtns = [];
 
+// ── Teach mode — open the exercise tool tracking under a specific student ────
+function openTeachMode(accessCode, name) {
+  const params = new URLSearchParams({ teach: accessCode });
+  if (name) params.set('name', name);
+  window.open('/?' + params.toString(), '_blank');
+}
+
 // ── Panel switching ──────────────────────────────────────────────
 function selectPanel(id, navBtn) {
   document.querySelectorAll('.dash-panel').forEach(p => { p.hidden = true; });
@@ -1037,6 +1047,12 @@ function createStudentPanel(s) {
   el._exWin = 'since';
   el.querySelector('.s-name').textContent = s.name || s.access_code;
   el.querySelector('.s-code').textContent = s.access_code;
+  const lessonBtn = el.querySelector('.s-lesson-btn');
+  if (s.access_code) {
+    lessonBtn.onclick = () => openTeachMode(s.access_code, s.name || '');
+  } else {
+    lessonBtn.style.display = 'none';
+  }
   // Meta strip from roster data
   el.querySelector('.s-last-lesson').textContent = fmt_date_fr(s.last_lesson);
   el.querySelector('.s-next-lesson').textContent =
@@ -2255,6 +2271,10 @@ function _mgmtRenderTable() {
     const analyticsLink = code
       ? '<button class="vk-btn vk-btn-outline sm" onclick="selectPanel(\'student-' + esc(code) + '\',document.getElementById(\'nav-' + esc(code) + '\'))">Analytics</button>'
       : '';
+    const isChild = s.email && s.email.endsWith('@noemail.local');
+    const lessonBtn = (isChild && code)
+      ? '<button class="vk-btn vk-btn-primary sm" onclick="openTeachMode(\'' + esc(code) + '\',\'' + esc(s.username || '') + '\')">Start Lesson</button>'
+      : '';
     return '<tr>' +
       '<td class="dt-word">' + name + email + '</td>' +
       '<td style="font-family:var(--vk-font-ui);color:var(--vk-accent-text)">' + esc(code) + '</td>' +
@@ -2262,6 +2282,7 @@ function _mgmtRenderTable() {
       '<td>' + lastActive + '</td>' +
       '<td>' + (s.event_count ?? 0) + '</td>' +
       '<td><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        lessonBtn +
         analyticsLink +
         '<button class="vk-btn vk-btn-outline sm" onclick="mgmtResetPassword(' + s.id + ',\'' + esc(s.email || '') + '\')">Reset Password</button>' +
         pauseBtn +
