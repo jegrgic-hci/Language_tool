@@ -557,6 +557,12 @@
             <p class="vk-kpi-delta" id="r-kpi-precision-delta" hidden></p>
             <p class="vk-kpi-meta">phrase accuracy</p>
           </div>
+          <!-- Exercise variety -->
+          <div class="vk-kpi">
+            <p class="vk-kpi-label">Exercise variety</p>
+            <p class="vk-kpi-num" id="r-kpi-variety">—</p>
+            <p class="vk-kpi-meta" id="r-kpi-variety-sub">students tried non-speaking exercises</p>
+          </div>
         </div>
 
         <div class="roster-grid" id="roster-grid">
@@ -589,12 +595,13 @@
             </span>
           </div>
 
-          <!-- 4 question-driven tabs — part of the sticky header -->
+          <!-- 5 question-driven tabs — part of the sticky header -->
           <div class="vk-tabs" style="margin: 12px -32px 0; padding: 0 32px;">
             <button class="vk-tab" aria-selected="true"  data-tab="insights">Insights</button>
             <button class="vk-tab" aria-selected="false" data-tab="diagnosis">Diagnosis</button>
             <button class="vk-tab" aria-selected="false" data-tab="progress">Progress</button>
             <button class="vk-tab" aria-selected="false" data-tab="activity">Activity</button>
+            <button class="vk-tab" aria-selected="false" data-tab="exercises">Exercises</button>
           </div>
         </div>
 
@@ -663,6 +670,18 @@
               <div class="s-ph-strip"></div>
               <p class="sec-label" style="margin-top:24px">Session History</p>
               <div class="s-sessions-content"><div class="empty">No session data yet</div></div>
+            </div>
+
+            <!-- EXERCISES — non-speaking exercise breakdown -->
+            <div class="tab-pane" data-pane="exercises" data-loaded="0">
+              <div class="kpi-section-header" style="margin-bottom:16px">
+                <div class="win-tabs">
+                  <button class="win-tab is-active" data-exwin="since">Since Last Lesson</button>
+                  <button class="win-tab"           data-exwin="30d">Last 30 Days</button>
+                  <button class="win-tab"           data-exwin="all">All Time</button>
+                </div>
+              </div>
+              <div class="s-exercises-content"><div class="empty">No exercise data for this period</div></div>
             </div>
 
           </div><!-- /tab-body -->
@@ -953,6 +972,15 @@ function initWinTabs(panel) {
       renderProgress(panel, panel.dataset.code, panel._progDays);
     });
   });
+  // Exercises window toggle
+  panel.querySelectorAll('.win-tab[data-exwin]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      panel.querySelectorAll('.win-tab[data-exwin]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      panel._exWin = btn.dataset.exwin;
+      renderExercisesWindow(panel, panel.dataset.code);
+    });
+  });
 }
 
 // ── Build student panel from template ───────────────────────────
@@ -964,6 +992,7 @@ function createStudentPanel(s) {
   el.dataset.code = s.access_code;
   el._actWin = 'since';
   el._progDays = 7;
+  el._exWin = 'since';
   el.querySelector('.s-name').textContent = s.name || s.access_code;
   el.querySelector('.s-code').textContent = s.access_code;
   // Meta strip from roster data
@@ -1022,6 +1051,7 @@ function loadTab(panel, tab) {
   else if (tab === 'diagnosis')  renderDiagnosis(panel, code);
   else if (tab === 'progress')   renderProgress(panel, code, panel._progDays || 7);
   else if (tab === 'activity')   renderActivity(panel, code);
+  else if (tab === 'exercises')  renderExercises(panel, code);
 }
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c =>
@@ -1568,14 +1598,40 @@ function _indLevel(prog) {
   return _indCard('Level progress', 'grey', lvl !== '—' ? lvl + ' — steady' : 'Not enough data', 'level');
 }
 
-function _indMix(para, phrase) {
+function _indMix(para, phrase, exercises) {
   const pgs = (para   && para.paragraphs_started) || 0;
   const phs = (phrase && phrase.phrases_started)   || 0;
-  const tot = pgs + phs;
-  if (tot === 0) return _indCard('Exercise mix', 'grey', 'No exercise data yet', 'mix');
-  if (phs / tot >= 0.90) return _indCard('Exercise mix', 'amber', 'Phrase-heavy — no paragraph work', 'mix');
-  if (pgs / tot >= 0.90) return _indCard('Exercise mix', 'amber', 'Paragraph-heavy — no pronunciation drills', 'mix');
-  return _indCard('Exercise mix', 'green', 'Good mix — paragraph and phrase', 'mix');
+  const hasSpeaking = pgs > 0 || phs > 0;
+
+  // Count distinct non-speaking exercise types used
+  const nonSpeakingTypes = exercises
+    ? ['vocab','comprehension','dictation','writing','transformation'].filter(k => exercises[k])
+    : [];
+  const typeCount = (hasSpeaking ? 1 : 0) + nonSpeakingTypes.length;
+
+  if (!hasSpeaking && nonSpeakingTypes.length === 0)
+    return _indCard('Exercise mix', 'grey', 'No exercise data yet', 'mix');
+
+  if (typeCount >= 3)
+    return _indCard('Exercise mix', 'green',
+      typeCount + ' exercise types this month', 'mix');
+
+  if (typeCount === 2) {
+    const second = nonSpeakingTypes.length
+      ? nonSpeakingTypes[0].charAt(0).toUpperCase() + nonSpeakingTypes[0].slice(1)
+      : (phs > 0 ? 'Phrases' : 'Paragraphs');
+    return _indCard('Exercise mix', 'amber',
+      'Speaking + ' + second + ' only — try adding more variety', 'mix');
+  }
+
+  // typeCount === 1
+  if (!hasSpeaking)
+    return _indCard('Exercise mix', 'amber', 'Non-speaking only — no pronunciation work', 'mix');
+  if (phs > 0 && pgs === 0)
+    return _indCard('Exercise mix', 'amber', 'Phrase-heavy — no paragraph work', 'mix');
+  if (pgs > 0 && phs === 0)
+    return _indCard('Exercise mix', 'amber', 'Paragraph-heavy — no pronunciation drills', 'mix');
+  return _indCard('Exercise mix', 'amber', 'Only speaking exercises this month', 'mix');
 }
 
 function _indBalance(content) {
@@ -1602,7 +1658,7 @@ function _indConsistency(s) {
 // ── Insights tab ──────────────────────────────────────────────────
 
 function _buildIndDetail(key, insightsData) {
-  const { coach, prog, para, phrase, content, roster } = insightsData;
+  const { coach, prog, para, phrase, content, roster, exercises } = insightsData;
 
   if (key === 'sounds') {
     const phonetic = (coach && coach.phonetic_struggles) || {};
@@ -1657,15 +1713,37 @@ function _buildIndDetail(key, insightsData) {
   if (key === 'mix') {
     const pgs = (para   && para.paragraphs_started) || 0;
     const phs = (phrase && phrase.phrases_started)   || 0;
-    const tot = pgs + phs;
-    const bodyHtml = tot
-      ? '<div class="three-col">' +
-        kpiMini(pgs, 'paragraphs') +
-        kpiMini(phs, 'phrases') +
-        kpiMini(Math.round(pgs / tot * 100) + '% / ' + Math.round(phs / tot * 100) + '%', 'para / phrase') +
-        '</div>'
-      : '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-2);margin:0">No exercise data yet</p>';
-    return { label: 'Exercise mix', bodyHtml, gotoTab: 'activity', diagFilter: null, gotoLabel: 'See activity breakdown →' };
+    const _EX_LABELS = { vocab: 'Vocabulary', comprehension: 'Listening',
+                         dictation: 'Dictation', writing: 'Writing', transformation: 'Transformation' };
+    const nonSpeakingTypes = exercises
+      ? ['vocab','comprehension','dictation','writing','transformation'].filter(k => exercises[k])
+      : [];
+    const hasSpeaking = pgs > 0 || phs > 0;
+    const hasAny = hasSpeaking || nonSpeakingTypes.length > 0;
+
+    let bodyHtml;
+    if (!hasAny) {
+      bodyHtml = '<p style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-2);margin:0">No exercise data yet</p>';
+    } else {
+      const rows = [];
+      if (hasSpeaking) {
+        const tot = pgs + phs;
+        rows.push('<tr><td class="dt-word">Speaking</td><td>' + (pgs + phs) + ' exercises</td>' +
+          '<td>' + (tot ? Math.round(pgs / tot * 100) + '% para / ' + Math.round(phs / tot * 100) + '% phrase' : '') + '</td></tr>');
+      }
+      nonSpeakingTypes.forEach(k => {
+        const d = exercises[k];
+        const count = d.attempts ?? (d.sessions_completed ?? d.sessions_started ?? '—');
+        const score = (d.avg_quiz_score ?? d.avg_score) != null
+          ? Math.round((d.avg_quiz_score ?? d.avg_score) * 100) + '%' : '';
+        rows.push('<tr><td class="dt-word">' + esc(_EX_LABELS[k] || k) + '</td><td>' + count + '</td><td>' + score + '</td></tr>');
+      });
+      if (!hasSpeaking) {
+        rows.push('<tr><td class="dt-word" style="color:var(--vk-fg-2)" colspan="3">No speaking exercises this period</td></tr>');
+      }
+      bodyHtml = '<table class="diag-table" style="margin-bottom:0"><tbody>' + rows.join('') + '</tbody></table>';
+    }
+    return { label: 'Exercise mix', bodyHtml, gotoTab: 'exercises', diagFilter: null, gotoLabel: 'See Exercises tab →' };
   }
 
   if (key === 'balance') {
@@ -1707,31 +1785,33 @@ async function renderInsights(panel, code) {
   recsEl.innerHTML = '';
 
   // Fetch all signals in parallel
-  const [coachR, progR, paraR, phraseR, contentR, strugglesR] = await Promise.allSettled([
+  const [coachR, progR, paraR, phraseR, contentR, strugglesR, exercisesR] = await Promise.allSettled([
     fetchJSON('/coach?access_code=' + code),
     fetch('/analytics/progress?access_code=' + encodeURIComponent(code), { headers: _authHeaders() }).then(r => r.ok ? r.json() : null).catch(() => null),
     fetchJSON('/analytics/paragraph?access_code=' + code + '&window=30d'),
     fetchJSON('/analytics/phrase?access_code='    + code + '&window=30d'),
     fetchJSON('/analytics/content?access_code='   + code),
     fetchJSON('/analytics/recent-struggles?access_code=' + code),
+    fetchJSON('/analytics/exercises?access_code=' + code + '&window=30d'),
   ]);
 
-  const coach     = coachR.status     === 'fulfilled' ? coachR.value     : null;
-  const prog      = progR.status      === 'fulfilled' ? progR.value      : null;
-  const para      = paraR.status      === 'fulfilled' ? paraR.value      : null;
-  const phrase    = phraseR.status    === 'fulfilled' ? phraseR.value    : null;
-  const content   = contentR.status   === 'fulfilled' ? contentR.value   : null;
-  const struggles = strugglesR.status === 'fulfilled' ? (strugglesR.value.words || []) : null;
+  const coach     = coachR.status      === 'fulfilled' ? coachR.value         : null;
+  const prog      = progR.status       === 'fulfilled' ? progR.value          : null;
+  const para      = paraR.status       === 'fulfilled' ? paraR.value          : null;
+  const phrase    = phraseR.status     === 'fulfilled' ? phraseR.value        : null;
+  const content   = contentR.status    === 'fulfilled' ? contentR.value       : null;
+  const struggles = strugglesR.status  === 'fulfilled' ? (strugglesR.value.words || []) : null;
+  const exercises = exercisesR.status  === 'fulfilled' ? exercisesR.value     : null;
   const roster    = (window._rosterStudents || []).find(s => s.access_code === code) || {};
 
   // Store for detail expansion
-  panel._insightsData = { coach, prog, para, phrase, content, roster };
+  panel._insightsData = { coach, prog, para, phrase, content, roster, exercises };
 
   // Indicator strip
   indEl.innerHTML =
     _indSounds(coach) +
     _indLevel(prog) +
-    _indMix(para, phrase) +
+    _indMix(para, phrase, exercises) +
     _indBalance(content) +
     _indConsistency(roster);
 
@@ -1853,6 +1933,74 @@ function statsStrip(items) {
     '<div class="stats-lbl">' + it[0] + '</div>' +
     (it[2] ? '<div class="stats-sub">' + it[2] + '</div>' : '') + '</div>'
   ).join('') + '</div>';
+}
+
+// ── Exercises tab ─────────────────────────────────────────────────
+async function renderExercises(panel, code) {
+  await renderExercisesWindow(panel, code);
+}
+
+async function renderExercisesWindow(panel, code) {
+  const win = panel._exWin || 'since';
+  const host = panel.querySelector('.s-exercises-content');
+  if (!host) return;
+  host.innerHTML = '<div class="empty">Loading…</div>';
+  let data;
+  try {
+    data = await fetchJSON('/analytics/exercises?access_code=' + encodeURIComponent(code) + '&window=' + win);
+  } catch (e) {
+    host.innerHTML = '<div class="empty">Could not load exercise data</div>';
+    return;
+  }
+
+  const _EX_ORDER = [
+    ['vocab',          'Vocabulary'],
+    ['comprehension',  'Listening'],
+    ['dictation',      'Dictation'],
+    ['writing',        'Writing'],
+    ['transformation', 'Transformation'],
+  ];
+
+  const sections = _EX_ORDER
+    .filter(([key]) => data[key])
+    .map(([key, label]) => {
+      const d = data[key];
+      let rows = [];
+      if (key === 'vocab') {
+        rows = [
+          ['Sessions started',   d.sessions_started ?? 0],
+          ['Sessions completed', d.sessions_completed ?? 0,
+            d.sessions_started ? Math.round((d.sessions_completed / d.sessions_started) * 100) + '% rate' : ''],
+          ['Avg quiz score',     d.avg_quiz_score != null ? Math.round(d.avg_quiz_score * 100) + '%' : '—'],
+          ['Avg cards / session',d.avg_card_count != null ? Math.round(d.avg_card_count) : '—'],
+        ];
+      } else if (key === 'comprehension') {
+        rows = [
+          ['Sessions started',   d.sessions_started ?? 0],
+          ['Sessions completed', d.sessions_completed ?? 0,
+            d.sessions_started ? Math.round((d.sessions_completed / d.sessions_started) * 100) + '% rate' : ''],
+          ['Avg score',          d.avg_score != null ? Math.round(d.avg_score * 100) + '%' : '—'],
+        ];
+      } else if (key === 'dictation') {
+        rows = [
+          ['Sentences attempted', d.attempts ?? 0],
+          ['Avg score',           d.avg_score != null ? Math.round(d.avg_score * 100) + '%' : '—'],
+          ['Avg attempts / sentence', d.avg_attempts_per_sentence != null
+            ? d.avg_attempts_per_sentence.toFixed(1) : '—'],
+        ];
+      } else if (key === 'writing' || key === 'transformation') {
+        rows = [
+          ['Exercises',   d.attempts ?? 0],
+          ['Avg score',   d.avg_score != null ? Math.round(d.avg_score * 100) + '%' : '—'],
+          ['Avg tips',    d.avg_tip_count != null ? d.avg_tip_count.toFixed(1) : '—'],
+        ];
+      }
+      return '<p class="sec-label">' + esc(label) + '</p>' + statsStrip(rows);
+    });
+
+  host.innerHTML = sections.length
+    ? sections.join('<div style="margin-top:24px"></div>')
+    : '<div class="empty">No exercise data for this period</div>';
 }
 
 function fmtDateTime(iso) {
@@ -2323,6 +2471,14 @@ function renderRosterKpis(students, win) {
   const phrasePrev  = cohortAvg(is7d ? 'avg_phrase_prev_7d'  : 'avg_phrase_prev_30d');
   document.getElementById('r-kpi-precision').textContent = phraseAvg != null ? Math.round(phraseAvg * 100) + '%' : '—';
   setDelta('r-kpi-precision-delta', (phraseAvg != null && phrasePrev != null) ? (phraseAvg - phrasePrev) / phrasePrev : null);
+
+  // Exercise variety — how many students used non-speaking exercises
+  const varietyField = is7d ? 'variety_7d' : 'variety_30d';
+  const varietyCount = students.filter(s => (s[varietyField] || 0) > 0).length;
+  const total = students.length;
+  document.getElementById('r-kpi-variety').textContent = total ? varietyCount + ' / ' + total : '—';
+  document.getElementById('r-kpi-variety-sub').textContent =
+    varietyCount === 1 ? 'student tried non-speaking exercises' : 'students tried non-speaking exercises';
 }
 
 function setRosterWindow(win, btn) {

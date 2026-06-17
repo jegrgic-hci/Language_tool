@@ -30,8 +30,7 @@ from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mi
 from score_utils import normalize, run_sequence_match, build_display_results, analyze_dictation_mismatches
 import practice_list as pl
 import analytics as _analytics
-import prosody_engine as _prosody_module
-from prosody_engine import generate_prosody_phrase, analyze_prosody_mismatches, SOUND_TARGETS, annotate_phrase_rhythm
+from prosody_engine import annotate_phrase_rhythm
 
 load_dotenv()
 
@@ -164,6 +163,9 @@ class ShadowAnalyzeRequest(BaseModel):
     level: Optional[str] = None
     topic: Optional[str] = None
     attempt_number: Optional[int] = None
+    phrase_id: Optional[str] = None
+    listen_count: Optional[int] = None
+    sound_focus: Optional[str] = None
 
 
 class ShadowFeedbackItem(BaseModel):
@@ -188,52 +190,6 @@ class ShadowAnalyzeResponse(BaseModel):
     display_results: list[WordResult]
 
 
-class ProsodyPhraseRequest(BaseModel):
-    sound_target: str = "liaison"
-    level: str = "B1"
-
-
-class SyllabifiedWord(BaseModel):
-    word: str
-    syllables: list
-
-
-class LiaisonMark(BaseModel):
-    from_word: str
-    to_word: str
-    sound: str = ""
-
-
-class ProsodyPhraseResponse(BaseModel):
-    phrase: str
-    audio_url: str
-    sound_target: str
-    level: str
-    ipa: str = ""
-    syllabified: list = []
-    rhythm_groups: list = []
-    liaisons: list = []
-    enchaînements: list = []
-    noun_adj_tokens: list = []
-
-
-class ProsodyAnalyzeRequest(BaseModel):
-    target: str
-    transcription: str
-    sound_target: str = "liaison"
-    noun_adj_tokens: Optional[list] = None
-    confidence: Optional[float] = None
-    session_id: Optional[str] = None
-    access_code: Optional[str] = None
-    attempt_number: Optional[int] = None
-
-
-class ProsodyAnalyzeResponse(BaseModel):
-    score: float
-    passed: bool
-    feedback: list[ShadowFeedbackItem]
-    word_results: list[WordResult]
-    display_results: list[WordResult]
 
 
 class ParagraphStartRequest(BaseModel):
@@ -789,6 +745,11 @@ async def admin_user_hierarchy(dataset: str = "current", current_user: dict = De
         return _analytics.get_user_hierarchy()
 
 
+@app.get("/admin/feature-usage")
+async def admin_feature_usage(current_user: dict = Depends(_auth.require_admin)):
+    return _analytics.get_feature_usage()
+
+
 # ── Current user info ──────────────────────────────────────────────────────────
 
 @app.get("/auth/me")
@@ -1013,6 +974,14 @@ async def analytics_content(access_code: str = "", auth: dict = Depends(_require
     }
 
 
+@app.get("/analytics/exercises")
+async def analytics_exercises(access_code: str = "", window: str = "30d", auth: dict = Depends(_require_analytics_key)):
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    return _analytics.get_exercise_stats(
+        access_code, since_days=_window_to_since_days(window, access_code))
+
+
 class AddStudentRequest(BaseModel):
     name: str
     email: str = ""
@@ -1131,35 +1100,33 @@ def _build_noun_adj_set(tokens):
     return result
 
 
-# ── Shadow routes ──────────────────────────────────────────────────────────────
+# ── Shared phrase helpers ──────────────────────────────────────────────────────
 
-@app.post("/shadow/phrase", response_model=ShadowPhraseResponse)
-async def shadow_phrase(req: ShadowPhraseRequest):
-    try:
-        data = await asyncio.to_thread(lambda: generate_phrase(req.level, req.topic, req.style or 'story', req.sound_focus, req.focus_word))
-        audio_url = f"/audio/{await generate_audio(data['phrase'])}"
-        return ShadowPhraseResponse(
-            phrase=data["phrase"],
-            audio_url=audio_url,
-            level=req.level,
-            noun_adj_tokens=data.get("noun_adj_tokens", []),
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
+async def _phrase_generate(req: ShadowPhraseRequest) -> ShadowPhraseResponse:
+    data = await asyncio.to_thread(lambda: generate_phrase(req.level, req.topic, req.style or 'story', req.sound_focus, req.focus_word))
+    audio_url = f"/audio/{await generate_audio(data['phrase'])}"
+    return ShadowPhraseResponse(
+        phrase=data["phrase"],
+        audio_url=audio_url,
+        level=req.level,
+        noun_adj_tokens=data.get("noun_adj_tokens", []),
+    )
 
 
-@app.post("/shadow/analyze", response_model=ShadowAnalyzeResponse)
-async def shadow_analyze(req: ShadowAnalyzeRequest):
+async def _phrase_analyze(req: ShadowAnalyzeRequest, exercise_type: str) -> ShadowAnalyzeResponse:
     noun_adj_set = _build_noun_adj_set(req.noun_adj_tokens)
     result = score_attempt(req.target, req.transcription, noun_adj_set)
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
-            "exercise_type": "phrase",
+            "exercise_type": exercise_type,
             "level": req.level,
             "topic": req.topic,
             "score": result["score"],
             "passed": result["passed"],
             "attempt_number": req.attempt_number,
+            "phrase_id": req.phrase_id,
+            "listen_count": req.listen_count,
+            "sound_focus": req.sound_focus,
             "stt_confidence": req.confidence,
             "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
         }, req.visit_id)
@@ -1176,14 +1143,8 @@ async def shadow_analyze(req: ShadowAnalyzeRequest):
         )
         for f in feedback_raw
     ]
-    word_results = [
-        WordResult(word=wr["word"], matched=wr["matched"], said=wr["said"])
-        for wr in result["word_results"]
-    ]
-    display_results = [
-        WordResult(word=dr["word"], matched=dr["matched"], said=dr["said"])
-        for dr in result["display_results"]
-    ]
+    word_results = [WordResult(word=wr["word"], matched=wr["matched"], said=wr["said"]) for wr in result["word_results"]]
+    display_results = [WordResult(word=dr["word"], matched=dr["matched"], said=dr["said"]) for dr in result["display_results"]]
     return ShadowAnalyzeResponse(
         score=result["score"],
         passed=result["passed"],
@@ -1193,18 +1154,48 @@ async def shadow_analyze(req: ShadowAnalyzeRequest):
     )
 
 
+# ── Speaking routes ────────────────────────────────────────────────────────────
+
+@app.post("/speaking/phrase", response_model=ShadowPhraseResponse)
+async def speaking_phrase(req: ShadowPhraseRequest):
+    try:
+        return await _phrase_generate(req)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
+
+
+@app.post("/speaking/analyze", response_model=ShadowAnalyzeResponse)
+async def speaking_analyze(req: ShadowAnalyzeRequest):
+    return await _phrase_analyze(req, "speaking")
+
+
 class ShadowRhythmRequest(BaseModel):
     phrase: str
 
 
-@app.post("/shadow/rhythm")
-async def shadow_rhythm(req: ShadowRhythmRequest):
+@app.post("/speaking/rhythm")
+async def speaking_rhythm(req: ShadowRhythmRequest):
     try:
         data = await asyncio.to_thread(lambda: annotate_phrase_rhythm(req.phrase))
         return data
     except Exception as e:
-        print(f"[shadow/rhythm] ERROR for phrase={req.phrase!r}: {type(e).__name__}: {e}")
+        print(f"[speaking/rhythm] ERROR for phrase={req.phrase!r}: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Rhythm annotation failed: {e}")
+
+
+# ── Shadow routes (true simultaneous shadowing exercise) ───────────────────────
+
+@app.post("/shadow/phrase", response_model=ShadowPhraseResponse)
+async def shadow_phrase(req: ShadowPhraseRequest):
+    try:
+        return await _phrase_generate(req)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
+
+
+@app.post("/shadow/analyze", response_model=ShadowAnalyzeResponse)
+async def shadow_analyze(req: ShadowAnalyzeRequest):
+    return await _phrase_analyze(req, "shadow")
 
 
 class WordDrillAnalyzeRequest(BaseModel):
@@ -1291,62 +1282,6 @@ async def analyze_word_drill(req: WordDrillAnalyzeRequest):
     except Exception as e:
         print(f"[analyze_word_drill] ERROR: {e}")
         return {"feedback": "Analysis unavailable."}
-
-
-# ── Prosody routes ────────────────────────────────────────────────────────────
-
-@app.get("/prosody/targets")
-async def prosody_targets():
-    return {"targets": [{"key": k, "label": v["label"], "desc": v["desc"]} for k, v in SOUND_TARGETS.items()]}
-
-
-@app.post("/prosody/phrase", response_model=ProsodyPhraseResponse)
-async def prosody_phrase(req: ProsodyPhraseRequest):
-    try:
-        data = await asyncio.to_thread(lambda: generate_prosody_phrase(req.sound_target, req.level))
-        audio_url = f"/audio/{await generate_audio(data['phrase'])}"
-        return ProsodyPhraseResponse(
-            phrase=data["phrase"],
-            audio_url=audio_url,
-            sound_target=req.sound_target,
-            level=req.level,
-            ipa=data.get("ipa", ""),
-            syllabified=data.get("syllabified", []),
-            rhythm_groups=data.get("rhythm_groups", []),
-            liaisons=data.get("liaisons", []),
-            enchaînements=data.get("enchaînements", []),
-            noun_adj_tokens=data.get("noun_adj_tokens", []),
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prosody phrase generation failed: {e}")
-
-
-@app.post("/prosody/analyze", response_model=ProsodyAnalyzeResponse)
-async def prosody_analyze(req: ProsodyAnalyzeRequest):
-    noun_adj_set = _build_noun_adj_set(req.noun_adj_tokens)
-    result = score_attempt(req.target, req.transcription, noun_adj_set)
-    feedback_raw = await asyncio.to_thread(
-        lambda: analyze_prosody_mismatches(req.target, req.transcription, result["mismatches"], req.sound_target)
-    )
-    feedback = [
-        ShadowFeedbackItem(
-            target_word=f.get("target_word", ""),
-            said=f.get("said", ""),
-            tip=f.get("tip", ""),
-            is_grammar=f.get("is_grammar", False),
-            grammar_note=f.get("grammar_note", ""),
-        )
-        for f in feedback_raw
-    ]
-    word_results = [WordResult(word=wr["word"], matched=wr["matched"], said=wr["said"]) for wr in result["word_results"]]
-    display_results = [WordResult(word=dr["word"], matched=dr["matched"], said=dr["said"]) for dr in result["display_results"]]
-    return ProsodyAnalyzeResponse(
-        score=result["score"],
-        passed=result["passed"],
-        feedback=feedback,
-        word_results=word_results,
-        display_results=display_results,
-    )
 
 
 # ── Paragraph shadow routes ────────────────────────────────────────────────────
@@ -1658,7 +1593,7 @@ async def remove_practice_entry(entry_id: str):
     return {"status": "deleted"}
 
 
-# ── Comprehension routes ────────────────────────────────────────────────────────
+# ── Listen & Answer routes ──────────────────────────────────────────────────────
 
 _COMPREHENSION_SYSTEM = """You are a French language content generator for learners.
 Generate a French listening passage and comprehension questions at the requested CEFR level.
@@ -1701,11 +1636,14 @@ Rules:
 
 _COMPREHENSION_Q_COUNT = {"A1": 3, "A2": 3, "B1": 4, "B2": 4, "C1": 5, "C2": 5}
 
-@app.post("/comprehension/generate")
-async def comprehension_generate(req: Request):
+@app.post("/listen/generate")
+async def listen_generate(req: Request):
     data = await req.json()
     level = data.get("level", "B1")
     topic = data.get("topic", "la vie quotidienne")
+    session_id = data.get("session_id")
+    access_code = data.get("access_code")
+    visit_id = data.get("visit_id")
     num_paragraphs = min(max(int(data.get("num_paragraphs", 2)), 1), 4)
     q_count = _COMPREHENSION_Q_COUNT.get(level, 4)
 
@@ -1733,6 +1671,13 @@ async def comprehension_generate(req: Request):
     vocab_preview = result.get("vocab_preview", [])
 
     audio_url = f"/audio/{await generate_audio(passage)}"
+    if session_id and access_code:
+        _analytics.track(session_id, access_code, "listen_answer_started", {
+            "exercise_type": "listen_answer",
+            "level": level,
+            "topic": topic,
+            "question_count": len(questions),
+        }, visit_id)
     return {"passage": passage, "audio_url": audio_url, "questions": questions, "vocab_preview": vocab_preview}
 
 
@@ -1751,7 +1696,7 @@ CEFR guidelines:
 
 Return ONLY the sentence — no quotes, no explanation, no extra punctuation."""
 
-_dictation_sentences: dict = {}
+_dictation_sentences: dict = {}  # sentence_id → {sentence, level, topic}
 
 
 class DictationGenerateRequest(BaseModel):
@@ -1762,6 +1707,10 @@ class DictationGenerateRequest(BaseModel):
 class DictationCheckRequest(BaseModel):
     sentence_id: str
     typed: str
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+    attempt_number: Optional[int] = 1
 
 
 @app.post("/dictation/generate")
@@ -1781,17 +1730,18 @@ async def dictation_generate(req: DictationGenerateRequest):
     sentence = resp.choices[0].message.content.strip().strip('"').strip("'")
 
     sentence_id = uuid.uuid4().hex
-    _dictation_sentences[sentence_id] = sentence
+    _dictation_sentences[sentence_id] = {"sentence": sentence, "level": req.level, "topic": req.topic}
     audio_url = f"/audio/{await generate_audio(sentence)}"
     return {"sentence_id": sentence_id, "audio_url": audio_url}
 
 
 @app.post("/dictation/check")
 async def dictation_check(req: DictationCheckRequest):
-    sentence = _dictation_sentences.get(req.sentence_id)
-    if not sentence:
+    entry = _dictation_sentences.get(req.sentence_id)
+    if not entry:
         raise HTTPException(status_code=404, detail="Sentence not found")
 
+    sentence = entry["sentence"]
     target_words = normalize(sentence)
     typed_words = normalize(req.typed)
     word_results = run_sequence_match(target_words, typed_words)
@@ -1800,6 +1750,16 @@ async def dictation_check(req: DictationCheckRequest):
     matched = sum(1 for dr in display_results if dr["matched"])
     total = len(display_results)
     score = matched / total if total else 0.0
+
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "dictation_attempted", {
+            "exercise_type": "dictation",
+            "level": entry["level"],
+            "topic": entry["topic"],
+            "score": round(score, 3),
+            "attempt_number": req.attempt_number,
+            "word_results": [[dr["word"], dr["matched"], dr.get("said", "")] for dr in display_results],
+        }, req.visit_id)
 
     mismatches = [
         {"target_word": dr["word"], "typed": dr["said"] or ""}
@@ -1820,6 +1780,12 @@ async def dictation_check(req: DictationCheckRequest):
 class DictationCheckInlineRequest(BaseModel):
     target: str
     typed: str
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+    level: Optional[str] = None
+    topic: Optional[str] = None
+    attempt_number: Optional[int] = 1
 
 
 @app.post("/dictation/check-inline")
@@ -1833,6 +1799,17 @@ async def dictation_check_inline(req: DictationCheckInlineRequest):
     matched = sum(1 for dr in display_results if dr["matched"])
     total   = len(display_results)
     score   = matched / total if total else 0.0
+
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "dictation_attempted", {
+            "exercise_type": "dictation",
+            "level": req.level,
+            "topic": req.topic,
+            "score": round(score, 3),
+            "attempt_number": req.attempt_number,
+            "word_results": [[dr["word"], dr["matched"], dr.get("said", "")] for dr in display_results],
+        }, req.visit_id)
+
     mismatches = [
         {"target_word": dr["word"], "typed": dr["said"] or ""}
         for dr in display_results if not dr["matched"]
@@ -1863,6 +1840,9 @@ class VocabGenerateRequest(BaseModel):
     level: str
     subject: str
     count: int = 8
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
 
 class VocabGenerateResponse(BaseModel):
     cards: list[VocabCard]
@@ -1925,6 +1905,13 @@ async def vocab_generate(req: VocabGenerateRequest):
         text = re.sub(r"\s*```$", "", text)
         cards_raw = json.loads(text)
         cards = [VocabCard(**c) for c in cards_raw[:count]]
+        if req.session_id and req.access_code:
+            _analytics.track(req.session_id, req.access_code, "vocab_session_started", {
+                "exercise_type": "vocab",
+                "level": level,
+                "subject": req.subject,
+                "card_count": len(cards),
+            }, req.visit_id)
         return VocabGenerateResponse(cards=cards)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
@@ -2006,6 +1993,10 @@ class WritingCheckRequest(BaseModel):
     response: str
     level: str = "B1"
     attempt: int = 1
+    topic: Optional[str] = None
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
 
 
 @app.post("/writing/prompt")
@@ -2054,6 +2045,19 @@ async def writing_check(req: WritingCheckRequest):
         result = json.loads(raw)
     except Exception:
         raise HTTPException(status_code=500, detail="Feedback parse error")
+    if req.session_id and req.access_code:
+        has_errors = result.get("has_errors", True)
+        tip_count = len(result.get("tips", []))
+        score = 1.0 if not has_errors else (0.5 if req.attempt > 1 else 0.0)
+        _analytics.track(req.session_id, req.access_code, "writing_attempted", {
+            "exercise_type": "writing",
+            "level": req.level,
+            "topic": req.topic,
+            "attempt": req.attempt,
+            "has_errors": has_errors,
+            "score": round(score, 3),
+            "tip_count": tip_count,
+        }, req.visit_id)
     return result
 
 
@@ -2131,6 +2135,10 @@ class TransformCheckRequest(BaseModel):
     response: str
     level: str = "B1"
     attempt: int = 1
+    focus: Optional[str] = None
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
 
 
 @app.post("/transform/generate")
@@ -2186,6 +2194,19 @@ async def transform_check(req: TransformCheckRequest):
         result = json.loads(raw)
     except Exception:
         raise HTTPException(status_code=500, detail="Feedback parse error")
+    if req.session_id and req.access_code:
+        has_errors = result.get("has_errors", True)
+        tip_count = len(result.get("tips", []))
+        score = 1.0 if not has_errors else (0.5 if req.attempt > 1 else 0.0)
+        _analytics.track(req.session_id, req.access_code, "transform_attempted", {
+            "exercise_type": "transform",
+            "level": req.level,
+            "focus": req.focus,
+            "attempt": req.attempt,
+            "has_errors": has_errors,
+            "score": round(score, 3),
+            "tip_count": tip_count,
+        }, req.visit_id)
     return result
 
 

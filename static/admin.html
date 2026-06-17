@@ -11,7 +11,6 @@
   <style>
     /* ── Shell ──────────────────────────────────────────────────────────── */
     body { margin: 0; font-family: var(--vk-font-ui); background: var(--vk-bg); color: var(--vk-fg-1); }
-
     .shell { display: flex; height: 100dvh; overflow: hidden; }
 
     /* ── Sidebar ────────────────────────────────────────────────────────── */
@@ -67,7 +66,6 @@
 
     /* ── Main ───────────────────────────────────────────────────────────── */
     .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-
     .page { display: none; flex-direction: column; min-height: 100%; }
     .page.active { display: flex; }
 
@@ -76,11 +74,11 @@
       background: var(--vk-surface);
       border-bottom: 1px solid var(--vk-border);
       padding: 20px 32px 16px;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
     }
-    .page-title {
-      font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em;
-      color: var(--vk-fg-1); margin: 0 0 4px;
-    }
+    .page-header-text {}
+    .page-title { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; color: var(--vk-fg-1); margin: 0 0 4px; }
     .page-sub { font-size: 0.72rem; color: var(--vk-fg-2); }
     .page-body { padding: 28px 32px; flex: 1; }
 
@@ -97,11 +95,16 @@
     }
     .kpi-label {
       font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--vk-fg-3); margin-bottom: 8px;
+      text-transform: uppercase; color: var(--vk-fg-2); margin-bottom: 8px;
     }
-    .kpi-value {
-      font-size: 1.8rem; font-weight: 700; color: var(--vk-fg-1); line-height: 1;
+    .kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--vk-fg-1); line-height: 1; }
+    .kpi-delta {
+      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em;
+      margin-top: 6px; display: flex; align-items: center; gap: 3px;
     }
+    .kpi-delta.up   { color: #1F5A40; }
+    .kpi-delta.down { color: #B42318; }
+    .kpi-delta.flat { color: var(--vk-fg-3); }
     .kpi-sub { font-size: 0.68rem; color: var(--vk-fg-2); margin-top: 4px; }
 
     /* ── Section heading ────────────────────────────────────────────────── */
@@ -123,13 +126,8 @@
     }
     .teacher-row:hover { background: var(--vk-accent-bg); }
     .teacher-row.open { border-bottom: 1px solid var(--vk-border); }
-
-    .tr-chevron {
-      font-size: 0.65rem; color: var(--vk-fg-3); transition: transform 150ms;
-      flex-shrink: 0;
-    }
+    .tr-chevron { font-size: 0.65rem; color: var(--vk-fg-3); transition: transform 150ms; flex-shrink: 0; }
     .teacher-row.open .tr-chevron { transform: rotate(90deg); }
-
     .tr-name { font-size: 0.82rem; font-weight: 600; color: var(--vk-fg-1); flex: 1; }
     .tr-email { font-size: 0.7rem; color: var(--vk-fg-3); }
     .tr-count {
@@ -137,9 +135,20 @@
       color: var(--vk-fg-3); background: var(--vk-border-mid);
       padding: 3px 8px; flex-shrink: 0;
     }
-
     .teacher-students { display: none; background: var(--vk-bg); }
     .teacher-students.open { display: block; }
+
+    /* ── Search bar ─────────────────────────────────────────────────────── */
+    .search-wrap { margin-bottom: 16px; }
+    .search-input {
+      width: 100%; max-width: 360px;
+      font-family: var(--vk-font-ui); font-size: 0.8rem;
+      background: var(--vk-surface); border: 1px solid var(--vk-border-mid);
+      color: var(--vk-fg-1); padding: 8px 12px; outline: none;
+      box-sizing: border-box; transition: border-color 80ms;
+    }
+    .search-input:focus { border-color: var(--vk-accent); }
+    .search-input::placeholder { color: var(--vk-fg-3); }
 
     /* ── User table ─────────────────────────────────────────────────────── */
     .user-table { width: 100%; border-collapse: collapse; }
@@ -155,22 +164,28 @@
     }
     .user-table tr:last-child td { border-bottom: none; }
     .user-table tr:hover td { background: var(--vk-accent-bg); }
-
     .td-name { font-weight: 600; color: var(--vk-fg-1); }
-    .td-code {
-      font-family: var(--vk-font-ui); font-size: 0.7rem;
-      color: var(--vk-accent-text); letter-spacing: 0.05em;
-    }
+    .td-code { font-family: var(--vk-font-ui); font-size: 0.7rem; color: var(--vk-accent-text); letter-spacing: 0.05em; }
 
+    /* ── Badges ─────────────────────────────────────────────────────────── */
     .badge {
       display: inline-block; font-size: 0.58rem; font-weight: 700;
-      letter-spacing: 0.08em; text-transform: uppercase;
-      padding: 2px 7px;
+      letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px;
     }
-    .badge-active { background: rgba(31,90,64,0.15); color: #1F5A40; }
-    .badge-inactive { background: rgba(180,35,24,0.1); color: #B42318; }
-    .badge-solo { background: var(--vk-accent-bg); color: var(--vk-accent-text); }
+    .badge-active   { background: rgba(31,90,64,0.15); color: #1F5A40; }
+    .badge-inactive { background: rgba(180,35,24,0.1);  color: #B42318; }
+    .badge-solo     { background: var(--vk-accent-bg);  color: var(--vk-accent-text); }
 
+    .score-badge {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.04em; padding: 2px 8px;
+    }
+    .score-green { background: rgba(31,90,64,0.15); color: #1F5A40; }
+    .score-amber { background: rgba(138,90,0,0.12); color: #8A5A00; }
+    .score-red   { background: rgba(180,35,24,0.1);  color: #B42318; }
+    .score-none  { background: var(--vk-border-mid); color: var(--vk-fg-3); }
+
+    /* ── Action buttons ─────────────────────────────────────────────────── */
     .action-btn {
       font-family: var(--vk-font-ui); font-size: 0.6rem; font-weight: 700;
       letter-spacing: 0.08em; text-transform: uppercase;
@@ -181,26 +196,52 @@
     }
     .action-btn:hover { background: var(--vk-border-mid); color: var(--vk-fg-1); }
     .action-btn + .action-btn { margin-left: 4px; }
-
-    .action-btn-accent {
-      border-color: var(--vk-accent-border); color: var(--vk-accent-text);
-    }
+    .action-btn-accent { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
     .action-btn-accent:hover { background: var(--vk-accent-bg); }
+    .action-btn-danger { border-color: rgba(180,35,24,0.4); color: #B42318; }
+    .action-btn-danger:hover { background: rgba(180,35,24,0.08); }
 
-    /* ── Exercise bar chart ──────────────────────────────────────────────── */
+    /* ── Dataset toggle ─────────────────────────────────────────────────── */
+    .ds-toggle { display: flex; gap: 0; border: 1px solid var(--vk-border); align-self: center; }
+    .ds-btn {
+      padding: 6px 14px; font-family: var(--vk-font-ui); font-size: 0.68rem;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      border: none; cursor: pointer;
+      background: var(--vk-surface); color: var(--vk-fg-2);
+      transition: background 80ms, color 80ms;
+    }
+    .ds-btn.active { background: var(--vk-accent); color: var(--vk-accent-fg); }
+
+    /* ── Sparkline ──────────────────────────────────────────────────────── */
+    .sparkline-wrap { margin-bottom: 32px; position: relative; }
+    .sparkline-label {
+      font-size: 0.62rem; color: var(--vk-fg-2); margin-bottom: 12px;
+      letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+    }
+    .sparkline-container { position: relative; }
+    #sparkline-svg, #overview-sparkline-svg { width: 100%; display: block; }
+    .sparkline-tooltip {
+      position: absolute; pointer-events: none;
+      background: var(--vk-fg-1); color: var(--vk-bg);
+      font-size: 0.68rem; font-family: var(--vk-font-ui);
+      padding: 4px 8px; white-space: nowrap; display: none;
+      z-index: 100;
+    }
+
+    /* ── Exercise breakdown bar chart ───────────────────────────────────── */
     .chart-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
     .chart-row { display: flex; align-items: center; gap: 12px; }
-    .chart-label { font-size: 0.68rem; color: var(--vk-fg-2); width: 180px; flex-shrink: 0; }
+    .chart-label { font-size: 0.68rem; color: var(--vk-fg-2); width: 160px; flex-shrink: 0; }
     .chart-bar-bg { flex: 1; height: 10px; background: var(--vk-border-mid); position: relative; }
     .chart-bar-fill { height: 100%; background: var(--vk-accent); transition: width 400ms; }
     .chart-val { font-size: 0.68rem; color: var(--vk-fg-3); width: 50px; text-align: right; flex-shrink: 0; }
 
-    /* ── Daily sparkline ─────────────────────────────────────────────────── */
-    .sparkline-wrap { margin-bottom: 32px; }
-    .sparkline-label { font-size: 0.62rem; color: var(--vk-fg-3); margin-bottom: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
-    #sparkline-svg { width: 100%; height: 80px; display: block; }
+    /* ── Two-column layout ──────────────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+    .col-card { border: 1px solid var(--vk-border-mid); padding: 20px; }
 
-    /* ── Top users table ─────────────────────────────────────────────────── */
+    /* ── Top users table ────────────────────────────────────────────────── */
     .top-table { width: 100%; border-collapse: collapse; }
     .top-table th {
       font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
@@ -215,22 +256,86 @@
     .top-table tr:last-child td { border-bottom: none; }
     .rank { color: var(--vk-fg-3); }
 
-    /* ── Two-column layout ───────────────────────────────────────────────── */
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
-    .col-card { border: 1px solid var(--vk-border-mid); padding: 20px; }
+    /* ── Feature usage cards ────────────────────────────────────────────── */
+    .usage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 32px;
+    }
+    .usage-card {
+      border: 1px solid var(--vk-border-mid); padding: 20px;
+      background: var(--vk-surface);
+    }
+    .usage-card-name {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--vk-fg-2); margin-bottom: 12px;
+    }
+    .usage-card-count {
+      font-size: 1.8rem; font-weight: 700; color: var(--vk-fg-1); line-height: 1; margin-bottom: 2px;
+    }
+    .usage-card-sub { font-size: 0.65rem; color: var(--vk-fg-2); margin-bottom: 12px; }
+    .usage-card-meta {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .usage-bar-wrap { margin-top: 12px; }
+    .usage-bar-bg { height: 4px; background: var(--vk-border-mid); }
+    .usage-bar-fill { height: 100%; background: var(--vk-accent); transition: width 400ms; }
 
-    /* ── Empty state ─────────────────────────────────────────────────────── */
+    /* ── Usage full table ───────────────────────────────────────────────── */
+    .usage-table { width: 100%; border-collapse: collapse; }
+    .usage-table th {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--vk-fg-3);
+      text-align: left; padding: 8px 16px;
+      border-bottom: 1px solid var(--vk-border);
+    }
+    .usage-table td {
+      padding: 11px 16px; font-size: 0.75rem; color: var(--vk-fg-2);
+      border-bottom: 1px solid var(--vk-border); vertical-align: middle;
+    }
+    .usage-table tr:last-child td { border-bottom: none; }
+    .usage-table tr:hover td { background: var(--vk-accent-bg); }
+    .ut-name { font-weight: 600; color: var(--vk-fg-1); }
+
+    /* ── Legacy banner ──────────────────────────────────────────────────── */
+    .legacy-banner {
+      display: none; background: var(--vk-accent-bg);
+      border: 1px solid var(--vk-accent); color: var(--vk-accent-text);
+      font-size: 0.72rem; font-family: var(--vk-font-ui);
+      padding: 8px 32px; letter-spacing: 0.04em;
+    }
+
+    /* ── Overview summary links ─────────────────────────────────────────── */
+    .summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+    @media (max-width: 700px) { .summary-row { grid-template-columns: 1fr; } }
+    .summary-card {
+      border: 1px solid var(--vk-border-mid); padding: 16px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--vk-surface);
+    }
+    .summary-card-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-2); margin-bottom: 4px; }
+    .summary-card-value { font-size: 0.95rem; font-weight: 600; color: var(--vk-fg-1); }
+
+    /* ── Empty state ────────────────────────────────────────────────────── */
     .empty { color: var(--vk-fg-3); font-size: 0.75rem; padding: 24px; text-align: center; }
 
-    /* ── Loading skeleton ────────────────────────────────────────────────── */
+    /* ── Loading skeleton ───────────────────────────────────────────────── */
     .skeleton {
       background: linear-gradient(90deg, var(--vk-border) 25%, var(--vk-border-mid) 50%, var(--vk-border) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.2s infinite;
+      background-size: 200% 100%; animation: shimmer 1.2s infinite;
       height: 14px; margin-bottom: 8px;
     }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ── Toast ──────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 500;
+      background: var(--vk-fg-1); color: var(--vk-bg);
+      font-size: 0.75rem; font-family: var(--vk-font-ui); font-weight: 600;
+      padding: 10px 18px; display: none; letter-spacing: 0.04em;
+    }
+    #toast.show { display: block; animation: fadeInUp 150ms ease; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   </style>
 </head>
 <body>
@@ -242,8 +347,14 @@
     <div class="sb-byline">Super Admin Hub</div>
 
     <div class="sb-nav">
-      <div class="sb-item active" data-page="users" onclick="showPage('users', this)">
+      <div class="sb-item active" data-page="overview" onclick="showPage('overview', this)">
+        <span class="sb-icon">&#9632;</span> Overview
+      </div>
+      <div class="sb-item" data-page="users" onclick="showPage('users', this)">
         <span class="sb-icon">&#9776;</span> Users
+      </div>
+      <div class="sb-item" data-page="usage" onclick="showPage('usage', this)">
+        <span class="sb-icon">&#9674;</span> Usage
       </div>
       <div class="sb-item" data-page="performance" onclick="showPage('performance', this)">
         <span class="sb-icon">&#9650;</span> Performance
@@ -251,7 +362,7 @@
     </div>
 
     <div class="sb-footer">
-      <a href="/" target="_blank" style="display:block; font-family:var(--vkg-font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--vk-fg-2); text-decoration:none; padding:8px 0; border-top:1px solid var(--vk-border); margin-bottom:10px;" onmouseover="this.style.color='var(--vk-fg-1)'" onmouseout="this.style.color='var(--vk-fg-2)'">&#8599; Open Tool</a>
+      <a href="/app" target="_blank" style="display:block; font-family:var(--vk-font-ui); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--vk-fg-2); text-decoration:none; padding:8px 0; border-top:1px solid var(--vk-border); margin-bottom:10px;" onmouseover="this.style.color='var(--vk-fg-1)'" onmouseout="this.style.color='var(--vk-fg-2)'">&#8599; Open Tool</a>
       <div class="sb-email" id="sb-email">—</div>
       <button class="sb-signout" onclick="signOut()">Sign Out</button>
     </div>
@@ -260,17 +371,69 @@
   <!-- Main -->
   <main class="main">
 
-    <!-- ── Users page ──────────────────────────────────────────────────── -->
-    <div class="page active" id="page-users">
+    <!-- ── Overview page ─────────────────────────────────────────────────── -->
+    <div class="page active" id="page-overview">
       <div class="page-header">
-        <div class="page-title">Users</div>
-        <div class="page-sub">All teachers, their students, and solo learners</div>
+        <div class="page-header-text">
+          <div class="page-title">Overview</div>
+          <div class="page-sub">Platform health at a glance</div>
+        </div>
       </div>
       <div class="page-body">
+
+        <!-- Hero KPIs -->
+        <div class="kpi-row" id="overview-kpis">
+          <div class="kpi-card"><div class="kpi-label">Active Users (7d)</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Events (7d)</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Avg Score</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value">—</div></div>
+        </div>
+
+        <!-- Daily sparkline -->
+        <div class="sparkline-wrap">
+          <div class="sparkline-label">Daily Events — Last 30 Days</div>
+          <div class="sparkline-container">
+            <svg id="overview-sparkline-svg" viewBox="0 0 800 100" preserveAspectRatio="none" style="height:100px">
+              <text x="400" y="54" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.5)">Loading…</text>
+            </svg>
+            <div class="sparkline-tooltip" id="overview-sparkline-tooltip"></div>
+          </div>
+        </div>
+
+        <!-- Quick summary cards -->
+        <div class="section-title" style="margin-bottom:14px">Quick Links</div>
+        <div class="summary-row" id="overview-summary">
+          <div class="summary-card">
+            <div><div class="summary-card-label">Users</div><div class="summary-card-value" id="ov-users-text">—</div></div>
+            <button class="action-btn action-btn-accent" onclick="showPage('users', document.querySelector('[data-page=users]'))">Manage →</button>
+          </div>
+          <div class="summary-card">
+            <div><div class="summary-card-label">Top Exercise (30d)</div><div class="summary-card-value" id="ov-top-feature">—</div></div>
+            <button class="action-btn action-btn-accent" onclick="showPage('usage', document.querySelector('[data-page=usage]'))">View Usage →</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Users page ─────────────────────────────────────────────────────── -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <div class="page-header-text">
+          <div class="page-title">Users</div>
+          <div class="page-sub">All teachers, their students, and solo learners</div>
+        </div>
+        <button class="action-btn action-btn-accent" onclick="openCreateTeacher()" style="align-self:center">+ Add Teacher</button>
+      </div>
+      <div class="page-body">
+
+        <div class="search-wrap">
+          <input class="search-input" type="search" placeholder="Search by name, email, or access code…" oninput="filterUsers(this.value)" id="user-search">
+        </div>
+
         <!-- Teachers -->
         <div class="section-head">
           <span class="section-title">Teachers</span>
-          <button class="action-btn action-btn-accent" onclick="openCreateTeacher()">+ Add Teacher</button>
         </div>
         <div id="teachers-list">
           <div class="skeleton" style="width:60%;height:48px"></div>
@@ -290,7 +453,7 @@
                 <th>Status</th>
                 <th>Last Active</th>
                 <th>Events</th>
-                <th>Links</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="solo-body">
@@ -301,22 +464,65 @@
       </div>
     </div>
 
-    <!-- ── Performance page ────────────────────────────────────────────── -->
+    <!-- ── Usage page ─────────────────────────────────────────────────────── -->
+    <div class="page" id="page-usage">
+      <div class="page-header">
+        <div class="page-header-text">
+          <div class="page-title">Usage</div>
+          <div class="page-sub">Feature adoption and engagement — last 30 days</div>
+        </div>
+      </div>
+      <div class="page-body">
+
+        <!-- Feature cards -->
+        <div class="section-head">
+          <span class="section-title">Exercise Breakdown</span>
+          <span style="font-size:0.65rem;color:var(--vk-fg-3)">30-day window</span>
+        </div>
+        <div class="usage-grid" id="usage-cards">
+          <div class="empty">Loading…</div>
+        </div>
+
+        <!-- Full breakdown table -->
+        <div class="section-head" style="margin-top:8px">
+          <span class="section-title">All-Time Totals</span>
+        </div>
+        <div style="border:1px solid var(--vk-border-mid)">
+          <table class="usage-table">
+            <thead>
+              <tr>
+                <th>Exercise</th>
+                <th>Attempts (30d)</th>
+                <th>Unique Users (30d)</th>
+                <th>Avg Score (30d)</th>
+                <th>All-Time Attempts</th>
+              </tr>
+            </thead>
+            <tbody id="usage-table-body">
+              <tr><td colspan="5" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Performance page ───────────────────────────────────────────────── -->
     <div class="page" id="page-performance">
-      <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-        <div>
+      <div class="page-header">
+        <div class="page-header-text">
           <div class="page-title">Performance</div>
           <div class="page-sub">Platform-wide usage and scoring metrics</div>
         </div>
-        <div style="display:flex; gap:0; border:1px solid var(--vk-border); align-self:center;">
-          <button id="ds-current" onclick="switchDataset('current')" style="padding:6px 14px; font-family:var(--vkg-font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; border:none; cursor:pointer; background:var(--vk-accent); color:var(--vk-accent-fg);">Current</button>
-          <button id="ds-legacy" onclick="switchDataset('legacy')" style="padding:6px 14px; font-family:var(--vkg-font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; border:none; cursor:pointer; background:var(--vk-surface); color:var(--vk-fg-2);">Legacy</button>
+        <div class="ds-toggle">
+          <button id="ds-current" class="ds-btn active" onclick="switchDataset('current')">Current</button>
+          <button id="ds-legacy" class="ds-btn" onclick="switchDataset('legacy')">Legacy</button>
         </div>
       </div>
-      <div id="legacy-banner" style="display:none; background:var(--vk-accent-bg); border:1px solid var(--vk-accent); color:var(--vk-accent-text); font-size:0.72rem; font-family:var(--vkg-font-mono); padding:8px 12px; margin-bottom:16px; letter-spacing:0.04em;">VIEWING LEGACY DATA — collected before current deployment</div>
+      <div id="legacy-banner" class="legacy-banner">VIEWING LEGACY DATA — collected before current deployment</div>
       <div class="page-body">
 
-        <!-- KPIs -->
+        <!-- All KPIs -->
         <div class="kpi-row" id="kpi-row">
           <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value">—</div></div>
           <div class="kpi-card"><div class="kpi-label">Teachers</div><div class="kpi-value">—</div></div>
@@ -330,15 +536,18 @@
         <!-- Daily sparkline -->
         <div class="sparkline-wrap">
           <div class="sparkline-label">Daily Events — Last 30 Days</div>
-          <svg id="sparkline-svg" viewBox="0 0 800 80" preserveAspectRatio="none">
-            <text x="400" y="44" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.5)">Loading…</text>
-          </svg>
+          <div class="sparkline-container">
+            <svg id="sparkline-svg" viewBox="0 0 800 100" preserveAspectRatio="none" style="height:100px">
+              <text x="400" y="54" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.5)">Loading…</text>
+            </svg>
+            <div class="sparkline-tooltip" id="sparkline-tooltip"></div>
+          </div>
         </div>
 
-        <!-- Two columns: exercise breakdown + top users -->
+        <!-- Two columns -->
         <div class="two-col">
           <div class="col-card">
-            <div class="section-title" style="margin-bottom:16px">Exercise Breakdown</div>
+            <div class="section-title" style="margin-bottom:16px">Exercise Breakdown (All Time)</div>
             <div class="chart-wrap" id="exercise-chart">
               <div class="empty">Loading…</div>
             </div>
@@ -362,9 +571,9 @@
   </main>
 </div>
 
-<!-- ── Create teacher modal ──────────────────────────────────────────────── -->
-<div id="modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;width:380px;max-width:90vw;">
+<!-- ── Create teacher modal ───────────────────────────────────────────────── -->
+<div id="modal-backdrop" onclick="handleBackdropClick(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div id="modal-box" style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;width:380px;max-width:90vw;">
     <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:20px;">Add Teacher</div>
     <div style="margin-bottom:14px;">
       <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-3);margin-bottom:6px;">Email</label>
@@ -382,15 +591,15 @@
   </div>
 </div>
 
+<!-- Toast -->
+<div id="toast"></div>
+
 <script>
   const API = '';
 
-  // ── Auth ─────────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
   function token() { return localStorage.getItem('ft_jwt') || ''; }
-
-  function authHeaders() {
-    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() };
-  }
+  function authHeaders() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() }; }
 
   async function guardAuth() {
     if (!token()) { location.href = '/login'; return false; }
@@ -416,43 +625,31 @@
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
     document.getElementById('page-' + name).classList.add('active');
-    el.classList.add('active');
+    if (el) el.classList.add('active');
   }
 
   // ── Format helpers ────────────────────────────────────────────────────────
   function fmtDate(iso) {
     if (!iso) return '—';
-    try {
-      return new Date(iso.replace(' ', 'T')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
-    } catch { return '—'; }
+    try { return new Date(iso.replace(' ', 'T')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }); }
+    catch { return '—'; }
   }
 
   function fmtLabel(s) {
     const m = {
-      phrase_attempted: 'Phrase shadowing',
-      paragraph_attempted: 'Paragraph',
-      paragraph_drilled: 'Paragraph drill',
-      word_attempted: 'Word drill',
-      prosody_attempted: 'Prosody',
+      phrase_attempted:    'Shadowing',
+      paragraph_attempted: 'Speaking — Passage',
+      paragraph_drilled:   'Speaking — Sentence Drill',
+      word_attempted:      'Practice List',
     };
     return m[s] || s;
-  }
-
-  function toolLink(accessCode) {
-    return `/app`;
   }
 
   function analyticsLink(accessCode) {
     return `/analytics/dashboard${accessCode ? '?key=' + encodeURIComponent(accessCode) : ''}`;
   }
 
-  function userDisplayName(u) {
-    return u.username || u.email || `User #${u.id}`;
-  }
-
-  function userEmail(u) {
-    return u.email ? `<span style="color:var(--vk-fg-3);font-size:0.68rem;">${u.email}</span>` : '';
-  }
+  function userDisplayName(u) { return u.username || u.email || `User #${u.id}`; }
 
   function statusBadge(u) {
     return u.is_active
@@ -460,11 +657,176 @@
       : '<span class="badge badge-inactive">Inactive</span>';
   }
 
+  function scoreBadge(score) {
+    if (score == null) return '<span class="score-badge score-none">No data</span>';
+    const pct = Math.round(score * 100);
+    const cls = pct >= 70 ? 'score-green' : pct >= 40 ? 'score-amber' : 'score-red';
+    return `<span class="score-badge ${cls}">${pct}%</span>`;
+  }
+
+  function delta(current, prev) {
+    if (prev == null || current == null) return '';
+    if (prev === 0) {
+      if (current === 0) return '<span class="kpi-delta flat">— vs prior week</span>';
+      return `<span class="kpi-delta up">▲ New this week</span>`;
+    }
+    const pct = Math.round(((current - prev) / prev) * 100);
+    if (pct > 0)  return `<span class="kpi-delta up">▲ ${pct}% vs prior week</span>`;
+    if (pct < 0)  return `<span class="kpi-delta down">▼ ${Math.abs(pct)}% vs prior week</span>`;
+    return '<span class="kpi-delta flat">— no change</span>';
+  }
+
+  function fmtNum(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString();
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Sparkline ─────────────────────────────────────────────────────────────
+  function renderSparkline(daily, svgId, tooltipId) {
+    const svg = document.getElementById(svgId);
+    const tooltip = document.getElementById(tooltipId);
+    if (!daily.length) {
+      svg.innerHTML = '<text x="400" y="54" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.4)">No data</text>';
+      return;
+    }
+
+    const W = 800; const H = 100;
+    const PAD_T = 20; const PAD_B = 24; const PAD_X = 8;
+    const chartH = H - PAD_T - PAD_B;
+    const max = Math.max(...daily.map(d => d.count), 1);
+
+    const pts = daily.map((d, i) => {
+      const x = PAD_X + (i / Math.max(daily.length - 1, 1)) * (W - PAD_X * 2);
+      const y = PAD_T + (1 - d.count / max) * chartH;
+      return { x, y, day: d.day, count: d.count };
+    });
+
+    const linePath = pts.map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ');
+    const areaPath = linePath + ` L${pts[pts.length-1].x},${H - PAD_B} L${pts[0].x},${H - PAD_B} Z`;
+
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--vk-accent').trim() || '#c9954a';
+
+    // Y-axis labels (max and midpoint)
+    const mid = Math.round(max / 2);
+    const yMax = PAD_T; const yMid = PAD_T + chartH / 2; const yZero = PAD_T + chartH;
+
+    // X-axis: show ~5 date labels
+    const step = Math.max(1, Math.floor(daily.length / 5));
+    const xLabels = pts.filter((_, i) => i % step === 0 || i === pts.length - 1);
+
+    // Hit areas for tooltip
+    const hitRects = pts.map((p, i) => {
+      const w = W / pts.length;
+      return `<rect x="${p.x - w/2}" y="${PAD_T}" width="${w}" height="${chartH}" fill="transparent"
+        data-day="${p.day}" data-count="${p.count}" data-x="${p.x}" data-y="${p.y}"
+        onmouseover="showSpkTooltip(event, '${p.day}', ${p.count}, ${p.x}, ${p.y}, '${tooltipId}')"
+        onmouseout="hideSpkTooltip('${tooltipId}')"/>`;
+    }).join('');
+
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="sg-${svgId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${accent}" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="${accent}" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <text x="${PAD_X}" y="${yMax}" font-size="9" fill="rgba(100,100,100,0.6)" text-anchor="start">${max}</text>
+      <text x="${PAD_X}" y="${yMid + 4}" font-size="9" fill="rgba(100,100,100,0.45)" text-anchor="start">${mid}</text>
+      <text x="${PAD_X}" y="${yZero}" font-size="9" fill="rgba(100,100,100,0.45)" text-anchor="start">0</text>
+      ${xLabels.map(p => `<text x="${p.x}" y="${H}" font-size="9" fill="rgba(100,100,100,0.55)" text-anchor="middle">${fmtShortDate(p.day)}</text>`).join('')}
+      <path d="${areaPath}" fill="url(#sg-${svgId})" stroke="none"/>
+      <path d="${linePath}" fill="none" stroke="${accent}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="${accent}" opacity="0.7"/>`).join('')}
+      ${hitRects}
+    `;
+  }
+
+  function fmtShortDate(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    } catch { return iso.slice(5); }
+  }
+
+  function showSpkTooltip(event, day, count, svgX, svgY, tooltipId) {
+    const tooltip = document.getElementById(tooltipId);
+    const container = tooltip.parentElement;
+    const rect = container.getBoundingClientRect();
+    const svgEl = container.querySelector('svg');
+    const svgRect = svgEl.getBoundingClientRect();
+
+    const ratioX = svgX / 800;
+    const ratioY = svgY / 100;
+    const pixX = svgRect.left - rect.left + ratioX * svgRect.width;
+    const pixY = svgRect.top  - rect.top  + ratioY * svgRect.height;
+
+    tooltip.textContent = `${fmtShortDate(day)}: ${count} events`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (pixX - tooltip.offsetWidth / 2) + 'px';
+    tooltip.style.top  = (pixY - 32) + 'px';
+  }
+
+  function hideSpkTooltip(tooltipId) {
+    const t = document.getElementById(tooltipId);
+    if (t) t.style.display = 'none';
+  }
+
+  // ── Overview page ─────────────────────────────────────────────────────────
+  async function loadOverview(stats) {
+    // stats may be passed from loadPerformance to avoid double fetch
+    const d = stats || await (async () => {
+      const r = await fetch('/admin/platform-stats?dataset=current', { headers: authHeaders() });
+      return r.ok ? r.json() : null;
+    })();
+    if (!d) return;
+
+    const counts = d.user_counts || {};
+    const teacherCount = counts['teacher'] || 0;
+    const studentCount = (counts['student_teacher'] || 0) + (counts['student_solo'] || 0);
+
+    const kpis = [
+      { label: 'Active Users (7d)', value: d.active_users_7d ?? '—', cur: d.active_users_7d, prev: d.active_users_prev_7d },
+      { label: 'Events (7d)',       value: fmtNum(d.events_7d),      cur: d.events_7d,       prev: d.events_prev_7d },
+      { label: 'Avg Score',         value: d.avg_score != null ? (d.avg_score * 100).toFixed(1) + '%' : '—', cur: d.avg_score, prev: d.avg_score_prev_7d, isPct: true },
+      { label: 'Total Users',       value: d.total_users ?? '—' },
+    ];
+
+    document.getElementById('overview-kpis').innerHTML = kpis.map(k => `
+      <div class="kpi-card">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+        ${k.prev !== undefined ? delta(k.cur, k.prev) : ''}
+      </div>
+    `).join('');
+
+    renderSparkline(d.daily_events || [], 'overview-sparkline-svg', 'overview-sparkline-tooltip');
+
+    document.getElementById('ov-users-text').textContent = `${teacherCount} teacher${teacherCount !== 1 ? 's' : ''}, ${studentCount} student${studentCount !== 1 ? 's' : ''}`;
+
+    const top = (d.exercise_breakdown || [])[0];
+    document.getElementById('ov-top-feature').textContent = top ? fmtLabel(top.type) : '—';
+    // Note: overview uses exercise_breakdown from platform-stats (all-time counts);
+    // Usage page uses /admin/feature-usage (30d, with correct labels).
+  }
+
   // ── Users page ────────────────────────────────────────────────────────────
+  let _usersData = null;
+
   async function loadUsers() {
     const r = await fetch('/admin/user-hierarchy', { headers: authHeaders() });
     if (!r.ok) { document.getElementById('teachers-list').innerHTML = '<div class="empty">Failed to load users.</div>'; return; }
-    const { teachers, solo } = await r.json();
+    _usersData = await r.json();
+    renderUsers(_usersData);
+  }
+
+  function renderUsers(data) {
+    const { teachers, solo } = data;
 
     // Teachers
     const tList = document.getElementById('teachers-list');
@@ -481,10 +843,15 @@
             </div>
             <span class="tr-count">${t.students.length} student${t.students.length !== 1 ? 's' : ''}</span>
             ${statusBadge(t)}
+            <button class="action-btn ${t.is_active ? 'action-btn-danger' : 'action-btn-accent'}"
+              onclick="event.stopPropagation(); toggleActive(${t.id}, ${t.is_active ? 0 : 1})"
+              title="${t.is_active ? 'Deactivate' : 'Activate'} teacher">
+              ${t.is_active ? 'Deactivate' : 'Activate'}
+            </button>
             <a class="action-btn action-btn-accent" href="${analyticsLink(t.access_code || '')}" target="_blank" onclick="event.stopPropagation()">Dashboard</a>
           </div>
           <div class="teacher-students" id="ts-${i}">
-            ${renderStudentTable(t.students, true)}
+            ${renderStudentTable(t.students)}
           </div>
         </div>
       `).join('');
@@ -499,12 +866,12 @@
     }
   }
 
-  function renderStudentTable(students, nested) {
+  function renderStudentTable(students) {
     if (!students.length) return '<div class="empty">No students assigned.</div>';
     return `<table class="user-table">
       <thead><tr>
         <th>Name / Email</th><th>Access Code</th><th>Status</th>
-        <th>Last Active</th><th>Events</th><th>Links</th>
+        <th>Last Active</th><th>Events</th><th>Actions</th>
       </tr></thead>
       <tbody>${students.map(u => renderUserRow(u)).join('')}</tbody>
     </table>`;
@@ -514,25 +881,106 @@
     const code = u.access_code || '';
     const name = escHtml(userDisplayName(u));
     const email = u.email ? `<div style="color:var(--vk-fg-3);font-size:0.68rem;">${escHtml(u.email)}</div>` : '';
-    const toolBtn = `<a class="action-btn" title="Open the student exercise app" href="${toolLink(code)}" target="_blank">Open Tool</a>`;
     const analyticsBtn = code
       ? `<a class="action-btn action-btn-accent" href="${analyticsLink(code)}" target="_blank">Analytics</a>`
       : '';
+    const toggleBtn = `<button class="action-btn ${u.is_active ? 'action-btn-danger' : 'action-btn-accent'}"
+      onclick="toggleActive(${u.id}, ${u.is_active ? 0 : 1})"
+      title="${u.is_active ? 'Deactivate' : 'Activate'} user">
+      ${u.is_active ? 'Deactivate' : 'Activate'}
+    </button>`;
     return `<tr>
       <td><div class="td-name">${name}</div>${email}</td>
       <td><span class="td-code">${escHtml(code) || '—'}</span></td>
       <td>${statusBadge(u)}</td>
       <td>${fmtDate(u.last_active)}</td>
       <td>${u.event_count || 0}</td>
-      <td>${toolBtn}${analyticsBtn}</td>
+      <td>${toggleBtn}${analyticsBtn}</td>
     </tr>`;
   }
 
   function toggleTeacher(i) {
-    const row = document.getElementById('tr-' + i);
-    const students = document.getElementById('ts-' + i);
-    row.classList.toggle('open');
-    students.classList.toggle('open');
+    document.getElementById('tr-' + i).classList.toggle('open');
+    document.getElementById('ts-' + i).classList.toggle('open');
+  }
+
+  async function toggleActive(userId, newState) {
+    const r = await fetch(`/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ is_active: newState }),
+    });
+    if (!r.ok) { showToast('Failed to update user.'); return; }
+    showToast(newState ? 'User activated.' : 'User deactivated.');
+    loadUsers();
+  }
+
+  // ── User search / filter ──────────────────────────────────────────────────
+  function filterUsers(q) {
+    if (!_usersData) return;
+    q = q.trim().toLowerCase();
+    if (!q) { renderUsers(_usersData); return; }
+
+    function matchUser(u) {
+      return (
+        (u.username || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.access_code || '').toLowerCase().includes(q)
+      );
+    }
+
+    const filtered = {
+      teachers: _usersData.teachers
+        .map(t => ({ ...t, students: t.students.filter(matchUser) }))
+        .filter(t => matchUser(t) || t.students.length),
+      solo: _usersData.solo.filter(matchUser),
+    };
+    renderUsers(filtered);
+  }
+
+  // ── Usage page ────────────────────────────────────────────────────────────
+  async function loadUsage() {
+    const r = await fetch('/admin/feature-usage', { headers: authHeaders() });
+    if (!r.ok) {
+      document.getElementById('usage-cards').innerHTML = '<div class="empty">Failed to load usage data.</div>';
+      return;
+    }
+    const features = await r.json();
+    const max30d = Math.max(...features.map(f => f.total_30d), 1);
+
+    // Cards — all exercises, ordered by most used; untracked ones show dimmed
+    document.getElementById('usage-cards').innerHTML = features.map(f => {
+      const dimmed = !f.tracked ? 'opacity:0.55;' : '';
+      const countDisplay = f.tracked ? fmtNum(f.total_30d) : '—';
+      const subText = f.tracked ? 'attempts in 30 days' : 'not yet tracked';
+      const barWidth = f.tracked ? Math.round(f.total_30d / max30d * 100) : 0;
+      const metaHtml = f.tracked
+        ? `<span style="font-size:0.65rem;color:var(--vk-fg-2)">${f.unique_users_30d} user${f.unique_users_30d !== 1 ? 's' : ''}</span>${scoreBadge(f.avg_score)}`
+        : `<span style="font-size:0.65rem;color:var(--vk-fg-3)">—</span>`;
+      return `
+        <div class="usage-card" style="${dimmed}">
+          <div class="usage-card-name">${escHtml(f.label)}</div>
+          <div class="usage-card-count">${countDisplay}</div>
+          <div class="usage-card-sub">${subText}</div>
+          <div class="usage-card-meta">${metaHtml}</div>
+          <div class="usage-bar-wrap">
+            <div class="usage-bar-bg">
+              <div class="usage-bar-fill" style="width:${barWidth}%"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Table
+    document.getElementById('usage-table-body').innerHTML = features.map(f => `
+      <tr style="${!f.tracked ? 'opacity:0.55;' : ''}">
+        <td class="ut-name">${escHtml(f.label)}${!f.tracked ? ' <span style="font-size:0.6rem;color:var(--vk-fg-3);font-weight:400;">(not tracked)</span>' : ''}</td>
+        <td>${f.tracked ? fmtNum(f.total_30d) : '—'}</td>
+        <td>${f.tracked ? f.unique_users_30d : '—'}</td>
+        <td>${f.tracked ? scoreBadge(f.avg_score) : '—'}</td>
+        <td style="color:var(--vk-fg-3)">${f.tracked ? fmtNum(f.total_all_time) : '—'}</td>
+      </tr>
+    `).join('');
   }
 
   // ── Dataset toggle ────────────────────────────────────────────────────────
@@ -540,42 +988,44 @@
 
   function switchDataset(ds) {
     _dataset = ds;
-    document.getElementById('ds-current').style.background = ds === 'current' ? 'var(--vk-accent)' : 'var(--vk-surface)';
-    document.getElementById('ds-current').style.color      = ds === 'current' ? 'var(--vk-accent-fg)' : 'var(--vk-fg-2)';
-    document.getElementById('ds-legacy').style.background  = ds === 'legacy'  ? 'var(--vk-accent)' : 'var(--vk-surface)';
-    document.getElementById('ds-legacy').style.color       = ds === 'legacy'  ? 'var(--vk-accent-fg)' : 'var(--vk-fg-2)';
-    document.getElementById('legacy-banner').style.display = ds === 'legacy'  ? 'block' : 'none';
+    document.getElementById('ds-current').classList.toggle('active', ds === 'current');
+    document.getElementById('ds-legacy').classList.toggle('active', ds === 'legacy');
+    document.getElementById('legacy-banner').style.display = ds === 'legacy' ? 'block' : 'none';
     loadPerformance();
   }
 
   // ── Performance page ──────────────────────────────────────────────────────
   async function loadPerformance() {
     const r = await fetch(`/admin/platform-stats?dataset=${_dataset}`, { headers: authHeaders() });
-    if (!r.ok) { return; }
+    if (!r.ok) return;
     const d = await r.json();
 
-    // KPIs
+    // If on current dataset, also refresh Overview
+    if (_dataset === 'current') loadOverview(d);
+
     const counts = d.user_counts || {};
     const teacherCount = counts['teacher'] || 0;
     const studentCount = (counts['student_teacher'] || 0) + (counts['student_solo'] || 0);
+
     const kpis = [
       { label: 'Total Users',        value: d.total_users ?? '—' },
       { label: 'Teachers',           value: teacherCount },
       { label: 'Students',           value: studentCount },
       { label: 'Total Events',       value: fmtNum(d.total_events) },
-      { label: 'Events (7d)',         value: fmtNum(d.events_7d) },
-      { label: 'Active Users (7d)',   value: d.active_users_7d ?? '—' },
+      { label: 'Events (7d)',         value: fmtNum(d.events_7d),    cur: d.events_7d,       prev: d.events_prev_7d },
+      { label: 'Active Users (7d)',   value: d.active_users_7d ?? '—', cur: d.active_users_7d, prev: d.active_users_prev_7d },
       { label: 'Avg Score',          value: d.avg_score != null ? (d.avg_score * 100).toFixed(1) + '%' : '—' },
     ];
+
     document.getElementById('kpi-row').innerHTML = kpis.map(k => `
       <div class="kpi-card">
         <div class="kpi-label">${k.label}</div>
         <div class="kpi-value">${k.value}</div>
+        ${k.prev !== undefined ? delta(k.cur, k.prev) : ''}
       </div>
     `).join('');
 
-    // Sparkline
-    renderSparkline(d.daily_events || []);
+    renderSparkline(d.daily_events || [], 'sparkline-svg', 'sparkline-tooltip');
 
     // Exercise breakdown
     const breakdown = d.exercise_breakdown || [];
@@ -587,9 +1037,7 @@
       chartEl.innerHTML = breakdown.map(b => `
         <div class="chart-row">
           <div class="chart-label">${fmtLabel(b.type)}</div>
-          <div class="chart-bar-bg">
-            <div class="chart-bar-fill" style="width:${Math.round(b.count / maxCount * 100)}%"></div>
-          </div>
+          <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(b.count / maxCount * 100)}%"></div></div>
           <div class="chart-val">${fmtNum(b.count)}</div>
         </div>
       `).join('');
@@ -613,47 +1061,26 @@
     }
   }
 
-  function renderSparkline(daily) {
-    const svg = document.getElementById('sparkline-svg');
-    if (!daily.length) {
-      svg.innerHTML = '<text x="400" y="44" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.4)">No data</text>';
-      return;
-    }
-    const W = 800; const H = 80; const PAD = 8;
-    const max = Math.max(...daily.map(d => d.count), 1);
-    const pts = daily.map((d, i) => {
-      const x = PAD + (i / (daily.length - 1 || 1)) * (W - PAD * 2);
-      const y = PAD + (1 - d.count / max) * (H - PAD * 2);
-      return [x, y];
-    });
-    const line = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(' ');
-    const area = line + ` L${pts[pts.length-1][0]},${H} L${pts[0][0]},${H} Z`;
-
-    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--vk-accent').trim() || '#c9954a';
-    svg.innerHTML = `
-      <defs>
-        <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${accentColor}" stop-opacity="0.25"/>
-          <stop offset="100%" stop-color="${accentColor}" stop-opacity="0.0"/>
-        </linearGradient>
-      </defs>
-      <path d="${area}" fill="url(#sg)" stroke="none"/>
-      <path d="${line}" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    `;
-  }
-
-  // ── Modal: create teacher ─────────────────────────────────────────────────
+  // ── Modal ─────────────────────────────────────────────────────────────────
   function openCreateTeacher() {
     document.getElementById('modal-email').value = '';
     document.getElementById('modal-pw').value = '';
     document.getElementById('modal-err').textContent = '';
     document.getElementById('modal-backdrop').style.display = 'flex';
-    document.getElementById('modal-email').focus();
+    setTimeout(() => document.getElementById('modal-email').focus(), 50);
   }
 
   function closeModal() {
     document.getElementById('modal-backdrop').style.display = 'none';
   }
+
+  function handleBackdropClick(e) {
+    if (e.target === document.getElementById('modal-backdrop')) closeModal();
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
 
   async function doCreateTeacher() {
     const email = document.getElementById('modal-email').value.trim();
@@ -668,18 +1095,18 @@
     const data = await r.json();
     if (!r.ok) { errEl.textContent = data.detail || 'Failed to create teacher.'; return; }
     closeModal();
+    showToast('Teacher account created.');
     loadUsers();
   }
 
-  // ── Utilities ─────────────────────────────────────────────────────────────
-  function escHtml(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function fmtNum(n) {
-    if (n == null) return '—';
-    return Number(n).toLocaleString();
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  let _toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────
@@ -687,7 +1114,8 @@
     const ok = await guardAuth();
     if (!ok) return;
     loadUsers();
-    loadPerformance();
+    loadUsage();
+    loadPerformance(); // also calls loadOverview with the response
   })();
 </script>
 </body>

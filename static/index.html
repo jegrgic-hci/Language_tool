@@ -5596,7 +5596,7 @@
     // Flush shadowing time if leaving a timed view
     if (_shadowingViewStart && _shadowingViewType) {
       const secs = (Date.now() - _shadowingViewStart) / 1000;
-      if (secs > 2) trackEvent('shadowing_time', { view: _shadowingViewType, duration_seconds: Math.round(secs) });
+      if (secs > 2) trackEvent('view_time', { view: _shadowingViewType, duration_seconds: Math.round(secs) });
       _shadowingViewStart = null;
       _shadowingViewType  = null;
     }
@@ -5622,9 +5622,9 @@
     const inShadowHub       = view === 'shadow-hub';
     const inShadowDrill     = view === 'shadow-drill';
 
-    if (inShadow || inParagraph) {
+    if (inShadow || inParagraph || inShadowDrill) {
       _shadowingViewStart = Date.now();
-      _shadowingViewType  = inShadow ? 'phrase' : 'paragraph';
+      _shadowingViewType  = inShadow ? 'speaking_phrase' : inParagraph ? 'speaking_paragraph' : 'shadow';
     }
 
     setDisplay('phrase-view',         inShadow       ? 'flex' : 'none');
@@ -5863,6 +5863,8 @@
   let _sdAudioUrl        = null;
   let _sdCurrentAudio    = null;
   let _sdSubmitTimer     = null;
+  let _sdAttemptCount    = 0;
+  let _sdListenCount     = 0;
 
   function selectSdLevel(btn) {
     _sdLevel = btn.dataset.level;
@@ -5910,8 +5912,19 @@
   }
 
   async function startShadowDrill() {
+    if (_sdPhrase && _sdAttemptCount === 0) {
+      trackEvent('skipped', {
+        exercise_type: 'shadow',
+        level: _sdLevel,
+        topic: _sdTopic,
+        phrase_id: _sdPhraseId,
+      });
+    }
+    _sdAttemptCount = 0;
+    _sdListenCount  = 0;
+    _sdPhraseId     = crypto.randomUUID();
     // Reset UI
-    _sdPhrase = ''; _sdNounAdj = []; _sdPhraseId = null; _sdAudioUrl = null;
+    _sdPhrase = ''; _sdNounAdj = []; _sdAudioUrl = null;
     _sdFinalBuffer = ''; _sdAccumulated = '';
     if (_sdSubmitTimer) { clearTimeout(_sdSubmitTimer); _sdSubmitTimer = null; }
     if (_sdCurrentAudio) { _sdCurrentAudio.pause(); _sdCurrentAudio = null; }
@@ -6003,10 +6016,13 @@
           ...getAnalyticsFields(),
           level: _sdLevel,
           topic: _sdTopic,
+          phrase_id: _sdPhraseId,
+          listen_count: _sdListenCount,
         }),
       });
       if (!res.ok) throw new Error('analyze failed');
       const data = await res.json();
+      _sdAttemptCount++;
       renderShadowScore(data, transcription);
     } catch (err) {
       if (autoLabel) autoLabel.textContent = 'Scoring error — skip to try again.';
@@ -6131,12 +6147,14 @@
       _sdCurrentAudio.play().catch(() => {});
       setSdPlayBtnState(true);
       _sdCurrentAudio.addEventListener('ended', () => setSdPlayBtnState(false));
+      _sdListenCount++;
       return;
     }
     if (!_sdCurrentAudio) return;
     if (_sdCurrentAudio.paused) {
       _sdCurrentAudio.play().catch(() => {});
       setSdPlayBtnState(true);
+      _sdListenCount++;
     } else {
       _sdCurrentAudio.pause();
       setSdPlayBtnState(false);
@@ -6376,6 +6394,7 @@
   let isPhraseLoading    = false;
   let phraseAdvanceTimer = null;
   let phraseAttemptNumber = 0;
+  let phraseListenCount   = 0;
   let phraseHighestScore  = -1;
   let currentPhraseId     = null;
   const SHADOW_AUTO_ADVANCE = 3;
@@ -6515,7 +6534,7 @@
   function _getRhythmData(phrase) {
     if (rhythmDataCache && rhythmPlainPhrase === phrase) return Promise.resolve(rhythmDataCache);
     if (rhythmDataFetch) return rhythmDataFetch;
-    rhythmDataFetch = fetch('/shadow/rhythm', {
+    rhythmDataFetch = fetch('/speaking/rhythm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phrase }),
@@ -6609,8 +6628,10 @@
     } else if (currentAudio && currentAudio.paused) {
       currentAudio.play().catch(() => {});
       setShadowPlayBtnState(true);
+      phraseListenCount++;
     } else if (currentAudioUrl) {
       playAudio(currentAudioUrl);
+      phraseListenCount++;
     }
   }
 
@@ -6639,6 +6660,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (isPhraseLoading) return;
     isPhraseLoading = true;
     phraseAttemptNumber = 0;
+    phraseListenCount   = 0;
     phraseHighestScore  = -1;
     currentPhraseId     = crypto.randomUUID();
     document.getElementById('phrase-retry-hint').style.display = 'none';
@@ -6689,7 +6711,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       } else {
         const activeFocusWord = coachFocusWords.length && coachFocusIndex < coachFocusWords.length
           ? coachFocusWords[coachFocusIndex] : undefined;
-        const res = await fetch('/shadow/phrase', {
+        const res = await fetch('/speaking/phrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: shadowingSoundFocus || undefined, focus_word: activeFocusWord }),
@@ -6721,7 +6743,20 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function handlePhraseSkip() {
-    if (phraseInTray) { closeDrillTray(); } else { fetchNextPhrase(); }
+    if (phraseInTray) {
+      closeDrillTray();
+    } else {
+      if (currentPhrase && phraseAttemptNumber === 0) {
+        trackEvent('skipped', {
+          exercise_type: 'speaking',
+          level: shadowLevel,
+          topic: shadowingTopic,
+          sound_focus: shadowingSoundFocus || null,
+          phrase_id: currentPhraseId,
+        });
+      }
+      fetchNextPhrase();
+    }
   }
 
   async function toggleShadowMic() {
@@ -6792,12 +6827,12 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     try {
       phraseAttemptNumber++;
-      const res = await fetch('/shadow/analyze', {
+      const res = await fetch('/speaking/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target: currentPhrase, transcription: text, confidence, noun_adj_tokens: currentNounAdjTokens,
-          ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId,
+          ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId, listen_count: phraseListenCount, sound_focus: shadowingSoundFocus || null,
         }),
       });
       const data = await res.json();
@@ -8125,6 +8160,12 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function handleParaComplete() {
     paraPassCount++;
+    trackEvent('paragraph_completed', {
+      paragraph_id: paragraphId,
+      level: paragraphLevel,
+      topic: paragraphTopic,
+      sentence_count: paragraphSentences.length,
+    });
     const pv = document.getElementById('paragraph-view');
     pv.scrollTop = 0;
 
@@ -9642,10 +9683,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (btn) btn.disabled = true;
 
     try {
-      const res = await fetch('/comprehension/generate', {
+      const res = await fetch('/listen/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: comprLevel, topic: comprTopic, num_paragraphs: comprNumParagraphs }),
+        body: JSON.stringify({ level: comprLevel, topic: comprTopic, num_paragraphs: comprNumParagraphs, ...getAnalyticsFields() }),
       });
       const data = await res.json();
       comprPassage      = data.passage || '';
@@ -10010,6 +10051,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _comprSetState('results');
     const total = comprQuestions.length;
     const pct   = Math.round(comprScore / total * 100);
+    trackEvent('comprehension_answered', {
+      exercise_type: 'comprehension',
+      level: comprLevel,
+      topic: comprTopic,
+      question_count: total,
+      correct_count: comprScore,
+      score: total ? Math.round(comprScore / total * 1000) / 1000 : 0,
+    });
     const color = pct >= 75 ? '#1F5A40' : pct >= 50 ? '#8A5A00' : '#A8281C';
     document.getElementById('comp-score-display').textContent = `${comprScore}/${total}`;
     document.getElementById('comp-score-display').style.color = color;
@@ -10180,6 +10229,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let dictAudio = null;
   let dictReplayCount = 0;
   let dictAudioUrl = null;
+  let dictAttemptNumber = 0;
 
   function selectDictLevel(btn) {
     document.querySelectorAll('#dict-hub-levels .hub-subject-chip').forEach(b => b.classList.remove('active'));
@@ -10214,7 +10264,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function startDictation() {
     switchView('dictation');
-    dictSentenceId = null; dictAudioUrl = null; dictReplayCount = 0;
+    dictSentenceId = null; dictAudioUrl = null; dictReplayCount = 0; dictAttemptNumber = 0;
     if (dictAudio) { dictAudio.pause(); dictAudio = null; }
     _dictSetState('loading');
 
@@ -10296,7 +10346,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const res = await fetch('/dictation/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sentence_id: dictSentenceId, typed }),
+        body: JSON.stringify({ sentence_id: dictSentenceId, typed, ...getAnalyticsFields(), attempt_number: ++dictAttemptNumber }),
       });
       const data = await res.json();
       _renderDictationResults(data);
@@ -10484,6 +10534,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           response: responseText,
           level: writingLevel,
           attempt: writingAttempt,
+          topic: writingTopic,
+          ...getAnalyticsFields(),
         }),
       });
       const data = await res.json();
@@ -10659,6 +10711,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           response: responseText,
           level: transformLevel,
           attempt: transformAttempt,
+          focus: transformFocus,
+          ...getAnalyticsFields(),
         }),
       });
       const data = await res.json();
@@ -10800,11 +10854,12 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   // ── Paragraph Dictation Round ─────────────────────────────────────────────────
-  let paraDictSentences   = [];
-  let paraDictIdx         = 0;
-  let paraDictAudio       = null;
-  let paraDictReplayCount = 0;
-  let paraDictScores      = [];
+  let paraDictSentences      = [];
+  let paraDictIdx            = 0;
+  let paraDictAudio          = null;
+  let paraDictReplayCount    = 0;
+  let paraDictScores         = [];
+  let paraDictAttemptNumber  = 0;
 
   function startParaDictRound() {
     paraDictSentences   = [...paragraphSentences];
@@ -10822,8 +10877,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   async function _paraDictLoadSentence(idx) {
-    paraDictIdx         = idx;
-    paraDictReplayCount = 0;
+    paraDictIdx            = idx;
+    paraDictReplayCount    = 0;
+    paraDictAttemptNumber  = 0;
     if (paraDictAudio) { paraDictAudio.pause(); paraDictAudio = null; }
 
     document.getElementById('para-dict-input-area').style.display  = 'none';
@@ -10915,7 +10971,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const res = await fetch('/dictation/check-inline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target: sentence, typed }),
+        body: JSON.stringify({ target: sentence, typed, level: paragraphLevel, topic: shadowingTopic || undefined, ...getAnalyticsFields(), attempt_number: ++paraDictAttemptNumber }),
       });
       const data = await res.json();
       _renderParaDictResult(data);
@@ -11084,7 +11140,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const res = await fetch('/vocab/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: _vocabLevel, subject: _vocabSubject, count: apiCount }),
+        body: JSON.stringify({ level: _vocabLevel, subject: _vocabSubject, count: apiCount, ...getAnalyticsFields() }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -11172,6 +11228,18 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function _showFinalSummary() {
+    const quizSc  = _vocabScores[1] || 0;
+    const quizTot = _vocabTotals[1] || 0;
+    trackEvent('vocab_session_completed', {
+      exercise_type: 'vocab',
+      level: _vocabLevel,
+      subject: _vocabSubject,
+      card_count: _vocabCards.length,
+      quiz_correct: quizSc,
+      quiz_total: quizTot,
+      quiz_score: quizTot ? Math.round(quizSc / quizTot * 1000) / 1000 : null,
+      is_cumulative: _vocabIsCumulative,
+    });
     switchView('vocab-hub');
   }
 
@@ -11478,6 +11546,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (isRight) _vocabScores[_vocabRound]++;
     else if (_vocabInCumReview) _vocabRoundCards.push(_vocabRoundCards[_vocabIndex]);
     else _vocabMissed.push(card);
+    trackEvent('vocab_card_quizzed', { exercise_type: 'vocab', word: card.word, correct: isRight, round: _vocabRound, level: _vocabLevel });
 
     document.getElementById('vc-path-a-submit').disabled = true;
     document.querySelectorAll('#vc-path-a-choices .vc-row').forEach(row => {
@@ -11584,6 +11653,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (isRight) _vocabScores[_vocabRound]++;
     else if (_vocabInCumReview) _vocabRoundCards.push(_vocabRoundCards[_vocabIndex]);
     else _vocabMissed.push(card);
+    trackEvent('vocab_card_quizzed', { exercise_type: 'vocab', word: card.word, correct: isRight, round: _vocabRound, level: _vocabLevel });
 
     document.getElementById('vc-path-b-submit').disabled = true;
     document.querySelectorAll('#vc-path-b-defs .vc-row').forEach((row, i) => {

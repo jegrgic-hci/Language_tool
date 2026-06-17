@@ -30,13 +30,18 @@ SESSION_GAP_MINUTES = 20
 # Events used to anchor session boundaries (includes passive events for duration accuracy).
 # session_start is excluded — it fires on app open with no guarantee the user did anything.
 _SESSION_EVENTS = frozenset({
-    'paragraph_started', 'chunk_listened',
+    'paragraph_started', 'paragraph_completed', 'chunk_listened',
     'phrase_attempted', 'paragraph_attempted', 'paragraph_drilled', 'word_attempted',
+    'dictation_attempted', 'writing_attempted', 'transform_attempted',
+    'vocab_session_started', 'vocab_session_completed', 'listen_answer_started',
+    'comprehension_answered',
 })
 
 # A session only counts if it contains at least one of these scored attempts.
 _SCORED_EVENTS = frozenset({
     'phrase_attempted', 'paragraph_attempted', 'paragraph_drilled', 'word_attempted',
+    'dictation_attempted', 'writing_attempted', 'transform_attempted',
+    'comprehension_answered',
 })
 
 
@@ -732,6 +737,24 @@ def get_roster() -> list:
             if r["topic"] and len(topics_map[r["access_code"]]) < 4:
                 topics_map[r["access_code"]].append(r["topic"])
 
+        # Non-speaking exercise variety per student (distinct event types used in 7d / 30d)
+        _variety_types = (
+            "vocab_session_completed", "comprehension_answered",
+            "dictation_attempted", "writing_attempted", "transform_attempted",
+        )
+        variety_rows = conn.execute(
+            "SELECT access_code, "
+            "COUNT(DISTINCT CASE WHEN date(ts) >= ? AND event_type IN ({}) THEN event_type END) AS v7, "
+            "COUNT(DISTINCT CASE WHEN date(ts) >= ? AND event_type IN ({}) THEN event_type END) AS v30 "
+            "FROM events GROUP BY access_code".format(
+                ",".join("?" * len(_variety_types)),
+                ",".join("?" * len(_variety_types)),
+            ),
+            (since_7d, *_variety_types, since_30d, *_variety_types),
+        ).fetchall()
+        variety_map: dict = {r["access_code"]: {"variety_7d": r["v7"], "variety_30d": r["v30"]}
+                             for r in variety_rows}
+
         # Scoring events with timestamps — used for all-time, 7d, and since-lesson accuracy
         acc_rows = conn.execute(
             "SELECT access_code, event_type, date(ts) AS day, "
@@ -851,6 +874,8 @@ def get_roster() -> list:
             "avg_para_score_30d":       acc.get("avg_para_score_30d"),
             "avg_para_prev_30d":        acc.get("avg_para_prev_30d"),
             "health":                   health,
+            "variety_7d":               variety_map.get(code, {}).get("variety_7d", 0),
+            "variety_30d":              variety_map.get(code, {}).get("variety_30d", 0),
         })
 
     result.sort(key=lambda x: (x["days_until_next"] is None, x["days_until_next"] or 0))
@@ -1589,8 +1614,9 @@ def get_paragraph_exercise_stats(access_code: str, since_days: Optional[int] = N
 def get_platform_stats() -> dict:
     """Aggregate metrics across all users for the super admin hub."""
     today = date.today()
-    since_7d  = (today - timedelta(days=7)).isoformat()
-    since_30d = (today - timedelta(days=30)).isoformat()
+    since_7d    = (today - timedelta(days=7)).isoformat()
+    since_14d   = (today - timedelta(days=14)).isoformat()
+    since_30d   = (today - timedelta(days=30)).isoformat()
 
     with _conn() as conn:
         # User counts by role
@@ -1602,9 +1628,12 @@ def get_platform_stats() -> dict:
         # Total events
         total_events = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
 
-        # Events last 7d / 30d
+        # Events last 7d / 30d and prior 7d window (for delta)
         events_7d  = conn.execute("SELECT COUNT(*) FROM events WHERE date(ts)>=?", (since_7d,)).fetchone()[0]
         events_30d = conn.execute("SELECT COUNT(*) FROM events WHERE date(ts)>=?", (since_30d,)).fetchone()[0]
+        events_prev_7d = conn.execute(
+            "SELECT COUNT(*) FROM events WHERE date(ts)>=? AND date(ts)<?", (since_14d, since_7d)
+        ).fetchone()[0]
 
         # Event type breakdown (practice events only)
         type_rows = conn.execute(
@@ -1622,9 +1651,21 @@ def get_platform_stats() -> dict:
         ).fetchone()
         avg_score = round(avg_row[0], 3) if avg_row and avg_row[0] is not None else None
 
-        # Users active in last 7d (distinct access codes with events)
+        # Avg score prior 7d window
+        avg_prev_row = conn.execute(
+            "SELECT AVG(CAST(json_extract(payload,'$.score') AS REAL)) FROM events "
+            "WHERE date(ts)>=? AND date(ts)<? AND json_extract(payload,'$.score') IS NOT NULL",
+            (since_14d, since_7d)
+        ).fetchone()
+        avg_score_prev_7d = round(avg_prev_row[0], 3) if avg_prev_row and avg_prev_row[0] is not None else None
+
+        # Users active in last 7d and prior 7d (distinct access codes with events)
         active_7d = conn.execute(
             "SELECT COUNT(DISTINCT access_code) FROM events WHERE date(ts)>=?", (since_7d,)
+        ).fetchone()[0]
+        active_prev_7d = conn.execute(
+            "SELECT COUNT(DISTINCT access_code) FROM events WHERE date(ts)>=? AND date(ts)<?",
+            (since_14d, since_7d)
         ).fetchone()[0]
 
         # Top active users (by event count, last 30d)
@@ -1657,8 +1698,11 @@ def get_platform_stats() -> dict:
         "total_events": total_events,
         "events_7d": events_7d,
         "events_30d": events_30d,
+        "events_prev_7d": events_prev_7d,
         "active_users_7d": active_7d,
+        "active_users_prev_7d": active_prev_7d,
         "avg_score": avg_score,
+        "avg_score_prev_7d": avg_score_prev_7d,
         "exercise_breakdown": exercise_breakdown,
         "top_active_users": top_users_by_code,
         "daily_events": daily_events,
@@ -1706,6 +1750,75 @@ def get_user_hierarchy() -> dict:
         "teachers": list(teachers.values()),
         "solo": solo,
     }
+
+
+def get_feature_usage() -> list:
+    """Per-exercise stats for the admin Usage page (last 30 days).
+    Covers every tool exercise in nav order; untracked exercises show zeros.
+    Sorted by total_30d descending so the most-used feature is first.
+    """
+    today = date.today()
+    since_30d = (today - timedelta(days=30)).isoformat()
+
+    # (event_type_or_None, display_label)
+    # None = exercise exists in the tool but has no event tracking yet
+    EXERCISES = [
+        ("phrase_attempted",    "Shadowing"),
+        ("paragraph_attempted", "Speaking — Passage"),
+        ("paragraph_drilled",   "Speaking — Sentence Drill"),
+        ("word_attempted",      "Practice List"),
+        (None,                  "Listen & Answer"),
+        (None,                  "Dictation"),
+        (None,                  "Flashcards"),
+        (None,                  "Prompted Writing"),
+        (None,                  "Transformation"),
+        (None,                  "My Content"),
+    ]
+
+    with _conn() as conn:
+        results = []
+        for et, label in EXERCISES:
+            if et is None:
+                results.append({
+                    "type": None,
+                    "label": label,
+                    "total_30d": 0,
+                    "unique_users_30d": 0,
+                    "avg_score": None,
+                    "total_all_time": 0,
+                    "tracked": False,
+                })
+                continue
+
+            total_30d = conn.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=? AND date(ts)>=?",
+                (et, since_30d)
+            ).fetchone()[0]
+            unique_users = conn.execute(
+                "SELECT COUNT(DISTINCT access_code) FROM events WHERE event_type=? AND date(ts)>=?",
+                (et, since_30d)
+            ).fetchone()[0]
+            avg_row = conn.execute(
+                "SELECT AVG(CAST(json_extract(payload,'$.score') AS REAL)) FROM events "
+                "WHERE event_type=? AND date(ts)>=? AND json_extract(payload,'$.score') IS NOT NULL",
+                (et, since_30d)
+            ).fetchone()
+            avg_score = round(avg_row[0], 3) if avg_row and avg_row[0] is not None else None
+            total_all = conn.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=?", (et,)
+            ).fetchone()[0]
+            results.append({
+                "type": et,
+                "label": label,
+                "total_30d": total_30d,
+                "unique_users_30d": unique_users,
+                "avg_score": avg_score,
+                "total_all_time": total_all,
+                "tracked": True,
+            })
+
+    results.sort(key=lambda x: x["total_30d"], reverse=True)
+    return results
 
 
 # ── Phrase exercise stats ──────────────────────────────────────────────────────
@@ -2592,6 +2705,67 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30) -> dic
         "dip": dip,
     }
 
+    # ── Secondary KPIs — dynamic: whichever non-speaking exercises the student used ──
+    _SEC_EVENTS = [
+        ("vocab_session_completed", "Vocabulary",     "quiz_score", "sessions"),
+        ("comprehension_answered",  "Listening",      "score",      "sessions"),
+        ("dictation_attempted",     "Dictation",      "score",      "exercises"),
+        ("writing_attempted",       "Writing",        "score",      "exercises"),
+        ("transform_attempted",     "Transformation", "score",      "exercises"),
+    ]
+    _sec_et_set = tuple(e[0] for e in _SEC_EVENTS)
+    with _conn() as conn:
+        sec_rows = conn.execute(
+            "SELECT event_type, payload, ts FROM events WHERE access_code=? "
+            "AND event_type IN ({}) ORDER BY ts ASC".format(
+                ",".join("?" * len(_sec_et_set))),
+            (access_code, *_sec_et_set),
+        ).fetchall()
+
+    _sec_map = {e[0]: e for e in _SEC_EVENTS}
+    sec_buckets: dict = {et: {"recent": [], "prior": [], "last_ts": None}
+                         for et in _sec_et_set}
+    for r in sec_rows:
+        p = json.loads(r["payload"]); et = r["event_type"]; ts_s = r["ts"] or ""
+        try:
+            d = date.fromisoformat(ts_s[:10])
+        except Exception:
+            continue
+        score = p.get(_sec_map[et][2])
+        if score is None:
+            continue
+        b = sec_buckets[et]
+        if d >= cutoff_recent:
+            b["recent"].append(score)
+            b["last_ts"] = ts_s
+        elif d >= cutoff_prior:
+            b["prior"].append(score)
+
+    def _sec_card(et):
+        _, label, _, unit = _sec_map[et]
+        b = sec_buckets[et]
+        if not b["recent"]:
+            return None
+        val  = round(_avg(b["recent"]) * 100)
+        pval = round(_avg(b["prior"]) * 100) if b["prior"] else None
+        delta = None
+        if pval is not None:
+            diff = val - pval
+            if abs(diff) >= 1:
+                delta = {"dir": "up" if diff > 0 else "down",
+                         "text": ("+" if diff > 0 else "−") + str(abs(diff)) + " pts"}
+        n = len(b["recent"])
+        singular = unit.rstrip("s")
+        return {"label": label, "num": f"{val}%",
+                "meta": f"{n} {unit if n != 1 else singular} this period",
+                "delta": delta, "_last_ts": b["last_ts"]}
+
+    sec_cards = [c for et in _sec_et_set for c in [_sec_card(et)] if c]
+    sec_cards.sort(key=lambda c: c["_last_ts"] or "", reverse=True)
+    for c in sec_cards:
+        del c["_last_ts"]
+    secondary = sec_cards[:4]
+
     return {
         "week_labels": week_labels,
         "labels": labels,
@@ -2600,4 +2774,127 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30) -> dic
         "default_key": default_key,
         "signals": signals,
         "period_days": since_days,
+        "secondary": secondary,
     }
+
+
+def get_exercise_stats(access_code: str, since_days: Optional[int] = None) -> dict:
+    """Per-exercise-type breakdown for the teacher Exercises tab.
+
+    Returns a dict keyed by exercise slug; only includes types with ≥1 event
+    in the window. since_days=None means all time.
+    """
+    since_cutoff = (date.today() - timedelta(days=since_days)).isoformat() if since_days else None
+
+    _ET = [
+        "vocab_session_started", "vocab_session_completed",
+        "listen_answer_started", "comprehension_answered",
+        "dictation_attempted",
+        "writing_attempted",
+        "transform_attempted",
+    ]
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT event_type, payload, ts FROM events WHERE access_code=? "
+            "AND event_type IN ({}) {}ORDER BY ts ASC".format(
+                ",".join("?" * len(_ET)),
+                "AND date(ts) >= ? " if since_cutoff else "",
+            ),
+            (access_code, *_ET, *([since_cutoff] if since_cutoff else [])),
+        ).fetchall()
+
+    buckets: dict = {
+        "vocab_started": 0, "vocab_completed": 0,
+        "vocab_quiz_scores": [], "vocab_card_counts": [],
+        "comp_started": 0, "comp_completed": 0, "comp_scores": [],
+        "dict_scores": [], "dict_attempts": [], "dict_count": 0,
+        "write_scores": [], "write_tips": [], "write_count": 0,
+        "transform_scores": [], "transform_tips": [], "transform_count": 0,
+    }
+
+    for r in rows:
+        p = json.loads(r["payload"]); et = r["event_type"]
+        if et == "vocab_session_started":
+            buckets["vocab_started"] += 1
+        elif et == "vocab_session_completed":
+            buckets["vocab_completed"] += 1
+            s = p.get("quiz_score")
+            if s is not None:
+                buckets["vocab_quiz_scores"].append(s)
+            cc = p.get("card_count")
+            if cc is not None:
+                buckets["vocab_card_counts"].append(cc)
+        elif et == "listen_answer_started":
+            buckets["comp_started"] += 1
+        elif et == "comprehension_answered":
+            buckets["comp_completed"] += 1
+            s = p.get("score")
+            if s is not None:
+                buckets["comp_scores"].append(s)
+        elif et == "dictation_attempted":
+            buckets["dict_count"] += 1
+            s = p.get("score")
+            if s is not None:
+                buckets["dict_scores"].append(s)
+            a = p.get("attempt_number")
+            if a is not None:
+                buckets["dict_attempts"].append(a)
+        elif et == "writing_attempted":
+            buckets["write_count"] += 1
+            s = p.get("score")
+            if s is not None:
+                buckets["write_scores"].append(s)
+            t = p.get("tip_count")
+            if t is not None:
+                buckets["write_tips"].append(t)
+        elif et == "transform_attempted":
+            buckets["transform_count"] += 1
+            s = p.get("score")
+            if s is not None:
+                buckets["transform_scores"].append(s)
+            t = p.get("tip_count")
+            if t is not None:
+                buckets["transform_tips"].append(t)
+
+    def _favg(lst: list) -> Optional[float]:
+        return round(sum(lst) / len(lst), 3) if lst else None
+
+    result: dict = {}
+
+    if buckets["vocab_started"] or buckets["vocab_completed"]:
+        result["vocab"] = {
+            "sessions_started":  buckets["vocab_started"],
+            "sessions_completed": buckets["vocab_completed"],
+            "avg_quiz_score":    _favg(buckets["vocab_quiz_scores"]),
+            "avg_card_count":    _favg(buckets["vocab_card_counts"]),
+        }
+
+    if buckets["comp_started"] or buckets["comp_completed"]:
+        result["comprehension"] = {
+            "sessions_started":   buckets["comp_started"],
+            "sessions_completed": buckets["comp_completed"],
+            "avg_score":          _favg(buckets["comp_scores"]),
+        }
+
+    if buckets["dict_count"]:
+        result["dictation"] = {
+            "attempts":                  buckets["dict_count"],
+            "avg_score":                 _favg(buckets["dict_scores"]),
+            "avg_attempts_per_sentence": _favg(buckets["dict_attempts"]),
+        }
+
+    if buckets["write_count"]:
+        result["writing"] = {
+            "attempts":      buckets["write_count"],
+            "avg_score":     _favg(buckets["write_scores"]),
+            "avg_tip_count": _favg(buckets["write_tips"]),
+        }
+
+    if buckets["transform_count"]:
+        result["transformation"] = {
+            "attempts":      buckets["transform_count"],
+            "avg_score":     _favg(buckets["transform_scores"]),
+            "avg_tip_count": _favg(buckets["transform_tips"]),
+        }
+
+    return result
