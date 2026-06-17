@@ -457,7 +457,7 @@ def get_students_for_teacher_user(teacher_user_id: int) -> list:
     with _conn() as conn:
         rows = conn.execute(
             "SELECT id, role, email, username, is_active, access_code, force_pw_change, created_at "
-            "FROM users WHERE teacher_id=? AND role IN ('student_teacher','student_solo') "
+            "FROM users WHERE teacher_id=? AND role IN ('student_teacher','student_solo') AND is_active=1 "
             "ORDER BY created_at DESC",
             (teacher_user_id,),
         ).fetchall()

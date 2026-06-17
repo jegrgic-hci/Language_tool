@@ -973,7 +973,7 @@ let allNavBtns = [];
 function openTeachMode(accessCode, name) {
   const params = new URLSearchParams({ teach: accessCode });
   if (name) params.set('name', name);
-  window.open('/?' + params.toString(), '_blank');
+  window.open('/app?' + params.toString(), '_blank');
 }
 
 // ── Panel switching ──────────────────────────────────────────────
@@ -2612,6 +2612,30 @@ async function init() {
     grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Erreur de chargement — ' + err.message + '</div>';
     return;
   }
+
+  // Merge in any teacher-managed students not yet in the analytics roster
+  // (child/no-email accounts with no events won't appear in /analytics/students)
+  try {
+    const mgmtData = await _mgmtFetch('/teacher/students');
+    if (mgmtData.ok) {
+      const mgmt = await mgmtData.json();
+      const existingCodes = new Set(students.map(s => s.access_code));
+      for (const u of (mgmt.students || [])) {
+        if (u.access_code && !existingCodes.has(u.access_code)) {
+          students.push({
+            access_code: u.access_code,
+            name: u.username || u.access_code,
+            email: u.email,
+            lesson_days: '[]',
+            lesson_time: '',
+            notes: '',
+            health: 'grey',
+            days_until_next: null,
+          });
+        }
+      }
+    }
+  } catch (_) {}
 
   // Sidebar badge
   document.getElementById('sb-count').textContent = students.length;
