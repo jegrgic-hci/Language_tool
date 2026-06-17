@@ -326,7 +326,7 @@ class ChangePasswordRequest(BaseModel):
 
 
 class AddTeacherStudentRequest(BaseModel):
-    email: str
+    email: Optional[str] = None
     name: Optional[str] = ""
     lesson_days: Optional[list] = []
     lesson_time: Optional[str] = ""
@@ -370,7 +370,10 @@ def _make_token_response(user: dict) -> dict:
 
 @app.post("/auth/login")
 async def auth_login(req: LoginRequest):
-    user = _analytics.get_user_by_email(req.email.strip().lower())
+    identifier = req.email.strip().lower()
+    user = _analytics.get_user_by_email(identifier)
+    if not user:
+        user = _analytics.get_user_by_username(identifier)
     if not user or not _auth.verify_password(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user["is_active"]:
@@ -547,16 +550,55 @@ async def teacher_add_student(
     import secrets as _secrets
     from datetime import datetime, timedelta
 
+    teacher_user_id = int(current_user["sub"])
+    lesson_days = json.dumps(req.lesson_days or [])
+
+    # ── No-email path: create account directly for children ──────────────────
+    if not req.email:
+        name = (req.name or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name is required when no email is provided")
+
+        # Generate a username from the student's name (lowercase, dots between words)
+        import re as _re
+        base = _re.sub(r"[^a-z0-9]+", ".", name.lower()).strip(".")
+        username = base
+        suffix = 1
+        while _analytics.username_is_taken(username):
+            username = f"{base}{suffix}"
+            suffix += 1
+
+        _, plain_password, hashed = _auth.generate_temp_credentials()
+        # plain_password only; we ignore the random username from generate_temp_credentials
+        access_code = _auth.generate_access_code()
+        synthetic_email = f"student-{access_code}@noemail.local"
+
+        user = _analytics.create_user(
+            role="student_teacher",
+            email=synthetic_email,
+            password_hash=hashed,
+            username=username,
+            access_code=access_code,
+            teacher_id=teacher_user_id,
+            force_pw_change=0,
+        )
+
+        return {
+            "ok": True,
+            "no_email": True,
+            "username": username,
+            "password": plain_password,
+            "access_code": access_code,
+            "name": name,
+        }
+
+    # ── Email path: send invite ───────────────────────────────────────────────
     email = req.email.strip().lower()
-    if not email:
-        raise HTTPException(status_code=400, detail="Email required")
     if _analytics.get_user_by_email(email):
         raise HTTPException(status_code=409, detail="A user with this email already exists")
 
-    teacher_user_id = int(current_user["sub"])
     token = _secrets.token_hex(24)
     expires_at = (datetime.utcnow() + timedelta(days=7)).isoformat()
-    lesson_days = json.dumps(req.lesson_days or [])
 
     _analytics.create_invite_token(
         token=token,
@@ -584,7 +626,7 @@ async def teacher_add_student(
 """
     sent = await _send_email(email, "You've been added to VraiFrench", email_html)
 
-    return {"ok": True, "invite_url": invite_url, "email_sent": sent, "email": email}
+    return {"ok": True, "no_email": False, "invite_url": invite_url, "email_sent": sent, "email": email}
 
 
 @app.post("/teacher/students/{user_id}/reset-password")
@@ -1000,6 +1042,11 @@ class UpdateStudentRequest(BaseModel):
 
 @app.get("/analytics/students")
 async def list_students(auth: dict = Depends(_require_analytics_key)):
+    if not auth.get("is_legacy") and auth.get("sub"):
+        # JWT-authenticated teacher: only show their own students (prevents legacy code bleed-through)
+        teacher_students = _analytics.get_students_for_teacher_user(int(auth["sub"]))
+        allowed = {s["access_code"] for s in teacher_students if s.get("access_code")}
+        return {"students": _analytics.get_roster(allowed_codes=allowed)}
     return {"students": _analytics.get_roster()}
 
 

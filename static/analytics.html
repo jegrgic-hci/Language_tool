@@ -466,7 +466,7 @@
 
     <div style="padding: 0 12px 16px;">
       <a class="vk-btn vk-btn-primary" style="width:100%;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;"
-         href="/" target="_blank">Go to Tool ↗</a>
+         href="/app" target="_blank">Go to Tool ↗</a>
     </div>
 
     <div class="vk-sb-section">Overview</div>
@@ -725,20 +725,42 @@
       </div>
       <div class="panel-content" style="max-width:560px">
 
-        <div class="vk-field" style="margin-bottom:18px">
-          <label class="vk-field-label is-required">Email</label>
-          <input class="vk-input" id="add-new-email" type="email"
-                 placeholder="student@example.com" autocomplete="off">
+        <!-- Account type toggle -->
+        <div class="vk-field" style="margin-bottom:24px">
+          <label class="vk-field-label" style="margin-bottom:8px">Account type</label>
+          <div style="display:flex;gap:0;border:1px solid var(--vk-border-mid)">
+            <button id="add-toggle-email" onclick="setAddMode('email')"
+                    style="flex:1;padding:9px 0;font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);letter-spacing:.06em;text-transform:uppercase;border:none;cursor:pointer;background:var(--vk-accent);color:var(--vk-accent-fg)">
+              Send invite by email
+            </button>
+            <button id="add-toggle-noemail" onclick="setAddMode('noemail')"
+                    style="flex:1;padding:9px 0;font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);letter-spacing:.06em;text-transform:uppercase;border:none;border-left:1px solid var(--vk-border-mid);cursor:pointer;background:var(--vk-bg-2);color:var(--vk-fg-2)">
+              No email (child)
+            </button>
+          </div>
+          <p id="add-mode-hint" style="margin-top:8px;font-family:var(--vk-font-body);font-size:var(--vk-text-xs);color:var(--vk-fg-2)">
+            An invitation link will be sent to the student's email address.
+          </p>
         </div>
 
-        <div class="vk-field" style="margin-bottom:18px">
-          <label class="vk-field-label is-required">Confirm Email</label>
-          <input class="vk-input" id="add-new-email-confirm" type="email"
-                 placeholder="Repeat email address" autocomplete="off">
+        <!-- Email fields (shown in email mode) -->
+        <div id="add-email-fields">
+          <div class="vk-field" style="margin-bottom:18px">
+            <label class="vk-field-label is-required">Email</label>
+            <input class="vk-input" id="add-new-email" type="email"
+                   placeholder="student@example.com" autocomplete="off">
+          </div>
+
+          <div class="vk-field" style="margin-bottom:18px">
+            <label class="vk-field-label is-required">Confirm Email</label>
+            <input class="vk-input" id="add-new-email-confirm" type="email"
+                   placeholder="Repeat email address" autocomplete="off">
+          </div>
         </div>
 
+        <!-- Name (always visible; required in no-email mode) -->
         <div class="vk-field" style="margin-bottom:18px">
-          <label class="vk-field-label">Name</label>
+          <label class="vk-field-label" id="add-name-label">Name</label>
           <input class="vk-input" id="add-new-name" type="text"
                  placeholder="e.g. Marie Dupont">
         </div>
@@ -774,6 +796,26 @@
                   onclick="mgmtAddStudent()">Add Student</button>
           <div id="add-new-err"
                style="font-family:var(--vk-font-body);font-size:var(--vk-text-xs);color:var(--vk-error)"></div>
+        </div>
+
+        <!-- Credentials box — shown after successful no-email creation -->
+        <div id="add-credentials-box" hidden
+             style="margin-top:24px;border:1px solid var(--vk-border-mid);padding:16px 20px;background:var(--vk-bg-2)">
+          <p style="font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:12px">
+            Account created — share these login details
+          </p>
+          <div style="margin-bottom:8px">
+            <span style="font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);color:var(--vk-fg-2);display:block;margin-bottom:2px">Username</span>
+            <span id="cred-username" style="font-family:var(--vk-font-mono);font-size:var(--vk-text-sm);color:var(--vk-fg-1)"></span>
+          </div>
+          <div style="margin-bottom:16px">
+            <span style="font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);color:var(--vk-fg-2);display:block;margin-bottom:2px">Password</span>
+            <span id="cred-password" style="font-family:var(--vk-font-mono);font-size:var(--vk-text-sm);color:var(--vk-fg-1)"></span>
+          </div>
+          <p style="font-family:var(--vk-font-body);font-size:var(--vk-text-xs);color:var(--vk-fg-2);margin-bottom:12px">
+            This password will not be shown again. The student logs in at <strong>/login</strong> using their username.
+          </p>
+          <button class="vk-btn vk-btn-outline sm" onclick="copyCredentials()">Copy to clipboard</button>
         </div>
 
       </div>
@@ -2233,8 +2275,25 @@ function _mgmtRenderTable() {
     '<tbody>' + rows + '</tbody></table>';
 }
 
+let _addMode = 'email';
+
+function setAddMode(mode) {
+  _addMode = mode;
+  const isEmail = mode === 'email';
+  document.getElementById('add-email-fields').style.display = isEmail ? '' : 'none';
+  document.getElementById('add-toggle-email').style.background   = isEmail ? 'var(--vk-accent)' : 'var(--vk-bg-2)';
+  document.getElementById('add-toggle-email').style.color        = isEmail ? 'var(--vk-accent-fg)' : 'var(--vk-fg-2)';
+  document.getElementById('add-toggle-noemail').style.background = isEmail ? 'var(--vk-bg-2)' : 'var(--vk-accent)';
+  document.getElementById('add-toggle-noemail').style.color      = isEmail ? 'var(--vk-fg-2)' : 'var(--vk-accent-fg)';
+  document.getElementById('add-name-label').classList.toggle('is-required', !isEmail);
+  document.getElementById('add-mode-hint').textContent = isEmail
+    ? 'An invitation link will be sent to the student\'s email address.'
+    : 'A username and password will be created. Share them with the student or parent.';
+  document.getElementById('add-credentials-box').hidden = true;
+  document.getElementById('add-new-err').textContent = '';
+}
+
 async function mgmtAddStudent() {
-  const email       = document.getElementById('add-new-email').value.trim();
   const name        = document.getElementById('add-new-name').value.trim();
   const lesson_time = document.getElementById('add-lesson-time').value.trim();
   const notes       = document.getElementById('add-notes').value.trim();
@@ -2243,31 +2302,57 @@ async function mgmtAddStudent() {
   ).map(cb => cb.value);
   const errEl = document.getElementById('add-new-err');
   const btn   = document.getElementById('add-submit-btn');
-  const emailConfirm = document.getElementById('add-new-email-confirm').value.trim().toLowerCase();
   errEl.textContent = '';
-  if (!email) { errEl.textContent = 'Email is required.'; return; }
-  if (email !== emailConfirm) { errEl.textContent = 'Email addresses do not match.'; return; }
+
+  let body;
+  if (_addMode === 'noemail') {
+    if (!name) { errEl.textContent = 'Name is required.'; return; }
+    body = { name, lesson_days, lesson_time, notes };
+  } else {
+    const email        = document.getElementById('add-new-email').value.trim().toLowerCase();
+    const emailConfirm = document.getElementById('add-new-email-confirm').value.trim().toLowerCase();
+    if (!email) { errEl.textContent = 'Email is required.'; return; }
+    if (email !== emailConfirm) { errEl.textContent = 'Email addresses do not match.'; return; }
+    body = { email, name, lesson_days, lesson_time, notes };
+  }
+
   btn.disabled = true;
   try {
     const r = await _mgmtFetch('/teacher/students', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, lesson_days, lesson_time, notes }),
+      body: JSON.stringify(body),
     });
     const data = await r.json();
     if (!r.ok) { errEl.textContent = data.detail || 'Error adding student.'; btn.disabled = false; return; }
-    // Clear form
-    document.getElementById('add-new-email').value = '';
-    document.getElementById('add-new-email-confirm').value = '';
+
+    // Clear common fields
     document.getElementById('add-new-name').value = '';
     document.getElementById('add-lesson-time').value = '';
     document.getElementById('add-notes').value = '';
     document.querySelectorAll('#add-lesson-days input').forEach(cb => cb.checked = false);
-    // Show invite confirmation instead of credential modal
-    mgmtShowInviteSent(data);
+
+    if (data.no_email) {
+      // Show credentials inline
+      document.getElementById('add-new-email').value = '';
+      document.getElementById('add-new-email-confirm').value = '';
+      document.getElementById('cred-username').textContent = data.username;
+      document.getElementById('cred-password').textContent = data.password;
+      document.getElementById('add-credentials-box').hidden = false;
+    } else {
+      document.getElementById('add-new-email').value = '';
+      document.getElementById('add-new-email-confirm').value = '';
+      mgmtShowInviteSent(data);
+    }
     await loadManageRoster();
   } catch { errEl.textContent = 'Connection error.'; }
   btn.disabled = false;
+}
+
+function copyCredentials() {
+  const u = document.getElementById('cred-username').textContent;
+  const p = document.getElementById('cred-password').textContent;
+  navigator.clipboard.writeText(`Username: ${u}\nPassword: ${p}`).catch(() => {});
 }
 
 function mgmtShowInviteSent(data) {

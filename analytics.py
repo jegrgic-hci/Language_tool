@@ -383,6 +383,17 @@ def get_user_by_email(email: str) -> Optional[dict]:
     return dict(row) if row else None
 
 
+def get_user_by_username(username: str) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    return dict(row) if row else None
+
+
+def username_is_taken(username: str) -> bool:
+    with _conn() as conn:
+        return bool(conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone())
+
+
 def get_user_by_id(user_id: int) -> Optional[dict]:
     with _conn() as conn:
         row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
@@ -619,9 +630,10 @@ def next_lesson_date(lesson_days_json: str) -> Optional[date]:
     return None
 
 
-def get_roster() -> list:
+def get_roster(allowed_codes: Optional[set] = None) -> list:
     """All students with key stats for the roster card view, sorted by next lesson date.
-    Includes any access code that has logged events but isn't in the students table."""
+    Includes any access code that has logged events but isn't in the students table.
+    If allowed_codes is provided, only students whose access_code is in that set are returned."""
     registered = {s["access_code"]: s for s in get_all_students()}
     with _conn() as conn:
         event_codes = [
@@ -638,6 +650,8 @@ def get_roster() -> list:
                 "lesson_days": "[]", "lesson_time": "", "notes": "",
                 "teacher_id": None,
             }
+    if allowed_codes is not None:
+        students_map = {k: v for k, v in students_map.items() if k in allowed_codes}
     students = list(students_map.values())
     today = date.today()
     since_7d   = (today - timedelta(days=6)).isoformat()
