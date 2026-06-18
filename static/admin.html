@@ -591,6 +591,42 @@
   </div>
 </div>
 
+<!-- Delete user (type-to-confirm) -->
+<div id="del-backdrop" onclick="if(event.target===this)closeDeleteUser()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--vk-surface);border:1px solid var(--vk-error);padding:32px;width:440px;max-width:90vw;">
+    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;color:var(--vk-error);">Delete User</div>
+    <div id="del-msg" style="font-size:0.82rem;color:var(--vk-fg-1);line-height:1.5;margin-bottom:20px;"></div>
+    <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Type DELETE to confirm</label>
+    <input id="del-input" type="text" autocomplete="off" oninput="syncDeleteBtn()" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;margin-bottom:14px;">
+    <div style="color:#B42318;font-size:0.72rem;min-height:1.2em;margin-bottom:14px;" id="del-err"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="action-btn" onclick="closeDeleteUser()">Cancel</button>
+      <button class="action-btn action-btn-danger" id="del-ok" disabled style="opacity:.5;pointer-events:none;" onclick="doDeleteUser()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Email a user -->
+<div id="email-backdrop" onclick="if(event.target===this)closeEmailModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;width:520px;max-width:90vw;">
+    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Email <span id="email-to-name"></span></div>
+    <div style="font-size:0.72rem;color:var(--vk-fg-2);margin-bottom:18px;" id="email-to-addr"></div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Subject</label>
+      <input id="email-subject" type="text" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Message</label>
+      <textarea id="email-body" rows="8" style="width:100%;font-family:var(--vk-font-body);font-size:0.85rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:10px 12px;outline:none;box-sizing:border-box;resize:vertical;line-height:1.5;"></textarea>
+    </div>
+    <div style="color:#B42318;font-size:0.72rem;min-height:1.2em;margin-bottom:14px;" id="email-err"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="action-btn" onclick="closeEmailModal()">Cancel</button>
+      <button class="action-btn action-btn-accent" id="email-send" onclick="doEmailUser()">Send</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast"></div>
 
@@ -849,6 +885,8 @@
               ${t.is_active ? 'Deactivate' : 'Activate'}
             </button>
             <a class="action-btn action-btn-accent" href="${analyticsLink(t.access_code || '')}" target="_blank" onclick="event.stopPropagation()">Dashboard</a>
+            <button class="action-btn" onclick="event.stopPropagation(); openEmailUser(${t.id})" title="Email this teacher"${t.email ? '' : ' disabled'}>Email</button>
+            <button class="action-btn action-btn-danger" onclick="event.stopPropagation(); openDeleteUser(${t.id})" title="Permanently delete teacher">Delete</button>
           </div>
           <div class="teacher-students" id="ts-${i}">
             ${renderStudentTable(t.students)}
@@ -889,13 +927,14 @@
       title="${u.is_active ? 'Deactivate' : 'Activate'} user">
       ${u.is_active ? 'Deactivate' : 'Activate'}
     </button>`;
+    const deleteBtn = `<button class="action-btn action-btn-danger" onclick="openDeleteUser(${u.id})" title="Permanently delete user">Delete</button>`;
     return `<tr>
       <td><div class="td-name">${name}</div>${email}</td>
       <td><span class="td-code">${escHtml(code) || '—'}</span></td>
       <td>${statusBadge(u)}</td>
       <td>${fmtDate(u.last_active)}</td>
       <td>${u.event_count || 0}</td>
-      <td>${toggleBtn}${analyticsBtn}</td>
+      <td>${toggleBtn}${analyticsBtn}${deleteBtn}</td>
     </tr>`;
   }
 
@@ -913,6 +952,110 @@
     if (!r.ok) { showToast('Failed to update user.'); return; }
     showToast(newState ? 'User activated.' : 'User deactivated.');
     loadUsers();
+  }
+
+  // ── Permanent delete (type-to-confirm) ──────────────────────────────────────
+  let _adminDeleteId = null;
+  async function openDeleteUser(userId) {
+    _adminDeleteId = userId;
+    document.getElementById('del-err').textContent = '';
+    const input = document.getElementById('del-input');
+    input.value = '';
+    syncDeleteBtn();
+    const msgEl = document.getElementById('del-msg');
+    msgEl.textContent = 'Loading…';
+    document.getElementById('del-backdrop').style.display = 'flex';
+    setTimeout(() => input.focus(), 50);
+
+    const r = await fetch(`/admin/users/${userId}/delete-impact`, { headers: authHeaders() });
+    if (!r.ok) { msgEl.textContent = 'Could not load delete impact.'; return; }
+    const d = await r.json();
+    const isChild = d.email && d.email.endsWith('@noemail.local');
+    const who = escHtml(isChild ? (d.username || 'this user') : (d.email || d.username || 'this user'));
+    let body = `This permanently deletes <strong>${who}</strong> and all of their data. This cannot be undone.`;
+    if (d.role === 'teacher') {
+      const parts = [];
+      if (d.managed) {
+        const childNote = d.children ? ` (incl. ${d.children} child account${d.children !== 1 ? 's' : ''})` : '';
+        parts.push(`<li><strong>${d.managed}</strong> managed student${d.managed !== 1 ? 's' : ''}${childNote} will be <strong>permanently deleted</strong></li>`);
+      }
+      if (d.solo) {
+        parts.push(`<li><strong>${d.solo}</strong> independent student${d.solo !== 1 ? 's' : ''} will be <strong>detached</strong> and keep their account${d.solo !== 1 ? 's' : ''}</li>`);
+      }
+      if (parts.length) body += `<ul style="margin:14px 0 0;padding-left:18px;line-height:1.6;">${parts.join('')}</ul>`;
+    }
+    msgEl.innerHTML = body;
+  }
+  function syncDeleteBtn() {
+    const ok = document.getElementById('del-input').value.trim() === 'DELETE';
+    const btn = document.getElementById('del-ok');
+    btn.disabled = !ok;
+    btn.style.opacity = ok ? '1' : '.5';
+    btn.style.pointerEvents = ok ? 'auto' : 'none';
+  }
+  function closeDeleteUser() {
+    document.getElementById('del-backdrop').style.display = 'none';
+    _adminDeleteId = null;
+  }
+  async function doDeleteUser() {
+    if (_adminDeleteId == null || document.getElementById('del-input').value.trim() !== 'DELETE') return;
+    const r = await fetch(`/admin/users/${_adminDeleteId}`, { method: 'DELETE', headers: authHeaders() });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      document.getElementById('del-err').textContent = data.detail || 'Failed to delete user.';
+      return;
+    }
+    closeDeleteUser();
+    showToast('User deleted.');
+    loadUsers();
+  }
+
+  // ── Email a user ────────────────────────────────────────────────────────────
+  function findUserById(id) {
+    if (!_usersData) return null;
+    for (const t of _usersData.teachers) {
+      if (t.id === id) return t;
+      for (const s of t.students) if (s.id === id) return s;
+    }
+    for (const u of _usersData.solo) if (u.id === id) return u;
+    return null;
+  }
+  let _emailUserId = null;
+  function openEmailUser(userId) {
+    const u = findUserById(userId);
+    if (!u) { showToast('User not found.'); return; }
+    if (!u.email || u.email.endsWith('@noemail.local')) { showToast('This user has no email address.'); return; }
+    _emailUserId = userId;
+    document.getElementById('email-to-name').textContent = userDisplayName(u);
+    document.getElementById('email-to-addr').textContent = u.email;
+    document.getElementById('email-subject').value = '';
+    document.getElementById('email-body').value = '';
+    document.getElementById('email-err').textContent = '';
+    document.getElementById('email-backdrop').style.display = 'flex';
+    setTimeout(() => document.getElementById('email-subject').focus(), 50);
+  }
+  function closeEmailModal() {
+    document.getElementById('email-backdrop').style.display = 'none';
+    _emailUserId = null;
+  }
+  async function doEmailUser() {
+    if (_emailUserId == null) return;
+    const subject = document.getElementById('email-subject').value.trim();
+    const body = document.getElementById('email-body').value.trim();
+    const errEl = document.getElementById('email-err');
+    if (!subject || !body) { errEl.textContent = 'Subject and message are required.'; return; }
+    const btn = document.getElementById('email-send');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const r = await fetch(`/admin/users/${_emailUserId}/email`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ subject, body }),
+    });
+    btn.disabled = false; btn.textContent = 'Send';
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { errEl.textContent = data.detail || 'Failed to send email.'; return; }
+    closeEmailModal();
+    showToast('Email sent.');
   }
 
   // ── User search / filter ──────────────────────────────────────────────────
@@ -1079,7 +1222,7 @@
   }
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') { closeModal(); closeDeleteUser(); closeEmailModal(); }
   });
 
   async function doCreateTeacher() {

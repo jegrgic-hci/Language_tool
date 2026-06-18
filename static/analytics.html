@@ -961,6 +961,22 @@
   </div>
 </div>
 
+<!-- ── Delete (type-to-confirm) modal ──────────────────────────────────────── -->
+<div id="mgmt-delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--vk-surface);border:1px solid var(--vk-error);padding:32px;max-width:440px;width:90%">
+    <p class="sec-label" style="margin-bottom:8px;color:var(--vk-error)" id="mgmt-delete-label">Delete</p>
+    <div style="font-family:var(--vk-font-body);font-size:var(--vk-text-sm);color:var(--vk-fg-1);margin-bottom:20px;line-height:1.5" id="mgmt-delete-msg"></div>
+    <label style="display:block;font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);color:var(--vk-fg-2);margin-bottom:6px">Type <strong>DELETE</strong> to confirm</label>
+    <input id="mgmt-delete-input" type="text" autocomplete="off"
+           style="width:100%;padding:10px 12px;border:1px solid var(--vk-border-mid);background:var(--vk-bg);color:var(--vk-fg-1);font-family:var(--vk-font-ui);margin-bottom:24px" />
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="vk-btn vk-btn-outline" onclick="mgmtCloseDelete()">Cancel</button>
+      <button class="vk-btn" id="mgmt-delete-ok" disabled
+              style="background:var(--vk-error);color:#fff;border-color:var(--vk-error);opacity:.5;pointer-events:none">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Toast ───────────────────────────────────────────────────────────────── -->
 <div id="mgmt-toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--vk-surface);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);font-family:var(--vk-font-ui);font-size:var(--vk-text-xs);padding:12px 20px;z-index:400;display:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.12)"></div>
 
@@ -2272,6 +2288,11 @@ function _mgmtRenderTable() {
       ? '<button class="vk-btn vk-btn-outline sm" onclick="selectPanel(\'student-' + esc(code) + '\',document.getElementById(\'nav-' + esc(code) + '\'))">Analytics</button>'
       : '';
     const isChild = s.email && s.email.endsWith('@noemail.local');
+    const delLabel = isChild ? (s.username || 'this student') : (s.email || s.username || 'this student');
+    // Teachers may only delete students they manage; solo (independent) students are admin-only.
+    const deleteBtn = (s.role === 'student_teacher')
+      ? '<button class="vk-btn sm" style="border:1px solid var(--vk-error);color:#fff;background:var(--vk-error)" onclick="mgmtDelete(' + s.id + ',\'' + esc(delLabel) + '\')">Delete</button>'
+      : '';
     const lessonBtn = (isChild && code)
       ? '<button class="vk-btn vk-btn-primary sm" onclick="openTeachMode(\'' + esc(code) + '\',\'' + esc(s.username || '') + '\')">Start Lesson</button>'
       : '';
@@ -2287,6 +2308,7 @@ function _mgmtRenderTable() {
         '<button class="vk-btn vk-btn-outline sm" onclick="mgmtResetPassword(' + s.id + ',\'' + esc(s.email || '') + '\')">Reset Password</button>' +
         pauseBtn +
         '<button class="vk-btn sm" style="border:1px solid rgba(180,35,24,.3);color:#B42318;background:none" onclick="mgmtRemove(' + s.id + ',\'' + esc(s.email || s.username || '') + '\')">Remove</button>' +
+        deleteBtn +
       '</div></td>' +
       '</tr>';
   }).join('');
@@ -2479,6 +2501,48 @@ function mgmtCloseConfirm() {
 document.getElementById('mgmt-confirm-ok').addEventListener('click', () => {
   if (_mgmtConfirmCb) _mgmtConfirmCb();
 });
+
+// ── Type-to-confirm delete modal ──
+let _mgmtDeleteCb = null;
+function mgmtShowDelete(label, html, cb) {
+  document.getElementById('mgmt-delete-label').textContent = label;
+  document.getElementById('mgmt-delete-msg').innerHTML = html;
+  const input = document.getElementById('mgmt-delete-input');
+  input.value = '';
+  _mgmtDeleteCb = cb;
+  mgmtSyncDeleteBtn();
+  document.getElementById('mgmt-delete-modal').style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
+}
+function mgmtSyncDeleteBtn() {
+  const ok = document.getElementById('mgmt-delete-input').value.trim() === 'DELETE';
+  const btn = document.getElementById('mgmt-delete-ok');
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.5';
+  btn.style.pointerEvents = ok ? 'auto' : 'none';
+}
+function mgmtCloseDelete() {
+  document.getElementById('mgmt-delete-modal').style.display = 'none';
+  _mgmtDeleteCb = null;
+}
+document.getElementById('mgmt-delete-input').addEventListener('input', mgmtSyncDeleteBtn);
+document.getElementById('mgmt-delete-ok').addEventListener('click', () => {
+  if (_mgmtDeleteCb && document.getElementById('mgmt-delete-input').value.trim() === 'DELETE') _mgmtDeleteCb();
+});
+
+function mgmtDelete(userId, label) {
+  mgmtShowDelete(
+    'Delete Student',
+    'This permanently deletes <strong>' + esc(label) + '</strong> and all of their data — practice history, login, and pending invites. This cannot be undone.',
+    async () => {
+      const r = await _mgmtFetch('/teacher/students/' + userId + '/permanent', { method: 'DELETE' });
+      mgmtCloseDelete();
+      if (!r.ok) { mgmtToast('Failed to delete student.', true); return; }
+      mgmtToast('Student deleted.');
+      await loadManageRoster();
+    }
+  );
+}
 
 let _mgmtToastTimer = null;
 function mgmtToast(msg, isErr = false) {

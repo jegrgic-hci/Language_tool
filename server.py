@@ -354,6 +354,11 @@ class CreateTeacherRequest(BaseModel):
     password: str
 
 
+class AdminEmailRequest(BaseModel):
+    subject: str
+    body: str
+
+
 # ── Auth routes ────────────────────────────────────────────────────────────────
 
 def _make_token_response(user: dict) -> dict:
@@ -689,6 +694,30 @@ async def teacher_remove_student(
     return {"ok": True}
 
 
+@app.delete("/teacher/students/{user_id}/permanent")
+async def teacher_delete_student(
+    user_id: int,
+    current_user: dict = Depends(_auth.require_teacher),
+):
+    """Permanently delete a student and all their data. Irreversible."""
+    student = _analytics.get_user_by_id(user_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    if current_user["role"] != "super_admin" and student.get("teacher_id") != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    # Teachers may only delete the students they manage (student_teacher, incl. no-email
+    # children). Independent/paying solo students can only be deleted by an admin.
+    if current_user["role"] == "teacher" and student["role"] != "student_teacher":
+        raise HTTPException(
+            status_code=403,
+            detail="Only an administrator can delete an independent (solo) student.",
+        )
+    if student["role"] not in ("student_teacher", "student_solo"):
+        raise HTTPException(status_code=400, detail="Only student accounts can be deleted here")
+    result = _analytics.delete_user(user_id)
+    return {"ok": result["deleted"]}
+
+
 @app.post("/teacher/invite")
 async def teacher_invite_student(
     req: InviteStudentRequest,
@@ -779,6 +808,72 @@ async def admin_update_user(
         else:
             _analytics.deactivate_user(user_id)
     return {"ok": True}
+
+
+@app.get("/admin/users/{user_id}/delete-impact")
+async def admin_delete_impact(
+    user_id: int,
+    current_user: dict = Depends(_auth.require_admin),
+):
+    """Preview what a permanent delete will affect (for the confirmation modal)."""
+    user = _analytics.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    breakdown = (
+        _analytics.get_teacher_student_breakdown(user_id)
+        if user["role"] == "teacher" else {"managed": 0, "children": 0, "solo": 0}
+    )
+    return {
+        "role": user["role"],
+        "email": user["email"],
+        "username": user.get("username"),
+        **breakdown,
+    }
+
+
+@app.delete("/admin/users/{user_id}")
+async def admin_delete_user(
+    user_id: int,
+    current_user: dict = Depends(_auth.require_admin),
+):
+    """Permanently delete any user. Teachers cascade by student role (see analytics.delete_user). Irreversible."""
+    user = _analytics.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user["role"] == "super_admin":
+        raise HTTPException(status_code=403, detail="Super admin accounts cannot be deleted")
+    if user_id == int(current_user["sub"]):
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    result = _analytics.delete_user(user_id)
+    return {"ok": result["deleted"], **result}
+
+
+@app.post("/admin/users/{user_id}/email")
+async def admin_email_user(
+    user_id: int,
+    req: AdminEmailRequest,
+    current_user: dict = Depends(_auth.require_admin),
+):
+    """Send a one-off email to a single user (e.g. a teacher) from the admin dashboard."""
+    user = _analytics.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    to = (user.get("email") or "").strip()
+    if not to or to.endswith("@noemail.local"):
+        raise HTTPException(status_code=400, detail="This user has no email address")
+    subject = req.subject.strip()
+    body = req.body.strip()
+    if not subject or not body:
+        raise HTTPException(status_code=400, detail="Subject and message are required")
+    # Plain-text body → escaped HTML with line breaks preserved
+    html = "<p>" + escHtml(body).replace("\n\n", "</p><p>").replace("\n", "<br>") + "</p>"
+    sent = await _send_email(to, subject, html)
+    if not sent:
+        raise HTTPException(
+            status_code=502,
+            detail="Email failed to send. Check SMTP2GO_API_KEY and the verified sender.",
+        )
+    return {"ok": True, "email": to}
 
 
 @app.get("/admin/platform-stats")

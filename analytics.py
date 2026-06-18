@@ -429,6 +429,84 @@ def deactivate_user(user_id: int) -> None:
         conn.execute("UPDATE users SET is_active=0 WHERE id=?", (user_id,))
 
 
+def detach_student(user_id: int) -> None:
+    """Unlink a student from their teacher (keeps the account, clears teacher_id)."""
+    with _conn() as conn:
+        conn.execute("UPDATE users SET teacher_id=NULL WHERE id=?", (user_id,))
+
+
+def get_teacher_student_breakdown(teacher_id: int) -> dict:
+    """Counts of a teacher's students, used for the delete-confirmation warning.
+    Matches the cascade in delete_user (no is_active filter):
+      - managed  = student_teacher accounts (deleted with the teacher)
+      - children = the subset of managed accounts that are no-email child accounts
+      - solo     = student_solo accounts (detached, kept)
+    """
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT role, email FROM users WHERE teacher_id=?", (teacher_id,)
+        ).fetchall()
+    managed = sum(1 for r in rows if r["role"] == "student_teacher")
+    children = sum(
+        1 for r in rows
+        if r["role"] == "student_teacher" and (r["email"] or "").endswith("@noemail.local")
+    )
+    solo = sum(1 for r in rows if r["role"] == "student_solo")
+    return {"managed": managed, "children": children, "solo": solo}
+
+
+def _purge_user_rows(conn, user_id: int, access_code: Optional[str], email: Optional[str]) -> None:
+    """Delete every row tied to a single user, within an existing connection/transaction."""
+    if access_code:
+        conn.execute("DELETE FROM events WHERE access_code=?", (access_code,))
+        conn.execute("DELETE FROM coach_cache WHERE access_code=?", (access_code,))
+        conn.execute("DELETE FROM students WHERE access_code=?", (access_code,))
+    conn.execute("DELETE FROM refresh_tokens WHERE user_id=?", (user_id,))
+    conn.execute("DELETE FROM password_reset_tokens WHERE user_id=?", (user_id,))
+    # Invites this user sent (as teacher) or pending invites addressed to them
+    conn.execute("DELETE FROM invite_tokens WHERE teacher_id=? OR email=?", (user_id, email or ""))
+    conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+
+
+def delete_user(user_id: int) -> dict:
+    """Permanently delete a user and all associated data, in one transaction.
+
+    For a teacher, cascades to their students by role:
+      - student_solo            -> detached (teacher_id set NULL), account kept
+      - student_teacher (incl.
+        no-email child accounts) -> permanently deleted
+
+    Returns {"deleted": bool, "role", "detached", "deleted_students"}.
+    """
+    with _conn() as conn:
+        user = conn.execute(
+            "SELECT id, role, email, access_code FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not user:
+            return {"deleted": False, "detached": 0, "deleted_students": 0}
+
+        detached, deleted_students = 0, 0
+        if user["role"] == "teacher":
+            students = conn.execute(
+                "SELECT id, role, email, access_code FROM users WHERE teacher_id=?", (user_id,)
+            ).fetchall()
+            for s in students:
+                if s["role"] == "student_solo":
+                    conn.execute("UPDATE users SET teacher_id=NULL WHERE id=?", (s["id"],))
+                    detached += 1
+                else:
+                    _purge_user_rows(conn, s["id"], s["access_code"], s["email"])
+                    deleted_students += 1
+
+        _purge_user_rows(conn, user["id"], user["access_code"], user["email"])
+        return {
+            "deleted": True,
+            "role": user["role"],
+            "detached": detached,
+            "deleted_students": deleted_students,
+        }
+
+
 def update_user_role(user_id: int, role: str) -> None:
     with _conn() as conn:
         conn.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
