@@ -66,20 +66,26 @@ else:
 AUDIO_DIR = Path(tempfile.gettempdir()) / "vraifrench_audio"
 AUDIO_DIR.mkdir(exist_ok=True)
 
-_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-_EMAIL_FROM     = os.environ.get("EMAIL_FROM", "VraiFrench <onboarding@resend.dev>")
-_APP_BASE_URL   = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
+_SMTP2GO_API_KEY = os.environ.get("SMTP2GO_API_KEY", "")
+_EMAIL_FROM      = os.environ.get("EMAIL_FROM", "VraiFrench <noreply@vraifrench.com>")
+_APP_BASE_URL    = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
 
 
 async def _send_email(to: str, subject: str, html: str) -> bool:
-    """Send one transactional email via Resend. Returns True on success."""
-    if not _RESEND_API_KEY:
+    """Send one transactional email via the SMTP2GO HTTP API. Returns True on success."""
+    if not _SMTP2GO_API_KEY:
         return False
     async with httpx.AsyncClient() as client:
         r = await client.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {_RESEND_API_KEY}", "Content-Type": "application/json"},
-            json={"from": _EMAIL_FROM, "to": [to], "subject": subject, "html": html},
+            "https://api.smtp2go.com/v3/email/send",
+            headers={"Content-Type": "application/json"},
+            json={
+                "api_key": _SMTP2GO_API_KEY,
+                "sender": _EMAIL_FROM,
+                "to": [to],
+                "subject": subject,
+                "html_body": html,
+            },
             timeout=10,
         )
         return r.status_code == 200
