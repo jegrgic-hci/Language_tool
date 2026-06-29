@@ -89,7 +89,7 @@
       display: grid;
       grid-template-columns: var(--sb-width) 1fr;
       grid-template-rows: 1fr;
-      height: 100vh;
+      height: 100dvh;
       overflow: hidden;
     }
     #app.sb-collapsed {
@@ -104,7 +104,7 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;
       position: sticky;
       top: 0;
     }
@@ -187,6 +187,7 @@
     .sb-nav-practice::after    { content: "Practice List"; }
     .sb-nav-my-content::after  { content: "My Content"; }
     .sb-nav-shadowing::after   { content: "Shadowing"; }
+    .sb-nav-prompted-speaking::after { content: "Prompted Free Speaking"; }
 
     /* ── Footer ── */
     .sb-footer { margin-top: auto; }
@@ -433,7 +434,7 @@
         -webkit-backdrop-filter: blur(2px);
       }
       #sb-overlay.is-open { display: block; }
-      #main { grid-column: 1; grid-row: 2; height: calc(100vh - 48px); overflow-y: auto; }
+      #main { grid-column: 1; grid-row: 2; height: calc(100dvh - 48px); overflow-y: auto; }
       .sb-collapse-btn { display: none; }
     }
 
@@ -2385,6 +2386,27 @@
     .vocab-result-banner.correct { border-color: #1F5A40; color: #1F5A40; background: rgba(31,90,64,0.07); }
     .vocab-result-banner.wrong   { border-color: var(--vk-error); color: var(--vk-error); background: rgba(220,38,38,0.05); }
 
+    /* ── Round transition / final summary panel ────────────────────────────── */
+    .vocab-summary-card { display: flex; flex-direction: column; gap: 10px; text-align: center; align-items: center; padding: 28px 24px; }
+    .vocab-summary-label {
+      font-family: var(--pa-font-mono); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--vk-accent-text);
+    }
+    .vocab-summary-title { font-family: var(--pa-font-sans); font-size: 22px; font-weight: 700; color: var(--vk-fg-1); margin: 0; }
+    .vocab-summary-sub   { font-family: var(--pa-font-sans); font-size: 14px; color: var(--vk-fg-2); margin: 0; }
+    .vocab-summary-score {
+      font-family: var(--pa-font-mono); font-size: 13px; color: var(--vk-fg-2); margin: 4px 0;
+    }
+    .vocab-summary-score span { font-weight: 700; color: var(--vk-fg-1); }
+    .vocab-summary-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+
+    /* ── Resume card (cumulative, account-tied) ────────────────────────────── */
+    .vocab-resume-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; flex-wrap: wrap; }
+    .vocab-resume-info { display: flex; flex-direction: column; gap: 4px; }
+    .vocab-resume-title { font-family: var(--pa-font-sans); font-size: 15px; font-weight: 700; color: var(--vk-fg-1); }
+    .vocab-resume-meta  { font-family: var(--pa-font-mono); font-size: 12px; color: var(--vk-fg-2); }
+    .vocab-resume-actions { display: flex; gap: 10px; align-items: center; }
+
     /* ── Path B reveal section ─────────────────────────────────────────────── */
     .vocab-pb-reveal {
       display: flex; flex-direction: column; gap: 4px;
@@ -2520,7 +2542,8 @@
     #writing-hub-levels, #writing-hub-topics {
       display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
     }
-    #writing-hub-content {
+    #writing-hub-content,
+    #speaking-hub-content {
       flex: 1;
       overflow-y: auto;
       display: grid;
@@ -2529,8 +2552,10 @@
       gap: 0;
       padding: 48px 48px 40px;
     }
-    #writing-hub-content::-webkit-scrollbar { width: 4px; }
-    #writing-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
+    #writing-hub-content::-webkit-scrollbar,
+    #speaking-hub-content::-webkit-scrollbar { width: 4px; }
+    #writing-hub-content::-webkit-scrollbar-thumb,
+    #speaking-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
 
     /* ── Writing view chrome ── */
     .wr-loading-text {
@@ -2647,6 +2672,137 @@
       margin-bottom: 16px;
     }
 
+    /* ── Prompted Free Speaking (Atelier) ──
+       Mic uses .pa-ctrl/.pa-ctrl-record; prompt uses .pv-card; transcript uses
+       .pv-live-transcript; control rows use .pv-func. Only layout + feedback
+       atoms are defined here, all on --vk tokens with Atelier radius. */
+    #sp-prompt-area {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .sp-prompt-text {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-lg);
+      color: var(--vk-fg-1);
+      line-height: 1.5;
+    }
+    #sp-transcript.pv-live-text { font-style: normal; min-height: 1.5em; }
+    #sp-transcript .sp-final  { color: var(--vk-fg-1); }
+    #sp-transcript .sp-interim { color: var(--vk-fg-3); font-style: italic; }
+    .sp-mic-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .sp-mic-status {
+      font-family: var(--pa-font-mono);
+      font-size: var(--vk-text-2xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+    }
+    .sp-mic-warn {
+      font-family: var(--pa-font-mono);
+      font-size: var(--vk-text-2xs);
+      color: var(--vk-error-text);
+    }
+    .sp-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    /* Results */
+    .sp-results { display: flex; flex-direction: column; gap: 18px; }
+    .sp-said-block { display: flex; flex-direction: column; gap: 8px; }
+    .sp-said-text {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.5;
+      padding: 14px 16px;
+      border: 1px solid var(--vk-border);
+      border-radius: var(--vk-radius-card);
+      background: var(--vk-surface);
+    }
+    #sp-feedback { display: flex; flex-direction: column; gap: 18px; }
+    .sp-fb-overall {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-body);
+      color: var(--vk-fg-1);
+      line-height: 1.55;
+    }
+    .sp-fb-group { display: flex; flex-direction: column; gap: 8px; }
+    .sp-fb-section-label {
+      font-family: var(--pa-font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+    }
+    .sp-strength-item {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.5;
+      padding: 12px 14px;
+      border: 1px solid var(--vk-border);
+      border-left: 2px solid var(--pa-pass);
+      border-radius: var(--vk-radius-card);
+      background: var(--vk-surface);
+    }
+    .sp-strength-item .sp-bullet { color: var(--pa-pass); flex-shrink: 0; }
+    .sp-correction {
+      border: 1px solid var(--vk-border);
+      border-left: 2px solid var(--vk-accent-border);
+      border-radius: var(--vk-radius-card);
+      background: var(--vk-surface);
+      padding: 14px 16px;
+    }
+    .sp-corr-said {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-3);
+      text-decoration: line-through;
+      text-decoration-color: var(--vk-error);
+      margin-bottom: 4px;
+    }
+    .sp-corr-better {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-body);
+      color: var(--vk-fg-1);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .sp-corr-why {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.5;
+    }
+    .sp-levelup {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.5;
+      padding: 14px 16px;
+      border: 1px solid var(--vk-accent-border);
+      border-radius: var(--vk-radius-card);
+      background: var(--vk-accent-bg);
+    }
+    .sp-levelup strong { color: var(--vk-accent-text); }
+    .sp-next-row {
+      display: flex;
+      justify-content: center;
+      padding-top: 4px;
+    }
+
     /* ── Hubs on mobile — collapse to a single column ──────────────────────────
        Placed after all hub grid definitions so these overrides win on source
        order (media queries add no specificity). Each row stacks its name +
@@ -2658,7 +2814,8 @@
       #vocab-hub-content,
       #dict-hub-content,
       #writing-hub-content,
-      #transform-hub-content {
+      #transform-hub-content,
+      #speaking-hub-content {
         grid-template-columns: 1fr;
         column-gap: 0;
         padding: 24px 16px 32px;
@@ -2963,6 +3120,9 @@
     <button class="vk-sb-item sb-nav-shadowing" data-view="shadow-hub" onclick="switchView('shadow-hub')" title="Shadowing">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8a5 5 0 0110 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M1 9.5C1 8.7 1.7 8 2.5 8H4v4H2.5C1.7 12 1 11.3 1 10.5v-1zM15 9.5C15 8.7 14.3 8 13.5 8H12v4h1.5c.8 0 1.5-.7 1.5-1.5v-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
     </button>
+    <button class="vk-sb-item sb-nav-prompted-speaking" data-view="speaking-hub" onclick="switchView('speaking-hub')" title="Prompted Free Speaking">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1.5" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 7a4.5 4.5 0 009 0M8 11.5V14M5.5 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
 
     <div class="vk-sb-section sb-sec-listening"></div>
     <button class="vk-sb-item sb-nav-listen" data-view="comprehension-hub" onclick="switchView('comprehension-hub')" title="Listen & Answer">
@@ -3211,6 +3371,7 @@
           </div>
           <div class="pv-speed-btns" id="phrase-speed-btns">
             <button class="pv-speed-btn speed-btn" data-rate="0.75" onclick="setPlaybackSpeed(0.75)">×0.75</button>
+            <button class="pv-speed-btn speed-btn" data-rate="0.9" onclick="setPlaybackSpeed(0.9)">×0.9</button>
             <button class="pv-speed-btn speed-btn active" data-rate="1" onclick="setPlaybackSpeed(1)">×1</button>
             <button class="pv-speed-btn speed-btn" data-rate="1.25" onclick="setPlaybackSpeed(1.25)">×1.25</button>
           </div>
@@ -4280,6 +4441,26 @@
       </div>
       <div id="vocab-hub-content">
 
+        <!-- Resume (cumulative, account-tied) -->
+        <div id="vocab-resume-row" class="hub-row" style="display:none;">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Resume</span>
+            <span class="hub-row-desc">Continue your cumulative set</span>
+          </div>
+          <div class="hub-row-controls">
+            <div class="pv-card vocab-resume-card">
+              <div class="vocab-resume-info">
+                <span id="vocab-resume-title" class="vocab-resume-title"></span>
+                <span id="vocab-resume-meta" class="vocab-resume-meta"></span>
+              </div>
+              <div class="vocab-resume-actions">
+                <button class="vk-btn vk-btn-primary" onclick="resumeVocabSession()">Resume →</button>
+                <button class="vk-btn vk-btn-ghost vk-btn-sm" onclick="discardVocabResume()">Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Level -->
         <div class="hub-row">
           <div class="hub-row-label">
@@ -4445,6 +4626,16 @@
           </div><!-- /#vocab-card -->
         </div><!-- /#vocab-card-wrap -->
 
+        <!-- Round transition / final results panel -->
+        <div id="vocab-summary" style="display:none;">
+          <div class="pv-card vocab-summary-card">
+            <span id="vocab-summary-label" class="vocab-summary-label"></span>
+            <h3 id="vocab-summary-title" class="vocab-summary-title"></h3>
+            <p id="vocab-summary-sub" class="vocab-summary-sub"></p>
+            <div id="vocab-summary-score" class="vocab-summary-score"></div>
+            <div id="vocab-summary-actions" class="vocab-summary-actions"></div>
+          </div>
+        </div>
 
       </div><!-- /#vocab-content -->
     </div><!-- /#vocab-view -->
@@ -4700,6 +4891,135 @@
       </div><!-- /.pv-body -->
 
     </div><!-- /#writing-view -->
+
+    <!-- ── Prompted Free Speaking Hub ── -->
+    <div id="speaking-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="hub-intro">
+        <span class="hub-intro-eyebrow">Speaking</span>
+        <h2 class="hub-intro-heading">Prompted free speaking</h2>
+        <p class="hub-intro-text">You'll get a short French prompt. Speak your own answer aloud for 20–40 seconds, then get warm, constructive feedback that shows you how to say it better.</p>
+        <div class="hub-intro-chips">
+          <span class="hub-intro-chip">Free production</span>
+          <span class="hub-intro-chip">Supportive feedback</span>
+          <span class="hub-intro-chip">Say it better</span>
+        </div>
+      </div>
+      <div id="speaking-hub-content">
+
+        <!-- Level -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Level</span>
+            <span class="hub-row-desc">Prompt complexity</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="speaking-hub-levels">
+              <button class="hub-subject-chip" data-level="A1" onclick="selectSpeakingLevel(this)">A1</button>
+              <button class="hub-subject-chip" data-level="A2" onclick="selectSpeakingLevel(this)">A2</button>
+              <button class="hub-subject-chip active" data-level="B1" onclick="selectSpeakingLevel(this)">B1</button>
+              <button class="hub-subject-chip" data-level="B2" onclick="selectSpeakingLevel(this)">B2</button>
+              <button class="hub-subject-chip" data-level="C1" onclick="selectSpeakingLevel(this)">C1</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Topic -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Topic</span>
+            <span class="hub-row-desc">What you'll talk about</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="speaking-hub-topics">
+              <button class="hub-subject-chip active" data-topic="la vie quotidienne" onclick="selectSpeakingTopic(this)">Daily life</button>
+              <button class="hub-subject-chip" data-topic="la nature" onclick="selectSpeakingTopic(this)">Nature</button>
+              <button class="hub-subject-chip" data-topic="la culture française" onclick="selectSpeakingTopic(this)">French culture</button>
+              <button class="hub-subject-chip" data-topic="la gastronomie" onclick="selectSpeakingTopic(this)">Food</button>
+              <button class="hub-subject-chip" data-topic="les voyages" onclick="selectSpeakingTopic(this)">Travel</button>
+              <button class="hub-subject-chip" data-topic="le travail" onclick="selectSpeakingTopic(this)">Work</button>
+              <button class="hub-subject-chip" data-topic="Marseille" onclick="selectSpeakingTopic(this)">Marseille</button>
+            </div>
+            <div class="vocab-custom-row">
+              <input id="speaking-custom-topic-input" class="vk-input" type="text" placeholder="Custom topic…" maxlength="80"
+                autocomplete="off" onkeydown="if(event.key==='Enter') addSpeakingCustomTopic()" />
+              <button class="vk-btn vk-btn-outline" onclick="addSpeakingCustomTopic()">Add</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start -->
+        <div class="hub-row">
+          <div class="hub-row-label"></div>
+          <div class="hub-row-controls">
+            <button id="speaking-generate-btn" class="hub-start-btn" onclick="startSpeaking()">Start →</button>
+          </div>
+        </div>
+
+      </div><!-- /#speaking-hub-content -->
+    </div><!-- /#speaking-hub -->
+
+    <!-- ── Prompted Free Speaking View ── -->
+    <div id="speaking-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+
+      <div class="sv-header">
+        <span class="header-title">Prompted Free Speaking</span>
+      </div>
+
+      <div class="pv-body">
+        <div class="pv-col">
+
+          <!-- Loading -->
+          <div id="sp-loading" style="display:none;">
+            <div class="wr-loading-text">Generating prompt…</div>
+          </div>
+
+          <!-- Prompt + mic -->
+          <div id="sp-prompt-area" style="display:none;">
+            <div class="pv-card">
+              <div class="pv-live-label">Speak about this</div>
+              <div id="sp-prompt-text" class="sp-prompt-text"></div>
+            </div>
+
+            <!-- Live transcript -->
+            <div id="sp-transcript-wrap" class="pv-live-transcript" style="display:none;">
+              <div class="pv-live-label">What you said</div>
+              <div id="sp-transcript" class="pv-live-text"></div>
+            </div>
+
+            <!-- Mic control -->
+            <div class="sp-mic-group">
+              <div class="pv-func">
+                <button id="sp-mic-btn" class="pa-ctrl pa-ctrl-record" onclick="toggleSpeakingMic()" title="Speak your answer" aria-label="Record">
+                  <svg viewBox="0 0 16 16" fill="none"><rect x="6" y="1.5" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 7a4.5 4.5 0 009 0M8 11.5V14M5.5 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+              <div id="sp-mic-status" class="sp-mic-status">Tap the mic and speak your answer</div>
+              <div id="sp-unsupported" class="sp-mic-warn" style="display:none;">Speech recognition needs Chrome or Edge on desktop.</div>
+            </div>
+
+            <!-- Actions -->
+            <div class="sp-actions">
+              <button id="sp-redo-btn" class="pv-func-skip" onclick="speakingRedo()" style="display:none;">Redo</button>
+              <button id="sp-submit-btn" class="vk-btn vk-btn-primary" onclick="submitSpeaking()" disabled>Get feedback →</button>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div id="sp-results" class="sp-results" style="display:none;">
+            <div class="sp-said-block">
+              <div class="pv-live-label">What you said</div>
+              <div id="sp-said-text" class="sp-said-text"></div>
+            </div>
+            <div id="sp-feedback"></div>
+            <div class="sp-next-row">
+              <button class="vk-btn vk-btn-outline-accent" onclick="speakingNextPrompt()">Next prompt →</button>
+            </div>
+          </div>
+
+        </div><!-- /.pv-col -->
+      </div><!-- /.pv-body -->
+
+    </div><!-- /#speaking-view -->
 
     <!-- ── Transform Hub ── -->
     <div id="transform-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
@@ -5691,6 +6011,8 @@
     const inAccount         = view === 'account';
     const inShadowHub       = view === 'shadow-hub';
     const inShadowDrill     = view === 'shadow-drill';
+    const inSpeakingHub     = view === 'speaking-hub';
+    const inSpeaking        = view === 'speaking';
 
     if (inShadow || inParagraph || inShadowDrill) {
       _shadowingViewStart = Date.now();
@@ -5716,6 +6038,9 @@
     setDisplay('account-view',        inAccount      ? 'flex' : 'none');
     setDisplay('shadow-hub',          inShadowHub    ? 'flex' : 'none');
     setDisplay('shadow-view',         inShadowDrill  ? 'flex' : 'none');
+    setDisplay('speaking-hub',        inSpeakingHub  ? 'flex' : 'none');
+    setDisplay('speaking-view',       inSpeaking     ? 'flex' : 'none');
+    if (!inSpeaking) stopSpeakingMic();
     if (inAccount) loadAccountView();
 
     const VIEW_LABELS = {
@@ -5729,6 +6054,7 @@
       'transform-hub': 'Transformation', 'transform': 'Transformation',
       'account': 'Account',
       'shadow-hub': 'Shadowing', 'shadow-drill': 'Shadowing',
+      'speaking-hub': 'Prompted Free Speaking', 'speaking': 'Prompted Free Speaking',
     };
     const _sbChip = document.getElementById('sb-mode-chip');
     const _mobChip = document.getElementById('mobile-mode-chip');
@@ -5746,7 +6072,8 @@
         (b.dataset.view === 'vocab-hub' && inVocab) ||
         (b.dataset.view === 'writing-hub' && inWriting) ||
         (b.dataset.view === 'transform-hub' && inTransform) ||
-        (b.dataset.view === 'shadow-hub' && inShadowDrill);
+        (b.dataset.view === 'shadow-hub' && inShadowDrill) ||
+        (b.dataset.view === 'speaking-hub' && inSpeaking);
       b.classList.toggle('is-active', isActive);
     });
 
@@ -5759,6 +6086,7 @@
     if (inParagraph && paragraphSentences.length === 0) fetchNextParagraph();
     if (inCustom) loadCustomList();
     if (inHome) loadHomeView();
+    if (inVocabHub) _loadVocabResume();
 
     // Sync URL hash so browser back/forward works.
     // Session sub-views (mid-exercise) replace the hub's hash rather than pushing a new entry,
@@ -10699,6 +11027,249 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     startWriting();
   }
 
+  // ── Prompted Free Speaking ────────────────────────────────────────────────
+  let speakingLevel = 'B1';
+  let speakingTopic = 'la vie quotidienne';
+  let speakingCurrentPrompt = '';
+  let speakingTranscript = '';
+  let _spRecognition = null;
+  let _spListening = false;
+  let _spUserStopped = false;
+
+  function selectSpeakingLevel(btn) {
+    document.querySelectorAll('#speaking-hub-levels .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    speakingLevel = btn.dataset.level;
+  }
+
+  function selectSpeakingTopic(btn) {
+    document.querySelectorAll('#speaking-hub-topics .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    speakingTopic = btn.dataset.topic;
+    document.getElementById('speaking-custom-topic-input').value = '';
+  }
+
+  function addSpeakingCustomTopic() {
+    const input = document.getElementById('speaking-custom-topic-input');
+    const val = input.value.trim();
+    if (!val) return;
+    speakingTopic = val;
+    document.querySelectorAll('#speaking-hub-topics .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    input.blur();
+  }
+
+  function _speakingSetState(state) {
+    setDisplay('sp-loading',     state === 'loading' ? '' : 'none');
+    setDisplay('sp-prompt-area', state === 'input'   ? '' : 'none');
+    setDisplay('sp-results',     state === 'results' ? '' : 'none');
+  }
+
+  function _speakingResetInput() {
+    speakingTranscript = '';
+    document.getElementById('sp-transcript').textContent = '';
+    document.getElementById('sp-transcript-wrap').style.display = 'none';
+    document.getElementById('sp-mic-status').textContent = 'Tap the mic and speak your answer';
+    const submitBtn = document.getElementById('sp-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Get feedback →';
+    setDisplay('sp-redo-btn', 'none');
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    setDisplay('sp-unsupported', SR ? 'none' : '');
+    const micBtn = document.getElementById('sp-mic-btn');
+    if (micBtn) micBtn.disabled = !SR;
+  }
+
+  async function startSpeaking() {
+    switchView('speaking');
+    speakingCurrentPrompt = '';
+    _speakingResetInput();
+    _speakingSetState('loading');
+    const btn = document.getElementById('speaking-generate-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/speaking/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: speakingLevel, topic: speakingTopic }),
+      });
+      const data = await res.json();
+      speakingCurrentPrompt = data.prompt || '';
+      document.getElementById('sp-prompt-text').textContent = speakingCurrentPrompt;
+      _speakingSetState('input');
+    } catch(e) {
+      _speakingSetState('loading');
+      document.getElementById('sp-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function toggleSpeakingMic() {
+    if (_spListening) { stopSpeakingMic(); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setDisplay('sp-unsupported', ''); return; }
+    _spUserStopped = false;
+    document.getElementById('sp-transcript-wrap').style.display = '';
+
+    function attachAndStart() {
+      const sr = new SR();
+      sr.lang = 'fr-FR';
+      sr.continuous = true;
+      sr.interimResults = true;
+      sr.maxAlternatives = 1;
+      sr.onresult = e => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) {
+            speakingTranscript = (speakingTranscript + ' ' + r[0].transcript.trim()).trim();
+          } else {
+            interim += r[0].transcript;
+          }
+        }
+        _renderSpeakingTranscript(interim);
+      };
+      sr.onerror = e => {
+        if (e.error !== 'no-speech' && e.error !== 'aborted') stopSpeakingMic();
+      };
+      sr.onend = () => {
+        if (_spUserStopped) return;
+        // Chrome auto-stops on pauses — restart to keep listening
+        try { _spRecognition = attachAndStart(); } catch { stopSpeakingMic(); }
+      };
+      sr.start();
+      return sr;
+    }
+
+    try {
+      _spRecognition = attachAndStart();
+      _spListening = true;
+      document.getElementById('sp-mic-btn').classList.add('listening');
+      document.getElementById('sp-mic-status').textContent = 'Listening… tap again to stop';
+    } catch(e) {
+      stopSpeakingMic();
+    }
+  }
+
+  function _renderSpeakingTranscript(interim) {
+    const tEl = document.getElementById('sp-transcript');
+    const finalPart = speakingTranscript ? `<span class="sp-final">${esc(speakingTranscript)}</span>` : '';
+    const interimPart = interim ? ` <span class="sp-interim">${esc(interim)}</span>` : '';
+    tEl.innerHTML = (finalPart + interimPart).trim() || '<span class="sp-interim">…</span>';
+    const hasText = !!speakingTranscript.trim();
+    document.getElementById('sp-submit-btn').disabled = !hasText;
+    setDisplay('sp-redo-btn', hasText ? '' : 'none');
+  }
+
+  function stopSpeakingMic() {
+    _spUserStopped = true;
+    _spListening = false;
+    if (_spRecognition) { try { _spRecognition.stop(); } catch(e){} _spRecognition = null; }
+    const micBtn = document.getElementById('sp-mic-btn');
+    if (micBtn) micBtn.classList.remove('listening');
+    const statusEl = document.getElementById('sp-mic-status');
+    const view = document.getElementById('speaking-view');
+    if (statusEl && view && view.style.display !== 'none') {
+      statusEl.textContent = speakingTranscript.trim()
+        ? 'Tap the mic to add more, or get feedback'
+        : 'Tap the mic and speak your answer';
+      _renderSpeakingTranscript('');
+    }
+  }
+
+  function speakingRedo() {
+    stopSpeakingMic();
+    _speakingResetInput();
+  }
+
+  async function submitSpeaking() {
+    stopSpeakingMic();
+    const said = speakingTranscript.trim();
+    if (!said || !speakingCurrentPrompt) return;
+    const btn = document.getElementById('sp-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    try {
+      const res = await fetch('/speaking/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: speakingCurrentPrompt,
+          response: said,
+          level: speakingLevel,
+          topic: speakingTopic,
+          ...getAnalyticsFields(),
+        }),
+      });
+      const data = await res.json();
+      document.getElementById('sp-said-text').textContent = said;
+      _renderSpeakingFeedback(data);
+      _speakingSetState('results');
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Get feedback →'; }
+    }
+  }
+
+  function _renderSpeakingFeedback(data) {
+    const wrap = document.getElementById('sp-feedback');
+    wrap.innerHTML = '';
+
+    if (data.overall) {
+      const o = document.createElement('div');
+      o.className = 'sp-fb-overall';
+      o.textContent = data.overall;
+      wrap.appendChild(o);
+    }
+
+    const strengths = data.strengths || [];
+    if (strengths.length) {
+      const group = document.createElement('div');
+      group.className = 'sp-fb-group';
+      const label = document.createElement('div');
+      label.className = 'sp-fb-section-label';
+      label.textContent = 'What worked';
+      group.appendChild(label);
+      strengths.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'sp-strength-item';
+        item.innerHTML = `<span class="sp-bullet">—</span><span>${esc(s)}</span>`;
+        group.appendChild(item);
+      });
+      wrap.appendChild(group);
+    }
+
+    const corrections = data.corrections || [];
+    if (corrections.length) {
+      const group = document.createElement('div');
+      group.className = 'sp-fb-group';
+      const label = document.createElement('div');
+      label.className = 'sp-fb-section-label';
+      label.textContent = 'Say it better';
+      group.appendChild(label);
+      corrections.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'sp-correction';
+        let html = '';
+        if (c.said)   html += `<div class="sp-corr-said">${esc(c.said)}</div>`;
+        if (c.better) html += `<div class="sp-corr-better">${esc(c.better)}</div>`;
+        if (c.why)    html += `<div class="sp-corr-why">${esc(c.why)}</div>`;
+        card.innerHTML = html;
+        group.appendChild(card);
+      });
+      wrap.appendChild(group);
+    }
+
+    if (data.level_up && data.level_up.trim()) {
+      const lu = document.createElement('div');
+      lu.className = 'sp-levelup';
+      lu.innerHTML = `<strong>Try this:</strong> ${esc(data.level_up)}`;
+      wrap.appendChild(lu);
+    }
+  }
+
+  function speakingNextPrompt() {
+    startSpeaking();
+  }
+
   // ── Sentence Transformation ───────────────────────────────────────────────
   const TRANSFORM_MAX_ATTEMPTS = 3;
   let transformLevel = 'B1';
@@ -11164,6 +11735,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let _vocabCumulativePool = [];  // growing pool of all seen cards
   let _vocabInCumReview   = false;
   let _vocabIsLastBatch   = false;
+  let _vocabResumeData     = null;  // snapshot loaded from the server for the resume card
 
   function selectVocabLevel(btn) {
     _vocabLevel = btn.dataset.level;
@@ -11236,6 +11808,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       }
       switchView('vocab');
       _startRound(0);
+      if (_vocabIsCumulative) _saveVocabResume();  // resumable from batch 0
     } catch (e) {
       errEl.textContent = 'Failed to generate cards. Try again.';
       errEl.style.display = '';
@@ -11285,15 +11858,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const scoreHtml = tot ? `Score: <span>${sc}/${tot} (${pct}%)</span>` : '';
 
     if (_vocabRound === 0) {
-      _vocabRound = 1;
       _startRound(1);
     } else if (_vocabRound === 1) {
-      if (_vocabIsCumulative) _endBatch();
+      if (_vocabIsCumulative) _endBatch(scoreHtml);
       else _showFinalSummary();
     } else {
       // Round 2: cumulative review done
       if (_vocabIsLastBatch) _showFinalSummary();
-      else _queueNextBatch();
+      else _queueNextBatch(scoreHtml);
     }
   }
 
@@ -11310,7 +11882,55 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       quiz_score: quizTot ? Math.round(quizSc / quizTot * 1000) / 1000 : null,
       is_cumulative: _vocabIsCumulative,
     });
-    switchView('vocab-hub');
+
+    if (_vocabIsCumulative) _clearVocabResume();  // session finished — nothing left to resume
+
+    const pct = quizTot ? Math.round(quizSc / quizTot * 100) : 0;
+    const wordCount = _vocabIsCumulative ? _vocabAllGenerated.length : _vocabCards.length;
+    document.getElementById('vocab-summary-label').textContent = 'Session complete';
+    document.getElementById('vocab-summary-title').textContent = quizTot ? `${pct}% recall` : 'Nice work';
+    const subEl = document.getElementById('vocab-summary-sub');
+    subEl.textContent = `${wordCount} words practiced`;
+    subEl.style.display = '';
+    const scoreEl = document.getElementById('vocab-summary-score');
+    scoreEl.innerHTML = quizTot ? `Recall score: <span>${quizSc}/${quizTot}</span>` : '';
+    scoreEl.style.display = quizTot ? '' : 'none';
+    const actions = document.getElementById('vocab-summary-actions');
+    actions.innerHTML = '';
+    const newBtn = document.createElement('button');
+    newBtn.className = 'vk-btn vk-btn-primary';
+    newBtn.textContent = 'New series →';
+    newBtn.onclick = () => switchView('vocab-hub');
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'vk-btn vk-btn-outline-accent';
+    doneBtn.textContent = 'Done';
+    doneBtn.onclick = () => switchView('home');
+    actions.appendChild(newBtn);
+    actions.appendChild(doneBtn);
+    _vocabShowOnly('vocab-summary');
+    document.getElementById('vocab-counter').textContent = '';
+  }
+
+  // Inter-block transition: shows the just-finished block's result + a button
+  // to continue to the next series of words (cumulative mode).
+  function _showTransition(label, title, scoreHtml, btnLabel, nextRoundIdx) {
+    document.getElementById('vocab-summary-label').textContent = label;
+    document.getElementById('vocab-summary-title').textContent = title;
+    const subEl = document.getElementById('vocab-summary-sub');
+    subEl.textContent = '';
+    subEl.style.display = 'none';
+    const scoreEl = document.getElementById('vocab-summary-score');
+    scoreEl.innerHTML = scoreHtml || '';
+    scoreEl.style.display = scoreHtml ? '' : 'none';
+    const actions = document.getElementById('vocab-summary-actions');
+    actions.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.className = 'vk-btn vk-btn-primary';
+    btn.textContent = btnLabel;
+    btn.onclick = () => _startRound(nextRoundIdx);
+    actions.appendChild(btn);
+    _vocabShowOnly('vocab-summary');
+    document.getElementById('vocab-counter').textContent = '';
   }
 
   function _updateRoundDots(active) {
@@ -11322,21 +11942,108 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     }
   }
 
+  // ── Resumable cumulative session (account-tied, cross-device) ────────────────
+
+  function _vocabResumeSnapshot() {
+    return {
+      level:        _vocabLevel,
+      subject:      _vocabSubject,
+      allGenerated: _vocabAllGenerated,
+      batchIdx:     _vocabBatchIdx,
+      totalBatches: Math.ceil(_vocabAllGenerated.length / 5),
+    };
+  }
+
+  async function _saveVocabResume() {
+    if (!_vocabIsCumulative || !localStorage.getItem('ft_jwt')) return;
+    try {
+      await apiFetch('/vocab/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: _vocabResumeSnapshot() }),
+      });
+    } catch (_) {}
+  }
+
+  async function _clearVocabResume() {
+    if (!localStorage.getItem('ft_jwt')) return;
+    try { await apiFetch('/vocab/session', { method: 'DELETE' }); } catch (_) {}
+  }
+
+  // Called on entering the flashcards hub — shows the Resume card if a saved
+  // cumulative session is still in progress.
+  async function _loadVocabResume() {
+    const row = document.getElementById('vocab-resume-row');
+    if (!row) return;
+    _vocabResumeData = null;
+    row.style.display = 'none';
+    if (!localStorage.getItem('ft_jwt')) return;
+    try {
+      const res = await apiFetch('/vocab/session');
+      if (!res.ok) return;
+      const data = (await res.json()).session;
+      if (!data || !Array.isArray(data.allGenerated) || !data.allGenerated.length) return;
+      const total = data.totalBatches || Math.ceil(data.allGenerated.length / 5);
+      if ((data.batchIdx || 0) >= total) return;  // already complete
+      _vocabResumeData = data;
+      document.getElementById('vocab-resume-title').textContent = `${data.subject} · ${data.level}`;
+      document.getElementById('vocab-resume-meta').textContent =
+        `Cumulative — resume at batch ${(data.batchIdx || 0) + 1} of ${total}`;
+      row.style.display = '';
+    } catch (_) {}
+  }
+
+  function resumeVocabSession() {
+    const data = _vocabResumeData;
+    if (!data) return;
+    _vocabIsCumulative   = true;
+    _vocabAllGenerated   = data.allGenerated;
+    _vocabBatchIdx       = data.batchIdx || 0;
+    _vocabLevel          = data.level;
+    _vocabSubject        = data.subject;
+    _vocabCount          = 'cumulative';
+    _vocabInCumReview    = false;
+    _vocabIsLastBatch    = false;
+    _vocabCumulativePool = _vocabAllGenerated.slice(0, _vocabBatchIdx * 5);
+    _vocabCards          = _vocabAllGenerated.slice(_vocabBatchIdx * 5, _vocabBatchIdx * 5 + 5);
+    _vocabScores = [0, 0, 0];
+    _vocabTotals = [0, 0, 0];
+    _vocabMissed = [];
+    document.getElementById('vp-2').style.display = '';
+    document.getElementById('vocab-parts').classList.add('is-cumulative');
+    switchView('vocab');
+    _startRound(0);
+  }
+
+  function discardVocabResume() {
+    _vocabResumeData = null;
+    document.getElementById('vocab-resume-row').style.display = 'none';
+    _clearVocabResume();
+  }
+
   // ── Cumulative (additive) batch helpers ──────────────────────────────────────
 
   function _buildQuizDeck(cards) {
-    // Shuffle each type independently then interleave so they strictly alternate
-    const aEntries = _fisherYates(cards.map(c => ({ card: c, type: 'listen-identify' })));
-    const bEntries = _fisherYates(cards.map(c => ({ card: c, type: 'read-find' })));
-    const result   = [];
-    const startA   = Math.random() < 0.5;
-    const first    = startA ? aEntries : bEntries;
-    const second   = startA ? bEntries : aEntries;
-    for (let i = 0; i < first.length; i++) {
-      result.push(first[i]);
-      if (i < second.length) result.push(second[i]);
+    // Each card is tested both ways (listen-identify + read-find). Fully shuffle
+    // the combined deck, then space it out so the same word never appears back-to-back.
+    const deck = _fisherYates([
+      ...cards.map(c => ({ card: c, type: 'listen-identify' })),
+      ...cards.map(c => ({ card: c, type: 'read-find' })),
+    ]);
+    return _spaceOutByCard(deck);
+  }
+
+  // Reorders a shuffled deck so no two adjacent entries share the same word.
+  function _spaceOutByCard(deck) {
+    const wordOf = e => (e && e.card ? e.card.word : '');
+    for (let i = 1; i < deck.length; i++) {
+      if (wordOf(deck[i]) !== wordOf(deck[i - 1])) continue;
+      // find the next entry whose word differs from the previous one and swap it in
+      let j = i + 1;
+      while (j < deck.length && wordOf(deck[j]) === wordOf(deck[i - 1])) j++;
+      if (j < deck.length) [deck[i], deck[j]] = [deck[j], deck[i]];
     }
-    return result;
+    return deck;
   }
 
   // Returns the plain card object from the current round-card slot
@@ -11350,7 +12057,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     return _vocabInCumReview ? _vocabCumulativePool : _vocabCards;
   }
 
-  function _endBatch() {
+  function _endBatch(scoreHtml) {
     const justFinished = _vocabBatchIdx;
     _vocabBatchIdx++;
     _vocabCumulativePool = _vocabAllGenerated.slice(0, _vocabBatchIdx * 5);
@@ -11358,27 +12065,28 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     if (justFinished === 0) {
       // First batch: quiz already served as the review — go straight to next batch
-      _queueNextBatch();
+      _queueNextBatch(scoreHtml);
     } else {
       _vocabIsLastBatch = isLast;
       _showTransition(
-        'Review',
-        `${_vocabCumulativePool.length} words — wrong answers repeat until correct`,
-        '',
+        'Block complete',
+        `Up next — Review · ${_vocabCumulativePool.length} words (wrong answers repeat until correct)`,
+        scoreHtml,
         'Start review →',
         2
       );
     }
   }
 
-  function _queueNextBatch() {
+  function _queueNextBatch(scoreHtml) {
     const start = _vocabBatchIdx * 5;
     _vocabCards  = _vocabAllGenerated.slice(start, start + 5);
     _vocabScores = [0, 0, 0];
     _vocabTotals = [0, 0, 0];
     _vocabMissed = [];
     const batchNum = _vocabBatchIdx + 1;
-    _showTransition(`Batch ${batchNum} of 4`, '5 new words', '', 'Start →', 0);
+    _saveVocabResume();  // persist progress so this batch can be continued later
+    _showTransition('Block complete', `Up next — Batch ${batchNum} of 4 · 5 new words`, scoreHtml, 'Continue →', 0);
   }
 
   // ── Shared card setup helper ──────────────────────────────────────────────────
@@ -11759,7 +12467,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   // ── Shared helpers ────────────────────────────────────────────────────────────
 
   function _vocabShowOnly(id) {
-    ['vocab-loading', 'vocab-card-wrap']
+    ['vocab-loading', 'vocab-card-wrap', 'vocab-summary']
       .forEach(i => { const el = document.getElementById(i); if (el) el.style.display = 'none'; });
     document.getElementById(id).style.display = '';
   }

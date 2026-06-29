@@ -21,7 +21,7 @@ A French language learning webapp built for a user living in Marseille who wants
 ## File map
 | File | Purpose |
 |---|---|
-| `server.py` | FastAPI app — all routes, Mistral client, TTS generation (`generate_audio` via edge-tts), custom-content + dictation + comprehension + vocab handlers |
+| `server.py` | FastAPI app — all routes, Mistral client, TTS generation (`generate_audio` via edge-tts), custom-content + dictation + listen-answer + vocab handlers |
 | `shadow_engine.py` | Single-phrase shadowing: `generate_phrase()`, `score_attempt()`, `analyze_mismatches()`; pulls liaison links via `detect_links` |
 | `paragraph_engine.py` | Paragraph generation + per-chunk scoring: `generate_paragraph()`, `score_chunk()`, `analyze_mismatches()`, `analyze_patterns()`; `TOPICS` |
 | `prosody_engine.py` | Sound-target / rhythm phrases: `generate_prosody_phrase()`, `analyze_prosody_mismatches()`, `annotate_phrase_rhythm()`; `SOUND_TARGETS` |
@@ -37,12 +37,12 @@ A French language learning webapp built for a user living in Marseille who wants
 | `static/index.html` | Full single-file frontend (vraiKronos) — all student exercise views |
 | `static/analytics.html` | Teacher dashboard — standalone static file, fetches from `/analytics/*` endpoints |
 | `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |
-| `vocabulary.md` | Vocabulary feature spec — 4-round oral session, `/vocab/generate` |
+| `vocabulary.md` | Vocabulary feature spec — Exposure + Recall (+ cumulative Review), `/vocab/generate` |
 | `future_updates.md` | Tech roadmap — updates deferred on a capability gap (e.g. STT upgrade → restore /r/, open/closed e, rhythm sound focuses) |
 | `requirements.txt` | All dependencies |
 | `.env` | `MISTRAL_API_KEY=...` |
 
-**Models**: `mistral-large-latest` (`_MODEL`) for content generation (paragraph, comprehension, dictation); `mistral-small-latest` for the lighter calls (word-drill analysis, pronunciation tips, context phrases, vocab).
+**Models**: `mistral-large-latest` (`_MODEL`) for content generation (paragraph, listen & answer, dictation); `mistral-small-latest` for the lighter calls (word-drill analysis, pronunciation tips, context phrases, vocab).
 
 ## Running the server
 ```bash
@@ -70,14 +70,14 @@ The app is an exercise platform, not a chatbot — there is no `/chat` route or 
 - **Paragraph** — `/paragraph/start`, `/paragraph/analyze` (per chunk), `/paragraph/analyze-patterns`: read a paragraph chunk-by-chunk, then a cross-chunk pattern summary
 - **Prosody** — `/prosody/targets`, `/prosody/phrase`, `/prosody/analyze`: phrases focused on a specific sound/rhythm target
 - **Practice list** — `/practice-list` CRUD, `/practice-list/pronunciation`, `/practice-list/context-phrase`, `/analyze_word_drill`: user's saved words
-- **Comprehension** — `/comprehension/generate`: passage + questions
+- **Listen & Answer** — `/listen/generate`: passage audio + multiple-choice comprehension questions
 - **Dictation** — `/dictation/generate`, `/dictation/check`, `/dictation/check-inline`
-- **Vocab** — `/vocab/generate`: 4-round oral vocabulary session (spec in `vocabulary.md`)
+- **Vocab** — `/vocab/generate`: Exposure + Recall flashcard session (spec in `vocabulary.md`)
 - **Custom content** — `/custom/*`: user-supplied passages, persisted in `user_content.json`
 - **Analytics / coach** — `/track`, `/analytics/*`, `/coach`: event logging + teacher dashboard (see `analytics.md`)
 
 ## Frontend features
-`static/index.html` is a single-file app with a left nav and a set of swappable views (`home`, `phrase`/`phrase-hub`, `paragraph`, `practice`, `comprehension`, `vocab`, `custom`, …). It opens on `home`. Each exercise view shares the same control atoms:
+`static/index.html` is a single-file app with a left nav and a set of swappable views (`home`, `phrase`/`phrase-hub`, `paragraph`, `practice`, `comprehension-hub`/`comprehension`, `vocab-hub`/`vocab`, `custom`, …). It opens on `home`. Each exercise view shares the same control atoms:
 - **Play / pause** — `pa-ctrl-play`, plays the edge-tts audio of the target
 - **Mic** — Web Speech API, fr-FR; the `…-mic-btn` toggles a `listening` class; works only in Chrome/Edge
 - **Skip / Next / Continue** — `pv-func-skip` and the per-view advance buttons, laid out in the centered `.pv-func` controls row

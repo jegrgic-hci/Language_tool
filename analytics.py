@@ -217,6 +217,14 @@ def init_db():
                 created_at DATETIME DEFAULT (datetime('now'))
             )
         """)
+        # One in-progress, resumable cumulative vocab session per account.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS vocab_sessions (
+                user_id    INTEGER PRIMARY KEY REFERENCES users(id),
+                payload    TEXT NOT NULL DEFAULT '{}',
+                updated_at DATETIME DEFAULT (datetime('now'))
+            )
+        """)
 
 
 def count_recent_reset_tokens(user_id: int, within_hours: int = 1) -> int:
@@ -253,6 +261,37 @@ def consume_password_reset_token(token: str, new_password_hash: str):
         conn.execute("UPDATE password_reset_tokens SET used=1 WHERE token=?", (token,))
         conn.execute("UPDATE users SET password_hash=? WHERE id=?", (new_password_hash, row["user_id"]))
     return True
+
+
+def save_vocab_session(user_id: int, payload: dict) -> None:
+    """Upsert the single in-progress cumulative vocab session for an account."""
+    with _conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO vocab_sessions (user_id, payload, updated_at) "
+            "VALUES (?, ?, datetime('now'))",
+            (user_id, json.dumps(payload)),
+        )
+
+
+def get_vocab_session(user_id: int) -> Optional[dict]:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT payload, updated_at FROM vocab_sessions WHERE user_id=?", (user_id,)
+        ).fetchone()
+    if not row:
+        return None
+    try:
+        data = json.loads(row["payload"])
+    except Exception:
+        return None
+    if isinstance(data, dict):
+        data["updated_at"] = row["updated_at"]
+    return data
+
+
+def delete_vocab_session(user_id: int) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM vocab_sessions WHERE user_id=?", (user_id,))
 
 
 def track(session_id: str, access_code: str, event_type: str, payload: dict = None, visit_id: str = None):

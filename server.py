@@ -1142,7 +1142,21 @@ class UpdateStudentRequest(BaseModel):
 
 
 @app.get("/analytics/students")
-async def list_students(auth: dict = Depends(_require_analytics_key)):
+async def list_students(
+    teacher_id: Optional[int] = None,
+    student: str = "",
+    auth: dict = Depends(_require_analytics_key),
+):
+    # Super-admin scoping (from the admin panel): a single student's detail, or
+    # a specific teacher's roster. Ignored for non-super callers so a teacher
+    # can't peek at another teacher's roster via these params.
+    if auth.get("role") == "super_admin":
+        if student:
+            return {"students": _analytics.get_roster(allowed_codes={student})}
+        if teacher_id:
+            teacher_students = _analytics.get_students_for_teacher_user(teacher_id)
+            allowed = {s["access_code"] for s in teacher_students if s.get("access_code")}
+            return {"students": _analytics.get_roster(allowed_codes=allowed)}
     if not auth.get("is_legacy") and auth.get("sub"):
         # JWT-authenticated teacher: only show their own students (prevents legacy code bleed-through)
         teacher_students = _analytics.get_students_for_teacher_user(int(auth["sub"]))
@@ -2065,6 +2079,36 @@ async def vocab_generate(req: VocabGenerateRequest):
         raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
 
 
+# ── Resumable cumulative vocab session (tied to the logged-in account) ──────────
+
+class VocabSessionSave(BaseModel):
+    payload: dict
+
+
+def _current_user_id(current_user: dict) -> int:
+    try:
+        return int(current_user.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid account")
+
+
+@app.get("/vocab/session")
+async def vocab_session_get(current_user: dict = Depends(_auth.get_current_user)):
+    return {"session": _analytics.get_vocab_session(_current_user_id(current_user))}
+
+
+@app.put("/vocab/session")
+async def vocab_session_save(req: VocabSessionSave, current_user: dict = Depends(_auth.get_current_user)):
+    _analytics.save_vocab_session(_current_user_id(current_user), req.payload)
+    return {"ok": True}
+
+
+@app.delete("/vocab/session")
+async def vocab_session_delete(current_user: dict = Depends(_auth.get_current_user)):
+    _analytics.delete_vocab_session(_current_user_id(current_user))
+    return {"ok": True}
+
+
 _WRITING_PROMPT_SYSTEM = """You generate French writing prompts for language learners.
 Generate a brief, clear writing task in French that asks the learner to write 1-2 sentences in French.
 The task must be natural, engaging, and calibrated to the CEFR level and topic.
@@ -2205,6 +2249,123 @@ async def writing_check(req: WritingCheckRequest):
             "has_errors": has_errors,
             "score": round(score, 3),
             "tip_count": tip_count,
+        }, req.visit_id)
+    return result
+
+
+_SPEAKING_PROMPT_SYSTEM = """You generate French speaking prompts for language learners practising free oral production.
+Generate a brief, clear, inviting prompt in French that asks the learner to SPEAK aloud for 20-40 seconds.
+The prompt must be natural, personal, and easy to talk about out loud — calibrated to the CEFR level and topic.
+
+CEFR guidelines:
+- A1: Very simple personal prompts (introduce yourself, your family, what you like)
+- A2: Describe a daily routine, a place you know, or what you did recently
+- B1: Give an opinion or tell a short story with a reason
+- B2: Argue a position, compare two things, or describe an experience in detail
+- C1: Nuanced reflection, a hypothetical situation, or an abstract topic
+
+Favour prompts that invite a spoken monologue ("Racontez…", "Décrivez…", "Que pensez-vous de…", "Expliquez…").
+Keep it to one or two sentences. Return ONLY the French prompt text — no quotes, no English, no explanation."""
+
+_SPEAKING_CHECK_SYSTEM = """You are a warm, encouraging French speaking coach. The learner spoke aloud in response to a prompt and their words were captured by speech-to-text, so IGNORE missing punctuation, capitalisation, accents, and obvious transcription glitches — judge only the French they evidently produced.
+
+The learner was asked (in French): {prompt}
+They said (speech-to-text transcript): {response}
+Their CEFR level: {level}
+
+Your goal is to TEACH and BUILD CONFIDENCE. Unlike a strict grader, you SHOW the better version and explain why — briefly and kindly.
+
+Return a JSON object with exactly these fields:
+{{
+  "overall": "2-3 warm sentences in English: name what they managed to communicate, then frame the next step positively",
+  "strengths": ["1-3 specific, concrete things they did well — a correct structure, a good word choice, a clear idea (English)"],
+  "corrections": [
+    {{
+      "said": "the phrase as they said it (French)",
+      "better": "a natural, correct French version",
+      "why": "one short, plain-English reason the learner can act on — name the rule simply"
+    }}
+  ],
+  "level_up": "optional: one French word or expression that would make their answer sound more natural, with a short English gloss in parentheses. Empty string if nothing to add."
+}}
+
+Rules:
+- Be supportive first. ALWAYS find at least one genuine strength.
+- Give AT MOST 3 corrections — only the highest-value ones, never every small slip. If the French is essentially correct, return an empty corrections array and celebrate that in "overall".
+- Corrections SHOW the fix (this is teaching, not testing). Keep each "why" to one sentence, calibrated to {level}.
+- Never be harsh or discouraging. Do not assign scores or grades.
+Return ONLY the raw JSON object, no markdown fences, no extra text."""
+
+
+class SpeakingPromptRequest(BaseModel):
+    level: str = "B1"
+    topic: str = "la vie quotidienne"
+
+
+class SpeakingCheckRequest(BaseModel):
+    prompt: str
+    response: str
+    level: str = "B1"
+    topic: Optional[str] = None
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+
+
+@app.post("/speaking/prompt")
+async def speaking_prompt(req: SpeakingPromptRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": _SPEAKING_PROMPT_SYSTEM},
+            {"role": "user", "content": f"CEFR level: {req.level}\nTopic: {req.topic}"},
+        ],
+        temperature=0.9,
+        max_tokens=120,
+    ))
+    prompt_text = resp.choices[0].message.content.strip().strip('"').strip("'")
+    return {"prompt": prompt_text}
+
+
+@app.post("/speaking/check")
+async def speaking_check(req: SpeakingCheckRequest):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    if not req.prompt.strip() or not req.response.strip():
+        raise HTTPException(status_code=400, detail="prompt and response are required")
+
+    system = _SPEAKING_CHECK_SYSTEM.format(
+        prompt=req.prompt,
+        response=req.response,
+        level=req.level,
+    )
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": "Give me supportive feedback on what I said."},
+        ],
+        temperature=0.4,
+        max_tokens=900,
+    ))
+    raw = resp.choices[0].message.content.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    try:
+        result = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Feedback parse error")
+    if req.session_id and req.access_code:
+        corrections = result.get("corrections", []) or []
+        word_count = len(req.response.split())
+        _analytics.track(req.session_id, req.access_code, "speaking_attempted", {
+            "exercise_type": "speaking",
+            "level": req.level,
+            "topic": req.topic,
+            "word_count": word_count,
+            "correction_count": len(corrections),
         }, req.visit_id)
     return result
 

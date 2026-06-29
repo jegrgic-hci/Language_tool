@@ -983,6 +983,11 @@
 <script src="/static/vk-animations.js" defer></script>
 <script>
 const KEY = new URLSearchParams(location.search).get('key') || '';
+// Super-admin scoping from the admin panel:
+//  ?student=<access_code>  → open straight into that one student's detail view
+//  ?scope_teacher=<id>     → show only that teacher's roster
+const SCOPE_STUDENT = new URLSearchParams(location.search).get('student') || '';
+const SCOPE_TEACHER = new URLSearchParams(location.search).get('scope_teacher') || '';
 let allNavBtns = [];
 
 // ── Teach mode — open the exercise tool tracking under a specific student ────
@@ -2668,9 +2673,13 @@ async function init() {
 
   const grid = document.getElementById('roster-grid');
 
+  let studentsPath = '/analytics/students';
+  if (SCOPE_STUDENT)      studentsPath += '?student=' + encodeURIComponent(SCOPE_STUDENT);
+  else if (SCOPE_TEACHER) studentsPath += '?teacher_id=' + encodeURIComponent(SCOPE_TEACHER);
+
   let students = [];
   try {
-    const data = await fetchJSON('/analytics/students');
+    const data = await fetchJSON(studentsPath);
     students   = data.students || [];
   } catch (err) {
     grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Erreur de chargement — ' + err.message + '</div>';
@@ -2680,11 +2689,17 @@ async function init() {
   // Merge in any teacher-managed students not yet in the analytics roster
   // (child/no-email accounts with no events won't appear in /analytics/students)
   try {
-    const mgmtData = await _mgmtFetch('/teacher/students');
+    let mgmtPath = '/teacher/students';
+    if (SCOPE_TEACHER) mgmtPath += '?teacher_id=' + encodeURIComponent(SCOPE_TEACHER);
+    const mgmtData = await _mgmtFetch(mgmtPath);
     if (mgmtData.ok) {
       const mgmt = await mgmtData.json();
+      let mgmtStudents = mgmt.students || [];
+      // Single-student scope: a super-admin's /teacher/students returns everyone,
+      // so keep only the targeted access code.
+      if (SCOPE_STUDENT) mgmtStudents = mgmtStudents.filter(u => u.access_code === SCOPE_STUDENT);
       const existingCodes = new Set(students.map(s => s.access_code));
-      for (const u of (mgmt.students || [])) {
+      for (const u of mgmtStudents) {
         if (u.access_code && !existingCodes.has(u.access_code)) {
           students.push({
             access_code: u.access_code,
@@ -2736,6 +2751,13 @@ async function init() {
   if (upcomingGroup.length) {
     appendGroupLabel('Upcoming');
     upcomingGroup.forEach(s => grid.appendChild(createRosterCard(s)));
+  }
+
+  // Single-student scope (admin "Analytics" on one learner): jump straight into
+  // their detail view instead of the roster overview.
+  if (SCOPE_STUDENT) {
+    const navBtn = document.getElementById('nav-' + SCOPE_STUDENT);
+    if (navBtn) selectPanel('student-' + SCOPE_STUDENT, navBtn);
   }
 }
 
