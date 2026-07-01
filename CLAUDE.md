@@ -13,7 +13,7 @@ A French language learning webapp built for a user living in Marseille who wants
 ## Stack
 - **Backend**: FastAPI + uvicorn (hot-reload), Python 3.9
 - **LLM**: Mistral AI — `mistral-large-latest` for tutoring, `mistral-small-latest` for routing and coherence checks
-- **TTS**: edge-tts, voice `fr-FR-DeniseNeural`
+- **TTS**: Google Cloud **Chirp3-HD** (8 French voices) for the listening modes, cached to a Cloudflare R2 library (`library_store.py`); **edge-tts** (`fr-FR-DeniseNeural`) everywhere else and as the Chirp fallback
 - **Speech input**: Web Speech API (browser-native, fr-FR, Chrome/Edge only)
 - **RAG**: pypdf text extraction injected into system prompt from `/uploads/*.pdf`
 - **Design system**: Kronos — IBM Plex Mono (UI), IBM Plex Sans (body), Impact (display), `#1A1A1A` sidebar, `#7A9393` teal, sharp corners, no border-radius
@@ -21,7 +21,8 @@ A French language learning webapp built for a user living in Marseille who wants
 ## File map
 | File | Purpose |
 |---|---|
-| `server.py` | FastAPI app — all routes, Mistral client, TTS generation (`generate_audio` via edge-tts), custom-content + dictation + listen-answer + vocab handlers |
+| `server.py` | FastAPI app — all routes, Mistral client, TTS generation (`generate_audio` via edge-tts, `generate_library_audio` via Chirp3-HD), Chirp voice pickers + `CHIRP_VOICE_NAMES`, custom-content + dictation + listen-answer + dialogue + vocab handlers |
+| `library_store.py` | Chirp3-HD synthesis + content-addressed audio cache (`md5(voice|text).mp3`); Cloudflare R2 backend (shared local/prod) with local read-through cache, local-disk fallback; `synth_and_cache()`, `get_audio()` |
 | `shadow_engine.py` | Single-phrase shadowing: `generate_phrase()`, `score_attempt()`, `analyze_mismatches()`; pulls liaison links via `detect_links` |
 | `paragraph_engine.py` | Paragraph generation + per-chunk scoring: `generate_paragraph()`, `score_chunk()`, `analyze_mismatches()`, `analyze_patterns()`; `TOPICS` |
 | `prosody_engine.py` | Sound-target / rhythm phrases: `generate_prosody_phrase()`, `analyze_prosody_mismatches()`, `annotate_phrase_rhythm()`; `SOUND_TARGETS` |
@@ -38,9 +39,10 @@ A French language learning webapp built for a user living in Marseille who wants
 | `static/analytics.html` | Teacher dashboard — standalone static file, fetches from `/analytics/*` endpoints |
 | `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |
 | `vocabulary.md` | Vocabulary feature spec — Exposure + Recall (+ cumulative Review), `/vocab/generate` |
+| `listening.md` | Listening feature reference & design log — the 2 modes (Listen & Answer, Dialogue French), Chirp3-HD + R2 cached library, random voices + French speaker names, shared `comprMode` runner, natural-pace-only decision, and why Real French/RFI was built then removed |
 | `future_updates.md` | Tech roadmap — updates deferred on a capability gap (e.g. STT upgrade → restore /r/, open/closed e, rhythm sound focuses) |
 | `requirements.txt` | All dependencies |
-| `.env` | `MISTRAL_API_KEY=...` |
+| `.env` | `MISTRAL_API_KEY=...`; Chirp3-HD/library: `GOOGLE_TTS_API_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (also set in Render) |
 
 **Models**: `mistral-large-latest` (`_MODEL`) for content generation (paragraph, listen & answer, dictation); `mistral-small-latest` for the lighter calls (word-drill analysis, pronunciation tips, context phrases, vocab).
 
@@ -70,7 +72,8 @@ The app is an exercise platform, not a chatbot — there is no `/chat` route or 
 - **Paragraph** — `/paragraph/start`, `/paragraph/analyze` (per chunk), `/paragraph/analyze-patterns`: read a paragraph chunk-by-chunk, then a cross-chunk pattern summary
 - **Prosody** — `/prosody/targets`, `/prosody/phrase`, `/prosody/analyze`: phrases focused on a specific sound/rhythm target
 - **Practice list** — `/practice-list` CRUD, `/practice-list/pronunciation`, `/practice-list/context-phrase`, `/analyze_word_drill`: user's saved words
-- **Listen & Answer** — `/listen/generate`: passage audio + multiple-choice comprehension questions
+- **Listen & Answer** — `/listen/generate`: passage + multiple-choice comprehension questions; audio via `/tts` with a random Chirp3-HD narrator (`voice: 'chirp-random'`)
+- **Dialogue French** — `/natural/generate`: casual 2-speaker dialogue with named speakers (French names per voice), random mixed-gender Chirp3-HD pair, per-line cached audio + questions (shares the `comprMode` comprehension runner)
 - **Dictation** — `/dictation/generate`, `/dictation/check`, `/dictation/check-inline`
 - **Vocab** — `/vocab/generate`: Exposure + Recall flashcard session (spec in `vocabulary.md`)
 - **Custom content** — `/custom/*`: user-supplied passages, persisted in `user_content.json`

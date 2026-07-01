@@ -359,6 +359,9 @@
       <div class="sb-item" data-page="performance" onclick="showPage('performance', this)">
         <span class="sb-icon">&#9650;</span> Performance
       </div>
+      <div class="sb-item" data-page="content" onclick="showPage('content', this)">
+        <span class="sb-icon">&#9679;</span> Content Pool
+      </div>
     </div>
 
     <div class="sb-footer">
@@ -563,6 +566,83 @@
               </tbody>
             </table>
           </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Content Pool page ──────────────────────────────────────────────── -->
+    <div class="page" id="page-content">
+      <div class="page-header">
+        <div class="page-header-text">
+          <div class="page-title">Content Pool</div>
+          <div class="page-sub">Reusable Chirp3-HD content bank — each unit's audio is synthesized once and cached forever</div>
+        </div>
+        <button class="action-btn action-btn-accent" onclick="loadContentPool()" style="align-self:center">Refresh</button>
+      </div>
+      <div class="page-body">
+
+        <!-- Pool KPIs -->
+        <div class="kpi-row" id="content-kpis">
+          <div class="kpi-card"><div class="kpi-label">Phrases</div><div class="kpi-value" id="cp-phrases">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Paragraphs</div><div class="kpi-value" id="cp-paragraphs">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Listen &amp; Answer</div><div class="kpi-value" id="cp-listen">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Dialogues</div><div class="kpi-value" id="cp-dialogue">—</div></div>
+        </div>
+
+        <div class="summary-row" id="content-summary" style="margin-bottom:24px">
+          <div class="summary-card">
+            <div><div class="summary-card-label">Total Banked Units</div><div class="summary-card-value" id="cp-total">—</div></div>
+          </div>
+          <div class="summary-card">
+            <div><div class="summary-card-label">Storage Backend</div><div class="summary-card-value" id="cp-meta">—</div></div>
+          </div>
+        </div>
+
+        <!-- Efficiency (this month) -->
+        <div class="section-head">
+          <span class="section-title">Efficiency</span>
+          <span style="font-size:0.65rem;color:var(--vk-fg-3)">this calendar month — reset on the 1st</span>
+        </div>
+        <div class="kpi-row" id="content-eff-kpis">
+          <div class="kpi-card"><div class="kpi-label">Reuse Rate</div><div class="kpi-value" id="cp-reuse-rate">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Served from Bank</div><div class="kpi-value" id="cp-hits">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Generated Fresh</div><div class="kpi-value" id="cp-misses">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Edge-TTS Fallbacks</div><div class="kpi-value" id="cp-fallbacks">—</div></div>
+        </div>
+
+        <!-- Chirp budget bar -->
+        <div style="border:1px solid var(--vk-border-mid);padding:16px 18px;margin:4px 0 24px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+            <span style="font-family:var(--vk-font-ui);font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--vk-fg-2)">Chirp3-HD Budget</span>
+            <span id="cp-budget-text" style="font-size:0.72rem;color:var(--vk-fg-2)">—</span>
+          </div>
+          <div class="usage-bar-bg" style="height:10px">
+            <div class="usage-bar-fill" id="cp-budget-fill" style="width:0%"></div>
+          </div>
+          <div id="cp-budget-note" style="font-size:0.64rem;color:var(--vk-fg-3);margin-top:8px">—</div>
+        </div>
+
+        <!-- Per-bucket breakdown -->
+        <div class="section-head">
+          <span class="section-title">Buckets</span>
+          <span style="font-size:0.65rem;color:var(--vk-fg-3)">one row per level × topic × style pool</span>
+        </div>
+        <div style="border:1px solid var(--vk-border-mid)">
+          <table class="usage-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Level</th>
+                <th>Topic</th>
+                <th>Style</th>
+                <th>Units</th>
+              </tr>
+            </thead>
+            <tbody id="content-table-body">
+              <tr><td colspan="5" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
 
       </div>
@@ -1131,6 +1211,69 @@
     `).join('');
   }
 
+  // ── Content pool ──────────────────────────────────────────────────────────
+  const CP_CAT_LABELS = {
+    phrases: 'Phrase',
+    paragraphs: 'Paragraph',
+    listen_answer: 'Listen & Answer',
+    dialogue: 'Dialogue',
+    other_passages: 'Passage',
+  };
+
+  async function loadContentPool() {
+    const body = document.getElementById('content-table-body');
+    const r = await fetch('/admin/content-pool', { headers: authHeaders() });
+    if (!r.ok) {
+      body.innerHTML = '<tr><td colspan="5" class="empty">Failed to load content pool.</td></tr>';
+      return;
+    }
+    const d = await r.json();
+    const t = d.totals || {};
+    document.getElementById('cp-phrases').textContent    = fmtNum(t.phrases || 0);
+    document.getElementById('cp-paragraphs').textContent = fmtNum(t.paragraphs || 0);
+    document.getElementById('cp-listen').textContent     = fmtNum(t.listen_answer || 0);
+    document.getElementById('cp-dialogue').textContent   = fmtNum(t.dialogue || 0);
+    document.getElementById('cp-total').textContent      = fmtNum(d.total_units || 0);
+    document.getElementById('cp-meta').textContent =
+      `${(d.storage || '—').toUpperCase()}${d.chirp_enabled ? ' · Chirp on' : ' · Chirp off'}`;
+
+    // Efficiency — bank reuse vs fresh generation, and edge-tts fallbacks (this month)
+    const ops = d.ops || {};
+    const hits = ops.bank_hits || 0, misses = ops.bank_misses || 0, fb = ops.edge_fallbacks || 0;
+    const decisions = hits + misses;
+    document.getElementById('cp-reuse-rate').textContent = decisions ? Math.round(hits / decisions * 100) + '%' : '—';
+    document.getElementById('cp-hits').textContent = fmtNum(hits);
+    document.getElementById('cp-misses').textContent = fmtNum(misses);
+    const fbEl = document.getElementById('cp-fallbacks');
+    fbEl.textContent = fmtNum(fb);
+    fbEl.style.color = fb > 0 ? '#8A5A00' : '';
+
+    // Chirp budget bar — used vs the 1M free tier, with the soft cap as the warning line
+    const used = d.chirp_chars_used_month || 0;
+    const cap  = d.chirp_char_cap || 0;     // soft cap where new synthesis stops
+    const free = d.chirp_free_tier || cap || 1;
+    const pct  = Math.min(Math.round(used / free * 100), 100);
+    const fill = document.getElementById('cp-budget-fill');
+    fill.style.width = pct + '%';
+    fill.style.background = used >= cap ? 'var(--vk-error)' : used >= cap * 0.8 ? '#8A5A00' : 'var(--vk-accent)';
+    document.getElementById('cp-budget-text').textContent = `${fmtNum(used)} / ${fmtNum(free)} chars (${pct}%)`;
+    document.getElementById('cp-budget-note').textContent = used >= cap
+      ? `Soft cap of ${fmtNum(cap)} reached — new content is falling back to edge-tts until the monthly reset. Cached audio still serves.`
+      : `New-content synthesis stops at the ${fmtNum(cap)} soft cap — ${fmtNum(Math.max(cap - used, 0))} chars of headroom left.`;
+
+    const buckets = d.buckets || [];
+    body.innerHTML = buckets.length
+      ? buckets.map(b => `
+        <tr>
+          <td class="ut-name">${escHtml(CP_CAT_LABELS[b.category] || b.category)}</td>
+          <td>${escHtml((b.level || '—').toUpperCase())}</td>
+          <td>${escHtml(b.topic || '—')}</td>
+          <td style="color:var(--vk-fg-3)">${escHtml(b.style || '—')}</td>
+          <td>${fmtNum(b.count)}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" class="empty">No banked content yet.</td></tr>';
+  }
+
   // ── Dataset toggle ────────────────────────────────────────────────────────
   let _dataset = 'current';
 
@@ -1264,6 +1407,7 @@
     loadUsers();
     loadUsage();
     loadPerformance(); // also calls loadOverview with the response
+    loadContentPool();
   })();
 </script>
 </body>

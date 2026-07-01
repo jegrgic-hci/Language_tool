@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import asyncio
+import logging
 import edge_tts
 from mistralai import Mistral
 import httpx
@@ -30,6 +31,9 @@ from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mi
 from score_utils import normalize, run_sequence_match, build_display_results, analyze_dictation_mismatches
 import practice_list as pl
 import analytics as _analytics
+import library_store
+import content_bank
+from pos_tagger import tag_nouns_adjs
 from prosody_engine import annotate_phrase_rhythm
 
 load_dotenv()
@@ -106,6 +110,50 @@ def _use_dataset(dataset: str):
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 VOICE = "fr-FR-DeniseNeural"
+VOICE_B = "fr-FR-HenriNeural"  # second speaker for natural dialogue mode
+
+# Chirp3-HD voices (Google Cloud TTS) for the cached listening library. Used only
+# by the listening modes (Listen & Answer + Natural French) where audio is banked
+# and reused; everything else stays on free edge-tts.
+_CHIRP_PREFIX = "fr-FR-Chirp3-HD-"
+CHIRP_VOICES_F = [_CHIRP_PREFIX + n for n in ("Aoede", "Kore", "Leda", "Zephyr")]
+CHIRP_VOICES_M = [_CHIRP_PREFIX + n for n in ("Puck", "Charon", "Fenrir", "Orus")]
+CHIRP_VOICES = CHIRP_VOICES_F + CHIRP_VOICES_M
+_CHIRP_RANDOM = "chirp-random"  # sentinel: /tts picks a random narrator voice
+_CHIRP_DEFAULT = "chirp-default"  # sentinel: /tts uses the fixed default narrator
+# Fixed narrator for stable-cache phrase/passage playback (context phrases, custom
+# content, saved practice items). One voice keeps each text → one md5, so the cache
+# saturates over a finite/recurring set of texts.
+DEFAULT_CHIRP_VOICE = _CHIRP_PREFIX + "Charon"
+
+# A natural, gender-matched French first name per voice, so Dialogue French speakers
+# read like real people ("Salut Julien !") instead of the Chirp codenames.
+CHIRP_VOICE_NAMES = {
+    _CHIRP_PREFIX + "Aoede":  "Chloé",
+    _CHIRP_PREFIX + "Kore":   "Léa",
+    _CHIRP_PREFIX + "Leda":   "Manon",
+    _CHIRP_PREFIX + "Zephyr": "Inès",
+    _CHIRP_PREFIX + "Puck":   "Lucas",
+    _CHIRP_PREFIX + "Charon": "Julien",
+    _CHIRP_PREFIX + "Fenrir": "Thomas",
+    _CHIRP_PREFIX + "Orus":   "Hugo",
+}
+
+
+def voice_display_name(voice: str) -> str:
+    return CHIRP_VOICE_NAMES.get(voice, voice.rsplit("-", 1)[-1])
+
+
+def pick_narrator_voice() -> str:
+    """A random Chirp3-HD voice for a single-narrator passage (Listen & Answer)."""
+    return random.choice(CHIRP_VOICES)
+
+
+def pick_dialogue_voices() -> tuple:
+    """A random (voice_A, voice_B) pair for Natural French. One male + one female,
+    order randomized, so the two speakers are always easy to tell apart."""
+    va, vb = random.choice(CHIRP_VOICES_M), random.choice(CHIRP_VOICES_F)
+    return (va, vb) if random.random() < 0.5 else (vb, va)
 
 _EMOJI_RE = re.compile(
     "[\U0001F300-\U0001F9FF"   # symbols, pictographs, emoticons
@@ -130,16 +178,79 @@ def clean_for_tts(text: str) -> str:
     return text.strip()
 
 
-async def generate_audio(text: str) -> str:
+async def generate_audio(text: str, voice: str = VOICE, rate: str = "+0%") -> str:
     filename = f"{uuid.uuid4().hex}.mp3"
-    await edge_tts.Communicate(clean_for_tts(text), VOICE).save(str(AUDIO_DIR / filename))
+    await edge_tts.Communicate(clean_for_tts(text), voice, rate=rate).save(str(AUDIO_DIR / filename))
     return filename
+
+
+async def generate_library_audio(text: str, chirp_voice: str, edge_voice: str = VOICE) -> str:
+    """Audio for the listening library: Chirp3-HD with content-addressed caching
+    (synthesized once per unique text, then reused for free), falling back to
+    edge-tts if Chirp isn't configured or the call fails. Returns an /audio filename.
+
+    The returned filename is always a 32-hex `.mp3` (md5 for Chirp, uuid for edge),
+    so it passes the /audio route's validation and is served from either the temp
+    dir (edge) or the shared library (Chirp) transparently.
+    """
+    cleaned = clean_for_tts(text)
+    if library_store.chirp_enabled() and chirp_voice.startswith(_CHIRP_PREFIX):
+        try:
+            return await asyncio.to_thread(library_store.synth_and_cache, cleaned, chirp_voice)
+        except Exception as e:
+            logging.getLogger("tts").warning("Chirp3 synth failed, falling back to edge-tts: %s", e)
+            library_store.record_edge_fallback()
+    return await generate_audio(cleaned, edge_voice)
+
+
+# ── Content bank helpers ─────────────────────────────────────────────────────────
+
+# The bank's canonical topic list — so case/accent/spacing variants of the same
+# topic share one bucket (reuse only works when buckets collide).
+content_bank.register_canonical_topics(list(TOPICS))
+
+
+def _bank_pick(kind: str, register: str, level: str, topic: str, style: str,
+               access_code: Optional[str]) -> Optional[dict]:
+    """Apply the reuse-vs-generate policy for a (learner, bucket): returns a banked
+    record to reuse, or None meaning the caller should generate + bank a new one."""
+    budget_ok = library_store.generation_budget_ok()
+    # No access_code = local/personal use (only the maintainer, testing). The per-user
+    # seen-map is empty, so the normal policy would serve the same shallow-bucket piece
+    # forever. Instead prefer generating fresh to grow the bank toward POOL_MAX while
+    # budget allows; only reuse once the bucket is full or the budget is tight.
+    if not access_code:
+        if budget_ok and content_bank.count(kind, register, level, topic, style) < content_bank.POOL_MAX:
+            rec = None
+        else:
+            rec = content_bank.pick_unseen(kind, register, level, topic, style)
+    else:
+        seen_map = _analytics.get_bank_seen_map(access_code)
+        rec = content_bank.select_for_user(kind, register, level, topic, style, seen_map, budget_ok)
+    # Efficiency telemetry: a returned record = served from the bank (no Mistral/Chirp
+    # spend); None = the caller will generate + bank a fresh unit (a billable miss).
+    if rec is not None:
+        library_store.record_bank_hit()
+    else:
+        library_store.record_bank_miss()
+    return rec
+
+
+async def _synth_and_bank_phrase(text: str, register: str, level: str, topic: str,
+                                 style: str, voice: str) -> dict:
+    """Synthesize a phrase with Chirp (content-addressed), tag it, and bank it as a
+    reusable PHRASE. Returns the banked record."""
+    audio_hash = await generate_library_audio(text, voice)
+    tokens = await asyncio.to_thread(tag_nouns_adjs, text)
+    return content_bank.add_phrase(text, register, level, topic, voice, audio_hash,
+                                   style=style, noun_adj_tokens=tokens)
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
 class TTSRequest(BaseModel):
     text: str
+    voice: Optional[str] = None  # a Chirp3-HD voice name opts into the cached library
 
 
 class ShadowPhraseRequest(BaseModel):
@@ -148,6 +259,10 @@ class ShadowPhraseRequest(BaseModel):
     style: Optional[str] = 'story'
     sound_focus: Optional[str] = None
     focus_word: Optional[str] = None
+    # analytics / bank novelty
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
 
 
 class ShadowPhraseResponse(BaseModel):
@@ -206,7 +321,8 @@ class ParagraphStartRequest(BaseModel):
 
 class ParagraphStartResponse(BaseModel):
     sentences: list[str]
-    full_audio_url: str
+    full_audio_url: Optional[str] = None
+    sentence_audio_urls: list[str] = []  # per-sentence Chirp audio, stitched for playback
     level: str
     topic: str
     noun_adj_tokens: list = []
@@ -893,6 +1009,13 @@ async def admin_feature_usage(current_user: dict = Depends(_auth.require_admin))
     return _analytics.get_feature_usage()
 
 
+@app.get("/admin/content-pool")
+async def admin_content_pool(current_user: dict = Depends(_auth.require_admin)):
+    """Size the shared Chirp3-HD content bank (phrases, paragraphs, listening
+    passages, dialogues) so an admin can see the reusable pool it's built up."""
+    return await asyncio.to_thread(content_bank.bank_stats)
+
+
 # ── Current user info ──────────────────────────────────────────────────────────
 
 @app.get("/auth/me")
@@ -1209,9 +1332,13 @@ async def serve_audio(filename: str):
     if not re.fullmatch(r"[a-f0-9]{32}\.mp3", filename):
         raise HTTPException(status_code=400, detail="Invalid filename")
     path = AUDIO_DIR / filename
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Audio not found")
-    return FileResponse(str(path), media_type="audio/mpeg")
+    if path.exists():
+        return FileResponse(str(path), media_type="audio/mpeg")
+    # Not an ephemeral edge-tts file — try the persistent Chirp3 library (R2/local).
+    data = await asyncio.to_thread(library_store.get_audio, filename)
+    if data is not None:
+        return Response(content=data, media_type="audio/mpeg")
+    raise HTTPException(status_code=404, detail="Audio not found")
 
 
 @app.post("/upload")
@@ -1249,8 +1376,20 @@ async def delete_upload(filename: str):
 async def tts_word(req: TTSRequest):
     if not req.text or not req.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
-    audio_url = f"/audio/{await generate_audio(req.text.strip())}"
-    return {"audio_url": audio_url}
+    # A Chirp3-HD voice (or the "chirp-random" sentinel) routes to the cached
+    # listening library; anything else (word/phrase pronunciation, paragraph
+    # chunks, …) stays on free edge-tts.
+    if req.voice == _CHIRP_RANDOM:
+        voice = pick_narrator_voice()
+    elif req.voice == _CHIRP_DEFAULT:
+        voice = DEFAULT_CHIRP_VOICE
+    else:
+        voice = req.voice
+    if voice and voice.startswith(_CHIRP_PREFIX):
+        filename = await generate_library_audio(req.text.strip(), voice)
+    else:
+        filename = await generate_audio(req.text.strip())
+    return {"audio_url": f"/audio/{filename}"}
 
 
 def _build_noun_adj_set(tokens):
@@ -1265,8 +1404,29 @@ def _build_noun_adj_set(tokens):
 # ── Shared phrase helpers ──────────────────────────────────────────────────────
 
 async def _phrase_generate(req: ShadowPhraseRequest) -> ShadowPhraseResponse:
-    data = await asyncio.to_thread(lambda: generate_phrase(req.level, req.topic, req.style or 'story', req.sound_focus, req.focus_word))
-    audio_url = f"/audio/{await generate_audio(data['phrase'])}"
+    style = req.style or 'story'
+    # Sound-focus / coach-focus requests need a phrase tailored to that focus (and
+    # liaison focus injects ‿ marks), so they bypass the shared pool. Plain requests
+    # serve an unseen banked phrase first and only generate + bank on exhaustion.
+    is_focus = bool(req.sound_focus or req.focus_word)
+    if not is_focus:
+        topic = req.topic or random.choice(TOPICS)
+        rec = _bank_pick("phrase", "standard", req.level, topic, "", req.access_code)
+        if rec is None:
+            gen = await asyncio.to_thread(lambda: generate_phrase(req.level, topic, style))
+            rec = await _synth_and_bank_phrase(
+                gen["phrase"], "standard", req.level, topic, style, pick_narrator_voice(),
+            )
+        _analytics.mark_bank_seen(req.access_code, rec["id"], "shadow")
+        return ShadowPhraseResponse(
+            phrase=rec["text"],
+            audio_url=f"/audio/{rec['audio_hash']}",
+            level=req.level,
+            noun_adj_tokens=rec.get("noun_adj_tokens", []),
+        )
+
+    data = await asyncio.to_thread(lambda: generate_phrase(req.level, req.topic, style, req.sound_focus, req.focus_word))
+    audio_url = f"/audio/{await generate_library_audio(data['phrase'], pick_narrator_voice())}"
     return ShadowPhraseResponse(
         phrase=data["phrase"],
         audio_url=audio_url,
@@ -1456,28 +1616,54 @@ class ParagraphStartRequestWithSession(ParagraphStartRequest):
 @app.post("/paragraph/start", response_model=ParagraphStartResponse)
 async def paragraph_start(req: ParagraphStartRequestWithSession):
     topic = req.topic or random.choice(TOPICS)
+    style = req.style or 'story'
     try:
-        data = await asyncio.to_thread(lambda: generate_paragraph(req.level, topic, req.style or 'story'))
-        audio_file = await generate_audio(data["paragraph"])
-        paragraph_id = str(uuid.uuid4())
+        # Serve a banked passage per the reuse policy; generate + bank (which also
+        # seeds the reusable phrase pool) when the policy calls for new content.
+        passage = _bank_pick("passage", "standard", req.level, topic, style, req.access_code)
+        if passage is None:
+            passage = await _generate_and_bank_passage(req.level, topic, style)
+
+        phrases = content_bank.passage_phrases(passage)
+        sentences = [p["text"] for p in phrases]
+        sentence_audio_urls = [f"/audio/{p['audio_hash']}" for p in phrases]
+        paragraph_id = passage["id"]
+
+        _analytics.mark_bank_seen(req.access_code, paragraph_id, "paragraph")
         if req.session_id and req.access_code:
             _analytics.track(req.session_id, req.access_code, "paragraph_started", {
                 "exercise_type": "paragraph",
                 "paragraph_id": paragraph_id,
                 "level": req.level,
                 "topic": topic,
-                "sentence_count": len(data["sentences"]),
+                "sentence_count": len(sentences),
             }, req.visit_id)
         return ParagraphStartResponse(
-            sentences=data["sentences"],
-            full_audio_url=f"/audio/{audio_file}",
-            level=data["level"],
+            sentences=sentences,
+            sentence_audio_urls=sentence_audio_urls,
+            level=passage.get("level", req.level),
             topic=topic,
-            noun_adj_tokens=data.get("noun_adj_tokens", []),
+            noun_adj_tokens=passage.get("noun_adj_tokens", []),
             paragraph_id=paragraph_id,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Paragraph generation failed: {e}")
+
+
+async def _generate_and_bank_passage(level: str, topic: str, style: str) -> dict:
+    """Generate a cohesive paragraph, synthesize each sentence as its own Chirp
+    phrase (one shared narrator), and bank a PASSAGE + its PHRASEs. Generating a
+    paragraph thus seeds the reusable phrase pool. Returns the banked passage."""
+    data = await asyncio.to_thread(lambda: generate_paragraph(level, topic, style))
+    voice = pick_narrator_voice()
+    phrase_ids = []
+    for sent in data["sentences"]:
+        rec = await _synth_and_bank_phrase(sent, "standard", level, topic, style, voice)
+        phrase_ids.append(rec["id"])
+    return content_bank.add_passage(
+        "standard", level, topic, voice, phrase_ids,
+        style=style, noun_adj_tokens=data.get("noun_adj_tokens", []),
+    )
 
 
 @app.post("/paragraph/analyze", response_model=ParagraphAnalyzeResponse)
@@ -1659,7 +1845,7 @@ async def custom_start(req: CustomStartRequest):
         raise HTTPException(status_code=400, detail="No content found in text")
     if content_type == "phrase":
         return {"sentences": sentences, "full_audio_url": None, "content_type": "phrase"}
-    audio_file = await generate_audio(req.text.strip())
+    audio_file = await generate_library_audio(req.text.strip(), DEFAULT_CHIRP_VOICE)
     return {
         "sentences": sentences,
         "full_audio_url": f"/audio/{audio_file}",
@@ -1809,30 +1995,61 @@ async def listen_generate(req: Request):
     num_paragraphs = min(max(int(data.get("num_paragraphs", 2)), 1), 4)
     q_count = _COMPREHENSION_Q_COUNT.get(level, 4)
 
-    user_prompt = (
-        f"CEFR level: {level}\n"
-        f"Topic: {topic}\n"
-        f"Number of paragraphs: {num_paragraphs}\n"
-        f"Number of questions: {q_count}\n\n"
-        "Generate the passage, vocab_preview, and comprehension questions now."
-    )
+    # Listen & Answer keeps its own longer-passage bucket (register="listen"),
+    # separate from the speaking phrase pool. Serve an unseen banked passage first;
+    # generate + bank only on exhaustion. Audio stays lazy (frontend /tts) but with
+    # the passage's fixed voice, so reuse is a content-addressed cache hit (free).
+    rec = _bank_pick("passage", "listen", level, topic, "", access_code)
+    if rec is not None:
+        passage = rec.get("text", "")
+        questions = rec.get("questions", [])
+        vocab_preview = rec.get("vocab_preview", [])
+        voice = rec.get("voice", _CHIRP_RANDOM)
+    else:
+        user_prompt = (
+            f"CEFR level: {level}\n"
+            f"Topic: {topic}\n"
+            f"Number of paragraphs: {num_paragraphs}\n"
+            f"Number of questions: {q_count}\n\n"
+            "Generate the passage, vocab_preview, and comprehension questions now."
+        )
+        resp = _mistral.chat.complete(
+            model="mistral-small-latest",
+            messages=[
+                {"role": "system", "content": _COMPREHENSION_SYSTEM},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=2400,
+        )
+        result = json.loads(resp.choices[0].message.content)
+        passage = result.get("passage", "")
+        questions = result.get("questions", [])
+        vocab_preview = result.get("vocab_preview", [])
 
-    resp = _mistral.chat.complete(
-        model=_MODEL,
-        messages=[
-            {"role": "system", "content": _COMPREHENSION_SYSTEM},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={"type": "json_object"},
-        max_tokens=2400,
-    )
+        # The model tends to put the correct answer first (position bias), so shuffle
+        # each question's options and recompute correct_index for an even spread.
+        for q in questions:
+            opts = q.get("options")
+            if not isinstance(opts, list) or len(opts) < 2:
+                continue
+            ci = q.get("correct_index", 0)
+            if not isinstance(ci, int) or not (0 <= ci < len(opts)):
+                ci = 0
+            correct_opt = opts[ci]
+            random.shuffle(opts)
+            q["options"] = opts
+            q["correct_index"] = opts.index(correct_opt)
 
-    result = json.loads(resp.choices[0].message.content)
-    passage = result.get("passage", "")
-    questions = result.get("questions", [])
-    vocab_preview = result.get("vocab_preview", [])
+        voice = pick_narrator_voice()
+        rec = content_bank.add_passage(
+            "listen", level, topic, voice, [], questions=questions,
+            vocab_preview=vocab_preview, payload={"text": passage},
+        )
 
-    audio_url = f"/audio/{await generate_audio(passage)}"
+    _analytics.mark_bank_seen(access_code, rec["id"], "listen")
+    # Audio is generated lazily by the frontend (via /tts) so the passage and
+    # questions can be shown immediately instead of waiting for TTS to render.
     if session_id and access_code:
         _analytics.track(session_id, access_code, "listen_answer_started", {
             "exercise_type": "listen_answer",
@@ -1840,7 +2057,188 @@ async def listen_generate(req: Request):
             "topic": topic,
             "question_count": len(questions),
         }, visit_id)
-    return {"passage": passage, "audio_url": audio_url, "questions": questions, "vocab_preview": vocab_preview}
+    return {"passage": passage, "questions": questions, "vocab_preview": vocab_preview, "voice": voice}
+
+
+# ── Natural French (casual spoken dialogue) routes ───────────────────────────────
+
+_NATURAL_SYSTEM = """You are a French content generator that writes AUTHENTIC SPOKEN French dialogue
+the way two native speakers actually talk to each other in everyday life — the kind a learner
+hears in films, podcasts, and real conversation, NOT clean textbook French.
+
+Return ONLY valid JSON with this exact structure — no markdown, no explanation, just JSON:
+{
+  "title": "short French title for the scene",
+  "lines": [
+    { "speaker": "<first speaker name>", "text": "one turn of casual spoken French" },
+    { "speaker": "<second speaker name>", "text": "the reply" }
+  ],
+  "vocab_preview": [
+    { "word": "exact casual word/expression from the dialogue", "gloss": "brief French-only definition", "example": "the exact line containing it" }
+  ],
+  "questions": [
+    { "type": "literal", "question": "Question in French?", "options": ["A","B","C","D"], "correct_index": 0, "explanation": "Short French explanation." }
+  ]
+}
+
+SPOKEN-FRENCH RULES (this is the whole point — apply them heavily):
+- DROP the "ne" of negation: "j'ai pas", "je sais pas", "c'est pas", "y a personne" (never "je ne sais pas")
+- Use spoken fillers and connectors naturally: "ben", "bah", "ouais", "du coup", "en fait", "genre", "quoi", "t'sais", "voilà", "bref", "carrément", "grave"
+- Use colloquial vocabulary and register: "un truc", "un machin", "bosser", "bouffer", "kiffer", "chelou", "trop", "vachement", "c'est chaud", "ça marche"
+- Use the elisions that TTS pronounces cleanly: "t'as", "t'es", "y a", "j'ai", "j'sais", "c'est", "qu'est-ce que", "j'vais", "i'faut"
+- DO NOT write hard phonetic reductions that text-to-speech mispronounces — AVOID "chais pas", "chuis", "oué", "ché". Write "j'sais pas", "j'suis", "ouais" instead.
+- Natural turn-taking: short reactions, interruptions, agreement ("ah ouais ?", "non mais grave", "ah bon ?"), questions back
+
+SOUND UNSCRIPTED, NOT LIKE A LESSON (this is what makes or breaks it):
+- It's an overheard conversation, not a Q&A. Do NOT have one person cleanly ask and the other cleanly answer, turn after turn.
+- Vary turn length a LOT: mix one- or two-word reactions ("Ah ouais ?", "Mmh.", "Sérieux ?", "Attends", "Nan mais grave", "Genre") with longer rambling turns.
+- Some turns should just react or agree and add nothing new — that's how real talk works.
+- Let the topic DRIFT: they can wander onto a mutual friend, a side story or a tangent, then loop back.
+- Interruptions, talking over each other, and finishing the other's thought are good.
+- Ground it in concrete specifics — a real-sounding place, dish, time, or a named friend — so it feels lived-in, not generic.
+- Light emotional colour: complaining, teasing, surprise, a laugh ("haha") used sparingly.
+- Keep false starts LIGHT for the voice: at most an occasional self-correction with a comma ("enfin, je veux dire"). NEVER use "..." — the TTS reads it as a long dead pause.
+
+CONTENT RULES:
+- 2 speakers only, alternating. Use the two speaker NAMES given in the user message as the "speaker" label on every line, and refer to the speakers by those names in every question, option, and explanation — never "A"/"B" or "le premier locuteur"
+- Calibrate richness to CEFR level (vocabulary breadth and idiom density), but the spoken register above ALWAYS applies, even at A2/B1
+- A2: 6-8 short turns, very common situations. B1: 8-12 turns. B2: 10-14 turns, opinions and nuance. C1/C2: 12-16 turns, implicit meaning, irony, slang.
+- vocab_preview: 4-6 of the most useful CASUAL words/expressions actually used in the dialogue (prefer the spoken-register items over neutral words)
+- Questions: include one of each type in this order — "literal", "inference", "vocabulary", "main_idea"; quote the word for vocabulary questions; all French; plausible distractors that fail on close listening
+- Everything (lines, questions, options, explanations, glosses) in French"""
+
+_NATURAL_Q_COUNT = {"A2": 3, "B1": 4, "B2": 4, "C1": 5, "C2": 5}
+
+
+async def _render_dialogue_lines(banked_lines: list) -> list:
+    """Turn banked dialogue lines ({speaker, role, text, voice}) into playable lines
+    with audio_url. Audio is content-addressed, so reusing a banked dialogue is a
+    cache hit — no re-synthesis and no new Chirp spend."""
+    out = []
+    for ln in banked_lines:
+        edge_voice = VOICE if ln.get("role") == "A" else VOICE_B
+        audio_file = await generate_library_audio(ln["text"], ln["voice"], edge_voice=edge_voice)
+        out.append({
+            "speaker": ln["speaker"], "role": ln.get("role", "A"),
+            "text": ln["text"], "audio_url": f"/audio/{audio_file}",
+        })
+    return out
+
+
+@app.post("/natural/generate")
+async def natural_generate(req: Request):
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+
+    data = await req.json()
+    level = data.get("level", "B1")
+    topic = data.get("topic", "la vie quotidienne")
+    speed = data.get("speed", "normal")  # playback preset, applied client-side; kept for analytics
+    session_id = data.get("session_id")
+    access_code = data.get("access_code")
+    visit_id = data.get("visit_id")
+    q_count = _NATURAL_Q_COUNT.get(level, 4)
+
+    # Reuse an unseen banked dialogue first (register="casual"); generate + bank
+    # only on exhaustion. The banked lines carry their per-speaker voice, so reuse
+    # replays from the audio cache for free.
+    dlg = _bank_pick("passage", "casual", level, topic, "", access_code)
+    if dlg is not None:
+        out_lines = await _render_dialogue_lines(dlg.get("lines", []))
+        _analytics.mark_bank_seen(access_code, dlg["id"], "dialogue")
+        if session_id and access_code:
+            _analytics.track(session_id, access_code, "natural_listen_started", {
+                "exercise_type": "natural_listen", "level": level, "topic": topic,
+                "speed": speed, "question_count": len(dlg.get("questions", [])),
+            }, visit_id)
+        return {"title": dlg.get("title", ""), "lines": out_lines,
+                "questions": dlg.get("questions", []), "vocab_preview": dlg.get("vocab_preview", [])}
+
+    # Choose the voice pair up front so the two speakers can be named after their
+    # voices — the names flow into both the dialogue lines and the questions.
+    voice_a, voice_b = pick_dialogue_voices()
+    name_a = voice_display_name(voice_a)  # e.g. "Julien"
+    name_b = voice_display_name(voice_b)  # e.g. "Manon"
+
+    user_prompt = (
+        f"CEFR level: {level}\n"
+        f"Topic / situation: {topic}\n"
+        f"Number of questions: {q_count}\n"
+        f"Speaker names: the two friends are named {name_a} and {name_b}. Use these "
+        f"exact names as the \"speaker\" label on every line, and refer to them by "
+        f"name in all questions, options and explanations.\n\n"
+        "Write a natural spoken French dialogue between these two friends, plus vocab_preview and questions now."
+    )
+
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": _NATURAL_SYSTEM},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.85,
+        max_tokens=2400,
+    ))
+
+    result = json.loads(resp.choices[0].message.content)
+    title = result.get("title", "")
+    lines = result.get("lines", [])
+    questions = result.get("questions", [])
+    vocab_preview = result.get("vocab_preview", [])
+
+    # Shuffle options to defeat the model's first-position correct-answer bias.
+    for q in questions:
+        opts = q.get("options")
+        if not isinstance(opts, list) or len(opts) < 2:
+            continue
+        ci = q.get("correct_index", 0)
+        if not isinstance(ci, int) or not (0 <= ci < len(opts)):
+            ci = 0
+        correct_opt = opts[ci]
+        random.shuffle(opts)
+        q["options"] = opts
+        q["correct_index"] = opts.index(correct_opt)
+
+    # Map each line to a stable role ("A"/"B") and its speaker's voice. The model
+    # labels lines with the two names we supplied; fall back to strict alternation
+    # if a label is off. Bank the lines (with voice) so the dialogue is reusable.
+    banked_lines = []
+    prev_role = "B"
+    for ln in lines:
+        text = (ln.get("text") or "").strip()
+        if not text:
+            continue
+        label = (ln.get("speaker") or "").strip().lower()
+        if label == name_a.lower():
+            role = "A"
+        elif label == name_b.lower():
+            role = "B"
+        else:
+            role = "A" if prev_role == "B" else "B"  # unknown label -> alternate
+        prev_role = role
+        banked_lines.append({
+            "speaker": name_a if role == "A" else name_b, "role": role,
+            "text": text, "voice": voice_a if role == "A" else voice_b,
+        })
+
+    out_lines = await _render_dialogue_lines(banked_lines)
+    dlg_rec = content_bank.add_passage(
+        "casual", level, topic, voice_a, [], questions=questions, vocab_preview=vocab_preview,
+        payload={"title": title, "lines": banked_lines, "voices": [voice_a, voice_b]},
+    )
+    _analytics.mark_bank_seen(access_code, dlg_rec["id"], "dialogue")
+
+    if session_id and access_code:
+        _analytics.track(session_id, access_code, "natural_listen_started", {
+            "exercise_type": "natural_listen",
+            "level": level,
+            "topic": topic,
+            "speed": speed,
+            "question_count": len(questions),
+        }, visit_id)
+
+    return {"title": title, "lines": out_lines, "questions": questions, "vocab_preview": vocab_preview}
 
 
 # ── Dictation routes ────────────────────────────────────────────────────────────
@@ -1864,6 +2262,9 @@ _dictation_sentences: dict = {}  # sentence_id → {sentence, level, topic}
 class DictationGenerateRequest(BaseModel):
     level: str = "B1"
     topic: str = "la vie quotidienne"
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
 
 
 class DictationCheckRequest(BaseModel):
@@ -1880,21 +2281,27 @@ async def dictation_generate(req: DictationGenerateRequest):
     if _mistral is None:
         raise HTTPException(status_code=503, detail="Mistral not configured")
 
-    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
-        model=_MODEL,
-        messages=[
-            {"role": "system", "content": _DICTATION_SENTENCE_SYSTEM},
-            {"role": "user", "content": f"CEFR level: {req.level}\nTopic: {req.topic}"},
-        ],
-        temperature=0.7,
-        max_tokens=120,
-    ))
-    sentence = resp.choices[0].message.content.strip().strip('"').strip("'")
+    # Serve a banked phrase from the shared pool (cross-pollinated with
+    # paragraph/shadow) per the reuse policy; generate + bank a dictation-style
+    # sentence when the policy calls for new content.
+    rec = _bank_pick("phrase", "standard", req.level, req.topic, "", req.access_code)
+    if rec is None:
+        resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+            model=_MODEL,
+            messages=[
+                {"role": "system", "content": _DICTATION_SENTENCE_SYSTEM},
+                {"role": "user", "content": f"CEFR level: {req.level}\nTopic: {req.topic}"},
+            ],
+            temperature=0.7,
+            max_tokens=120,
+        ))
+        sentence = resp.choices[0].message.content.strip().strip('"').strip("'")
+        rec = await _synth_and_bank_phrase(sentence, "standard", req.level, req.topic, "dictation", pick_narrator_voice())
 
+    _analytics.mark_bank_seen(req.access_code, rec["id"], "dictation")
     sentence_id = uuid.uuid4().hex
-    _dictation_sentences[sentence_id] = {"sentence": sentence, "level": req.level, "topic": req.topic}
-    audio_url = f"/audio/{await generate_audio(sentence)}"
-    return {"sentence_id": sentence_id, "audio_url": audio_url}
+    _dictation_sentences[sentence_id] = {"sentence": rec["text"], "level": req.level, "topic": req.topic}
+    return {"sentence_id": sentence_id, "audio_url": f"/audio/{rec['audio_hash']}"}
 
 
 @app.post("/dictation/check")
@@ -2123,55 +2530,40 @@ CEFR guidelines:
 Vary the task type naturally: description, opinion, question-answer, short narrative, or sentence completion.
 Return ONLY the French prompt text — no quotes, no English, no explanation."""
 
-_WRITING_CHECK_SYSTEM = """You are a French writing coach. Guide the learner toward the correction — do NOT state the correct form directly.
+_WRITING_CHECK_SYSTEM = """You are a supportive French writing coach. Your feedback is delivered in LAYERS so the learner can struggle productively first, then reveal more help only if they need it. You always provide every layer — the app decides what to show and when. The learner must never end up stranded without an answer.
 
 The learner was asked (in French): {prompt}
 They wrote: {response}
 Their CEFR level: {level}
-This is attempt number: {attempt} of 3.
 
 Return a JSON object with exactly these fields:
 {{
   "has_errors": true or false,
-  "tips": [
-    "A pedagogical hint calibrated to the learner's level"
+  "overall": "one or two warm sentences in English: name something genuine they did well, then frame the practice positively",
+  "corrections": [
+    {{
+      "excerpt": "the exact word or short phrase copied verbatim from THEIR text that needs work",
+      "category": "one of: agreement, tense, conjugation, gender, article, preposition, word-choice, spelling, word-order, register",
+      "nudge": "LAYER 1 — locate the issue and ask a guiding question. Name the area but DO NOT reveal the answer.",
+      "example": "LAYER 2 — teach the rule with a SHORT worked example that uses DIFFERENT words than theirs, so the pattern transfers. One or two sentences. Still do not give their answer.",
+      "fix": "LAYER 3 — the corrected version of their excerpt only (just the fixed word or phrase)",
+      "why": "LAYER 3 — one plain-English sentence explaining the rule behind the fix"
+    }}
   ],
-  "overall": "one sentence in English: honest and encouraging"
+  "corrected_sentence": "the learner's full text rewritten correctly, preserving their meaning and keeping as much of their original wording as possible — fix only what is wrong",
+  "model_answer": "a natural, native-like example answer to the same prompt at the learner's level — a model to learn from, NOT a copy of their text"
 }}
 
-NEVER give the correct word or form. Tips must guide, not reveal.
-
-Each tip MUST name the grammar rule involved. Use the rule vocabulary appropriate to the level:
-
-A1/A2 — Plain English rule names: "noun-adjective gender agreement", "present tense ending for -er verbs",
-  "past tense with être", "definite vs. indefinite article", "negation with ne…pas".
-  Maximum scaffolding: name the exact word, state the rule plainly, say exactly where to look.
-  Example: "Look at the word 'allée' — you are using être to form the past tense (passé composé).
-  With être verbs, the past participle must match the gender and number of the subject. Your subject
-  is masculine singular. Check the ending of the past participle."
-
-B1 — Introduce French rule names alongside English: "passé composé vs. imparfait", "subjonctif présent",
-  "pronoun placement with infinitives", "partitive article (du/de la/des)".
-  Name the rule and the word, explain briefly without spelling out every step.
-  Example: "Check your use of passé composé vs. imparfait here — one describes a completed action,
-  the other an ongoing state or background. Which applies to what you're describing?"
-
-B2 — French grammatical terms only: "accord du participe passé", "subjonctif", "conditionnel passé",
-  "concordance des temps", "gérondif", "register (familier vs. soutenu)".
-  Targeted nudge — name the rule, point to the concept, no step-by-step.
-  Example: "Consider whether the subjonctif is required after this expression and whether you've used it."
-
-C1 — Technical terms, minimal framing: "subjonctif passé", "conditionnel présent vs. passé",
-  "nominalisation", "style indirect libre", "euphonie", "register".
-  One-line prompt only.
-  Example: "Concordance des temps in the reported speech clause."
-
-Attempt progression (within the level style above):
-- Attempt 1: slightly broader — name the rule, point to the area
-- Attempt 2+: zoom in precisely on the same issue if still wrong
-
-Maximum 3 tips. For B2/C1, also flag vocabulary choice and register where relevant.
-If has_errors is false, tips must be an empty array [].
+Guidelines:
+- Be encouraging and concrete. Always find something genuine to praise in "overall".
+- Give AT MOST 3 corrections — the highest-value ones first (meaning-blocking errors, then accuracy, then style). Ignore trivial slips when there are bigger issues.
+- "nudge" must NOT reveal the correction. "example" must use vocabulary different from the learner's sentence. The corrected form appears ONLY in "fix".
+- Calibrate rule vocabulary to the level:
+  A1/A2 — plain English rule names, maximum scaffolding (e.g. "past tense with être", "noun–adjective agreement").
+  B1 — French grammatical terms alongside English (passé composé, accord du participe passé, pronom COD).
+  B2 — French grammatical terms (subjonctif, concordance des temps, gérondif); also flag word choice and register.
+  C1 — technical terms, concise (subjonctif passé, nominalisation, euphonie).
+- If has_errors is false: "corrections" is an empty array [], "corrected_sentence" equals their text, and "model_answer" still offers a strong alternative phrasing to learn from.
 Return ONLY the raw JSON object, no markdown fences, no extra text."""
 
 
@@ -2219,16 +2611,15 @@ async def writing_check(req: WritingCheckRequest):
         prompt=req.prompt,
         response=req.response,
         level=req.level,
-        attempt=req.attempt,
     )
     resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
-        model="mistral-small-latest",
+        model=_MODEL,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": "Provide feedback on my writing."},
         ],
         temperature=0.3,
-        max_tokens=800,
+        max_tokens=1300,
     ))
     raw = resp.choices[0].message.content.strip()
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -2239,7 +2630,7 @@ async def writing_check(req: WritingCheckRequest):
         raise HTTPException(status_code=500, detail="Feedback parse error")
     if req.session_id and req.access_code:
         has_errors = result.get("has_errors", True)
-        tip_count = len(result.get("tips", []))
+        correction_count = len(result.get("corrections", []))
         score = 1.0 if not has_errors else (0.5 if req.attempt > 1 else 0.0)
         _analytics.track(req.session_id, req.access_code, "writing_attempted", {
             "exercise_type": "writing",
@@ -2248,7 +2639,7 @@ async def writing_check(req: WritingCheckRequest):
             "attempt": req.attempt,
             "has_errors": has_errors,
             "score": round(score, 3),
-            "tip_count": tip_count,
+            "correction_count": correction_count,
         }, req.visit_id)
     return result
 

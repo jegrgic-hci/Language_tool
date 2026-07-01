@@ -225,6 +225,17 @@ def init_db():
                 updated_at DATETIME DEFAULT (datetime('now'))
             )
         """)
+        # Content-bank novelty: which banked units (phrase/passage ids) a learner
+        # has already been served, so the selector can serve unseen pieces first.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS bank_seen (
+                access_code TEXT NOT NULL,
+                unit_id     TEXT NOT NULL,
+                surface     TEXT NOT NULL DEFAULT '',
+                ts          DATETIME DEFAULT (datetime('now')),
+                PRIMARY KEY (access_code, unit_id)
+            )
+        """)
 
 
 def count_recent_reset_tokens(user_id: int, within_hours: int = 1) -> int:
@@ -261,6 +272,43 @@ def consume_password_reset_token(token: str, new_password_hash: str):
         conn.execute("UPDATE password_reset_tokens SET used=1 WHERE token=?", (token,))
         conn.execute("UPDATE users SET password_hash=? WHERE id=?", (new_password_hash, row["user_id"]))
     return True
+
+
+def get_bank_seen(access_code: str) -> set:
+    """The set of banked unit ids this learner has already been served."""
+    if not access_code:
+        return set()
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT unit_id FROM bank_seen WHERE access_code=?", (access_code,)
+        ).fetchall()
+    return {r["unit_id"] for r in rows}
+
+
+def get_bank_seen_map(access_code: str) -> dict:
+    """Map of banked unit id → last-served timestamp for this learner. Drives the
+    reuse-vs-generate policy (unseen detection + spaced recycle by recency)."""
+    if not access_code:
+        return {}
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT unit_id, ts FROM bank_seen WHERE access_code=?", (access_code,)
+        ).fetchall()
+    return {r["unit_id"]: r["ts"] for r in rows}
+
+
+def mark_bank_seen(access_code: str, unit_id: str, surface: str = "") -> None:
+    """Record that a learner was served a banked unit; refreshes the last-seen
+    timestamp on repeat so spaced-recycle recency stays accurate."""
+    if not access_code or not unit_id:
+        return
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO bank_seen (access_code, unit_id, surface, ts) "
+            "VALUES (?,?,?, datetime('now')) "
+            "ON CONFLICT(access_code, unit_id) DO UPDATE SET ts=datetime('now'), surface=excluded.surface",
+            (access_code, unit_id, surface),
+        )
 
 
 def save_vocab_session(user_id: int, payload: dict) -> None:

@@ -180,6 +180,7 @@
     .sb-nav-home::after        { content: "Progress"; }
     .sb-nav-exercises::after   { content: "Speaking"; }
     .sb-nav-listen::after      { content: "Listen & Answer"; }
+    .sb-nav-natural::after     { content: "Dialogue French"; }
     .sb-nav-dictation::after   { content: "Dictation"; }
     .sb-nav-writing::after     { content: "Prompted Writing"; }
     .sb-nav-transform::after   { content: "Transformation"; }
@@ -601,9 +602,11 @@
       color: var(--vk-accent-text);
     }
 
-    /* Scrollbar for phrase content */
-    #phrase-content::-webkit-scrollbar { width: 4px; }
-    #phrase-content::-webkit-scrollbar-thumb { background: var(--vk-scrollbar-thumb); }
+    /* Phrase view scrolls with the page (#main), not as an internal fixed-height
+       box — so a long "words to work on" list extends past the viewport and the
+       user scrolls to reach every missed word instead of it being clipped to the
+       window height. Overrides the shared .pv-body { overflow-y: auto }. */
+    #phrase-content { overflow: visible; }
 
     /* ID resets — pv-card / pv-func own layout; these neutralise old position/sizing */
     #phv-card       { width: auto; max-width: none; text-align: left; position: static; }
@@ -1922,22 +1925,23 @@
     #practice-drill-tray.open { transform: translateX(0); }
 
     /* ── Comprehension hub ── */
-    #comp-hub-content {
+    #comp-hub-content, #nat-hub-content {
       flex: 1; overflow-y: auto; padding: 48px;
       display: grid; grid-template-columns: 180px 1fr;
       column-gap: 52px; align-content: start;
     }
-    #comp-hub-content::-webkit-scrollbar { width: 4px; }
-    #comp-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
-    #comp-hub-levels, #comp-hub-paragraphs, #comp-hub-topics {
+    #comp-hub-content::-webkit-scrollbar, #nat-hub-content::-webkit-scrollbar { width: 4px; }
+    #comp-hub-content::-webkit-scrollbar-thumb, #nat-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
+    #comp-hub-levels, #comp-hub-paragraphs, #comp-hub-topics,
+    #nat-hub-levels, #nat-hub-topics {
       display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
     }
-    #comp-level-desc, #comp-para-desc {
+    #comp-level-desc, #comp-para-desc, #nat-level-desc {
       margin-top: 10px;
       font-family: var(--vkg-font-mono); font-size: 0.6rem;
       letter-spacing: 0.06em; color: var(--vk-fg-3);
     }
-    #comp-custom-topic-input { margin-top: 10px; width: 100%; max-width: 300px; }
+    #comp-custom-topic-input, #nat-custom-topic-input { margin-top: 10px; width: 100%; max-width: 300px; }
 
     /* ── Comprehension view ── */
     #comprehension-view { flex-direction: column; }
@@ -1977,6 +1981,21 @@
       font-family: var(--vkg-font-mono); font-size: 0.6rem;
       letter-spacing: 0.08em; text-transform: uppercase; color: var(--vk-fg-3);
     }
+    /* Natural French — dialogue transcript */
+    .dlg-line {
+      display: block; margin-bottom: 10px; line-height: 1.6;
+      padding: 2px 0 2px 4px; border-left: 2px solid transparent;
+      transition: background 120ms, border-color 120ms;
+    }
+    .dlg-line-active { background: var(--vk-accent-bg); border-left-color: var(--vk-accent); }
+    .dlg-spk {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; margin-right: 8px; vertical-align: 1px;
+      padding: 0 6px; letter-spacing: 0.02em;
+      font-family: var(--vkg-font-mono); font-size: 0.62rem; font-weight: 600;
+      color: var(--vk-accent-fg); background: var(--vk-accent); flex-shrink: 0;
+    }
+    .dlg-spk-B { background: #1F5A40; }
     .comp-progress-rail { height: 3px; background: var(--vk-border-mid); position: relative; }
     .comp-progress-fill {
       position: absolute; left: 0; top: 0; bottom: 0;
@@ -2133,6 +2152,10 @@
     }
     #comp-answer-review-list { display: flex; flex-direction: column; gap: 20px; }
     .comp-review-row { display: flex; flex-direction: column; gap: 4px; }
+    .review-subject { font-family: var(--vkg-font-mono); font-size: 0.62rem; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--vk-accent-text); margin-top: 14px; }
+    .comp-q-subject { font-family: var(--vkg-font-mono); font-size: 0.62rem; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--vk-accent-text); margin-left: auto; text-align: right; }
     .review-q  { font-family: var(--vkg-font-sans); font-size: 13px; color: var(--vk-fg-1); line-height: 1.5; }
     .review-answer { font-family: var(--vkg-font-sans); font-size: 12px; }
     .review-exp {
@@ -2672,6 +2695,146 @@
       margin-bottom: 16px;
     }
 
+    /* ── Writing — layered corrections + guaranteed reveal (Atelier) ── */
+    .wr-mark {
+      background: var(--vk-accent-bg);
+      color: var(--vk-fg-1);
+      border-bottom: 2px solid var(--vk-accent-border);
+      padding: 0 1px;
+    }
+    .wr-corr-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+    .wr-corr {
+      border: 1px solid var(--vk-border);
+      border-left: 2px solid var(--vk-accent-border);
+      border-radius: var(--vk-radius-card);
+      background: var(--vk-surface);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .wr-corr-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .wr-corr-chip {
+      font-family: var(--pa-font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--vk-accent-text);
+      border: 1px solid var(--vk-accent-border);
+      border-radius: var(--vk-radius-ui);
+      padding: 2px 8px;
+    }
+    .wr-corr-excerpt {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      font-style: italic;
+    }
+    .wr-corr-nudge {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-1);
+      line-height: 1.55;
+    }
+    .wr-corr-layer { display: block; }
+    .wr-corr-layer-label {
+      display: inline-block;
+      font-family: var(--pa-font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      margin-right: 8px;
+    }
+    .wr-corr-example {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.55;
+      padding: 10px 12px;
+      border-radius: var(--vk-radius-ui);
+      background: var(--vk-accent-bg);
+    }
+    .wr-corr-fix {
+      padding-top: 8px;
+      border-top: 1px dashed var(--vk-border-mid);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .wr-corr-fix-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .wr-corr-fix-text {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-body);
+      font-weight: 600;
+      color: #1F5A40;
+    }
+    .wr-corr-why {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.5;
+    }
+    .wr-corr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .wr-corr-reveal-btn {
+      font-family: var(--pa-font-mono);
+      font-size: var(--vk-text-2xs);
+      letter-spacing: 0.04em;
+      color: var(--vk-accent-text);
+      background: transparent;
+      border: 1px solid var(--vk-border-mid);
+      border-radius: var(--vk-radius-ui);
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: border-color 120ms, background 120ms, color 120ms;
+    }
+    .wr-corr-reveal-btn:hover { border-color: var(--vk-accent-border); background: var(--vk-accent-bg); }
+
+    .wr-resolution {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--vk-border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .wr-res-note {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+    .wr-res-label {
+      font-family: var(--pa-font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--vk-fg-3);
+      margin-top: 8px;
+    }
+    .wr-res-corrected {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-body);
+      color: var(--vk-fg-1);
+      line-height: 1.55;
+      padding: 14px 16px;
+      border: 1px solid var(--vk-border);
+      border-left: 2px solid #1F5A40;
+      border-radius: var(--vk-radius-card);
+      background: var(--vk-surface);
+    }
+    .wr-res-model {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-fg-2);
+      line-height: 1.55;
+      padding: 14px 16px;
+      border: 1px solid var(--vk-accent-border);
+      border-radius: var(--vk-radius-card);
+      background: var(--vk-accent-bg);
+    }
+
     /* ── Prompted Free Speaking (Atelier) ──
        Mic uses .pa-ctrl/.pa-ctrl-record; prompt uses .pv-card; transcript uses
        .pv-live-transcript; control rows use .pv-func. Only layout + feedback
@@ -2811,6 +2974,7 @@
       #hub-content,
       #sd-hub-content,
       #comp-hub-content,
+      #nat-hub-content,
       #vocab-hub-content,
       #dict-hub-content,
       #writing-hub-content,
@@ -3021,7 +3185,7 @@
 
     /* View-enter fade — fires when JS switches display:none → flex */
     #phrase-view, #phrase-hub, #paragraph-view, #practice-view,
-    #custom-view, #comprehension-hub, #comprehension-view,
+    #custom-view, #comprehension-hub, #natural-hub, #comprehension-view,
     #dictation-hub, #dictation-view, #vocab-hub, #vocab-view,
     #writing-hub, #writing-view, #transform-hub, #transform-view,
     #shadow-hub, #shadow-view {
@@ -3040,7 +3204,7 @@
       .para-mic-btn.listening,
       .word-check-mic.listening { animation: none; }
       #phrase-view, #phrase-hub, #paragraph-view, #practice-view,
-      #custom-view, #comprehension-hub, #comprehension-view,
+      #custom-view, #comprehension-hub, #natural-hub, #comprehension-view,
       #dictation-hub, #dictation-view, #vocab-hub, #vocab-view,
       #writing-hub, #writing-view, #transform-hub, #transform-view,
       #shadow-hub, #shadow-view {
@@ -3127,6 +3291,9 @@
     <div class="vk-sb-section sb-sec-listening"></div>
     <button class="vk-sb-item sb-nav-listen" data-view="comprehension-hub" onclick="switchView('comprehension-hub')" title="Listen & Answer">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 6.5c0-1.1.9-2 2-2s2 .9 2 2c0 .8-.5 1.5-1.2 1.8L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="13" r="0.5" fill="currentColor"/></svg>
+    </button>
+    <button class="vk-sb-item sb-nav-natural" data-view="natural-hub" onclick="switchView('natural-hub')" title="Dialogue French">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3.5h7a1.5 1.5 0 011.5 1.5v3A1.5 1.5 0 019 9.5H6l-2.5 2V9.5H2.5A1.5 1.5 0 011 8V5a1.5 1.5 0 011-1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M14 6.5h.5a1 1 0 011 1v2.5a1 1 0 01-1 1H14v1.5l-2-1.5h-1" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
     </button>
     <button class="vk-sb-item sb-nav-dictation" data-view="dictation-hub" onclick="switchView('dictation-hub')" title="Dictation">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 10l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3357,7 +3524,7 @@
     <!-- ══════════════════════════════════════
          PHRASE VIEW — single-sentence exercise
     ══════════════════════════════════════ -->
-    <div id="phrase-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+    <div id="phrase-view" style="display:none; flex:1; flex-direction:column; overflow:visible;">
       <div class="pv-header">
         <span class="pv-title">Phrases</span>
 <div class="pv-header-right">
@@ -4267,11 +4434,76 @@
       </div><!-- /#comp-hub-content -->
     </div><!-- /#comprehension-hub -->
 
+    <!-- ── Natural French hub (casual spoken dialogue) ── -->
+    <div id="natural-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="hub-intro">
+        <span class="hub-intro-eyebrow">Listening</span>
+        <h2 class="hub-intro-heading">Train your ear for real spoken French</h2>
+        <p class="hub-intro-text">A casual dialogue between two French speakers — the way people actually talk: dropped <em>ne</em>, fillers like <em>ben</em>, <em>du coup</em>, <em>ouais</em>, faster pace. Listen like you would to a film, then answer comprehension questions.</p>
+        <div class="hub-intro-chips">
+          <span class="hub-intro-chip">Two speakers</span>
+          <span class="hub-intro-chip">Casual register</span>
+          <span class="hub-intro-chip">Natural pace</span>
+        </div>
+      </div>
+      <div id="nat-hub-content">
+
+        <!-- Level -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Level</span>
+            <span class="hub-row-desc">Choose your difficulty</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="nat-hub-levels">
+              <button class="hub-subject-chip" data-level="A2" onclick="selectNatLevel(this)">A2</button>
+              <button class="hub-subject-chip active" data-level="B1" onclick="selectNatLevel(this)">B1</button>
+              <button class="hub-subject-chip" data-level="B2" onclick="selectNatLevel(this)">B2</button>
+              <button class="hub-subject-chip" data-level="C1" onclick="selectNatLevel(this)">C1</button>
+              <button class="hub-subject-chip" data-level="C2" onclick="selectNatLevel(this)">C2</button>
+            </div>
+            <div id="nat-level-desc"></div>
+          </div>
+        </div>
+
+        <!-- Topic -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Situation</span>
+            <span class="hub-row-desc">What they're talking about</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="nat-hub-topics">
+              <button class="hub-subject-chip active" data-topic="deux amis qui se racontent leur week-end" onclick="selectNatTopic(this)">Le week-end</button>
+              <button class="hub-subject-chip" data-topic="organiser une soirée entre amis" onclick="selectNatTopic(this)">Faire des plans</button>
+              <button class="hub-subject-chip" data-topic="se plaindre du travail et des collègues" onclick="selectNatTopic(this)">Le boulot</button>
+              <button class="hub-subject-chip" data-topic="discuter d'un film ou d'une série qu'ils ont vu" onclick="selectNatTopic(this)">Films &amp; séries</button>
+              <button class="hub-subject-chip" data-topic="commander et discuter dans un café à Marseille" onclick="selectNatTopic(this)">Au café</button>
+              <button class="hub-subject-chip" data-topic="raconter un imprévu ou une galère du quotidien" onclick="selectNatTopic(this)">Une galère</button>
+              <button class="hub-subject-chip" data-topic="parler de la bouffe et de cuisine" onclick="selectNatTopic(this)">La bouffe</button>
+              <button class="hub-subject-chip" data-topic="potins et nouvelles d'amis communs" onclick="selectNatTopic(this)">Les potins</button>
+            </div>
+            <input id="nat-custom-topic-input" class="vk-input" type="text" placeholder="Custom situation…" maxlength="80"
+              oninput="addNatCustomTopic()" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- Generate -->
+        <div class="hub-row">
+          <div class="hub-row-label"></div>
+          <div class="hub-row-controls">
+            <button id="nat-generate-btn" class="hub-start-btn" onclick="startNatural()">Generate dialogue →</button>
+          </div>
+        </div>
+
+      </div><!-- /#nat-hub-content -->
+    </div><!-- /#natural-hub -->
+
     <!-- ── Comprehension view ── -->
     <div id="comprehension-view" style="display:none; flex:1; overflow:hidden;">
       <div class="sv-header">
         <button class="vk-btn vk-btn-ghost vk-btn-sm" onclick="compConfirmBack()">← Back</button>
-        <span class="header-title">Listen &amp; Answer</span>
+        <span class="header-title" id="comp-header-title">Listen &amp; Answer</span>
       </div>
 
       <div id="comp-content">
@@ -4349,6 +4581,7 @@
           <div id="comp-quiz-section" style="display:none;">
             <div id="comp-quiz-toolbar">
               <span class="comp-q-counter">Question <span id="comp-q-num">1</span> of <span id="comp-q-total">4</span></span>
+              <span id="comp-q-subject" class="comp-q-subject" style="display:none;"></span>
             </div>
 
             <div class="comp-question-card">
@@ -4404,8 +4637,8 @@
             <div id="comp-score-display"></div>
             <div id="comp-score-label"></div>
             <div class="comp-results-actions">
-              <button class="vk-btn vk-btn-outline-accent" onclick="startComprehension()">Try again</button>
-              <button class="vk-btn vk-btn-primary" onclick="switchView('comprehension-hub')">New passage</button>
+              <button class="vk-btn vk-btn-outline-accent" onclick="compTryAgain()">Try again</button>
+              <button id="comp-new-btn" class="vk-btn vk-btn-primary" onclick="compNewSession()">New passage</button>
             </div>
 
             <!-- Answer review -->
@@ -5537,6 +5770,7 @@
     if (currentAudio)  currentAudio.playbackRate  = rate;
     if (comprAudio)    comprAudio.playbackRate     = rate;
     if (comprQAudio)   comprQAudio.playbackRate    = rate;
+    dlgAudios.forEach(a => { a.playbackRate = rate; });
     document.querySelectorAll('.speed-btn').forEach(b =>
       b.classList.toggle('active', parseFloat(b.dataset.rate) === rate)
     );
@@ -5999,6 +6233,7 @@
     const inCustom    = view === 'custom';
     const inHome            = view === 'home';
     const inCompHub         = view === 'comprehension-hub';
+    const inNaturalHub      = view === 'natural-hub';
     const inComprehension   = view === 'comprehension';
     const inDictHub         = view === 'dictation-hub';
     const inDictation       = view === 'dictation';
@@ -6026,6 +6261,7 @@
     setDisplay('custom-view',         inCustom       ? 'flex' : 'none');
     setDisplay('home-view',           inHome         ? 'flex' : 'none');
     setDisplay('comprehension-hub',   inCompHub      ? 'flex' : 'none');
+    setDisplay('natural-hub',         inNaturalHub   ? 'flex' : 'none');
     setDisplay('comprehension-view',  inComprehension? 'flex' : 'none');
     setDisplay('dictation-hub',       inDictHub      ? 'flex' : 'none');
     setDisplay('dictation-view',      inDictation    ? 'flex' : 'none');
@@ -6048,6 +6284,7 @@
       'practice': 'Practice List', 'paragraph': 'Exercises',
       'home': 'Home', 'custom': 'My Content',
       'comprehension-hub': 'Comprehension', 'comprehension': 'Comprehension',
+      'natural-hub': 'Dialogue French',
       'dictation-hub': 'Dictation', 'dictation': 'Dictation',
       'vocab-hub': 'Flashcards', 'vocab': 'Flashcards',
       'writing-hub': 'Writing', 'writing': 'Writing',
@@ -6067,7 +6304,8 @@
         b.dataset.view === view ||
         (b.dataset.view === 'phrase-hub' && GENERATE_SUBVIEWS.has(view)) ||
         (b.dataset.view === 'custom' && inCustom) ||
-        (b.dataset.view === 'comprehension-hub' && inComprehension) ||
+        (b.dataset.view === 'comprehension-hub' && inComprehension && comprMode === 'passage') ||
+        (b.dataset.view === 'natural-hub' && inComprehension && comprMode === 'dialogue') ||
         (b.dataset.view === 'dictation-hub' && inDictation) ||
         (b.dataset.view === 'vocab-hub' && inVocab) ||
         (b.dataset.view === 'writing-hub' && inWriting) ||
@@ -6351,7 +6589,7 @@
       const res = await fetch('/shadow/phrase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: _sdLevel, topic: _sdTopic, style: _sdStyle }),
+        body: JSON.stringify({ level: _sdLevel, topic: _sdTopic, style: _sdStyle, ...getAnalyticsFields() }),
       });
       if (!res.ok) throw new Error('phrase fetch failed');
       const data = await res.json();
@@ -6767,6 +7005,7 @@
 
       paragraphSentences = data.sentences;
       paraFullAudioUrl   = data.full_audio_url;
+      paraSentenceAudioUrls = null;  // custom content has no per-sentence audio → blob + /tts chunks
       paragraphTopic     = 'custom';
 
       document.getElementById('para-full-text').textContent = text;
@@ -7112,7 +7351,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const res = await fetch('/speaking/phrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: shadowingSoundFocus || undefined, focus_word: activeFocusWord }),
+          body: JSON.stringify({ level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: shadowingSoundFocus || undefined, focus_word: activeFocusWord, ...getAnalyticsFields() }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -7878,7 +8117,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
             const d = await fetch('/tts', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: item.word }),
+              body: JSON.stringify({ text: item.word, voice: 'chirp-default' }),
             }).then(r => r.json());
             cachedAudioUrl = d.audio_url;
             playAudio(cachedAudioUrl);
@@ -7941,9 +8180,64 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let paraChunkIndex  = 0;
   let paraAudioUrl    = '';
   let paraFullAudioUrl = '';
+  let paraSentenceAudioUrls = null;  // banked per-sentence Chirp audio (null for custom content)
   let isParaBlurred   = false;
   let isParaLoading   = false;
   let paraAdvanceTimer = null;
+
+  // ── Sentence-playlist engine (banked paragraphs) ──────────────────────────────
+  // Banked paragraphs stitch per-sentence Chirp clips gaplessly (cohesion lives in
+  // the text). Custom content, which has no per-sentence audio, falls back to a
+  // single blob url. paraPlayNow() plays whichever the current stage set up.
+  let _paraPlaylist = null;   // { urls, idx, onDone }
+  let paraNowUrls   = null;   // playlist for the current stage (banked)
+  let paraNowSingle = null;   // single blob url for the current stage (custom)
+  let paraNowOnEnd  = null;   // completion callback for the current stage
+
+  function _stopParaPlaylist() {
+    if (currentAudio) { try { currentAudio.pause(); } catch (e) {} }
+    currentAudio = null;
+    _paraPlaylist = null;
+  }
+
+  function _paraPlaylistStep() {
+    const pl = _paraPlaylist;
+    if (!pl) return;
+    if (pl.idx >= pl.urls.length) {
+      _paraPlaylist = null;
+      currentAudio = null;
+      if (pl.onDone) pl.onDone();
+      return;
+    }
+    const url = pl.urls[pl.idx++];
+    currentAudio = new Audio(url);
+    if (pl.idx < pl.urls.length) {           // preload next for gapless-ish playback
+      const nx = new Audio(); nx.preload = 'auto'; nx.src = pl.urls[pl.idx];
+    }
+    currentAudio.addEventListener('ended', _paraPlaylistStep, { once: true });
+    currentAudio.play().catch(() => {});
+  }
+
+  function _playUrlList(urls, onDone) {
+    _stopParaPlaylist();
+    if (!urls || !urls.length) { if (onDone) onDone(); return; }
+    _paraPlaylist = { urls: urls.slice(), idx: 0, onDone };
+    _paraPlaylistStep();
+  }
+
+  // Play the audio configured for the current stage (playlist or single blob).
+  function paraPlayNow() {
+    if (paraNowUrls && paraNowUrls.length) {
+      _playUrlList(paraNowUrls, paraNowOnEnd);
+    } else if (paraNowSingle) {
+      playAudio(paraNowSingle);
+      if (currentAudio && paraNowOnEnd) {
+        currentAudio.addEventListener('ended', paraNowOnEnd, { once: true });
+      }
+    } else if (paraNowOnEnd) {
+      paraNowOnEnd();
+    }
+  }
 
   // ── Pattern tracking ────────────────────────────────────────────────────────
   let paragraphMismatches = [];      // Accumulate all mismatches in current paragraph
@@ -8314,7 +8608,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function replayParaAudio() {
-    if (paraAudioUrl) playAudio(paraAudioUrl);
+    paraPlayNow();
   }
 
   function setParaPlayBtnState(playing) {
@@ -8336,12 +8630,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     } else if (currentAudio && currentAudio.paused) {
       currentAudio.play().catch(() => {});
       setParaPlayBtnState(true);
-    } else if (paraAudioUrl) {
-      playAudio(paraAudioUrl);
+    } else if (paraNowUrls || paraNowSingle) {
+      paraPlayNow();
       setParaPlayBtnState(true);
-      if (currentAudio) {
-        currentAudio.addEventListener('ended', () => setParaPlayBtnState(false), { once: true });
-      }
     }
   }
 
@@ -8352,20 +8643,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     } else if (currentAudio && currentAudio.paused) {
       currentAudio.play().catch(() => {});
       setParaContextBtnState(true);
-    } else if (paraAudioUrl) {
-      playAudio(paraAudioUrl);
+    } else if (paraNowUrls || paraNowSingle) {
+      paraPlayNow();
       setParaContextBtnState(true);
-      if (currentAudio) {
-        currentAudio.addEventListener('ended', () => {
-          setParaContextBtnState(false);
-          advanceToNextStage();
-        }, { once: true });
-      }
     }
   }
 
   function skipContextAudio() {
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    _stopParaPlaylist();
     advanceToNextStage();
   }
 
@@ -8412,6 +8697,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
       paragraphSentences     = data.sentences;
       paraFullAudioUrl       = data.full_audio_url;
+      paraSentenceAudioUrls  = (data.sentence_audio_urls && data.sentence_audio_urls.length) ? data.sentence_audio_urls : null;
       paragraphTopic         = data.topic;
       paragraphNounAdjTokens = data.noun_adj_tokens || [];
       paragraphId            = data.paragraph_id || '';
@@ -8436,16 +8722,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('para-stage-label').textContent = 'Listen to full paragraph for context';
     setParaState('context');
 
-    paraAudioUrl = paraFullAudioUrl;
-    playAudio(paraAudioUrl);
+    // Full read: stitch all sentence clips (banked) or play the blob (custom).
+    paraNowOnEnd  = () => { setParaContextBtnState(false); advanceToNextStage(); };
+    paraNowUrls   = paraSentenceAudioUrls ? paraSentenceAudioUrls.slice() : null;
+    paraNowSingle = paraSentenceAudioUrls ? null : paraFullAudioUrl;
+    paraAudioUrl  = paraFullAudioUrl;  // legacy field kept in sync for custom path
+    paraPlayNow();
     setParaContextBtnState(true);
-
-    if (currentAudio) {
-      currentAudio.addEventListener('ended', () => {
-        setParaContextBtnState(false);
-        advanceToNextStage();
-      }, { once: true });
-    }
   }
 
   function renderParagraphWithChunkHighlight() {
@@ -8481,19 +8764,28 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const chunk = paragraphSentences.slice(start, end);
     const chunkText = chunk.join(' ');
 
-    // Generate audio for this chunk
-    try {
-      const res = await fetch('/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: chunkText }),
-      });
-      const data = await res.json();
-      paraAudioUrl = data.audio_url;
-    } catch (err) {
-      console.error('Failed to load chunk audio:', err);
-      return;
+    // Banked paragraphs stitch the chunk's cached sentence clips (no synthesis);
+    // custom content (no per-sentence audio) still fetches the chunk via /tts.
+    if (paraSentenceAudioUrls) {
+      paraNowUrls   = paraSentenceAudioUrls.slice(start, end);
+      paraNowSingle = null;
+    } else {
+      try {
+        const res = await fetch('/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: chunkText, voice: 'chirp-default' }),
+        });
+        const data = await res.json();
+        paraAudioUrl  = data.audio_url;
+        paraNowUrls   = null;
+        paraNowSingle = paraAudioUrl;
+      } catch (err) {
+        console.error('Failed to load chunk audio:', err);
+        return;
+      }
     }
+    paraNowOnEnd = () => setParaPlayBtnState(false);
 
     // Update display with chunk highlighting
     renderParagraphWithChunkHighlight();
@@ -8503,14 +8795,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     resetParaScoreBar();
 
     // Auto-play; both buttons enabled immediately so user can pause and record at any time
-    playAudio(paraAudioUrl);
+    paraPlayNow();
     document.getElementById('para-replay-btn').disabled = false;
     document.getElementById('para-mic-btn').disabled = false;
     setParaPlayBtnState(true);
     trackEvent('chunk_listened', { paragraph_id: paragraphId, chunk_index: paraChunkIndex, chunk_size: chunkSize });
-    if (currentAudio) {
-      currentAudio.addEventListener('ended', () => setParaPlayBtnState(false), { once: true });
-    }
   }
 
   function advanceToNextStage() {
@@ -8548,7 +8837,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function handleParaAction() {
-    if (currentAudio && !currentAudio.paused) { currentAudio.pause(); currentAudio = null; }
+    _stopParaPlaylist();
     // Fade out results so the chunk load doesn't snap everything away at once
     ['para-viz', 'para-tray-results', 'para-action-btn'].forEach(id => {
       document.getElementById(id)?.classList.add('para-chunk-exit');
@@ -8946,7 +9235,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     let cur = null;
     wordSlice.forEach(w => {
       const state = w.matched ? 'pass' : (w.said ? 'fail' : 'unheard');
-      const text  = w.matched ? w.word : (w.said || w.word);
+      const text  = w.word;
       if (cur && cur.state === state) {
         cur.words.push(text);
       } else {
@@ -9034,7 +9323,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function enterSentenceDrill(idx, btn) {
     document.querySelectorAll('.pv-ss-drill-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    openDrillTray(paragraphSentences[idx], 'paragraph');
+    const bankedUrl = (paraSentenceAudioUrls && paraSentenceAudioUrls[idx]) || null;
+    openDrillTray(paragraphSentences[idx], 'paragraph', bankedUrl);
   }
 
   function exitSentenceDrill() {
@@ -9204,7 +9494,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
               const r = await fetch('/tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: d.phrase }),
+                body: JSON.stringify({ text: d.phrase, voice: 'chirp-default' }),
               }).then(x => x.json());
               ctxAudioUrl = r.audio_url;
               playAudio(ctxAudioUrl);
@@ -9997,6 +10287,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let comprNumParagraphs = 2;
   let comprPassage      = '';
   let comprAudioUrl     = '';
+  let comprAudioLoading = false;
   let comprQuestions    = [];
   let comprVocabPreview = [];
   let comprAnswers      = [];
@@ -10007,6 +10298,16 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let comprAudio        = null;
   let comprQAudio       = null;
   let comprQAudioUrl    = null;
+
+  // Natural French (casual spoken dialogue) — shares the comprehension runner.
+  let comprMode    = 'passage';   // 'passage' (Listen & Answer) | 'dialogue' (Natural French)
+  let comprPassageVoice = 'chirp-random';  // fixed voice for a banked passage (stable cache), else random
+  let comprLines   = [];          // [{speaker, text, audio_url}] in dialogue mode
+  let natLevel     = 'B1';
+  let natTopic     = 'deux amis qui se racontent leur week-end';
+  let dlgAudios    = [];           // preloaded Audio objects, one per line
+  let dlgIndex     = 0;            // current line being played
+  let dlgPlaying   = false;
 
   const _comprLevelMeta = {
     A1: { wpp: 40, desc: 'présent simple · vocabulaire courant' },
@@ -10026,10 +10327,60 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (paraEl)  paraEl.textContent  = `~${meta.wpp * comprNumParagraphs} mots`;
   }
 
-  function compConfirmBack() {
-    if (comprPassage && !confirm('Quitter la session ? Ta progression sera perdue.')) return;
-    switchView('comprehension-hub');
+  function _comprHubView() {
+    if (comprMode === 'dialogue')  return 'natural-hub';
+    return 'comprehension-hub';
   }
+
+  function compConfirmBack() {
+    const hasSession = comprPassage || comprLines.length;
+    if (hasSession && !confirm('Quitter la session ? Ta progression sera perdue.')) return;
+    _dlgStop();
+    switchView(_comprHubView());
+  }
+
+  function compTryAgain() {
+    if (comprMode === 'dialogue') startNatural();
+    else startComprehension();
+  }
+
+  function compNewSession() {
+    _dlgStop();
+    switchView(_comprHubView());
+  }
+
+  // ── Natural French hub selectors ──
+  const _natLevelMeta = {
+    A2: 'situations très courantes · phrases courtes',
+    B1: 'conversation du quotidien · expressions familières',
+    B2: 'opinions et nuance · argot léger',
+    C1: 'implicite et ironie · argot, débit naturel',
+    C2: 'registre familier riche · sous-entendus',
+  };
+  function _natUpdateLevelDesc() {
+    const el = document.getElementById('nat-level-desc');
+    if (el) el.textContent = _natLevelMeta[natLevel] || '';
+  }
+  function selectNatLevel(btn) {
+    document.querySelectorAll('#nat-hub-levels .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    natLevel = btn.dataset.level;
+    _natUpdateLevelDesc();
+  }
+  function selectNatTopic(btn) {
+    document.querySelectorAll('#nat-hub-topics .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    natTopic = btn.dataset.topic;
+    document.getElementById('nat-custom-topic-input').value = '';
+  }
+  function addNatCustomTopic() {
+    const input = document.getElementById('nat-custom-topic-input');
+    const val = input.value.trim();
+    if (!val) return;
+    natTopic = val;
+    document.querySelectorAll('#nat-hub-topics .hub-subject-chip').forEach(b => b.classList.remove('active'));
+  }
+  document.addEventListener('DOMContentLoaded', () => _natUpdateLevelDesc());
 
   document.addEventListener('DOMContentLoaded', () => _comprUpdateLevelDesc());
 
@@ -10064,8 +10415,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   async function startComprehension() {
+    comprMode = 'passage';
+    _dlgStop(); comprLines = [];
+    document.getElementById('comp-header-title').textContent = 'Listen & Answer';
+    document.getElementById('comp-new-btn').textContent = 'New passage';
+    document.getElementById('comp-transcript-text').style.whiteSpace = '';
     switchView('comprehension');
-    comprPassage = ''; comprAudioUrl = ''; comprQuestions = []; comprVocabPreview = []; comprAnswers = [];
+    comprPassage = ''; comprAudioUrl = ''; comprAudioLoading = false; comprQuestions = []; comprVocabPreview = []; comprAnswers = [];
     comprCurrentQ = 0; comprScore = 0; comprListenCount = 0; comprQAttempts = 0;
     const listenCountEl = document.getElementById('comp-listen-count');
     if (listenCountEl) listenCountEl.style.display = 'none';
@@ -10088,6 +10444,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       });
       const data = await res.json();
       comprPassage      = data.passage || '';
+      comprPassageVoice = data.voice || 'chirp-random';
       comprAudioUrl     = data.audio_url || '';
       comprQuestions    = data.questions || [];
       comprVocabPreview = data.vocab_preview || [];
@@ -10098,13 +10455,173 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       _comprRenderVocab();
       _comprSetState('passage');
       document.getElementById('comp-listen-guidance').textContent = '1ère écoute — repérez le sujet général';
-      compPlayAudio();
+      // Audio is rendered lazily so the passage shows instantly; play once ready.
+      if (comprAudioUrl) compPlayAudio();
+      else _comprLoadAudio();
     } catch (e) {
       _comprSetState('passage');
       document.getElementById('comp-audio-status').textContent = 'Error generating passage — try again';
     } finally {
       if (btn) btn.disabled = false;
     }
+  }
+
+  async function startNatural() {
+    comprMode = 'dialogue';
+    _dlgStop();
+    comprPassage = ''; comprLines = []; comprAudioUrl = ''; comprAudioLoading = false;
+    comprQuestions = []; comprVocabPreview = []; comprAnswers = [];
+    comprCurrentQ = 0; comprScore = 0; comprListenCount = 0; comprQAttempts = 0;
+    comprLevel = natLevel; comprTopic = natTopic;   // shared reads (results/analytics)
+
+    document.getElementById('comp-header-title').textContent = 'Dialogue French';
+    document.getElementById('comp-new-btn').textContent = 'New dialogue';
+    // Dialogue transcript is rendered as labelled lines, not a wrapped paragraph.
+    document.getElementById('comp-transcript-text').style.whiteSpace = 'normal';
+
+    switchView('comprehension');
+    const listenCountEl = document.getElementById('comp-listen-count');
+    if (listenCountEl) listenCountEl.style.display = 'none';
+    const notesEl = document.getElementById('comp-notes-textarea');
+    if (notesEl) notesEl.value = '';
+    document.getElementById('comp-notes-body').style.display = 'none';
+    document.getElementById('comp-notes-toggle').classList.remove('open');
+
+    _comprSetState('loading');
+    const btn = document.getElementById('nat-generate-btn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch('/natural/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: natLevel, topic: natTopic, ...getAnalyticsFields() }),
+      });
+      const data = await res.json();
+      comprLines        = data.lines || [];
+      comprQuestions    = data.questions || [];
+      comprVocabPreview = data.vocab_preview || [];
+      comprPassage      = comprLines.map(l => l.text).join(' ');  // marks an active session
+
+      _dlgRenderTranscript();
+      document.getElementById('comp-q-total').textContent = comprQuestions.length;
+      _comprRenderVocab();
+      _comprSetState('passage');
+      document.getElementById('comp-listen-guidance').textContent = '1ère écoute — repérez le sujet de la conversation';
+
+      // Play at the natural Chirp pace; the in-player speed control still lets the
+      // learner slow it down manually if they want.
+      setPlaybackSpeed(1);
+      if (comprLines.length) _dlgStart();
+      else document.getElementById('comp-audio-status').textContent = 'Dialogue indisponible — réessayez';
+    } catch (e) {
+      _comprSetState('passage');
+      document.getElementById('comp-audio-status').textContent = 'Error generating dialogue — try again';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function _dlgRenderTranscript() {
+    const el = document.getElementById('comp-transcript-text');
+    const clean = (t) => (t || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/_(.+?)_/g, '$1');
+    el.innerHTML = comprLines.map((l, i) =>
+      `<span class="dlg-line" id="dlg-line-${i}"><span class="dlg-spk dlg-spk-${l.role || l.speaker}">${esc(l.speaker)}</span>${esc(clean(l.text))}</span>`
+    ).join('');
+  }
+
+  function _dlgHighlight(i) {
+    document.querySelectorAll('.dlg-line').forEach(n => n.classList.remove('dlg-line-active'));
+    if (i != null) document.getElementById('dlg-line-' + i)?.classList.add('dlg-line-active');
+  }
+
+  function _dlgStop() {
+    dlgPlaying = false;
+    dlgAudios.forEach(a => { try { a.pause(); a.onended = null; a.ontimeupdate = null; } catch (e) {} });
+    dlgAudios = [];
+    dlgIndex = 0;
+    _dlgHighlight(null);
+  }
+
+  function _dlgStart() {
+    _dlgStop();
+    dlgAudios = comprLines.map(l => {
+      const a = new Audio(l.audio_url);
+      a.playbackRate = audioPlaybackRate;
+      a.preload = 'auto';
+      return a;
+    });
+    _dlgPlayFrom(0);
+  }
+
+  function _dlgIcons(playing) {
+    document.getElementById('comp-play-icon').style.display  = playing ? 'none' : '';
+    document.getElementById('comp-pause-icon').style.display = playing ? '' : 'none';
+  }
+
+  function _dlgPlayFrom(i) {
+    if (i >= dlgAudios.length) { _dlgEndedAll(); return; }
+    dlgIndex = i;
+    dlgPlaying = true;
+    const audio = dlgAudios[i];
+    const line  = comprLines[i];
+    const n      = dlgAudios.length;
+    const statusEl   = document.getElementById('comp-audio-status');
+    const progressEl = document.getElementById('comp-audio-progress');
+    _dlgHighlight(i);
+    _dlgIcons(true);
+    if (statusEl) statusEl.textContent = `${line.speaker} parle…`;
+    audio.ontimeupdate = () => {
+      const frac = audio.duration ? (audio.currentTime / audio.duration) : 0;
+      progressEl.style.width = ((i + frac) / n * 100) + '%';
+    };
+    audio.onended = () => {
+      if (!dlgPlaying) return;          // a stop/replay happened
+      _dlgPlayFrom(i + 1);
+    };
+    // Preload the next line so turn-taking is gapless.
+    if (dlgAudios[i + 1]) { try { dlgAudios[i + 1].load(); } catch (e) {} }
+    audio.play().catch(() => {});
+  }
+
+  function _dlgEndedAll() {
+    dlgPlaying = false;
+    _dlgHighlight(null);
+    _dlgIcons(false);
+    document.getElementById('comp-audio-progress').style.width = '100%';
+    document.getElementById('comp-audio-status').textContent = 'Terminé';
+    comprListenCount++;
+    const listenCountEl = document.getElementById('comp-listen-count');
+    if (listenCountEl) { listenCountEl.textContent = `Écouté ${comprListenCount}×`; listenCountEl.style.display = ''; }
+    const guidanceEl = document.getElementById('comp-listen-guidance');
+    if (guidanceEl) {
+      if (comprListenCount === 1) {
+        guidanceEl.textContent = '2e écoute — préparez-vous aux questions';
+        document.getElementById('comp-start-quiz-btn')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        guidanceEl.textContent = 'Prêt·e ? Commencez le quiz ↓';
+      }
+    }
+  }
+
+  function _dlgToggle() {
+    if (!dlgAudios.length) { _dlgStart(); return; }
+    const audio = dlgAudios[dlgIndex];
+    if (audio && !audio.paused) {
+      dlgPlaying = false;
+      audio.pause();
+      _dlgIcons(false);
+      document.getElementById('comp-audio-status').textContent = 'Pause';
+    } else {
+      dlgPlaying = true;
+      _dlgIcons(true);
+      _dlgHighlight(dlgIndex);
+      if (audio) { document.getElementById('comp-audio-status').textContent = `${comprLines[dlgIndex].speaker} parle…`; audio.play().catch(() => {}); }
+    }
+  }
+
+  function _dlgReplay() {
+    _dlgStart();
   }
 
   function _comprRenderVocab() {
@@ -10143,8 +10660,27 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('comp-results-section').style.display = state === 'results'           ? '' : 'none';
   }
 
+  async function _comprLoadAudio() {
+    if (comprMode !== 'passage') return;   // dialogue supplies its own per-line audio
+    if (!comprPassage || comprAudioLoading) return;
+    comprAudioLoading = true;
+    const statusEl = document.getElementById('comp-audio-status');
+    if (statusEl) statusEl.textContent = 'Préparation de l’audio…';
+    try {
+      const res  = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: comprPassage, voice: comprPassageVoice }) });
+      const data = await res.json();
+      comprAudioUrl = data.audio_url || '';
+      if (comprAudioUrl) compPlayAudio();
+      else if (statusEl) statusEl.textContent = 'Audio indisponible — réessayez';
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Audio indisponible — réessayez';
+    } finally {
+      comprAudioLoading = false;
+    }
+  }
+
   function compPlayAudio() {
-    if (!comprAudioUrl) return;
+    if (!comprAudioUrl) { _comprLoadAudio(); return; }
     if (comprQAudio && !comprQAudio.paused) comprQAudio.pause();
     if (comprAudio) { comprAudio.pause(); comprAudio = null; }
     comprAudio = new Audio(comprAudioUrl);
@@ -10193,6 +10729,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function compToggleAudio() {
+    if (comprMode === 'dialogue') { _dlgToggle(); return; }
     if (!comprAudio) { compPlayAudio(); return; }
     if (comprAudio.paused) {
       if (comprQAudio && !comprQAudio.paused) comprQAudio.pause();
@@ -10203,7 +10740,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function compReplayAudio() {
-    if (!comprAudioUrl) return;
+    if (comprMode === 'dialogue') { _dlgReplay(); return; }
+    if (!comprAudioUrl) { _comprLoadAudio(); return; }
     if (comprAudio) { comprAudio.pause(); comprAudio = null; }
     compPlayAudio();
   }
@@ -10246,6 +10784,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (!q) return;
 
     document.getElementById('comp-q-num').textContent = comprCurrentQ + 1;
+
+    // optional per-question subject label (hidden unless a question supplies one)
+    const subjEl = document.getElementById('comp-q-subject');
+    if (subjEl) {
+      if (q.subject) { subjEl.textContent = q.subject; subjEl.style.display = ''; }
+      else subjEl.style.display = 'none';
+    }
 
     // question type badge
     const typeLabels = { literal: 'Rappel', inference: 'Inférence', vocabulary: 'Vocabulaire', main_idea: 'Idée principale' };
@@ -10419,6 +10964,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       question:    comprQuestions[comprCurrentQ]?.question || '',
       options:     comprQuestions[comprCurrentQ]?.options  || [],
       type:        comprQuestions[comprCurrentQ]?.type     || '',
+      subject:     comprQuestions[comprCurrentQ]?.subject  || '',
       chosen,
       correct,
       explanation: explanation || '',
@@ -10449,14 +10995,25 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _comprSetState('results');
     const total = comprQuestions.length;
     const pct   = Math.round(comprScore / total * 100);
-    trackEvent('comprehension_answered', {
-      exercise_type: 'comprehension',
-      level: comprLevel,
-      topic: comprTopic,
-      question_count: total,
-      correct_count: comprScore,
-      score: total ? Math.round(comprScore / total * 1000) / 1000 : 0,
-    });
+    if (comprMode === 'dialogue') {
+      trackEvent('natural_listen_answered', {
+        exercise_type: 'natural_listen',
+        level: natLevel,
+        topic: natTopic,
+        question_count: total,
+        correct_count: comprScore,
+        score: total ? Math.round(comprScore / total * 1000) / 1000 : 0,
+      });
+    } else {
+      trackEvent('comprehension_answered', {
+        exercise_type: 'comprehension',
+        level: comprLevel,
+        topic: comprTopic,
+        question_count: total,
+        correct_count: comprScore,
+        score: total ? Math.round(comprScore / total * 1000) / 1000 : 0,
+      });
+    }
     const color = pct >= 75 ? '#1F5A40' : pct >= 50 ? '#8A5A00' : '#A8281C';
     document.getElementById('comp-score-display').textContent = `${comprScore}/${total}`;
     document.getElementById('comp-score-display').style.color = color;
@@ -10473,7 +11030,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const statusIcon  = correct ? '✓' : '✗';
         const chosenLabel = labels[a.chosen] !== undefined ? `${labels[a.chosen]}. ${esc(a.options[a.chosen] || '')}` : '—';
         const correctLabel = `${labels[a.correct]}. ${esc(a.options[a.correct] || '')}`;
+        const showSubj = a.subject && (idx === 0 || comprAnswers[idx - 1].subject !== a.subject);
         return `<div class="comp-review-row">
+          ${showSubj ? `<div class="review-subject">${esc(a.subject)}</div>` : ''}
           <div class="review-q">${idx + 1}. ${esc(a.question)}</div>
           <div class="review-answer" style="color:${statusColor};">${statusIcon} Ta réponse : ${chosenLabel}</div>
           ${!correct ? `<div class="review-answer" style="color:#1F5A40;">✓ Bonne réponse : ${correctLabel}</div>` : ''}
@@ -10514,7 +11073,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   let phraseInTray = false;
 
-  function openDrillTray(sentence, context) {
+  function openDrillTray(sentence, context, audioUrl) {
     // Stop any in-flight phrase audio/mic
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if (recognition) { try { recognition.stop(); } catch(e){} }
@@ -10540,7 +11099,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('drill-tray').classList.add('open');
 
     // Load the sentence
-    loadPhraseForDrill(sentence);
+    loadPhraseForDrill(sentence, audioUrl);
   }
 
   function closeDrillTray() {
@@ -10569,7 +11128,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('drill-tray-backdrop').classList.remove('open');
   }
 
-  async function loadPhraseForDrill(text) {
+  async function loadPhraseForDrill(text, audioUrl) {
     if (phraseAdvanceTimer) { clearTimeout(phraseAdvanceTimer); phraseAdvanceTimer = null; }
     phraseAttemptNumber = 0;
     phraseHighestScore  = -1;
@@ -10602,18 +11161,22 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     setShadowPlayBtnState(false);
     document.getElementById('phrase-replay-btn').disabled = true;
 
-    // Fetch TTS for this specific sentence
+    // Prefer the already-banked Chirp clip (same voice as the paragraph, no
+    // re-synthesis); otherwise synthesize this sentence on Chirp (chirp-default).
     try {
-      const res = await fetch('/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json();
+      let url = audioUrl;
+      if (!url) {
+        const res = await fetch('/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, voice: 'chirp-default' }),
+        });
+        url = (await res.json()).audio_url;
+      }
       if (!phraseInTray) return;
-      currentAudioUrl = data.audio_url;
+      currentAudioUrl = url;
       document.getElementById('phrase-replay-btn').disabled = false;
-      playAudio(data.audio_url);
+      playAudio(url);
     } catch(e) {
       console.error('loadPhraseForDrill TTS failed:', e);
     }
@@ -10672,7 +11235,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const res = await fetch('/dictation/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: dictLevel, topic: dictTopic }),
+        body: JSON.stringify({ level: dictLevel, topic: dictTopic, ...getAnalyticsFields() }),
       });
       const data = await res.json();
       dictSentenceId = data.sentence_id;
@@ -10937,10 +11500,18 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         }),
       });
       const data = await res.json();
-      _appendAttemptToHistory(responseText, data, writingAttempt);
+      const attemptNum = writingAttempt;
       writingAttempt++;
 
-      const done = !data.has_errors || writingAttempt > WRITING_MAX_ATTEMPTS;
+      const noErrors = !data.has_errors;
+      const maxedOut = writingAttempt > WRITING_MAX_ATTEMPTS;
+      const done = noErrors || maxedOut;
+
+      // On the final attempt we stop hiding anything — reveal every layer so the
+      // learner never ends up stranded without the answer.
+      _appendAttemptToHistory(responseText, data, attemptNum, maxedOut);
+      if (done) _appendWritingResolution(data, maxedOut, noErrors);
+
       document.getElementById('wr-rewrite-area').style.display = done ? 'none' : '';
       document.getElementById('wr-done-row').style.display     = done ? '' : 'none';
       if (!done) {
@@ -10975,8 +11546,24 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (btn) { btn.disabled = false; btn.textContent = 'Check →'; }
   }
 
-  function _appendAttemptToHistory(responseText, data, attemptNum) {
+  // Highlight each flagged excerpt in the learner's own text so they can see WHERE.
+  function _highlightExcerpts(text, corrections) {
+    let html = esc(text);
+    (corrections || []).forEach(c => {
+      const ex = (c.excerpt || '').trim();
+      if (!ex) return;
+      const escEx = esc(ex);
+      const idx = html.indexOf(escEx);
+      if (idx !== -1) {
+        html = html.slice(0, idx) + '<mark class="wr-mark">' + escEx + '</mark>' + html.slice(idx + escEx.length);
+      }
+    });
+    return html;
+  }
+
+  function _appendAttemptToHistory(responseText, data, attemptNum, forceReveal) {
     const history = document.getElementById('wr-history');
+    const corrections = data.corrections || [];
     const block = document.createElement('div');
     block.className = 'wr-attempt-block';
 
@@ -10987,13 +11574,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     const attemptText = document.createElement('div');
     attemptText.className = 'wr-attempt-text';
-    attemptText.textContent = responseText;
+    attemptText.innerHTML = _highlightExcerpts(responseText, corrections);
     block.appendChild(attemptText);
 
     if (!data.has_errors) {
       const ok = document.createElement('div');
       ok.className = 'wr-perfect';
-      ok.textContent = data.overall || 'Parfait — no errors found.';
+      ok.textContent = data.overall || 'Aucune erreur — nicely done.';
       block.appendChild(ok);
     } else {
       if (data.overall) {
@@ -11002,22 +11589,136 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         overall.textContent = data.overall;
         block.appendChild(overall);
       }
-      const tipsList = document.createElement('div');
-      tipsList.className = 'wr-tips-list';
-      (data.tips || []).forEach(tip => {
-        const item = document.createElement('div');
-        item.className = 'wr-tip-item';
-        item.innerHTML = `<span class="wr-tip-bullet">—</span><span>${esc(tip)}</span>`;
-        tipsList.appendChild(item);
-      });
-      block.appendChild(tipsList);
+      const list = document.createElement('div');
+      list.className = 'wr-corr-list';
+      corrections.forEach(c => list.appendChild(_renderWritingCorrection(c, forceReveal)));
+      block.appendChild(list);
+    }
 
-      if (writingAttempt > WRITING_MAX_ATTEMPTS) {
-        const limit = document.createElement('div');
-        limit.className = 'wr-overall';
-        limit.textContent = 'Maximum attempts reached — try a new prompt.';
-        block.appendChild(limit);
-      }
+    history.appendChild(block);
+  }
+
+  // One correction card with on-demand layered disclosure:
+  // nudge (always) → example (on "show an example") → fix + why (on "show correction").
+  function _renderWritingCorrection(c, forceReveal) {
+    const card = document.createElement('div');
+    card.className = 'wr-corr';
+
+    const head = document.createElement('div');
+    head.className = 'wr-corr-head';
+    if (c.category) {
+      const chip = document.createElement('span');
+      chip.className = 'wr-corr-chip';
+      chip.textContent = c.category;
+      head.appendChild(chip);
+    }
+    if (c.excerpt) {
+      const ex = document.createElement('span');
+      ex.className = 'wr-corr-excerpt';
+      ex.textContent = `“${c.excerpt}”`;
+      head.appendChild(ex);
+    }
+    card.appendChild(head);
+
+    if (c.nudge) {
+      const n = document.createElement('div');
+      n.className = 'wr-corr-layer wr-corr-nudge';
+      n.textContent = c.nudge;
+      card.appendChild(n);
+    }
+
+    const hasExample = !!(c.example && c.example.trim());
+    const hasFix = !!((c.fix && c.fix.trim()) || (c.why && c.why.trim()));
+
+    const exLayer = document.createElement('div');
+    exLayer.className = 'wr-corr-layer wr-corr-example';
+    exLayer.style.display = 'none';
+    if (hasExample) exLayer.innerHTML = `<span class="wr-corr-layer-label">Example</span><span>${esc(c.example)}</span>`;
+    card.appendChild(exLayer);
+
+    const fixLayer = document.createElement('div');
+    fixLayer.className = 'wr-corr-layer wr-corr-fix';
+    fixLayer.style.display = 'none';
+    let fixHtml = '';
+    if (c.fix && c.fix.trim()) fixHtml += `<div class="wr-corr-fix-line"><span class="wr-corr-layer-label">Correction</span><span class="wr-corr-fix-text">${esc(c.fix)}</span></div>`;
+    if (c.why && c.why.trim()) fixHtml += `<div class="wr-corr-why">${esc(c.why)}</div>`;
+    fixLayer.innerHTML = fixHtml;
+    card.appendChild(fixLayer);
+
+    const actions = document.createElement('div');
+    actions.className = 'wr-corr-actions';
+    const moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'wr-corr-reveal-btn';
+    moreBtn.textContent = 'Still stuck? Show an example';
+    const fixBtn = document.createElement('button');
+    fixBtn.type = 'button';
+    fixBtn.className = 'wr-corr-reveal-btn';
+    fixBtn.textContent = 'Show me the correction';
+    actions.appendChild(moreBtn);
+    actions.appendChild(fixBtn);
+    card.appendChild(actions);
+
+    moreBtn.onclick = () => {
+      exLayer.style.display = '';
+      moreBtn.style.display = 'none';
+      fixBtn.style.display = hasFix ? '' : 'none';
+    };
+    fixBtn.onclick = () => {
+      fixLayer.style.display = '';
+      fixBtn.style.display = 'none';
+    };
+
+    if (forceReveal) {
+      if (hasExample) exLayer.style.display = '';
+      if (hasFix) fixLayer.style.display = '';
+      moreBtn.style.display = 'none';
+      fixBtn.style.display = 'none';
+    } else if (hasExample) {
+      moreBtn.style.display = '';
+      fixBtn.style.display = 'none';
+    } else {
+      moreBtn.style.display = 'none';
+      fixBtn.style.display = hasFix ? '' : 'none';
+    }
+
+    return card;
+  }
+
+  // Always-shown closing block: the full corrected sentence (when there were
+  // errors) plus a native-like model answer to learn from.
+  function _appendWritingResolution(data, maxedOut, noErrors) {
+    const history = document.getElementById('wr-history');
+    const block = document.createElement('div');
+    block.className = 'wr-resolution';
+
+    if (maxedOut && !noErrors) {
+      const note = document.createElement('div');
+      note.className = 'wr-res-note';
+      note.textContent = 'Here it is all together, so nothing stays unclear.';
+      block.appendChild(note);
+    }
+
+    if (!noErrors && data.corrected_sentence) {
+      const lab = document.createElement('div');
+      lab.className = 'wr-res-label';
+      lab.textContent = 'Your sentence, corrected';
+      block.appendChild(lab);
+      const cs = document.createElement('div');
+      cs.className = 'wr-res-corrected';
+      cs.textContent = data.corrected_sentence;
+      block.appendChild(cs);
+    }
+
+    if (data.model_answer) {
+      const lab = document.createElement('div');
+      lab.className = 'wr-res-label';
+      lab.textContent = noErrors ? 'Another strong way to say it' : 'A model answer to learn from';
+      block.appendChild(lab);
+      const ma = document.createElement('div');
+      ma.className = 'wr-res-model';
+      ma.textContent = data.model_answer;
+      block.appendChild(ma);
     }
 
     history.appendChild(block);

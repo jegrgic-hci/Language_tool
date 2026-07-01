@@ -12,3 +12,4 @@ python-jose[cryptography]
 passlib[bcrypt]
 bcrypt==4.2.1
 httpx
+boto3

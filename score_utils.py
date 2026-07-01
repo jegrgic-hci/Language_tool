@@ -44,6 +44,8 @@ For each mismatch, provide:
 2. Whether this is a grammar/tense distinction (e.g. j'ai vs je, elision vs full form)
 3. If it IS a grammar distinction, a one-sentence grammar note
 
+IMPORTANT: Return exactly one feedback entry for EVERY mismatch in the list — same count, same order. Never skip, merge, or omit a mismatch, even if the transcribed word looks unrelated or nonsensical.
+
 French elision rules to recognize:
 - "j'" vs "je": elision before vowel — relevant for tense (j'ai = passé composé aux, je = present)
 - "m'" vs "me", "t'" vs "te", "s'" vs "se", "l'" vs "le/la", "n'" vs "ne", "d'" vs "de", "qu'" vs "que"
@@ -226,7 +228,7 @@ def analyze_mismatches(target: str, transcription: str, mismatches: list, client
                 {"role": "user", "content": payload},
             ],
             temperature=0.0,
-            max_tokens=400,
+            max_tokens=700,
         ).choices[0].message.content.strip()
         if not raw:
             return fallback
@@ -236,13 +238,37 @@ def analyze_mismatches(target: str, transcription: str, mismatches: list, client
                 raw = raw[5:]
             raw = raw.rstrip()
         feedback = json.loads(raw).get("feedback", [])
-        # Mistral normalises ‿/⁀ to spaces when echoing target_word back.
-        # Re-apply the original values from the input mismatches so link marks survive.
-        orig = {re.sub(r'[‿⁀]', ' ', m['target_word']): m['target_word'] for m in mismatches}
+        # Index Mistral's tips by normalised target word. Mistral normalises ‿/⁀
+        # to spaces when echoing target_word back, so key on the stripped form.
+        by_word = {}
         for item in feedback:
-            key = re.sub(r'[‿⁀]', ' ', item.get('target_word', ''))
-            if key in orig:
-                item['target_word'] = orig[key]
-        return feedback
+            key = re.sub(r'[‿⁀]', ' ', item.get('target_word', '')).strip().lower()
+            if key and key not in by_word:
+                by_word[key] = item
+        # Emit exactly one entry per mismatch, in order — Mistral sometimes drops
+        # mismatches it deems unrelated, which silently hides wrong words. The
+        # mismatch list is the source of truth for count/order; enrich with the
+        # matching tip when present, otherwise fall back to a tip-less entry.
+        result = []
+        for m in mismatches:
+            key = re.sub(r'[‿⁀]', ' ', m['target_word']).strip().lower()
+            item = by_word.get(key)
+            if item:
+                result.append({
+                    "target_word": m["target_word"],
+                    "said": m.get("said", ""),
+                    "tip": item.get("tip", ""),
+                    "is_grammar": item.get("is_grammar", False),
+                    "grammar_note": item.get("grammar_note", ""),
+                })
+            else:
+                result.append({
+                    "target_word": m["target_word"],
+                    "said": m.get("said", ""),
+                    "tip": "",
+                    "is_grammar": False,
+                    "grammar_note": "",
+                })
+        return result
     except Exception:
         return fallback
