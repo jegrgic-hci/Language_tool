@@ -2860,6 +2860,13 @@ Focus types and examples:
 - register: convert between tu/vous, or informal→formal vocabulary
 - number: change singular to plural (or plural to singular), adjusting all agreements
 
+CRITICAL — the source must NOT already satisfy the instruction. There has to be real work to do:
+- tense: the source must be in a DIFFERENT tense than the target named in the instruction. If the instruction says "au passé composé", the source must be present/futur/imparfait — never already passé composé. Also make sure the source's time markers are consistent with the target after transforming (e.g. don't pair "demain" with a request for passé composé).
+- negation: the source must already be in the opposite polarity (affirmative if you ask for negative, and vice versa).
+- pronoun: the source must still contain the full noun that needs replacing.
+- register: the source must be in the opposite register (tu if you ask for vous, and vice versa).
+- number: the source must be in the opposite number (singular if you ask for plural, and vice versa).
+
 Write the instruction in French as a direct command. One sentence only.
 Keep the source sentence natural and calibrated to the CEFR level.
 Return ONLY the raw JSON object, no markdown fences, no extra text."""
@@ -2881,10 +2888,18 @@ Return a JSON object with exactly these fields:
   "overall": "one sentence in English: honest and encouraging"
 }}
 
-Evaluate whether the learner correctly applied the transformation. Check:
+Before judging, silently work out the correct transformed sentence yourself. Then compare
+the learner's attempt against your own correct version. Evaluate:
 1. Did they apply the requested transformation correctly?
 2. Are there grammar errors in their version (agreement, conjugation, etc.)?
 3. Did they preserve the meaning and structure of the rest of the sentence?
+
+If the learner's attempt matches a valid correct transformation, set has_errors to false —
+even if their wording differs from yours, as long as it is grammatically correct and applies
+the requested change. Do NOT invent errors. Adjusting time markers to stay logical
+(e.g. "hier"→"demain" when moving to a future tense) is correct, not an error, as long as
+the requested transformation itself is applied. Never claim a form is wrong while also stating
+that same form is the right answer — re-check before you flag anything.
 
 NEVER give the correct form directly. Guide with hints.
 Use level-appropriate rule vocabulary:
