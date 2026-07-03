@@ -1650,18 +1650,45 @@ async def paragraph_start(req: ParagraphStartRequestWithSession):
         raise HTTPException(status_code=500, detail=f"Paragraph generation failed: {e}")
 
 
+def _dialogue_voice_sequence(sentences: list, voice_a: str, voice_b: str) -> list:
+    """Assign a Chirp voice to each sentence of a dialogue passage, switching speaker
+    at every em-dash turn marker so the two voices alternate per turn (a turn may span
+    several sentences). Falls back to a single voice if no turn markers are present."""
+    voices = []
+    current = voice_a
+    started = False
+    for sent in sentences:
+        stripped = sent.lstrip()
+        is_turn = stripped[:1] in ("—", "–") or stripped[:2] == "- "
+        if is_turn:
+            if started:
+                current = voice_b if current == voice_a else voice_a
+            started = True
+        voices.append(current)
+    return voices
+
+
 async def _generate_and_bank_passage(level: str, topic: str, style: str) -> dict:
     """Generate a cohesive paragraph, synthesize each sentence as its own Chirp
-    phrase (one shared narrator), and bank a PASSAGE + its PHRASEs. Generating a
-    paragraph thus seeds the reusable phrase pool. Returns the banked passage."""
+    phrase, and bank a PASSAGE + its PHRASEs. Generating a paragraph thus seeds the
+    reusable phrase pool. Dialogue passages get two alternating Chirp voices (one per
+    speaker turn, like Listen & Answer's Dialogue French); every other style uses a
+    single narrator. Returns the banked passage."""
     data = await asyncio.to_thread(lambda: generate_paragraph(level, topic, style))
-    voice = pick_narrator_voice()
+    sentences = data["sentences"]
+    if style == "dialogue":
+        va, vb = pick_dialogue_voices()
+        voices = _dialogue_voice_sequence(sentences, va, vb)
+        passage_voice = va
+    else:
+        passage_voice = pick_narrator_voice()
+        voices = [passage_voice] * len(sentences)
     phrase_ids = []
-    for sent in data["sentences"]:
+    for sent, voice in zip(sentences, voices):
         rec = await _synth_and_bank_phrase(sent, "standard", level, topic, style, voice)
         phrase_ids.append(rec["id"])
     return content_bank.add_passage(
-        "standard", level, topic, voice, phrase_ids,
+        "standard", level, topic, passage_voice, phrase_ids,
         style=style, noun_adj_tokens=data.get("noun_adj_tokens", []),
     )
 
@@ -2062,52 +2089,98 @@ async def listen_generate(req: Request):
 
 # ── Natural French (casual spoken dialogue) routes ───────────────────────────────
 
-_NATURAL_SYSTEM = """You are a French content generator that writes AUTHENTIC SPOKEN French dialogue
-the way two native speakers actually talk to each other in everyday life — the kind a learner
-hears in films, podcasts, and real conversation, NOT clean textbook French.
-
-Return ONLY valid JSON with this exact structure — no markdown, no explanation, just JSON:
-{
-  "title": "short French title for the scene",
-  "lines": [
-    { "speaker": "<first speaker name>", "text": "one turn of casual spoken French" },
-    { "speaker": "<second speaker name>", "text": "the reply" }
-  ],
-  "vocab_preview": [
-    { "word": "exact casual word/expression from the dialogue", "gloss": "brief French-only definition", "example": "the exact line containing it" }
-  ],
-  "questions": [
-    { "type": "literal", "question": "Question in French?", "options": ["A","B","C","D"], "correct_index": 0, "explanation": "Short French explanation." }
-  ]
+# Dialogue register presets — the learner picks one in the hub. Each supplies a
+# one-line scene framing (`intro`) and a REGISTER block that swaps in/out of the
+# shared prompt below. Slang density is now a user choice, so lower levels can get
+# clean everyday speech instead of heavy argot. The key doubles as the content-bank
+# `style` so the three registers bank into separate buckets and never cross-pollinate.
+_NATURAL_REGISTERS = {
+    "conversational": {
+        "intro": "the way two friends actually talk to each other in everyday life — casual "
+                 "and relaxed, full of slang and spoken shortcuts, the kind a learner hears in "
+                 "films, podcasts and real conversation, NOT clean textbook French",
+        "rules": """REGISTER — CASUAL / SLANG (apply heavily, this is the whole point):
+- The two speakers are friends: they use "tu".
+- DROP the "ne" of negation everywhere: "j'ai pas", "je sais pas", "c'est pas", "y a personne".
+- Spoken fillers and connectors, used naturally: "ben", "bah", "ouais", "du coup", "en fait", "genre", "quoi", "t'sais", "voilà", "bref", "carrément", "grave".
+- Colloquial / slang vocabulary: "un truc", "un machin", "bosser", "bouffer", "kiffer", "chelou", "trop", "vachement", "c'est chaud", "ça marche".
+- Casual reactions and interruptions: "ah ouais ?", "non mais grave", "ah bon ?", "sérieux ?".""",
+    },
+    "everyday": {
+        "intro": "natural, everyday spoken French between two people — clear and relaxed but "
+                 "WITHOUT slang, the kind of plain conversation a learner needs to follow real "
+                 "life (a shop, a café, asking directions, family) without getting lost in argot",
+        "rules": """REGISTER — EVERYDAY / CLEAR (natural but low-slang — this is the point):
+- The priority is CLARITY. This register is for lower levels, so keep it plain and easy to follow.
+- Dropping "ne" is fine and natural ("j'ai pas", "je sais pas", "c'est pas").
+- A FEW light, common fillers are OK, used SPARINGLY: "ben", "alors", "du coup", "voilà", "bon". Do not pack them in.
+- Use STANDARD everyday vocabulary. Do NOT use slang: avoid "kiffer", "bosser", "bouffer", "chelou", "vachement", "grave", "un truc", "un machin", "carrément".
+- Use "tu" between friends or family, "vous" with a stranger or in a shop — match it to the situation.
+- Keep sentences short and concrete.""",
+    },
+    "professional": {
+        "intro": "spoken French in a professional / workplace setting — polite and standard, the "
+                 "register used with colleagues, clients and in meetings: natural and spoken but "
+                 "never slangy",
+        "rules": """REGISTER — PROFESSIONAL / POLITE (standard workplace French):
+- The speakers use "vous" and stay polite and courteous throughout.
+- Standard register: keeping the full "ne...pas" or lightly reducing it is fine, but NO slang and NO casual fillers ("ouais", "grave", "kiffer", "bosser", "chelou" are all forbidden).
+- Use professional / workplace vocabulary suited to the situation (réunion, dossier, projet, client, échéance, collègue, entretien).
+- Polite forms and hedging: "je vous en prie", "pourriez-vous", "je pense que", "il faudrait peut-être", "si possible".
+- Still spoken and natural — not a written report — but measured and clear, not chatty.""",
+    },
 }
 
-SPOKEN-FRENCH RULES (this is the whole point — apply them heavily):
-- DROP the "ne" of negation: "j'ai pas", "je sais pas", "c'est pas", "y a personne" (never "je ne sais pas")
-- Use spoken fillers and connectors naturally: "ben", "bah", "ouais", "du coup", "en fait", "genre", "quoi", "t'sais", "voilà", "bref", "carrément", "grave"
-- Use colloquial vocabulary and register: "un truc", "un machin", "bosser", "bouffer", "kiffer", "chelou", "trop", "vachement", "c'est chaud", "ça marche"
-- Use the elisions that TTS pronounces cleanly: "t'as", "t'es", "y a", "j'ai", "j'sais", "c'est", "qu'est-ce que", "j'vais", "i'faut"
+
+def _natural_system(dtype: str) -> str:
+    """Build the Dialogue French system prompt for the chosen register. The REGISTER
+    block swaps by `dtype`; everything else (TTS-safe forms, unscripted feel, content
+    rules) is shared across all three registers."""
+    reg = _NATURAL_REGISTERS.get(dtype, _NATURAL_REGISTERS["conversational"])
+    return f"""You are a French content generator that writes AUTHENTIC SPOKEN French dialogue —
+{reg['intro']}.
+
+Return ONLY valid JSON with this exact structure — no markdown, no explanation, just JSON:
+{{
+  "title": "short French title for the scene",
+  "lines": [
+    {{ "speaker": "<first speaker name>", "text": "one turn of spoken French" }},
+    {{ "speaker": "<second speaker name>", "text": "the reply" }}
+  ],
+  "vocab_preview": [
+    {{ "word": "exact word/expression from the dialogue", "gloss": "brief French-only definition", "example": "the exact line containing it" }}
+  ],
+  "questions": [
+    {{ "type": "literal", "question": "Question in French?", "options": ["A","B","C","D"], "correct_index": 0, "explanation": "Short French explanation." }}
+  ]
+}}
+
+{reg['rules']}
+
+TTS-SAFE SPOKEN FORMS (apply in every register):
+- Use only the elisions the voice pronounces cleanly: "t'as", "t'es", "y a", "j'ai", "j'sais", "c'est", "qu'est-ce que", "j'vais", "i'faut".
 - DO NOT write hard phonetic reductions that text-to-speech mispronounces — AVOID "chais pas", "chuis", "oué", "ché". Write "j'sais pas", "j'suis", "ouais" instead.
-- Natural turn-taking: short reactions, interruptions, agreement ("ah ouais ?", "non mais grave", "ah bon ?"), questions back
 
 SOUND UNSCRIPTED, NOT LIKE A LESSON (this is what makes or breaks it):
 - It's an overheard conversation, not a Q&A. Do NOT have one person cleanly ask and the other cleanly answer, turn after turn.
-- Vary turn length a LOT: mix one- or two-word reactions ("Ah ouais ?", "Mmh.", "Sérieux ?", "Attends", "Nan mais grave", "Genre") with longer rambling turns.
+- Vary turn length a LOT: mix one- or two-word reactions ("Ah oui ?", "Mmh.", "Attends", "D'accord") with longer turns.
 - Some turns should just react or agree and add nothing new — that's how real talk works.
-- Let the topic DRIFT: they can wander onto a mutual friend, a side story or a tangent, then loop back.
-- Interruptions, talking over each other, and finishing the other's thought are good.
-- Ground it in concrete specifics — a real-sounding place, dish, time, or a named friend — so it feels lived-in, not generic.
-- Light emotional colour: complaining, teasing, surprise, a laugh ("haha") used sparingly.
+- Let the topic DRIFT: they can wander onto a mutual acquaintance, a side story or a tangent, then loop back.
+- Interruptions and finishing the other's thought are good.
+- Ground it in concrete specifics — a real-sounding place, time, dish or named person — so it feels lived-in, not generic.
+- Light emotional colour: mild complaining, surprise, a laugh ("haha") used sparingly (fit it to the register).
 - Keep false starts LIGHT for the voice: at most an occasional self-correction with a comma ("enfin, je veux dire"). NEVER use "..." — the TTS reads it as a long dead pause.
 
 CONTENT RULES:
-- 2 speakers only, alternating. Use the two speaker NAMES given in the user message as the "speaker" label on every line, and refer to the speakers by those names in every question, option, and explanation — never "A"/"B" or "le premier locuteur"
-- Calibrate richness to CEFR level (vocabulary breadth and idiom density), but the spoken register above ALWAYS applies, even at A2/B1
-- A2: 6-8 short turns, very common situations. B1: 8-12 turns. B2: 10-14 turns, opinions and nuance. C1/C2: 12-16 turns, implicit meaning, irony, slang.
-- vocab_preview: 4-6 of the most useful CASUAL words/expressions actually used in the dialogue (prefer the spoken-register items over neutral words)
-- Questions: include one of each type in this order — "literal", "inference", "vocabulary", "main_idea"; quote the word for vocabulary questions; all French; plausible distractors that fail on close listening
-- Everything (lines, questions, options, explanations, glosses) in French"""
+- 2 speakers only, alternating. Use the two speaker NAMES given in the user message as the "speaker" label on every line, and refer to the speakers by those names in every question, option, and explanation — never "A"/"B" or "le premier locuteur".
+- Calibrate richness to CEFR level (vocabulary breadth and idiom density), but the REGISTER above ALWAYS applies, at every level.
+- A1: 5-6 very short, simple turns, one everyday situation. A2: 6-8 short turns, very common situations. B1: 8-12 turns. B2: 10-14 turns, opinions and nuance. C1/C2: 12-16 turns, implicit meaning and irony.
+- vocab_preview: 4-6 of the most useful words/expressions actually used in the dialogue (prefer items that fit the register above).
+- Questions: include one of each type in this order — "literal", "inference", "vocabulary", "main_idea"; quote the word for vocabulary questions; all French; plausible distractors that fail on close listening.
+- Everything (lines, questions, options, explanations, glosses) in French."""
 
-_NATURAL_Q_COUNT = {"A2": 3, "B1": 4, "B2": 4, "C1": 5, "C2": 5}
+
+_NATURAL_Q_COUNT = {"A1": 3, "A2": 3, "B1": 4, "B2": 4, "C1": 5, "C2": 5}
 
 
 async def _render_dialogue_lines(banked_lines: list) -> list:
@@ -2133,23 +2206,26 @@ async def natural_generate(req: Request):
     data = await req.json()
     level = data.get("level", "B1")
     topic = data.get("topic", "la vie quotidienne")
+    dtype = data.get("type", "conversational")  # register preset; also the bank style
+    if dtype not in _NATURAL_REGISTERS:
+        dtype = "conversational"
     speed = data.get("speed", "normal")  # playback preset, applied client-side; kept for analytics
     session_id = data.get("session_id")
     access_code = data.get("access_code")
     visit_id = data.get("visit_id")
     q_count = _NATURAL_Q_COUNT.get(level, 4)
 
-    # Reuse an unseen banked dialogue first (register="casual"); generate + bank
-    # only on exhaustion. The banked lines carry their per-speaker voice, so reuse
-    # replays from the audio cache for free.
-    dlg = _bank_pick("passage", "casual", level, topic, "", access_code)
+    # Reuse an unseen banked dialogue first (register="casual", style=register preset);
+    # generate + bank only on exhaustion. The banked lines carry their per-speaker
+    # voice, so reuse replays from the audio cache for free.
+    dlg = _bank_pick("passage", "casual", level, topic, dtype, access_code)
     if dlg is not None:
         out_lines = await _render_dialogue_lines(dlg.get("lines", []))
         _analytics.mark_bank_seen(access_code, dlg["id"], "dialogue")
         if session_id and access_code:
             _analytics.track(session_id, access_code, "natural_listen_started", {
                 "exercise_type": "natural_listen", "level": level, "topic": topic,
-                "speed": speed, "question_count": len(dlg.get("questions", [])),
+                "type": dtype, "speed": speed, "question_count": len(dlg.get("questions", [])),
             }, visit_id)
         return {"title": dlg.get("title", ""), "lines": out_lines,
                 "questions": dlg.get("questions", []), "vocab_preview": dlg.get("vocab_preview", [])}
@@ -2173,7 +2249,7 @@ async def natural_generate(req: Request):
     resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
         model=_MODEL,
         messages=[
-            {"role": "system", "content": _NATURAL_SYSTEM},
+            {"role": "system", "content": _natural_system(dtype)},
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
@@ -2224,7 +2300,8 @@ async def natural_generate(req: Request):
 
     out_lines = await _render_dialogue_lines(banked_lines)
     dlg_rec = content_bank.add_passage(
-        "casual", level, topic, voice_a, [], questions=questions, vocab_preview=vocab_preview,
+        "casual", level, topic, voice_a, [], style=dtype,
+        questions=questions, vocab_preview=vocab_preview,
         payload={"title": title, "lines": banked_lines, "voices": [voice_a, voice_b]},
     )
     _analytics.mark_bank_seen(access_code, dlg_rec["id"], "dialogue")
@@ -2234,6 +2311,7 @@ async def natural_generate(req: Request):
             "exercise_type": "natural_listen",
             "level": level,
             "topic": topic,
+            "type": dtype,
             "speed": speed,
             "question_count": len(questions),
         }, visit_id)

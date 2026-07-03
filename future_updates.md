@@ -45,6 +45,29 @@ particular — so they should come back, but only once we can give honest feedba
 
 ---
 
+## 2. STT upgrade → open "Speak this dialogue" to the casual register
+
+**Dependency:** the same phoneme-level / more robust STT as item 1 (the Web Speech API's weakness on
+reduced conversational speech).
+
+**Why parked:** the listening **Dialogue French** exercise can now be shadowed (speaking practice on
+a dialogue you've just heard — reuses the already-cached Chirp audio, so no new spend). But this is
+gated to the **everyday** and **professional** registers only. The **conversational** register is
+withheld because its fillers and reductions (`ben`, `bah`, `ouais`, `du coup`, `genre`, `quoi`,
+`t'sais`, dropped syllables) are exactly what the Web Speech API drops or mis-transcribes — so those
+tokens become **false scoring errors**, penalizing the learner for words they said correctly. The
+content words score fine; the fillers are the problem, and they're in the target, so every mismatch
+counts against the learner.
+
+**Follow-up work when better STT lands:**
+1. Remove the register gate so the **conversational** dialogues also offer "Speak this dialogue".
+   The gate lives in the frontend on the listening completion screen (the button is shown only for
+   `everyday`/`professional`); the backend/scoring path is register-agnostic already.
+2. Re-check scoring on filler-heavy lines — ideally the phoneme scorer credits a correctly-spoken
+   `ouais`/`du coup` instead of dropping it.
+
+---
+
 ## How to use this doc
 
 When a dependency above is satisfied, do the listed follow-up work and move the entry to a

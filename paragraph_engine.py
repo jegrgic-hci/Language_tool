@@ -68,8 +68,8 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
     chunk_size: number of sentences in the chunk (used to determine pass threshold)
     Returns dict with score (float 0-1), passed (bool), word_results, display_results.
     """
-    target_words = _normalize(target, noun_adj_set)
-    said_words = _normalize(transcription, noun_adj_set)
+    target_words = _normalize(target, noun_adj_set, phonetic=True)
+    said_words = _normalize(transcription, noun_adj_set, phonetic=True)
 
     if not target_words:
         return {"score": 1.0, "passed": True, "word_results": [], "display_results": []}
@@ -99,7 +99,7 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
     sentence_scores = []
     si = 0
     for sent in sents:
-        sent_words = _normalize(sent, noun_adj_set)
+        sent_words = _normalize(sent, noun_adj_set, phonetic=True)
         n = len(sent_words)
         sent_matched = sum(1 for wr in word_results[si:si + n] if wr["matched"])
         sentence_scores.append(round(sent_matched / n, 3) if n > 0 else 1.0)

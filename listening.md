@@ -90,7 +90,7 @@ Both share **one runner** — the comprehension view in `static/index.html` — 
 | Mode | Hub | `comprMode` | Voice(s) | Register |
 |---|---|---|---|---|
 | **Listen & Answer** | `comprehension-hub` | `passage` | Chirp3-HD, 1 narrator (fixed per banked passage) | clean / standard |
-| **Dialogue French** | `natural-hub` | `dialogue` | Chirp3-HD, mixed-gender pair (fixed per banked dialogue) | casual spoken (TTS-safe) |
+| **Dialogue French** | `natural-hub` | `dialogue` | Chirp3-HD, mixed-gender pair (fixed per banked dialogue) | learner-chosen: everyday / conversational / professional (all TTS-safe) |
 
 ### The 8 Chirp3-HD French voices
 `fr-FR-Chirp3-HD-<name>`: female — **Aoede, Kore, Leda, Zephyr**; male — **Puck, Charon, Fenrir, Orus**.
@@ -106,8 +106,9 @@ Mistral writes a passage at a chosen CEFR level + topic; Chirp3-HD reads it; com
 - Audio: single file, lazy-loaded via `/tts` with the passage's **banked voice** (returned as `voice`) so the passage shows instantly and reuse hits the cache.
 
 ### 2. Dialogue French (`dialogue`)
-Casual two-speaker spoken dialogue — the "movie gap" addressed at the content layer. (Renamed from "Natural French".)
-- Backend: `/natural/generate` (`_NATURAL_SYSTEM`) → JSON `lines: [{speaker, role, text, audio_url}]`. Drops `ne`, uses fillers (*ben / du coup / ouais / t'sais / grave*) and only **TTS-safe elisions** (`t'as`, `y a`, `j'ai`); avoids hard reductions (`chais pas`, `chuis`) the voice mispronounces. Bank-backed via `register="casual"` (serve unseen / generate + bank); on reuse the lines re-render from the audio cache (`_render_dialogue_lines`), no re-synthesis.
+Two-speaker spoken dialogue — the "movie gap" addressed at the content layer. (Renamed from "Natural French".)
+- **Register is learner-selectable** (hub "Register" row): **Everyday** (natural but low-slang, clear — for A1–A2), **Conversational** (full casual/slang, the original mode), **Professional** (vous, standard polite workplace French). The choice was added after feedback that A1–A2 had too much argot; **Everyday** is the fix. Levels now start at **A1** (5–6 short turns).
+- Backend: `/natural/generate` (`_natural_system(dtype)`) → JSON `lines: [{speaker, role, text, audio_url}]`. The prompt is composed per request: a shared body (TTS-safe forms, unscripted-feel and content rules) plus one of three swappable **REGISTER** blocks in `_NATURAL_REGISTERS` (keyed `everyday`/`conversational`/`professional`). All registers use only **TTS-safe elisions** (`t'as`, `y a`, `j'ai`) and avoid hard reductions (`chais pas`, `chuis`) the voice mispronounces. Bank-backed via `register="casual"` with the register preset as the content-bank **`style`** (so the three registers bank into separate buckets and never cross-pollinate); serve unseen / generate + bank; on reuse the lines re-render from the audio cache (`_render_dialogue_lines`), no re-synthesis.
 - **Speakers are named after their voices** with natural French first names (see mapping). The voice pair is chosen *first*, the names are injected into the Mistral prompt, so the names appear in **both the dialogue lines and the questions/options/explanations** (e.g. *"Pourquoi Julien est-il en retard ?"*). Internally each line also carries a stable `role` (`A`/`B`) for the coloured speaker badge and voice mapping, with a fallback to strict alternation if the model mislabels a line.
 - Audio: each line rendered as its own cached mp3; the browser plays them **back-to-back as an auto-advancing playlist** (chained via `onended`, preloads the next line). No server-side stitching.
 - Transcript: name-labelled lines with active-line highlight (`.dlg-line` / `.dlg-spk`, a pill sized for a full name).
@@ -128,7 +129,7 @@ Casual two-speaker spoken dialogue — the "movie gap" addressed at the content 
 Most of "movie French" is register and connectors, not extreme phonetic reduction. The cheapest, highest-value lever was generating casual *text* (Dialogue French) rather than chasing acoustic realism first.
 
 ### Dialogue must sound unscripted, not like a lesson
-The naturalness of the *text* matters as much as the voice. `_NATURAL_SYSTEM` explicitly pushes an **overheard-conversation** feel, verified by generating samples and reading them:
+The naturalness of the *text* matters as much as the voice. The shared body of `_natural_system(dtype)` explicitly pushes an **overheard-conversation** feel (independent of the chosen register block), verified by generating samples and reading them:
 - Vary turn length a lot — one-word reactions ("Ah ouais ?", "Mmh.", "Attends") mixed with rambling turns.
 - Some turns just react/agree and add nothing new.
 - Topic **drift** and named side-characters ("Martin en arrêt maladie", "Sophie a un deal avec le chef") make it feel lived-in.
@@ -164,13 +165,13 @@ What was deleted: the entire `/authentic/*` backend section (feed fetch, `_Trans
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/listen/generate` | POST | Passage + questions (Listen & Answer). Serves an unseen banked `listen` passage (own longer-passage bucket) or generates + banks; returns the passage's fixed `voice` for stable-cache lazy audio |
-| `/natural/generate` | POST | 2-speaker casual dialogue (named speakers) + per-line cached audio + questions. Serves an unseen banked `casual` dialogue or generates + banks |
+| `/natural/generate` | POST | 2-speaker dialogue (named speakers) at a learner-chosen register (`type` = everyday/conversational/professional) + per-line cached audio + questions. Serves an unseen banked `casual` dialogue for that register (`style=type`) or generates + banks |
 | `/tts` | POST | Audio for a piece of text. A Chirp voice name, `chirp-random` (random narrator), or `chirp-default` (fixed narrator, stable cache) routes to the cached Chirp3-HD library; anything else (single-word pronunciation) stays on free edge-tts |
 | `/audio/{file}` | GET | Serves the mp3 — temp dir (edge) or the R2/local library (Chirp) transparently |
 
 ### Analytics events
 - `listen_answer_started` / `comprehension_answered`
-- `natural_listen_started` / `natural_listen_answered` (fields: `level`, `topic`) — the old `speed` field was dropped with the Pace preset.
+- `natural_listen_started` / `natural_listen_answered` (fields: `level`, `topic`, `type` = register preset) — the old `speed` field was dropped with the Pace preset.
 
 ---
 

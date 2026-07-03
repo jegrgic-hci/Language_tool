@@ -47,8 +47,8 @@ def score_attempt(target: str, transcription: str, noun_adj_set=None) -> dict:
     Returns word_results (normalized, used for scoring/mismatches) and
     display_results (aligned to original phrase tokens, used for visual diff).
     """
-    target_words = _normalize(target, noun_adj_set)
-    said_words = _normalize(transcription, noun_adj_set)
+    target_words = _normalize(target, noun_adj_set, phonetic=True)
+    said_words = _normalize(transcription, noun_adj_set, phonetic=True)
 
     if not target_words:
         return {"score": 1.0, "passed": True, "mismatches": [], "word_results": [], "display_results": []}

@@ -106,6 +106,13 @@ Hyphenated compounds like `sous-estimé` and liaison-marked tokens like `Mes_enf
 - `display_results` and `mismatches` are built from the merged view — consuming `len(_normalize(orig_token))` entries per original token — so the display still shows `sous-estimé` as one word
 - **Known limitation**: `sous`/`su` is still an exact-token mismatch; phonetic proximity is not yet handled. SequenceMatcher gives partial credit for the `estimé`/`estime` pair but none for `sous`/`su`. A future fix could add `su` → `sous` to `FRENCH_HOMOPHONES` or introduce fuzzy/phonetic matching at the token level.
 
+## Verb-ending homophone canonicalization (phonetic scoring)
+French conjugations collide massively by sound, and the Web Speech API returns one arbitrary valid spelling of what it heard — so a correctly-pronounced verb was being scored wrong purely because the STT picked a different (valid) spelling than the target (e.g. target `parlez`, STT `parlé`).
+- `canonicalize_verb_endings()` in `elision.py` rewrites homophonous verb endings to one canonical real form, applied symmetrically to target and transcription: `[e]` family (`-er/-é/-ée(s)/-és/-ez`) → `é`; `[ɛ]` family (`-ais/-ait/-aient`) → `ait`. Only truly identical sounds are merged (no score inflation). Present-tense `-e/-es/-ent` is deliberately NOT collapsed (`-ent` is pronounced in non-verbs like `vraiment`). Literary passé-simple `-ai` is excluded (it's `[ɛ]` in `vrai/mai/quai`).
+- Guard: `_VERB_ENDING_EXCLUSIONS` holds `-er`/`-ers` words pronounced `[ɛʁ]` (`mer, fer, cher, hier, hiver, …`) whose canonical form would collide with a real `[e]` word (`fer`→`fé` vs `fée`→`fé`). Excluding a word is always safe (reverts to prior behaviour); extend the set as loanwords surface. A `len < 4` guard skips short function words.
+- Gated by the `phonetic=True` flag on `score_utils.normalize()`. Speaking exercises (shadow/paragraph/prosody via `score_attempt`) pass `phonetic=True`; **dictation stays `phonetic=False`** so spelling still counts. This also removed the 10 hardcoded imparfait verbs from `FRENCH_HOMOPHONES` (the canonicalizer subsumes them, and keeping them in the always-on dict was a latent dictation false-positive).
+- Display: the frontend "heard" rows snap matched words to the target surface form (`dr.word`) so the canonical `é` never shows on screen; true mismatches still show what was said.
+
 ## Updating elision rules
 All elision rules live in **one place**: `elision.py` (`FRENCH_ELISION_RULES` list). To add or change a rule:
 1. Add the `(pattern, replacement)` tuple to `FRENCH_ELISION_RULES` in `elision.py` — Python backend picks it up automatically via `normalize_french()`

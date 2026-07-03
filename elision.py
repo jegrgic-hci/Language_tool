@@ -170,22 +170,71 @@ FRENCH_HOMOPHONES = {
     "mûr": "mur",
     "crû": "cru",
     "jeûne": "jeune",
-    # imparfait 3rd-person: singular and plural are pronounced identically [etɛ]
-    "étaient": "était",
-    "avaient": "avait",
-    "allaient": "allait",
-    "faisaient": "faisait",
-    "venaient": "venait",
-    "prenaient": "prenait",
-    "pouvaient": "pouvait",
-    "voulaient": "voulait",
-    "savaient": "savait",
-    "devaient": "devait",
+    # NB: imparfait 3rd-person plural→singular (étaient→était, etc.) is now handled
+    # by canonicalize_verb_endings() in phonetic mode only — deliberately dropped
+    # from this always-on dict so dictation (orthographic) still scores the -aient
+    # spelling.
 }
 
 
 def normalize_homophones(words: list) -> list:
     return [FRENCH_HOMOPHONES.get(w, w) for w in words]
+
+
+# === Verb-ending canonicalization (phonetic scoring only) ===
+# French conjugation spellings collide massively by sound. The STT returns one
+# arbitrary valid spelling of what it heard, so a correctly-pronounced verb can
+# be scored wrong purely because the STT picked a different (valid) spelling than
+# the target. This rewrites the homophonous ending to ONE canonical real form,
+# applied symmetrically to target and transcription, so spelling can't cause a
+# false miss. Only two sound-families are collapsed — the top false-negative
+# sources — and only sounds that are truly identical are merged (no inflation):
+#   [e]  → "é":   parler / parlé / parlée(s) / parlés / parlez   (infinitive, participle, vous)
+#   [ɛ]  → "ait": parlais / parlait / parlaient                  (imparfait, conditional)
+# The literary passé-simple "-ai" is intentionally excluded: it's [e] only for
+# that rare tense, but [ɛ] in common words (vrai, mai, quai, essai), so
+# collapsing it would mangle non-verbs for near-zero spoken-French benefit.
+# Present-tense -e/-es/-ent is deliberately NOT collapsed: -ent is silent on
+# verbs but pronounced elsewhere (vraiment, client), which is where false
+# positives would hide.
+#
+# Applied in phonetic mode only (speaking exercises). NOT in dictation, where
+# spelling is the point of the exercise.
+
+# -er / -ers words pronounced [ɛʁ] (not [e]), whose canonical [e] form would
+# collide with a genuinely different-sounding word (e.g. fer→fé collides with
+# fée→fé). Excluding a word is always safe — worst case reverts to today's
+# behaviour — so this list errs generous. Extend as loanwords surface.
+_VERB_ENDING_EXCLUSIONS = frozenset({
+    "mer", "fer", "cher", "fier", "hier", "hiver", "amer", "enfer", "cancer",
+    "cuiller", "super", "ver", "vers", "envers", "travers", "univers",
+})
+
+# [ɛ] family checked first — its members (-ais/-ait/-aient) are not sub-strings
+# of the [e] family, but ordering keeps intent explicit.
+_VERB_AI_ENDING_RE = re.compile(r"(ais|ait|aient)$")
+# [e] family: é / és / ée / ées / er / ez
+_VERB_E_ENDING_RE = re.compile(r"(é(?:e?s?)|er|ez)$")
+
+
+def canonicalize_verb_endings(words: list) -> list:
+    out = []
+    for w in words:
+        # Short words are function words / bare stems where the ending isn't a
+        # conjugation suffix; leave them and the exclusions untouched.
+        if len(w) < 4 or w in _VERB_ENDING_EXCLUSIONS:
+            out.append(w)
+            continue
+        m = _VERB_AI_ENDING_RE.search(w)
+        if m:
+            out.append(w[:m.start()] + "ait")
+            continue
+        m = _VERB_E_ENDING_RE.search(w)
+        if m:
+            out.append(w[:m.start()] + "é")
+            continue
+        out.append(w)
+    return out
 
 
 # Vowels that can precede a silent feminine -e.
