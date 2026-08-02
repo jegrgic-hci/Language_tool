@@ -516,9 +516,6 @@ async def auth_register(req: RegisterRequest):
     if _analytics.get_user_by_email(email):
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    if _ACCESS_CODES and req.registration_code not in _ACCESS_CODES:
-        raise HTTPException(status_code=403, detail="Invalid registration code")
-
     invite = None
     teacher_id = None
     if req.invite_token:
@@ -528,6 +525,9 @@ async def auth_register(req: RegisterRequest):
         if invite["email"].lower() != email:
             raise HTTPException(status_code=400, detail="This invite was sent to a different email address")
         teacher_id = invite["teacher_id"]
+
+    if not invite and _ACCESS_CODES and req.registration_code not in _ACCESS_CODES:
+        raise HTTPException(status_code=403, detail="Invalid registration code")
 
     if req.is_teacher:
         role = "teacher"
