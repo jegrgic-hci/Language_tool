@@ -5676,6 +5676,10 @@
         const meRes = await apiFetch('/auth/me');
         if (meRes.ok) {
           const me = await meRes.json();
+          // Re-sync the access code from the server — login.html only stores it
+          // when present, so an older/partial session can be left without one
+          // and every tracked event would land unattributed.
+          if (me.access_code) localStorage.setItem('ft_access_code', me.access_code);
           document.getElementById('sb-student-name').textContent = me.username || me.email || '—';
           const roleLabels = { student_solo: 'Independent learner', student_teacher: 'Student', teacher: 'Teacher', super_admin: 'Admin' };
           document.getElementById('sb-student-role').textContent = roleLabels[me.role] || me.role || 'Student';
@@ -5735,9 +5739,14 @@
   // ── Analytics helpers ──────────────────────────────────────────────────────
   function trackEvent(eventType, payload = {}) {
     const accessCode = _activeAccessCode();
+    const token = localStorage.getItem('ft_jwt');
+    const headers = { 'Content-Type': 'application/json' };
+    // Sent so the server can recover the access code from the JWT when the
+    // localStorage copy is missing — otherwise the event is logged unattributed.
+    if (token) headers['Authorization'] = 'Bearer ' + token;
     fetch('/track', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ session_id: sessionId, access_code: accessCode, event_type: eventType, visit_id: visitId, payload }),
     }).catch(() => {});
   }
@@ -7859,7 +7868,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const resp = await fetch('/analyze_word_drill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word, attempts: _wordDrillAttempts, session_id: localStorage.getItem('session_id') || '', access_code: localStorage.getItem('access_code') || '', visit_id: _visitId || '', source: _wordDrillSource, mode: 'drill' }),
+        body: JSON.stringify({ word, attempts: _wordDrillAttempts, session_id: sessionId, access_code: _activeAccessCode(), visit_id: visitId, source: _wordDrillSource, mode: 'drill' }),
       });
       const data = await resp.json();
       const el = container.querySelector('#wd-analysis');

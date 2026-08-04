@@ -150,6 +150,15 @@
     .search-input:focus { border-color: var(--vk-accent); }
     .search-input::placeholder { color: var(--vk-fg-3); }
 
+    .inactive-toggle {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 20px; cursor: pointer; user-select: none;
+      font-family: var(--vk-font-ui); font-size: 0.68rem;
+      font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--vk-fg-2);
+    }
+    .inactive-toggle input { accent-color: var(--vk-accent); cursor: pointer; margin: 0; }
+
     /* ── User table ─────────────────────────────────────────────────────── */
     .user-table { width: 100%; border-collapse: collapse; }
     .user-table th {
@@ -431,8 +440,21 @@
       <div class="page-body">
 
         <div class="search-wrap">
-          <input class="search-input" type="search" placeholder="Search by name, email, or access code…" oninput="filterUsers(this.value)" id="user-search">
+          <!-- name/autocomplete/readonly-on-load: without them Chrome's password
+               manager treats this as the username field for the Add Teacher
+               modal's password input and autofills the signed-in admin's email,
+               which silently filters the list down to one user. -->
+          <input class="search-input" type="search" id="user-search"
+                 name="admin-user-search" autocomplete="off" autocorrect="off"
+                 spellcheck="false" data-lpignore="true" data-form-type="other"
+                 placeholder="Search by name, email, or access code…"
+                 oninput="filterUsers(this.value)">
         </div>
+
+        <label class="inactive-toggle">
+          <input type="checkbox" id="show-inactive" autocomplete="off" onchange="applyUserFilter()">
+          Show deactivated students
+        </label>
 
         <!-- Teachers -->
         <div class="section-head">
@@ -657,11 +679,11 @@
     <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:20px;">Add Teacher</div>
     <div style="margin-bottom:14px;">
       <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-3);margin-bottom:6px;">Email</label>
-      <input id="modal-email" type="email" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="teacher@example.com">
+      <input id="modal-email" type="email" autocomplete="off" data-lpignore="true" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="teacher@example.com">
     </div>
     <div style="margin-bottom:20px;">
       <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-3);margin-bottom:6px;">Password</label>
-      <input id="modal-pw" type="password" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="Temporary password">
+      <input id="modal-pw" type="password" autocomplete="new-password" data-lpignore="true" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="Temporary password">
     </div>
     <div style="color:#B42318;font-size:0.72rem;min-height:1.2em;margin-bottom:14px;" id="modal-err"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -693,7 +715,7 @@
     <div style="font-size:0.72rem;color:var(--vk-fg-2);margin-bottom:18px;" id="email-to-addr"></div>
     <div style="margin-bottom:14px;">
       <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Subject</label>
-      <input id="email-subject" type="text" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;">
+      <input id="email-subject" type="text" autocomplete="off" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:14px;">
       <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Message</label>
@@ -943,7 +965,7 @@
     const r = await fetch('/admin/user-hierarchy', { headers: authHeaders() });
     if (!r.ok) { document.getElementById('teachers-list').innerHTML = '<div class="empty">Failed to load users.</div>'; return; }
     _usersData = await r.json();
-    renderUsers(_usersData);
+    applyUserFilter();   // keep the active search/inactive state across reloads
   }
 
   function renderUsers(data) {
@@ -1144,26 +1166,36 @@
   }
 
   // ── User search / filter ──────────────────────────────────────────────────
+  // A teacher's "Remove" only deactivates a student, so removed students would
+  // otherwise linger here forever. Hide them by default; the toggle brings them
+  // back so a deactivation is still reversible from the Activate button.
+  function applyUserFilter() {
+    filterUsers(document.getElementById('user-search').value);
+  }
+
   function filterUsers(q) {
     if (!_usersData) return;
-    q = q.trim().toLowerCase();
-    if (!q) { renderUsers(_usersData); return; }
+    q = (q || '').trim().toLowerCase();
+    const showInactive = document.getElementById('show-inactive').checked;
 
     function matchUser(u) {
+      if (!q) return true;
       return (
         (u.username || '').toLowerCase().includes(q) ||
         (u.email || '').toLowerCase().includes(q) ||
         (u.access_code || '').toLowerCase().includes(q)
       );
     }
+    // Teachers are never hidden — deactivating one is done from this page, and
+    // hiding it would strip the only way to reactivate.
+    const keepStudent = u => (showInactive || u.is_active) && matchUser(u);
 
-    const filtered = {
+    renderUsers({
       teachers: _usersData.teachers
-        .map(t => ({ ...t, students: t.students.filter(matchUser) }))
+        .map(t => ({ ...t, students: t.students.filter(keepStudent) }))
         .filter(t => matchUser(t) || t.students.length),
-      solo: _usersData.solo.filter(matchUser),
-    };
-    renderUsers(filtered);
+      solo: _usersData.solo.filter(keepStudent),
+    });
   }
 
   // ── Usage page ────────────────────────────────────────────────────────────
@@ -1404,6 +1436,11 @@
   (async () => {
     const ok = await guardAuth();
     if (!ok) return;
+    // Chrome restores form values on reload and may autofill before we render —
+    // start from a clean, unfiltered list either way.
+    const searchEl = document.getElementById('user-search');
+    searchEl.value = '';
+    setTimeout(() => { if (searchEl.value) { searchEl.value = ''; applyUserFilter(); } }, 400);
     loadUsers();
     loadUsage();
     loadPerformance(); // also calls loadOverview with the response

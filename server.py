@@ -14,6 +14,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
+
+# Must run before any local module is imported: auth.py (and others) read their
+# config from os.environ at import time, so loading .env later leaves them on
+# their fallbacks — for JWT_SECRET that means a fresh random secret on every
+# reload, silently invalidating every issued token.
+load_dotenv()
+
 import asyncio
 import logging
 import edge_tts
@@ -35,8 +42,6 @@ import library_store
 import content_bank
 from pos_tagger import tag_nouns_adjs
 from prosody_engine import annotate_phrase_rhythm
-
-load_dotenv()
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1066,8 +1071,20 @@ class TrackRequest(BaseModel):
     payload: dict = {}
 
 @app.post("/track")
-async def track_event(req: TrackRequest):
-    _analytics.track(req.session_id, req.access_code, req.event_type, req.payload, req.visit_id)
+async def track_event(req: TrackRequest, authorization: Optional[str] = Header(None)):
+    # The client sends its localStorage copy of the access code, which can be
+    # missing (never stored at login, cleared, or a stale tab) — that silently
+    # orphans the event under an empty code and it disappears from every
+    # per-student view. Fall back to the identity in the JWT.
+    # Body first, so teach mode (teacher driving a student's session) still
+    # attributes events to the student rather than to the teacher.
+    access_code = req.access_code or ""
+    if not access_code and authorization and authorization.startswith("Bearer "):
+        try:
+            access_code = _auth.decode_token(authorization[7:]).get("access_code") or ""
+        except Exception:
+            pass
+    _analytics.track(req.session_id, access_code, req.event_type, req.payload, req.visit_id)
     return {"ok": True}
 
 
