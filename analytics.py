@@ -3,6 +3,7 @@ import sqlite3
 import json
 import secrets
 import string
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -19,10 +20,43 @@ LEGACY_DB_PATH = _DATA_DIR / "analytics_legacy.db"
 _active_db: ContextVar[Path] = ContextVar("active_db", default=DB_PATH)
 
 
+_WAL_SET = set()   # db paths already switched to WAL (a persistent per-file property)
+
+
+@contextmanager
 def _conn():
-    conn = sqlite3.connect(str(_active_db.get()))
+    """Yield a SQLite connection, committing on success and always closing it.
+
+    Concurrency matters here: a class of students writes events (and bank_seen
+    rows) on nearly every request while the teacher dashboard runs long
+    aggregation reads. Under the default rollback journal those block each other
+    and surface as `database is locked` — which reaches the student as a failed
+    exercise. WAL lets readers and writers proceed together, and busy_timeout
+    makes the remaining brief contention wait instead of raising.
+
+    The old version returned a bare connection used as `with _conn() as conn`,
+    which commits the transaction but never closes the handle — connections
+    leaked on all 76 call sites. This wrapper keeps the same call shape.
+    """
+    path = str(_active_db.get())
+    conn = sqlite3.connect(path, timeout=30.0)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        conn.execute("PRAGMA busy_timeout=30000")
+        if path not in _WAL_SET:
+            try:
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+            except sqlite3.Error:
+                pass   # e.g. a filesystem without WAL support — plain journal still works
+            _WAL_SET.add(path)
+        yield conn
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 SESSION_GAP_MINUTES = 20

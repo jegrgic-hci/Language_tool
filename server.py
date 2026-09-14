@@ -218,7 +218,22 @@ content_bank.register_canonical_topics(list(TOPICS))
 def _bank_pick(kind: str, register: str, level: str, topic: str, style: str,
                access_code: Optional[str]) -> Optional[dict]:
     """Apply the reuse-vs-generate policy for a (learner, bucket): returns a banked
-    record to reuse, or None meaning the caller should generate + bank a new one."""
+    record to reuse, or None meaning the caller should generate + bank a new one.
+
+    Never raises: the bank sits on the request path for every exercise, so a store
+    hiccup degrades to "generate one" rather than failing the student's exercise.
+    """
+    try:
+        return _bank_pick_inner(kind, register, level, topic, style, access_code)
+    except Exception as e:
+        logging.getLogger("bank").warning(
+            "bank pick failed for %s/%s/%s/%s (%s: %s) — generating instead",
+            kind, register, level, topic, type(e).__name__, e)
+        return None
+
+
+def _bank_pick_inner(kind: str, register: str, level: str, topic: str, style: str,
+                     access_code: Optional[str]) -> Optional[dict]:
     budget_ok = library_store.generation_budget_ok()
     # No access_code = local/personal use (only the maintainer, testing). The per-user
     # seen-map is empty, so the normal policy would serve the same shallow-bucket piece
@@ -239,6 +254,35 @@ def _bank_pick(kind: str, register: str, level: str, topic: str, style: str,
     else:
         library_store.record_bank_miss()
     return rec
+
+
+def _bank_rescue_phrase(level: str, topic: str, access_code: Optional[str]) -> Optional[dict]:
+    """A banked phrase to serve when generation fails (Mistral down, rate-limited,
+    or the Chirp/bank write errored). Tries the requested bucket first — ignoring
+    the learner's seen-map, since a repeat beats an error — then any bucket at the
+    same level. Returns None only when the bank genuinely has nothing to offer."""
+    try:
+        rec = content_bank.pick_unseen("phrase", "standard", level, topic, "")
+        if rec is None:
+            seen_map = {}
+            try:
+                seen_map = _analytics.get_bank_seen_map(access_code) if access_code else {}
+            except Exception:
+                pass
+            rec = content_bank.pick_any_for_level("phrase", "standard", level, seen_map)
+        return rec
+    except Exception as e:
+        logging.getLogger("bank").warning("bank rescue failed: %s: %s", type(e).__name__, e)
+        return None
+
+
+def _mark_bank_seen_safe(access_code: Optional[str], unit_id: str, surface: str) -> None:
+    """Novelty bookkeeping must never fail an exercise — a locked/unavailable DB
+    should cost us a repeat later, not the student's phrase now."""
+    try:
+        _analytics.mark_bank_seen(access_code, unit_id, surface)
+    except Exception as e:
+        logging.getLogger("bank").warning("mark_bank_seen failed: %s: %s", type(e).__name__, e)
 
 
 async def _synth_and_bank_phrase(text: str, register: str, level: str, topic: str,
@@ -1426,15 +1470,10 @@ async def _phrase_generate(req: ShadowPhraseRequest) -> ShadowPhraseResponse:
     # liaison focus injects ‿ marks), so they bypass the shared pool. Plain requests
     # serve an unseen banked phrase first and only generate + bank on exhaustion.
     is_focus = bool(req.sound_focus or req.focus_word)
-    if not is_focus:
-        topic = req.topic or random.choice(TOPICS)
-        rec = _bank_pick("phrase", "standard", req.level, topic, "", req.access_code)
-        if rec is None:
-            gen = await asyncio.to_thread(lambda: generate_phrase(req.level, topic, style))
-            rec = await _synth_and_bank_phrase(
-                gen["phrase"], "standard", req.level, topic, style, pick_narrator_voice(),
-            )
-        _analytics.mark_bank_seen(req.access_code, rec["id"], "shadow")
+    log = logging.getLogger("phrase")
+
+    def _from_bank(rec: dict) -> ShadowPhraseResponse:
+        _mark_bank_seen_safe(req.access_code, rec["id"], "shadow")
         return ShadowPhraseResponse(
             phrase=rec["text"],
             audio_url=f"/audio/{rec['audio_hash']}",
@@ -1442,8 +1481,38 @@ async def _phrase_generate(req: ShadowPhraseRequest) -> ShadowPhraseResponse:
             noun_adj_tokens=rec.get("noun_adj_tokens", []),
         )
 
-    data = await asyncio.to_thread(lambda: generate_phrase(req.level, req.topic, style, req.sound_focus, req.focus_word))
-    audio_url = f"/audio/{await generate_library_audio(data['phrase'], pick_narrator_voice())}"
+    if not is_focus:
+        topic = req.topic or random.choice(TOPICS)
+        rec = _bank_pick("phrase", "standard", req.level, topic, "", req.access_code)
+        if rec is None:
+            try:
+                gen = await asyncio.to_thread(lambda: generate_phrase(req.level, topic, style))
+                rec = await _synth_and_bank_phrase(
+                    gen["phrase"], "standard", req.level, topic, style, pick_narrator_voice(),
+                )
+            except Exception as e:
+                # Mistral rate-limited/down, or the bank write failed. We have
+                # thousands of banked phrases — serve one rather than error out.
+                log.warning("generation failed (%s: %s) — falling back to the bank", type(e).__name__, e)
+                rec = await asyncio.to_thread(_bank_rescue_phrase, req.level, topic, req.access_code)
+                if rec is None:
+                    raise
+        return _from_bank(rec)
+
+    try:
+        data = await asyncio.to_thread(lambda: generate_phrase(req.level, req.topic, style, req.sound_focus, req.focus_word))
+        audio_url = f"/audio/{await generate_library_audio(data['phrase'], pick_narrator_voice())}"
+    except Exception as e:
+        # Focus phrases must be generated (the sound target shapes the sentence),
+        # so there is nothing banked that matches. Serve a plain banked phrase at
+        # the right level instead: off-target practice still beats a dead screen.
+        log.warning("focus generation failed (%s: %s) — falling back to a plain banked phrase",
+                    type(e).__name__, e)
+        rec = await asyncio.to_thread(_bank_rescue_phrase, req.level, req.topic or "", req.access_code)
+        if rec is None:
+            raise
+        return _from_bank(rec)
+
     return ShadowPhraseResponse(
         phrase=data["phrase"],
         audio_url=audio_url,
@@ -1500,6 +1569,7 @@ async def speaking_phrase(req: ShadowPhraseRequest):
     try:
         return await _phrase_generate(req)
     except Exception as e:
+        logging.getLogger("phrase").exception("/speaking/phrase failed (level=%s topic=%s)", req.level, req.topic)
         raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
 
 
@@ -1529,6 +1599,7 @@ async def shadow_phrase(req: ShadowPhraseRequest):
     try:
         return await _phrase_generate(req)
     except Exception as e:
+        logging.getLogger("phrase").exception("/shadow/phrase failed (level=%s topic=%s)", req.level, req.topic)
         raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
 
 

@@ -22,6 +22,7 @@ import os
 import json
 import base64
 import hashlib
+import logging
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
@@ -150,14 +151,22 @@ def _store(key: str, data: bytes) -> None:
 def object_get(key: str) -> Optional[bytes]:
     """Fetch an arbitrary object by full key. R2 is source of truth when
     configured (bank JSON mutates across instances); local disk otherwise."""
+    p = _DATA_DIR / key
     if _USE_R2:
         from botocore.exceptions import ClientError
         try:
             obj = _client().get_object(Bucket=_R2_BUCKET, Key=key)
             return obj["Body"].read()
         except ClientError:
-            return None
-    p = _DATA_DIR / key
+            return None       # genuinely absent (or denied) — not an outage
+        except Exception as e:
+            # Connection/timeout/credential errors are NOT ClientError. Letting
+            # them propagate turned an R2 blip into a failed exercise for every
+            # student, since bank reads sit on the request path. Serve the local
+            # mirror when we have it and treat the object as missing otherwise.
+            logging.getLogger("library_store").warning(
+                "R2 get failed for %s (%s: %s) — falling back to local mirror", key, type(e).__name__, e)
+            return p.read_bytes() if p.exists() else None
     return p.read_bytes() if p.exists() else None
 
 

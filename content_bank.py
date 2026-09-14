@@ -293,6 +293,45 @@ def pick_unseen(kind: str, register: str, level: str, topic: str, style: str = "
     return None
 
 
+def pick_any_for_level(kind: str, register: str, level: str,
+                       seen_map: Optional[dict] = None, max_buckets: int = 12) -> Optional[dict]:
+    """Last-resort pick: any banked unit for this level, across every topic bucket.
+
+    Used when generation fails (Mistral down or rate-limited) so the learner still
+    gets a real exercise instead of an error. Prefers pieces they haven't seen, but
+    will happily repeat one — a repeat beats a dead screen. Scans at most
+    ``max_buckets`` topic buckets so the rescue path stays cheap.
+    """
+    seen_map = seen_map or {}
+    prefix = "{}index/{}/{}/{}/".format(_BANK_PREFIX, kind, register, (level or "any").lower())
+    try:
+        keys = list(library_store.list_keys(prefix))
+    except Exception:
+        return None
+    random.shuffle(keys)
+
+    fallback_ids = []
+    for key in keys[:max_buckets]:
+        obj = _get_json(key)
+        ids = obj.get("ids", []) if isinstance(obj, dict) else []
+        if not ids:
+            continue
+        unseen = [i for i in ids if i not in seen_map]
+        random.shuffle(unseen)
+        for uid in unseen:
+            rec = _load(kind, uid)
+            if rec:
+                return rec
+        fallback_ids.extend(ids)
+
+    random.shuffle(fallback_ids)
+    for uid in fallback_ids[:20]:
+        rec = _load(kind, uid)
+        if rec:
+            return rec
+    return None
+
+
 def _age_days(ts: str) -> float:
     """Days since a SQLite `datetime('now')` (naive UTC) timestamp. Unknown → very old."""
     try:
