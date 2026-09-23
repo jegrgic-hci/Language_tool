@@ -26,7 +26,8 @@ A French language learning webapp built for a user living in Marseille who wants
 | `shadow_engine.py` | Single-phrase shadowing: `generate_phrase()`, `score_attempt()`, `analyze_mismatches()`; pulls liaison links via `detect_links` |
 | `paragraph_engine.py` | Paragraph generation + per-chunk scoring: `generate_paragraph()`, `score_chunk()`, `analyze_mismatches()`, `analyze_patterns()`; `TOPICS` |
 | `prosody_engine.py` | Sound-target / rhythm phrases: `generate_prosody_phrase()`, `analyze_prosody_mismatches()`, `annotate_phrase_rhythm()`; `SOUND_TARGETS` |
-| `score_utils.py` | Shared scoring core — `normalize()`, `run_sequence_match()` (difflib SequenceMatcher), `build_display_results()`, `analyze_mismatches()`, `analyze_dictation_mismatches()` |
+| `score_utils.py` | Shared scoring core (language-agnostic) — `normalize()`, `run_sequence_match()` (difflib SequenceMatcher), `build_display_results()`, `analyze_mismatches()`, `analyze_dictation_mismatches()`; each takes `lang` (default `"fr"`) and delegates language rules to `lang.get(lang)` |
+| `lang/` | Study-language profiles. `lang.get(code)` returns the profile; `SUPPORTED` lists codes. `lang/fr.py` = French: text/word normalization (wires `elision.py`), plural-s stripping, `tag_nouns_adjs`, `detect_links`, and the shadowing/dictation feedback prompts. English (`en`) is in private beta behind `ENGLISH_BETA_USERS` |
 | `elision.py` | French elision rules + homophones + number/gender-ending normalization — consumed by `score_utils.py` (and `analytics.py`) |
 | `liaison_rules.py` | Mandatory liaison (‿) and enchaînement (⁀) detection: `detect_links()` |
 | `pos_tagger.py` | spaCy `fr_core_news_sm` wrapper: `tag_nouns_adjs()`, `_get_nlp()` — feeds gender/number-aware scoring |
