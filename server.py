@@ -60,6 +60,13 @@ _ANALYTICS_KEYS: set = {
     k.strip() for k in os.environ.get("ANALYTICS_KEY", "").split(",") if k.strip()
 }
 
+# English study language is in private beta: only these accounts may use it.
+# Comma-separated emails and/or usernames (for no-email student accounts),
+# case-insensitive. Empty = English is off for everyone.
+_ENGLISH_BETA_USERS: set = {
+    e.strip().lower() for e in os.environ.get("ENGLISH_BETA_USERS", "").split(",") if e.strip()
+}
+
 _analytics.init_db()
 
 _sa_email    = os.environ.get("SUPER_ADMIN_EMAIL", "")
@@ -1065,6 +1072,25 @@ async def admin_content_pool(current_user: dict = Depends(_auth.require_admin)):
     return await asyncio.to_thread(content_bank.bank_stats)
 
 
+# ── English beta gate ──────────────────────────────────────────────────────────
+
+def _has_english_beta(user: Optional[dict]) -> bool:
+    if not user:
+        return False
+    ids = {(user.get(f) or "").strip().lower() for f in ("email", "username")}
+    return bool(ids & _ENGLISH_BETA_USERS)
+
+
+async def _require_english_beta(current_user: dict = Depends(_auth.get_current_user)) -> dict:
+    """Route dependency for anything that serves English content. Looks the account up
+    fresh (not from the token) so removing an email from the allowlist takes effect
+    on the next request."""
+    user = _analytics.get_user_by_id(int(current_user["sub"]))
+    if not user or not user.get("is_active") or not _has_english_beta(user):
+        raise HTTPException(status_code=403, detail="English is not enabled for this account")
+    return user
+
+
 # ── Current user info ──────────────────────────────────────────────────────────
 
 @app.get("/auth/me")
@@ -1104,6 +1130,7 @@ async def auth_me(current_user: dict = Depends(_auth.get_current_user)):
         "billing_date": user.get("billing_date"),
         "next_lesson": next_lesson,
         "teacher_name": teacher_name,
+        "english_beta": _has_english_beta(user),
     }
 
 
