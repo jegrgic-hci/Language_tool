@@ -33,18 +33,21 @@ import library_store
 # Registers: "standard" (clean, STT-safe — shadow/paragraph/dictation/listen) and
 # "casual" (Dialogue French). Kinds: "phrase" (one sentence) / "passage".
 #
-# One bank per study language, each under its own key prefix, so a learner is only
-# ever served content in the language they study. French keeps the original
-# "bank/" prefix (no migration). An unknown language raises rather than falling
-# back to French — a silent fallback would leak other-language content into it.
-_BANK_PREFIXES = {"fr": "bank/", "en": "bank-en/"}
+# One bank per learner-facing locale, each under its own key prefix, so a learner
+# is only ever served content in the language — and for English, the accent and
+# spelling (US vs UK) — they study. French keeps the original "bank/" prefix (no
+# migration; "fr" is the code early records were stamped with). An unknown locale
+# raises rather than falling back to French — a silent fallback would leak
+# other-language content into it.
+_BANK_PREFIXES = {"fr-FR": "bank/", "fr": "bank/",
+                  "en-US": "bank-en-us/", "en-GB": "bank-en-gb/"}
 
 
-def _prefix(lang: str) -> str:
+def _prefix(locale: str) -> str:
     try:
-        return _BANK_PREFIXES[lang]
+        return _BANK_PREFIXES[locale]
     except KeyError:
-        raise ValueError("Unknown bank language: {!r}".format(lang))
+        raise ValueError("Unknown bank locale: {!r}".format(locale))
 
 # ── Reuse-vs-generate policy knobs (tune here) ────────────────────────────────────
 POOL_TARGET = 20            # a bucket this deep is "mature" → eligible for recycle
@@ -87,16 +90,16 @@ def _canon_topic(topic: str) -> str:
     return _CANON_LOOKUP.get(key, key)
 
 
-def _record_key(kind: str, unit_id: str, lang: str = "fr") -> str:
+def _record_key(kind: str, unit_id: str, locale: str = "fr-FR") -> str:
     sub = "passages" if kind == "passage" else "phrases"
-    return "{}{}/{}.json".format(_prefix(lang), sub, unit_id)
+    return "{}{}/{}.json".format(_prefix(locale), sub, unit_id)
 
 
 def _index_key(kind: str, register: str, level: str, topic: str, style: str,
-               lang: str = "fr") -> str:
+               locale: str = "fr-FR") -> str:
     # Canonicalize the topic so case/accent/spacing variants share one bucket.
     return "{}index/{}/{}/{}/{}/{}.json".format(
-        _prefix(lang), kind, register, (level or "any").lower(),
+        _prefix(locale), kind, register, (level or "any").lower(),
         _slug(_canon_topic(topic)), _slug(style or "any")
     )
 
@@ -117,14 +120,14 @@ def _put_json(key: str, obj) -> None:
 
 
 def _load_index(kind: str, register: str, level: str, topic: str, style: str,
-                lang: str = "fr") -> List[str]:
-    obj = _get_json(_index_key(kind, register, level, topic, style, lang))
+                locale: str = "fr-FR") -> List[str]:
+    obj = _get_json(_index_key(kind, register, level, topic, style, locale))
     return obj.get("ids", []) if isinstance(obj, dict) else []
 
 
 def _append_index(kind: str, register: str, level: str, topic: str, style: str, unit_id: str,
-                  lang: str = "fr") -> None:
-    key = _index_key(kind, register, level, topic, style, lang)
+                  locale: str = "fr-FR") -> None:
+    key = _index_key(kind, register, level, topic, style, locale)
     obj = _get_json(key) or {"ids": []}
     ids = obj.get("ids", [])
     if unit_id not in ids:
@@ -136,13 +139,13 @@ def _append_index(kind: str, register: str, level: str, topic: str, style: str, 
 # ── Public API ──────────────────────────────────────────────────────────────────
 def add_phrase(text: str, register: str, level: str, topic: str, voice: str, audio_hash: str,
                style: str = "", noun_adj_tokens: Optional[list] = None,
-               lang: str = "fr") -> dict:
+               locale: str = "fr-FR") -> dict:
     """Bank a single phrase (its audio already synthesized to ``audio_hash``)."""
     topic = _canon_topic(topic)
     rec = {
         "id": uuid.uuid4().hex,
         "kind": "phrase",
-        "lang": lang,
+        "locale": locale,
         "text": text.strip(),
         "register": register,
         "level": level,
@@ -156,15 +159,15 @@ def add_phrase(text: str, register: str, level: str, topic: str, voice: str, aud
     # seeds one shared phrase pool per (register, level, topic) that phrase, shadow,
     # and dictation exercises all draw from (cross-pollination). Style is retained on
     # the record for reference. Passages keep style so a paragraph stays coherent.
-    _put_json(_record_key("phrase", rec["id"], lang), rec)
-    _append_index("phrase", register, level, topic, "", rec["id"], lang)
+    _put_json(_record_key("phrase", rec["id"], locale), rec)
+    _append_index("phrase", register, level, topic, "", rec["id"], locale)
     return rec
 
 
 def add_passage(register: str, level: str, topic: str, voice: str, phrase_ids: List[str],
                 style: str = "", noun_adj_tokens: Optional[list] = None,
                 questions: Optional[list] = None, vocab_preview: Optional[list] = None,
-                payload: Optional[dict] = None, lang: str = "fr") -> dict:
+                payload: Optional[dict] = None, locale: str = "fr-FR") -> dict:
     """Bank a passage. Phrase-atomic passages (paragraph shadowing) reference
     ``phrase_ids``; whole-text passages (Listen & Answer, Dialogue French) instead
     carry their text/structure in ``payload`` (e.g. {"text": ...} or
@@ -174,7 +177,7 @@ def add_passage(register: str, level: str, topic: str, voice: str, phrase_ids: L
     rec = {
         "id": uuid.uuid4().hex,
         "kind": "passage",
-        "lang": lang,
+        "locale": locale,
         "register": register,
         "level": level,
         "topic": topic,
@@ -187,54 +190,54 @@ def add_passage(register: str, level: str, topic: str, voice: str, phrase_ids: L
     }
     if payload:
         rec.update(payload)
-    rec["lang"] = lang  # a payload must never relabel the record's bank
-    _put_json(_record_key("passage", rec["id"], lang), rec)
-    _append_index("passage", register, level, topic, style, rec["id"], lang)
+    rec["locale"] = locale  # a payload must never relabel the record's bank
+    _put_json(_record_key("passage", rec["id"], locale), rec)
+    _append_index("passage", register, level, topic, style, rec["id"], locale)
     return rec
 
 
-def get_phrase(unit_id: str, lang: str = "fr") -> Optional[dict]:
-    return _get_json(_record_key("phrase", unit_id, lang))
+def get_phrase(unit_id: str, locale: str = "fr-FR") -> Optional[dict]:
+    return _get_json(_record_key("phrase", unit_id, locale))
 
 
-def get_passage(unit_id: str, lang: str = "fr") -> Optional[dict]:
-    return _get_json(_record_key("passage", unit_id, lang))
+def get_passage(unit_id: str, locale: str = "fr-FR") -> Optional[dict]:
+    return _get_json(_record_key("passage", unit_id, locale))
 
 
 def passage_phrases(passage: dict) -> List[dict]:
     """Hydrate a passage's phrase records, in order (skips any that went missing).
-    Phrases live in the passage's own bank (records predating ``lang`` are French)."""
-    lang = passage.get("lang", "fr")
+    Phrases live in the passage's own bank (records predating ``locale`` are French)."""
+    locale = passage.get("locale") or passage.get("lang") or "fr-FR"
     out = []
     for pid in passage.get("phrase_ids", []):
-        rec = get_phrase(pid, lang)
+        rec = get_phrase(pid, locale)
         if rec:
             out.append(rec)
     return out
 
 
 def attach_questions(passage_id: str, questions: list, vocab_preview: Optional[list] = None,
-                     lang: str = "fr") -> Optional[dict]:
+                     locale: str = "fr-FR") -> Optional[dict]:
     """Add a comprehension layer to a banked passage the first time it's used for
     Listen & Answer (text-only; no new audio)."""
-    rec = get_passage(passage_id, lang)
+    rec = get_passage(passage_id, locale)
     if not rec:
         return None
     rec["questions"] = questions or []
     if vocab_preview is not None:
         rec["vocab_preview"] = vocab_preview
-    _put_json(_record_key("passage", passage_id, lang), rec)
+    _put_json(_record_key("passage", passage_id, locale), rec)
     return rec
 
 
 def bucket_ids(kind: str, register: str, level: str, topic: str, style: str = "",
-               lang: str = "fr") -> List[str]:
-    return _load_index(kind, register, level, topic, style, lang)
+               locale: str = "fr-FR") -> List[str]:
+    return _load_index(kind, register, level, topic, style, locale)
 
 
 def count(kind: str, register: str, level: str, topic: str, style: str = "",
-          lang: str = "fr") -> int:
-    return len(_load_index(kind, register, level, topic, style, lang))
+          locale: str = "fr-FR") -> int:
+    return len(_load_index(kind, register, level, topic, style, locale))
 
 
 # ── Pool inventory (admin) ────────────────────────────────────────────────────────
@@ -253,12 +256,12 @@ def _category(kind: str, register: str) -> str:
     return "other_passages"
 
 
-def bank_stats(lang: str = "fr") -> dict:
+def bank_stats(locale: str = "fr-FR") -> dict:
     """Size the banked content pool by content type. Counts are distinct banked
     units per bucket (each phrase/passage's Chirp3-HD audio is synthesized once and
     cached forever). Aggregated from the per-bucket index files, plus a bucket-level
     breakdown for detail."""
-    index_prefix = "{}index/".format(_prefix(lang))
+    index_prefix = "{}index/".format(_prefix(locale))
     totals = {"phrases": 0, "paragraphs": 0, "listen_answer": 0,
               "dialogue": 0, "other_passages": 0}
     buckets = []
@@ -297,21 +300,21 @@ def bank_stats(lang: str = "fr") -> dict:
     }
 
 
-def _load(kind: str, unit_id: str, lang: str = "fr") -> Optional[dict]:
-    return get_passage(unit_id, lang) if kind == "passage" else get_phrase(unit_id, lang)
+def _load(kind: str, unit_id: str, locale: str = "fr-FR") -> Optional[dict]:
+    return get_passage(unit_id, locale) if kind == "passage" else get_phrase(unit_id, locale)
 
 
 def pick_unseen(kind: str, register: str, level: str, topic: str, style: str = "",
-                seen_ids: Optional[set] = None, lang: str = "fr") -> Optional[dict]:
+                seen_ids: Optional[set] = None, locale: str = "fr-FR") -> Optional[dict]:
     """A random banked unit for the bucket that the user hasn't seen, or None when
     the bucket is empty or exhausted (caller then generates + banks a new one)."""
     seen = seen_ids or set()
-    ids = [i for i in _load_index(kind, register, level, topic, style, lang) if i not in seen]
+    ids = [i for i in _load_index(kind, register, level, topic, style, locale) if i not in seen]
     if not ids:
         return None
     random.shuffle(ids)
     for uid in ids:
-        rec = _load(kind, uid, lang)
+        rec = _load(kind, uid, locale)
         if rec:
             return rec
     return None
@@ -319,7 +322,7 @@ def pick_unseen(kind: str, register: str, level: str, topic: str, style: str = "
 
 def pick_any_for_level(kind: str, register: str, level: str,
                        seen_map: Optional[dict] = None, max_buckets: int = 12,
-                       lang: str = "fr") -> Optional[dict]:
+                       locale: str = "fr-FR") -> Optional[dict]:
     """Last-resort pick: any banked unit for this level, across every topic bucket.
 
     Used when generation fails (Mistral down or rate-limited) so the learner still
@@ -328,7 +331,7 @@ def pick_any_for_level(kind: str, register: str, level: str,
     ``max_buckets`` topic buckets so the rescue path stays cheap.
     """
     seen_map = seen_map or {}
-    prefix = "{}index/{}/{}/{}/".format(_prefix(lang), kind, register, (level or "any").lower())
+    prefix = "{}index/{}/{}/{}/".format(_prefix(locale), kind, register, (level or "any").lower())
     try:
         keys = list(library_store.list_keys(prefix))
     except Exception:
@@ -344,14 +347,14 @@ def pick_any_for_level(kind: str, register: str, level: str,
         unseen = [i for i in ids if i not in seen_map]
         random.shuffle(unseen)
         for uid in unseen:
-            rec = _load(kind, uid, lang)
+            rec = _load(kind, uid, locale)
             if rec:
                 return rec
         fallback_ids.extend(ids)
 
     random.shuffle(fallback_ids)
     for uid in fallback_ids[:20]:
-        rec = _load(kind, uid, lang)
+        rec = _load(kind, uid, locale)
         if rec:
             return rec
     return None
@@ -367,7 +370,7 @@ def _age_days(ts: str) -> float:
 
 def select_for_user(kind: str, register: str, level: str, topic: str, style: str,
                     seen_map: Optional[dict], budget_ok: bool,
-                    lang: str = "fr") -> Optional[dict]:
+                    locale: str = "fr-FR") -> Optional[dict]:
     """The reuse-vs-generate decision for one (learner, bucket).
 
     Returns a banked record to reuse, or None meaning "generate + bank a new one".
@@ -381,7 +384,7 @@ def select_for_user(kind: str, register: str, level: str, topic: str, style: str
         (budget permitting). If the budget is tight, recycle rather than spend.
     """
     seen_map = seen_map or {}
-    ids = _load_index(kind, register, level, topic, style, lang)
+    ids = _load_index(kind, register, level, topic, style, locale)
     depth = len(ids)
     if not ids:
         return None  # empty bucket → generate the first piece
@@ -392,7 +395,7 @@ def select_for_user(kind: str, register: str, level: str, topic: str, style: str
             return None  # freshness drip
         random.shuffle(unseen)
         for uid in unseen:
-            rec = _load(kind, uid, lang)
+            rec = _load(kind, uid, locale)
             if rec:
                 return rec
 
@@ -401,8 +404,8 @@ def select_for_user(kind: str, register: str, level: str, topic: str, style: str
     if seen_here:
         oldest_id, oldest_ts = min(seen_here, key=lambda x: x[1])
         if depth >= POOL_TARGET and _age_days(oldest_ts) >= RECYCLE_MIN_AGE_DAYS:
-            return _load(kind, oldest_id, lang)   # spaced recycle (free)
+            return _load(kind, oldest_id, locale)   # spaced recycle (free)
         if budget_ok:
             return None                           # generate fresh
-        return _load(kind, oldest_id, lang)       # budget tight → recycle anyway
+        return _load(kind, oldest_id, locale)       # budget tight → recycle anyway
     return None

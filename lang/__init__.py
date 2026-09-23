@@ -9,11 +9,31 @@ and never imports a language module directly.
 
 The language is always passed in explicitly (default "fr"), never read from a
 global, so one process can serve learners of different languages side by side.
+
+A *locale* is what the learner picks (Français / English (US) / English (UK)): it
+selects the voices, the speech-recognition locale and the content bank, while its
+*language* selects the scoring profile — en-US and en-GB share the "en" rules.
 """
 
 import importlib
 
 SUPPORTED = ("fr", "en")
+
+# locale -> language + the edge-tts voice used when Chirp3-HD is unavailable.
+LOCALES = {
+    "fr-FR": {"lang": "fr", "edge_voice": "fr-FR-DeniseNeural"},
+    "en-US": {"lang": "en", "edge_voice": "en-US-JennyNeural"},
+    "en-GB": {"lang": "en", "edge_voice": "en-GB-SoniaNeural"},
+}
+DEFAULT_LOCALE = "fr-FR"
+
+
+def lang_of(locale: str) -> str:
+    """The study language for a learner-facing locale. Raises on an unknown locale."""
+    try:
+        return LOCALES[locale]["lang"]
+    except KeyError:
+        raise ValueError("Unsupported locale: {!r}".format(locale))
 
 
 def get(lang: str = "fr"):

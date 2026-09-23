@@ -40,6 +40,7 @@ import practice_list as pl
 import analytics as _analytics
 import library_store
 import content_bank
+import lang as _lang
 from pos_tagger import tag_nouns_adjs
 from prosody_engine import annotate_phrase_rhythm
 
@@ -152,6 +153,33 @@ CHIRP_VOICE_NAMES = {
 }
 
 
+# English (private beta). Chirp3-HD voice names are shared across locales, so the
+# US and UK sets use the same narrators as French under their own locale prefix.
+_CHIRP_MARK = "-Chirp3-HD-"
+_CHIRP_NAMES_F = ("Aoede", "Kore", "Leda", "Zephyr")
+_CHIRP_NAMES_M = ("Puck", "Charon", "Fenrir", "Orus")
+
+
+def chirp_voices(locale: str) -> list:
+    """Every Chirp3-HD narrator for a locale ("fr-FR" returns CHIRP_VOICES)."""
+    return [locale + _CHIRP_MARK + n for n in _CHIRP_NAMES_F + _CHIRP_NAMES_M]
+
+
+def default_chirp_voice(locale: str) -> str:
+    """The fixed narrator for a locale (stable-cache playback, see DEFAULT_CHIRP_VOICE)."""
+    return locale + _CHIRP_MARK + "Charon"
+
+
+def _resolve_locale(locale: Optional[str]) -> str:
+    """A request's study locale: absent means French (every pre-English client);
+    anything unrecognised is rejected rather than silently served as French."""
+    if not locale:
+        return _lang.DEFAULT_LOCALE
+    if locale not in _lang.LOCALES:
+        raise HTTPException(status_code=400, detail="Unsupported locale: {}".format(locale))
+    return locale
+
+
 def voice_display_name(voice: str) -> str:
     return CHIRP_VOICE_NAMES.get(voice, voice.rsplit("-", 1)[-1])
 
@@ -196,7 +224,7 @@ async def generate_audio(text: str, voice: str = VOICE, rate: str = "+0%") -> st
     return filename
 
 
-async def generate_library_audio(text: str, chirp_voice: str, edge_voice: str = VOICE) -> str:
+async def generate_library_audio(text: str, chirp_voice: str, edge_voice: Optional[str] = None) -> str:
     """Audio for the listening library: Chirp3-HD with content-addressed caching
     (synthesized once per unique text, then reused for free), falling back to
     edge-tts if Chirp isn't configured or the call fails. Returns an /audio filename.
@@ -206,12 +234,16 @@ async def generate_library_audio(text: str, chirp_voice: str, edge_voice: str = 
     dir (edge) or the shared library (Chirp) transparently.
     """
     cleaned = clean_for_tts(text)
-    if library_store.chirp_enabled() and chirp_voice.startswith(_CHIRP_PREFIX):
+    if library_store.chirp_enabled() and _CHIRP_MARK in chirp_voice:
         try:
             return await asyncio.to_thread(library_store.synth_and_cache, cleaned, chirp_voice)
         except Exception as e:
             logging.getLogger("tts").warning("Chirp3 synth failed, falling back to edge-tts: %s", e)
             library_store.record_edge_fallback()
+    if edge_voice is None:
+        # Fall back in the Chirp voice's own locale (fr-FR -> VOICE, as before).
+        locale = "-".join(chirp_voice.split("-")[:2])
+        edge_voice = _lang.LOCALES.get(locale, {}).get("edge_voice", VOICE)
     return await generate_audio(cleaned, edge_voice)
 
 
@@ -307,6 +339,7 @@ async def _synth_and_bank_phrase(text: str, register: str, level: str, topic: st
 class TTSRequest(BaseModel):
     text: str
     voice: Optional[str] = None  # a Chirp3-HD voice name opts into the cached library
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 class ShadowPhraseRequest(BaseModel):
@@ -1091,6 +1124,12 @@ async def _require_english_beta(current_user: dict = Depends(_auth.get_current_u
     return user
 
 
+async def _check_english_access(authorization: Optional[str]) -> dict:
+    """The English beta gate for routes that serve both languages and only need
+    auth when English is requested (French stays exactly as open as before)."""
+    return await _require_english_beta(await _auth.get_current_user(authorization))
+
+
 # ── Current user info ──────────────────────────────────────────────────────────
 
 @app.get("/auth/me")
@@ -1461,9 +1500,23 @@ async def delete_upload(filename: str):
 # ── TTS route ──────────────────────────────────────────────────────────────────
 
 @app.post("/tts")
-async def tts_word(req: TTSRequest):
+async def tts_word(req: TTSRequest, authorization: Optional[str] = Header(None)):
     if not req.text or not req.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
+        if req.voice == _CHIRP_RANDOM:
+            voice = random.choice(chirp_voices(locale))
+        elif req.voice == _CHIRP_DEFAULT:
+            voice = default_chirp_voice(locale)
+        else:
+            voice = None
+        if voice:
+            filename = await generate_library_audio(req.text.strip(), voice)
+        else:
+            filename = await generate_audio(req.text.strip(), _lang.LOCALES[locale]["edge_voice"])
+        return {"audio_url": f"/audio/{filename}"}
     # A Chirp3-HD voice (or the "chirp-random" sentinel) routes to the cached
     # listening library; anything else (word/phrase pronunciation, paragraph
     # chunks, …) stays on free edge-tts.

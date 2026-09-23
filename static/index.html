@@ -318,7 +318,13 @@
     }
     #app.sb-collapsed .sb-collapse-icon { transform: rotate(180deg); }
 
+    /* ── Study-locale switch (English beta accounts only) ── */
+    .sb-locale { padding: var(--vk-sp-2) var(--vk-sp-5) var(--vk-sp-1); }
+    /* Nav items/sections are display:flex/block, which beats the UA [hidden] rule. */
+    #sidebar [hidden] { display: none !important; }
+
     /* ── Collapsed state ── */
+    #app.sb-collapsed .sb-locale,
     #app.sb-collapsed .vk-sb-section,
     #app.sb-collapsed .vk-sb-item::after,
     #app.sb-collapsed .vk-sb-brand .version {
@@ -3273,6 +3279,16 @@
       </button>
     </div>
 
+    <div class="sb-locale" id="sb-locale" hidden>
+      <div class="vk-select-wrap">
+        <select class="vk-select" id="sb-locale-select" aria-label="Study language" onchange="setStudyLocale(this.value)">
+          <option value="fr-FR">Français</option>
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+        </select>
+      </div>
+    </div>
+
     <button class="vk-sb-item sb-nav-home is-active" data-view="home" onclick="switchView('home')" title="Progress">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><polyline points="2,12 6,7 9,9 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
@@ -5686,6 +5702,7 @@
           if (!localStorage.getItem('vf_onboarded') && me.role === 'student_solo') {
             document.getElementById('onboarding-modal').style.display = 'flex';
           }
+          initStudyLocale(me);
         }
       } catch (_) {}
     }
@@ -5973,6 +5990,67 @@
     btn.disabled = false;
   }
 
+  // ── Study locale (English private beta) ────────────────────────────────────
+  // Français / English (US) / English (UK). Only accounts with english_beta see
+  // the switch; everyone else stays on fr-FR and nothing here changes for them.
+  // The locale drives speech recognition, voices and the content bank; its
+  // language ("fr" / "en") drives scoring. Declared before the recognizer is
+  // built below, which reads sttLang() at load.
+  const STUDY_LOCALE_KEY = 'vf_study_locale';
+  const STUDY_LOCALES = ['fr-FR', 'en-US', 'en-GB'];
+  // Views available while studying English (v1: Speaking phrases + Flashcards).
+  const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'phrase', 'vocab-hub', 'vocab']);
+  let studyLocale = 'fr-FR';
+
+  function studyLang() { return studyLocale.slice(0, 2); }
+  function sttLang() { return studyLocale; }
+
+  function applyStudyLocale() {
+    const sel = document.getElementById('sb-locale-select');
+    if (sel) sel.value = studyLocale;
+    if (recognition) recognition.lang = sttLang();
+    const english = studyLang() === 'en';
+    // Hide exercises English doesn't have yet, then any section left empty.
+    let section = null, sectionHasItems = false;
+    const closeSection = () => { if (section) section.hidden = !sectionHasItems; };
+    for (const el of document.getElementById('sidebar').children) {
+      if (el.classList.contains('vk-sb-section')) {
+        closeSection();
+        section = el; sectionHasItems = false;
+      } else if (el.classList.contains('vk-sb-item') && el.dataset.view) {
+        el.hidden = english && !EN_VIEWS.has(el.dataset.view);
+        if (!el.hidden) sectionHasItems = true;
+      }
+    }
+    closeSection();
+  }
+
+  function setStudyLocale(locale) {
+    if (!STUDY_LOCALES.includes(locale) || locale === studyLocale) return;
+    studyLocale = locale;
+    try { localStorage.setItem(STUDY_LOCALE_KEY, locale); } catch (_) {}
+    applyStudyLocale();
+    switchView('home');
+  }
+
+  // Called once /auth/me has answered. Non-beta accounts are pinned to French
+  // even if an old stored choice says otherwise.
+  function initStudyLocale(me) {
+    const wrap = document.getElementById('sb-locale');
+    if (!me || !me.english_beta) {
+      studyLocale = 'fr-FR';
+      if (wrap) wrap.hidden = true;
+      applyStudyLocale();
+      return;
+    }
+    let stored = null;
+    try { stored = localStorage.getItem(STUDY_LOCALE_KEY); } catch (_) {}
+    studyLocale = STUDY_LOCALES.includes(stored) ? stored : 'fr-FR';
+    if (wrap) wrap.hidden = false;
+    applyStudyLocale();
+    if (studyLang() === 'en' && !EN_VIEWS.has(currentView)) switchView('home');
+  }
+
   // ── Speech Recognition ─────────────────────────────────────────────────────
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
@@ -6001,7 +6079,7 @@
 
   if (SR) {
     recognition = new SR();
-    recognition.lang = 'fr-FR';
+    recognition.lang = sttLang();
     recognition.continuous = true;  // Keep listening through pauses
     recognition.interimResults = true;
     // Chrome Android renders a native overlay showing all alternatives — keep it at 1 on mobile
@@ -6306,6 +6384,7 @@
   function setDisplay(id, val) { const el = document.getElementById(id); if (el) el.style.display = val; }
 
   function switchView(view) {
+    if (studyLang() === 'en' && !EN_VIEWS.has(view)) view = 'home';
     closeMobilePanel();
     // Flush shadowing time if leaving a timed view
     if (_shadowingViewStart && _shadowingViewType) {
@@ -7509,6 +7588,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function contractElisions(t) {
+    // French-only: English contractions are expanded server-side by lang/en.py.
+    if (studyLang() !== 'fr') return t;
     const rules = [
       // bare elision forms the model occasionally emits without apostrophe
       [/\bCest\b/g, "C'est"], [/\bcest\b/g, "c'est"],
@@ -7835,7 +7916,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Rec) return;
     _wordDrillSR = new Rec();
-    _wordDrillSR.lang = 'fr-FR';
+    _wordDrillSR.lang = sttLang();
     _wordDrillSR.interimResults = true;
     _wordDrillSR.continuous = false;
     triggerBtn.classList.add('recording');
@@ -8482,7 +8563,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     function attachAndStart() {
       const sr = new SR();
-      sr.lang = 'fr-FR';
+      sr.lang = sttLang();
       sr.continuous = true;
       sr.interimResults = true;
       sr.maxAlternatives = 3;
@@ -12087,7 +12168,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     function attachAndStart() {
       const sr = new SR();
-      sr.lang = 'fr-FR';
+      sr.lang = sttLang();
       sr.continuous = true;
       sr.interimResults = true;
       sr.maxAlternatives = 1;

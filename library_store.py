@@ -89,9 +89,11 @@ def audio_key(text: str, voice: str) -> str:
 
 # ── Google Chirp3-HD synthesis ──────────────────────────────────────────────────
 def _synth_chirp(text: str, voice: str) -> bytes:
+    # Voice names carry their locale ("en-GB-Chirp3-HD-Kore" -> "en-GB").
+    language_code = "-".join(voice.split("-")[:2])
     body = json.dumps({
         "input": {"text": text},
-        "voice": {"languageCode": "fr-FR", "name": voice},
+        "voice": {"languageCode": language_code, "name": voice},
         "audioConfig": {"audioEncoding": "MP3"},
     }).encode("utf-8")
     req = urllib.request.Request(
