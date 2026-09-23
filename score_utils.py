@@ -1,7 +1,7 @@
 import re
 import json
 import difflib
-from elision import normalize_french, normalize_homophones, normalize_mute_feminine_e, strip_terminal_s, canonicalize_verb_endings
+from elision import normalize_french, normalize_homophones, normalize_mute_feminine_e, strip_terminal_s, canonicalize_verb_endings, normalize_phonetic_homophones
 
 # Strip all punctuation including apostrophes — elisions like j'ai and jai score identically
 _PUNCT_RE = re.compile(r"[^\w\s]")
@@ -168,6 +168,7 @@ def normalize(text: str, noun_adj_set=None, phonetic: bool = False) -> list:
     words = normalize_mute_feminine_e(words)
     if phonetic:
         words = canonicalize_verb_endings(words)
+        words = normalize_phonetic_homophones(words)
     if noun_adj_set:
         words = [strip_terminal_s(w, noun_adj_set) for w in words]
     return words

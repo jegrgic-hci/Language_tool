@@ -181,6 +181,26 @@ def normalize_homophones(words: list) -> list:
     return [FRENCH_HOMOPHONES.get(w, w) for w in words]
 
 
+# Sound-identical pairs that should merge ONLY for SPEAKING (phonetic) scoring —
+# the STT returns one of several valid spellings of a single sound, so a correctly
+# pronounced word gets marked wrong purely because the STT chose a different spelling
+# than the target. Symmetric: both sides map to one canonical. NOT used in dictation,
+# where the spelling is the whole point (there "leur" and "l'heure" must stay distinct).
+# The classic pronoun offender is the indirect object "leur", which the recognizer
+# routinely returns as the homophone "l'heure".
+# NB: keys are the POST-normalization surface — normalize() strips apostrophes
+# before this runs, so "l'heure" arrives here as "lheure".
+_PHONETIC_HOMOPHONES = {
+    "lheure": "leur",
+    "lheures": "leur",
+    "leurs": "leur",   # leur / leurs are identical in sound (/lœʁ/)
+}
+
+
+def normalize_phonetic_homophones(words: list) -> list:
+    return [_PHONETIC_HOMOPHONES.get(w, w) for w in words]
+
+
 # === Verb-ending canonicalization (phonetic scoring only) ===
 # French conjugation spellings collide massively by sound. The STT returns one
 # arbitrary valid spelling of what it heard, so a correctly-pronounced verb can
