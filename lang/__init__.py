@@ -13,7 +13,7 @@ global, so one process can serve learners of different languages side by side.
 
 import importlib
 
-SUPPORTED = ("fr",)
+SUPPORTED = ("fr", "en")
 
 
 def get(lang: str = "fr"):
