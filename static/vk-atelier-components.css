@@ -126,6 +126,8 @@
 .pa-run.is-pass    { color: var(--pa-token-hit); }
 .pa-run.is-fail    { color: var(--pa-token-miss); text-decoration: underline; text-underline-offset: 3px; }
 .pa-run.is-unheard { color: var(--pa-unheard); }
+/* Azure amber tier: acceptable but worth polishing — dotted underline, distinct from red's solid error underline. */
+.pa-run.is-amber   { color: var(--vk-warning); text-decoration: underline dotted; text-underline-offset: 3px; }
 
 
 /* ── Badge ───────────────────────────────────────────────────────────────────

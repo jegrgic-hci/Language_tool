@@ -42,9 +42,10 @@ A French language learning webapp built for a user living in Marseille who wants
 | `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |
 | `vocabulary.md` | Vocabulary feature spec — Exposure + Recall (+ cumulative Review), `/vocab/generate` |
 | `listening.md` | Listening feature reference & design log — the 2 modes (Listen & Answer, Dialogue French), Chirp3-HD + R2 cached library, random voices + French speaker names, shared `comprMode` runner, natural-pace-only decision, and why Real French/RFI was built then removed |
+| `pronoun.md` | Pronoun section reference & design log — the 4 modes (Écoute, Choisissez et dites, Écouter & choisir, À vous), `/pronoun/*` routes, focus taxonomy, shared speaking scorer + `leur`/`l'heure` phonetic fix, known gaps |
 | `future_updates.md` | Tech roadmap — updates deferred on a capability gap (e.g. STT upgrade → restore /r/, open/closed e, rhythm sound focuses) |
 | `requirements.txt` | All dependencies |
-| `.env` | `MISTRAL_API_KEY=...`; Chirp3-HD/library: `GOOGLE_TTS_API_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (also set in Render) |
+| `.env` | `MISTRAL_API_KEY=...`; Chirp3-HD/library: `GOOGLE_TTS_API_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; Azure Pronunciation Assessment spike: `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` (also set in Render) |
 
 **Models**: `mistral-large-latest` (`_MODEL`) for content generation (paragraph, listen & answer, dictation); `mistral-small-latest` for the lighter calls (word-drill analysis, pronunciation tips, context phrases, vocab).
 

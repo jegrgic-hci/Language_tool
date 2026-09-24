@@ -173,6 +173,7 @@
     .sb-sec-speaking::after      { content: "Speaking"; }
     .sb-sec-listening::after     { content: "Listening"; }
     .sb-sec-writing::after       { content: "Writing"; }
+    .sb-sec-pronouns::after      { content: "Pronouns"; }
     .sb-sec-vocabulary::after    { content: "Vocabulary"; }
     .sb-sec-personal::after      { content: "Personal"; }
 
@@ -184,6 +185,7 @@
     .sb-nav-dictation::after   { content: "Dictation"; }
     .sb-nav-writing::after     { content: "Prompted Writing"; }
     .sb-nav-transform::after   { content: "Transformation"; }
+    .sb-nav-pronoun::after     { content: "Pronouns"; }
     .sb-nav-flashcards::after  { content: "Flashcards"; }
     .sb-nav-practice::after    { content: "Practice List"; }
     .sb-nav-my-content::after  { content: "My Content"; }
@@ -1190,7 +1192,9 @@
     .psdp-controls { display: flex; gap: 12px; align-items: center; }
     #psdp-live-transcript { font-family: var(--vkg-font-sans); font-size: 0.9rem; color: var(--vk-fg-2); }
     #psdp-live-transcript-text, #para-live-transcript-text, #practice-psdp-live-transcript-text {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end; /* bottom-anchor: keep the newest 2 lines visible while speaking */
       line-height: 1.4;
       max-height: 2.8em;
       overflow-y: auto;
@@ -1994,8 +1998,10 @@
     .dlg-line {
       display: block; margin-bottom: 10px; line-height: 1.6;
       padding: 2px 0 2px 4px; border-left: 2px solid transparent;
+      cursor: pointer;
       transition: background 120ms, border-color 120ms;
     }
+    .dlg-line:hover { background: var(--vk-accent-bg); }
     .dlg-line-active { background: var(--vk-accent-bg); border-left-color: var(--vk-accent); }
     .dlg-spk {
       display: inline-flex; align-items: center; justify-content: center;
@@ -2517,7 +2523,8 @@
     #transform-hub-levels, #transform-hub-focuses {
       display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
     }
-    #transform-hub-content {
+    #transform-hub-content,
+    #pronoun-hub-content {
       flex: 1;
       overflow-y: auto;
       display: grid;
@@ -2526,8 +2533,72 @@
       gap: 0;
       padding: 48px 48px 40px;
     }
-    #transform-hub-content::-webkit-scrollbar { width: 4px; }
-    #transform-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
+    #transform-hub-content::-webkit-scrollbar,
+    #pronoun-hub-content::-webkit-scrollbar { width: 4px; }
+    #transform-hub-content::-webkit-scrollbar-thumb,
+    #pronoun-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
+
+    /* ── Pronoun placement drill ── */
+    .pl-stagebar { margin-bottom: 18px; }
+    .pl-stage-label {
+      font-family: var(--vkg-font-mono);
+      font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--vk-accent-text); font-weight: 600;
+    }
+    .pl-stage-desc {
+      font-family: var(--vkg-font-sans); font-size: 0.85rem;
+      color: var(--vk-fg-2); margin-top: 4px;
+    }
+    .pl-progress-track { height: 3px; background: var(--vk-border); margin-top: 14px; }
+    .pl-progress-fill {
+      height: 100%; width: 0%; background: var(--vk-accent);
+      transition: width 150ms cubic-bezier(0.4,0,0.2,1);
+    }
+    .pl-progress-text {
+      font-family: var(--vkg-font-mono); font-size: 0.62rem; letter-spacing: 0.08em;
+      color: var(--vk-fg-2); margin-top: 6px; text-align: right;
+    }
+    .pl-context { background: var(--vk-surface-1); }
+    .pl-options { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+    .pl-option {
+      border: 1px solid var(--vk-border); padding: 11px 14px;
+      font-family: var(--vkg-font-sans); font-size: 1.02rem; color: var(--vk-fg-1);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .pl-option .pl-opt-num { font-family: var(--vkg-font-mono); font-size: 0.72rem; color: var(--vk-fg-3); }
+    .pl-option.correct { border-color: #1F5A40; background: rgba(31,90,64,0.08); }
+    .pl-option.wrong   { border-color: var(--vk-error); background: color-mix(in srgb, var(--vk-error) 8%, transparent); }
+    .pl-option-click { cursor: pointer; }
+    .pl-option-click:hover { border-color: var(--vk-accent); }
+    .pl-reveal {
+      margin-top: 14px; padding: 12px 16px;
+      border: 1px solid var(--vk-border); background: var(--vk-surface-1);
+      font-family: var(--vkg-font-sans); font-size: 1.05rem; color: var(--vk-fg-1);
+    }
+    .pl-reveal-label {
+      font-family: var(--vkg-font-mono); font-size: 0.6rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--vk-fg-3); margin-bottom: 5px;
+    }
+    .pl-reveal-row { display: flex; align-items: center; gap: 10px; }
+    /* « Quel pronom ? » rection rule shown under the answer — the teaching payload. */
+    .pl-reveal-note {
+      margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--vk-border);
+      font-family: var(--vkg-font-sans); font-size: 0.9rem; color: var(--vk-fg-2);
+    }
+
+    /* Single control row: [Show answer] [mic] [Skip / Next]. Equal-flex side
+       slots keep the mic dead-centre no matter which side buttons are shown. */
+    .pl-controls {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; margin: 6px 0 2px;
+    }
+    .pl-ctrl-side { flex: 1 1 0; display: flex; min-width: 0; }
+    .pl-ctrl-left  { justify-content: flex-end; }
+    .pl-ctrl-right { justify-content: flex-start; }
+    .pl-ctrl-mic   { flex: 0 0 auto; display: flex; justify-content: center; min-width: 76px; }
+    #pl-mic-status, #pl-unsupported { text-align: center; }
+    /* "Skip" stays quiet; once it flips to "Next" it reads as the primary forward action. */
+    #pl-advance-btn.is-next { color: var(--vk-accent-text); font-weight: 600; }
 
     .tr-source-card {
       background: var(--vk-surface-1);
@@ -2988,6 +3059,7 @@
       #dict-hub-content,
       #writing-hub-content,
       #transform-hub-content,
+      #pronoun-hub-content,
       #speaking-hub-content {
         grid-template-columns: 1fr;
         column-gap: 0;
@@ -3324,6 +3396,11 @@
     </button>
     <button class="vk-sb-item sb-nav-transform" data-view="transform-hub" onclick="switchView('transform-hub')" title="Transformation">
       <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 5h9M8 3l3 2-3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11H5M8 9l-3 2 3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+
+    <div class="vk-sb-section sb-sec-pronouns"></div>
+    <button class="vk-sb-item sb-nav-pronoun" data-view="pronoun-hub" onclick="switchView('pronoun-hub')" title="Pronouns">
+      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="11" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 5h4a2 2 0 012 2v1M9 11H5a2 2 0 01-2-2V8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
     </button>
 
     <div class="vk-sb-section sb-sec-vocabulary"></div>
@@ -3753,6 +3830,24 @@
           </div>
         </div>
 
+        <!-- Sound Focus (English) — graded on the sound itself by Azure -->
+        <div class="hub-row en-only">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Sound Focus</span>
+            <span class="hub-row-desc">Target a sound that's hard for French speakers</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="hub-en-sound-chips">
+              <button class="hub-subject-chip active" data-focus="" onclick="selectHubEnSoundChip(this)">Any</button>
+              <button class="hub-subject-chip" data-focus="th" onclick="selectHubEnSoundChip(this)">TH</button>
+              <button class="hub-subject-chip" data-focus="ough" onclick="selectHubEnSoundChip(this)">OUGH words</button>
+              <button class="hub-subject-chip" data-focus="h_sound" onclick="selectHubEnSoundChip(this)">H sound</button>
+              <button class="hub-subject-chip" data-focus="vowel_length" onclick="selectHubEnSoundChip(this)">Short / long vowels</button>
+              <button class="hub-subject-chip" data-focus="ed_endings" onclick="selectHubEnSoundChip(this)">-ED endings</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Subject -->
         <div class="hub-row">
           <div class="hub-row-label">
@@ -3845,24 +3940,6 @@
               <button class="hub-subject-chip" data-level="B2" onclick="selectSdLevel(this)">B2</button>
               <button class="hub-subject-chip" data-level="C1" onclick="selectSdLevel(this)">C1</button>
               <button class="hub-subject-chip" data-level="C2" onclick="selectSdLevel(this)">C2</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sound Focus (English) — graded on the sound itself by Azure -->
-        <div class="hub-row en-only">
-          <div class="hub-row-label">
-            <span class="hub-row-name">Sound Focus</span>
-            <span class="hub-row-desc">Target a sound that's hard for French speakers</span>
-          </div>
-          <div class="hub-row-controls">
-            <div id="hub-en-sound-chips">
-              <button class="hub-subject-chip active" data-focus="" onclick="selectHubEnSoundChip(this)">Any</button>
-              <button class="hub-subject-chip" data-focus="th" onclick="selectHubEnSoundChip(this)">TH</button>
-              <button class="hub-subject-chip" data-focus="ough" onclick="selectHubEnSoundChip(this)">OUGH words</button>
-              <button class="hub-subject-chip" data-focus="h_sound" onclick="selectHubEnSoundChip(this)">H sound</button>
-              <button class="hub-subject-chip" data-focus="vowel_length" onclick="selectHubEnSoundChip(this)">Short / long vowels</button>
-              <button class="hub-subject-chip" data-focus="ed_endings" onclick="selectHubEnSoundChip(this)">-ED endings</button>
             </div>
           </div>
         </div>
@@ -4585,7 +4662,7 @@
                 <button class="pv-speed-btn speed-btn" data-rate="1.25" onclick="setPlaybackSpeed(1.25)">×1.25</button>
               </div>
               <button class="comp-replay-btn" onclick="compReplayAudio()" title="Replay from start">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 8a6 6 0 1 0 1.5-3.9L2 5.5V2H5.5L4.1 3.5A6 6 0 1 1 2 8z"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
               </button>
             </div>
 
@@ -5233,6 +5310,19 @@
       </div>
       <div id="speaking-hub-content">
 
+        <!-- Warm-up (Azure-scored articulation warm-up before a lesson) -->
+        <div class="pv-card" style="margin-bottom:18px; border-color:var(--vk-accent);">
+          <div class="pv-live-label" style="color:var(--vk-accent-text);">Before you start</div>
+          <div class="sp-prompt-text" style="margin-top:4px;">Pronunciation warm-up</div>
+          <p class="hub-row-desc" style="margin:8px 0 14px;">Loosen up with French tongue-twisters and sound drills, scored on the actual sounds you make (Azure, when running locally). Say each one, get instant per-sound feedback.</p>
+          <div id="warmup-hub-sets" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+            <button class="hub-subject-chip active" data-set="mix" onclick="selectWarmupSet(this)">Quick mix</button>
+            <button class="hub-subject-chip" data-set="twisters" onclick="selectWarmupSet(this)">Tongue-twisters</button>
+            <button class="hub-subject-chip" data-set="sounds" onclick="selectWarmupSet(this)">By sound</button>
+          </div>
+          <button id="warmup-start-btn" class="hub-start-btn" onclick="startWarmup()">Start warm-up →</button>
+        </div>
+
         <!-- Level -->
         <div class="hub-row">
           <div class="hub-row-label">
@@ -5347,6 +5437,91 @@
       </div><!-- /.pv-body -->
 
     </div><!-- /#speaking-view -->
+
+    <!-- ── Pronunciation Warm-up View ── -->
+    <div id="warmup-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+
+      <div class="sv-header">
+        <span class="header-title">Speaking — Warm-up</span>
+      </div>
+
+      <div class="pv-body">
+        <div class="pv-col">
+
+          <!-- Exercise -->
+          <div id="wu-exercise">
+
+            <div class="pl-stagebar">
+              <div id="wu-set-label" class="pl-stage-label">Warm-up</div>
+              <div id="wu-set-desc" class="pl-stage-desc">Say each phrase clearly</div>
+              <div class="pl-progress-track"><div id="wu-progress-fill" class="pl-progress-fill"></div></div>
+              <div id="wu-progress-text" class="pl-progress-text">1 / 5</div>
+            </div>
+
+            <div class="pv-card" style="margin-top:14px;">
+              <div id="wu-focus-label" class="pv-live-label">Warm-up</div>
+              <div id="wu-phrase-text" class="sp-prompt-text"></div>
+              <div id="wu-gloss" class="tr-instruction-text" style="margin-top:8px;"></div>
+              <div id="wu-cue" class="pl-reveal" style="margin-top:12px; display:none;"></div>
+              <div style="margin-top:12px;">
+                <button id="wu-play-btn" class="vk-btn vk-btn-outline-accent" onclick="_warmupPlayModel()">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="margin-right:6px;vertical-align:-1px;"><polygon points="1,0 10,5 1,10"/></svg>Hear it
+                </button>
+              </div>
+            </div>
+
+            <div id="wu-answer-area">
+              <div id="wu-transcript-wrap" class="pv-live-transcript" style="display:none; margin-top:6px;">
+                <div class="pv-live-label">What you said</div>
+                <div id="wu-transcript" class="pv-live-text"></div>
+              </div>
+
+              <!-- One control row: Tip (left) · mic (centre) · Skip→Next (right) -->
+              <div class="pl-controls">
+                <div class="pl-ctrl-side pl-ctrl-left">
+                  <button id="wu-cue-btn" class="pv-func-skip" onclick="_warmupToggleCue()" title="Show a tip for the mouth position">Tip</button>
+                </div>
+                <div class="pl-ctrl-mic">
+                  <button id="wu-mic-btn" class="pa-ctrl pa-ctrl-record" onclick="toggleWarmupMic()" title="Speak" aria-label="Record">
+                    <svg viewBox="0 0 16 16" fill="none"><rect x="6" y="1.5" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 7a4.5 4.5 0 009 0M8 11.5V14M5.5 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  </button>
+                </div>
+                <div class="pl-ctrl-side pl-ctrl-right">
+                  <button id="wu-advance-btn" class="pv-func-skip" onclick="_warmupAdvance()" title="Skip to the next one">Skip</button>
+                </div>
+              </div>
+              <div id="wu-mic-status" class="sp-mic-status">Tap the mic and say it</div>
+              <div id="wu-unsupported" class="sp-mic-warn" style="display:none;">Speech recognition needs Chrome or Edge on desktop.</div>
+
+              <div id="wu-result" style="display:none; margin-top:14px;">
+                <div class="pa-score" id="wu-score">
+                  <div class="pa-score-head"><span class="pa-score-num">—</span></div>
+                  <div class="pa-bar"><div class="pa-bar-fill" style="width:0%"></div><span class="pa-bar-thresh at-90"></span></div>
+                  <div class="pa-bar-scale"><span class="at-90">90</span></div>
+                </div>
+                <div id="wu-diff" class="pa-transcript feedback-phrase-diff"></div>
+                <div id="wu-feedback" class="feedback-items"></div>
+              </div>
+            </div>
+
+          </div><!-- /#wu-exercise -->
+
+          <!-- Summary -->
+          <div id="wu-summary" style="display:none;">
+            <div class="pv-card">
+              <div class="pv-live-label">Warm-up complete</div>
+              <div id="wu-summary-body" class="sp-said-text" style="margin-top:6px;"></div>
+              <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="vk-btn vk-btn-accent" onclick="startWarmup()">Again</button>
+                <button class="vk-btn vk-btn-outline" onclick="switchView('speaking-hub')">Back to Speaking</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.pv-col -->
+      </div><!-- /.pv-body -->
+
+    </div><!-- /#warmup-view -->
 
     <!-- ── Transform Hub ── -->
     <div id="transform-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
@@ -5466,6 +5641,276 @@
       </div><!-- /.pv-body -->
 
     </div><!-- /#transform-view -->
+
+    <!-- ── Pronouns Hub ── -->
+    <div id="pronoun-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="hub-intro">
+        <span class="hub-intro-eyebrow">Listening · Speaking</span>
+        <h2 class="hub-intro-heading">Pronouns</h2>
+        <p class="hub-intro-text">Rewire how you use French pronouns. <strong>Décodage</strong> trains your ear to catch the pronoun in fast, reduced speech. <strong>Reformulation</strong> makes you say it back the natural spoken way — dislocation, <em>on</em>, reduced clitics — and scores it. Pick a focus and keep the reps short.</p>
+        <div class="hub-intro-chips">
+          <span class="hub-intro-chip">Dislocation</span>
+          <span class="hub-intro-chip">on / nous</span>
+          <span class="hub-intro-chip">le / la / les</span>
+          <span class="hub-intro-chip">y / en</span>
+        </div>
+      </div>
+      <div id="pronoun-hub-content">
+
+        <!-- Mode -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Mode</span>
+            <span id="pronoun-mode-desc" class="hub-row-desc">Listen and decode the pronoun</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="pronoun-hub-modes">
+              <button class="hub-subject-chip active" data-mode="listen" onclick="selectPronounMode(this)">Écoute (listening)</button>
+              <button class="hub-subject-chip" data-mode="choice" onclick="selectPronounMode(this)">Choisissez et dites</button>
+              <button class="hub-subject-chip" data-mode="listen_choice" onclick="selectPronounMode(this)">Écouter &amp; choisir</button>
+              <button class="hub-subject-chip" data-mode="scratch" onclick="selectPronounMode(this)">À vous</button>
+              <button class="hub-subject-chip" data-mode="select" onclick="selectPronounMode(this)">Quel pronom ?</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Level -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Level</span>
+            <span class="hub-row-desc">Grammar complexity</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="pronoun-hub-levels">
+              <button class="hub-subject-chip" data-level="A1" onclick="selectPronounLevel(this)">A1</button>
+              <button class="hub-subject-chip" data-level="A2" onclick="selectPronounLevel(this)">A2</button>
+              <button class="hub-subject-chip active" data-level="B1" onclick="selectPronounLevel(this)">B1</button>
+              <button class="hub-subject-chip" data-level="B2" onclick="selectPronounLevel(this)">B2</button>
+              <button class="hub-subject-chip" data-level="C1" onclick="selectPronounLevel(this)">C1</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Focus (natural-first order) -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Focus</span>
+            <span id="pronoun-focus-desc" class="hub-row-desc">3rd-person direct object — track who or what is meant</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="pronoun-hub-focuses">
+              <button class="hub-subject-chip" data-focus="dislocation" onclick="selectPronounFocus(this)">Dislocation</button>
+              <button class="hub-subject-chip" data-focus="on_nous" onclick="selectPronounFocus(this)">on ↔ nous</button>
+              <button class="hub-subject-chip" data-focus="reduction" onclick="selectPronounFocus(this)">Réduction</button>
+              <button class="hub-subject-chip active" data-focus="dobj" onclick="selectPronounFocus(this)">le / la / les</button>
+              <button class="hub-subject-chip" data-focus="iobj" onclick="selectPronounFocus(this)">lui / leur</button>
+              <button class="hub-subject-chip" data-focus="y_en" onclick="selectPronounFocus(this)">y / en</button>
+              <button class="hub-subject-chip" data-focus="ordering" onclick="selectPronounFocus(this)">Ordre des pronoms</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start -->
+        <div class="hub-row">
+          <div class="hub-row-label"></div>
+          <div class="hub-row-controls">
+            <button id="pronoun-generate-btn" class="hub-start-btn" onclick="startPronoun()">Start →</button>
+          </div>
+        </div>
+
+      </div><!-- /#pronoun-hub-content -->
+    </div><!-- /#pronoun-hub -->
+
+    <!-- ── Pronoun Speaking (Reformulation) View ── -->
+    <div id="pronoun-speak-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+
+      <div class="sv-header">
+        <span class="header-title">Pronouns — Reformulation</span>
+      </div>
+
+      <div class="pv-body">
+        <div class="pv-col">
+
+          <!-- Loading -->
+          <div id="ps-loading" style="display:none;">
+            <div class="wr-loading-text">Generating prompt…</div>
+          </div>
+
+          <!-- Cue + instruction + mic -->
+          <div id="ps-prompt-area" style="display:none;">
+            <div class="pv-card">
+              <div class="pv-live-label">Cue</div>
+              <div id="ps-cue-text" class="sp-prompt-text"></div>
+            </div>
+            <div class="tr-instruction-card">
+              <div class="tr-instruction-eyebrow">Your task</div>
+              <div id="ps-instruction-text" class="tr-instruction-text"></div>
+            </div>
+
+            <!-- Live transcript -->
+            <div id="ps-transcript-wrap" class="pv-live-transcript" style="display:none;">
+              <div class="pv-live-label">What you said</div>
+              <div id="ps-transcript" class="pv-live-text"></div>
+            </div>
+
+            <!-- Mic control -->
+            <div class="sp-mic-group">
+              <div class="pv-func">
+                <button id="ps-mic-btn" class="pa-ctrl pa-ctrl-record" onclick="togglePronounMic()" title="Speak your answer" aria-label="Record">
+                  <svg viewBox="0 0 16 16" fill="none"><rect x="6" y="1.5" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 7a4.5 4.5 0 009 0M8 11.5V14M5.5 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+              <div id="ps-mic-status" class="sp-mic-status">Tap the mic and say your answer</div>
+              <div id="ps-unsupported" class="sp-mic-warn" style="display:none;">Speech recognition needs Chrome or Edge on desktop.</div>
+            </div>
+
+            <!-- Actions -->
+            <div class="sp-actions">
+              <button id="ps-redo-btn" class="pv-func-skip" onclick="pronounSpeakRedo()" style="display:none;">Redo</button>
+              <button id="ps-submit-btn" class="vk-btn vk-btn-primary" onclick="submitPronounSpeak()" disabled>Score my answer →</button>
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div id="ps-results" class="sp-results" style="display:none;">
+            <div class="sp-said-block">
+              <div class="pv-live-label">Your answer</div>
+              <div id="ps-diff" class="pa-phrase-diff"></div>
+            </div>
+
+            <!-- Reference natural answer -->
+            <div class="pv-card" style="margin-top:14px;">
+              <div class="pv-live-label">Natural spoken form
+                <button id="ps-ref-play" class="pa-wi-play" title="Hear it" style="margin-left:8px; vertical-align:middle;">
+                  <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,0 10,5 1,10"/></svg>
+                </button>
+              </div>
+              <div id="ps-ref-text" class="sp-said-text"></div>
+            </div>
+
+            <!-- Optional written grammar check -->
+            <div class="wr-input-actions" style="margin-top:14px;">
+              <button id="ps-check-btn" class="vk-btn vk-btn-outline-accent" onclick="checkPronounWritten()">Check the grammar →</button>
+            </div>
+            <div id="ps-check-feedback" style="display:none;"></div>
+
+            <div class="sp-next-row">
+              <button class="vk-btn vk-btn-outline-accent" onclick="pronounSpeakNext()">Next prompt →</button>
+            </div>
+          </div>
+
+        </div><!-- /.pv-col -->
+      </div><!-- /.pv-body -->
+
+    </div><!-- /#pronoun-speak-view -->
+
+    <!-- ── Pronoun Placement (graduated speaking drill) View ── -->
+    <div id="pronoun-placement-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+
+      <div class="sv-header">
+        <span class="header-title">Pronouns — Placement</span>
+      </div>
+
+      <div class="pv-body">
+        <div class="pv-col">
+
+          <!-- Loading -->
+          <div id="pl-loading" style="display:none;">
+            <div class="wr-loading-text">Building your drill…</div>
+          </div>
+
+          <!-- Exercise -->
+          <div id="pl-exercise" style="display:none;">
+
+            <!-- Stage banner + progress -->
+            <div class="pl-stagebar">
+              <div id="pl-stage-label" class="pl-stage-label">Étape 1 · Répétez</div>
+              <div id="pl-stage-desc" class="pl-stage-desc"></div>
+              <div class="pl-progress-track"><div id="pl-progress-fill" class="pl-progress-fill"></div></div>
+              <div id="pl-progress-text" class="pl-progress-text">1 / 9</div>
+            </div>
+
+            <!-- Scene / context (constant across the drill) -->
+            <div class="pv-card pl-context">
+              <div class="pv-live-label">La scène</div>
+              <div id="pl-context-text" class="sp-said-text"></div>
+            </div>
+
+            <!-- Item -->
+            <div class="pv-card" style="margin-top:14px;">
+              <div id="pl-cue-label" class="pv-live-label">À dire</div>
+              <div id="pl-cue-text" class="sp-prompt-text"></div>
+
+              <!-- listen & choose: audio of the 2-line exchange -->
+              <div id="pl-audio-row" style="display:none; margin-top:12px;">
+                <button id="pl-audio-play" class="vk-btn vk-btn-outline-accent" onclick="_placementReplayAudio()">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="margin-right:6px;vertical-align:-1px;"><polygon points="1,0 10,5 1,10"/></svg>Réécouter
+                </button>
+              </div>
+
+              <!-- choice: word-order options -->
+              <div id="pl-options" class="pl-options" style="display:none;"></div>
+
+              <!-- scratch: task only -->
+              <div id="pl-instruction" class="tr-instruction-text" style="display:none; margin-top:10px;"></div>
+            </div>
+
+            <!-- Answer area (say it, auto-scored) -->
+            <div id="pl-answer-area">
+              <div id="pl-transcript-wrap" class="pv-live-transcript" style="display:none; margin-top:6px;">
+                <div class="pv-live-label">What you said</div>
+                <div id="pl-transcript" class="pv-live-text"></div>
+              </div>
+
+              <!-- One control row: Show answer (left) · mic (centre) · Skip→Next (right) -->
+              <div class="pl-controls">
+                <div class="pl-ctrl-side pl-ctrl-left">
+                  <button id="pl-giveup-btn" class="pv-func-skip" onclick="placementGiveUp()" title="Reveal the answer if you're stuck">Show answer</button>
+                </div>
+                <div class="pl-ctrl-mic">
+                  <button id="pl-mic-btn" class="pa-ctrl pa-ctrl-record" onclick="togglePlacementMic()" title="Speak" aria-label="Record">
+                    <svg viewBox="0 0 16 16" fill="none"><rect x="6" y="1.5" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 7a4.5 4.5 0 009 0M8 11.5V14M5.5 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  </button>
+                </div>
+                <div class="pl-ctrl-side pl-ctrl-right">
+                  <button id="pl-advance-btn" class="pv-func-skip" onclick="placementNext()" title="Skip to the next one">Skip</button>
+                </div>
+              </div>
+              <div id="pl-mic-status" class="sp-mic-status">Tap the mic and say it</div>
+              <div id="pl-unsupported" class="sp-mic-warn" style="display:none;">Speech recognition needs Chrome or Edge on desktop.</div>
+
+              <!-- Last attempt result (updates every rep) — same shape as the phrase exercise -->
+              <div id="pl-result" style="display:none; margin-top:14px;">
+                <div class="pa-score" id="pl-score">
+                  <div class="pa-score-head"><span class="pa-score-num">—</span></div>
+                  <div class="pa-bar"><div class="pa-bar-fill" style="width:0%"></div><span class="pa-bar-thresh at-90"></span></div>
+                  <div class="pa-bar-scale"><span class="at-90">90</span></div>
+                </div>
+                <div id="pl-diff" class="pa-transcript feedback-phrase-diff"></div>
+                <div id="pl-feedback" class="feedback-items"></div>
+              </div>
+
+              <!-- Correct answer — only revealed on a passing attempt or an explicit give-up -->
+              <div id="pl-reveal" class="pl-reveal" style="display:none; margin-top:14px;"></div>
+            </div>
+
+          </div><!-- /#pl-exercise -->
+
+          <!-- Summary -->
+          <div id="pl-summary" style="display:none;">
+            <div class="pv-card">
+              <div class="pv-live-label">Drill complete</div>
+              <div id="pl-summary-text" class="sp-said-text"></div>
+            </div>
+            <div class="sp-next-row">
+              <button class="vk-btn vk-btn-primary" onclick="startPronounDrill(placementKind)">New scene →</button>
+            </div>
+          </div>
+
+        </div><!-- /.pv-col -->
+      </div><!-- /.pv-body -->
+
+    </div><!-- /#pronoun-placement-view -->
 
     <!-- ── ACCOUNT VIEW ── -->
     <div id="account-view" style="display:none; flex:1; flex-direction:column; overflow-y:auto;">
@@ -6567,7 +7012,11 @@
     const inShadowDrill     = view === 'shadow-drill';
     const inSpeakingHub     = view === 'speaking-hub';
     const inSpeaking        = view === 'speaking';
+    const inWarmup          = view === 'warmup';
     const inDialogueSpeak   = view === 'dialogue-speak';
+    const inPronounHub      = view === 'pronoun-hub';
+    const inPronounSpeak    = view === 'pronoun-speak';
+    const inPronounPlace    = view === 'pronoun-placement';
 
     if (inShadow || inParagraph || inShadowDrill) {
       _shadowingViewStart = Date.now();
@@ -6596,9 +7045,20 @@
     setDisplay('shadow-view',         inShadowDrill  ? 'flex' : 'none');
     setDisplay('speaking-hub',        inSpeakingHub  ? 'flex' : 'none');
     setDisplay('speaking-view',       inSpeaking     ? 'flex' : 'none');
+    setDisplay('warmup-view',         inWarmup       ? 'flex' : 'none');
     setDisplay('dialogue-speak-view', inDialogueSpeak? 'flex' : 'none');
-    if (!inSpeaking) stopSpeakingMic();
-    if (!inDialogueSpeak) { dsStopMic(); dsStopAudio(); }
+    setDisplay('pronoun-hub',           inPronounHub   ? 'flex' : 'none');
+    setDisplay('pronoun-speak-view',    inPronounSpeak ? 'flex' : 'none');
+    setDisplay('pronoun-placement-view',inPronounPlace ? 'flex' : 'none');
+    // These mic-stop helpers are defined in the second <script> block. The load-time deferred
+    // switchView('home') (and a stale-cached page) can run before that block has executed, so
+    // guard every cross-block call — otherwise switchView throws here and aborts, skipping the
+    // later stopPlacementMic() and leaving a stale recognizer holding the mic device.
+    if (!inSpeaking && typeof stopSpeakingMic === 'function') stopSpeakingMic();
+    if (!inDialogueSpeak && typeof dsStopMic === 'function') { dsStopMic(); dsStopAudio(); }
+    if (!inPronounSpeak && typeof stopPronounMic === 'function') stopPronounMic();
+    if (!inPronounPlace && typeof stopPlacementMic === 'function') stopPlacementMic();
+    if (!inWarmup && typeof stopWarmupMic === 'function') stopWarmupMic();
     if (inAccount) loadAccountView();
 
     const VIEW_LABELS = {
@@ -6611,9 +7071,11 @@
       'vocab-hub': 'Flashcards', 'vocab': 'Flashcards',
       'writing-hub': 'Writing', 'writing': 'Writing',
       'transform-hub': 'Transformation', 'transform': 'Transformation',
+      'pronoun-hub': 'Pronouns', 'pronoun-speak': 'Pronouns', 'pronoun-placement': 'Pronouns',
       'account': 'Account',
       'shadow-hub': 'Shadowing', 'shadow-drill': 'Shadowing',
       'speaking-hub': 'Prompted Free Speaking', 'speaking': 'Prompted Free Speaking',
+      'warmup': 'Speaking — Warm-up',
       'dialogue-speak': 'Dialogue French',
     };
     const _sbChip = document.getElementById('sb-mode-chip');
@@ -6633,6 +7095,7 @@
         (b.dataset.view === 'vocab-hub' && inVocab) ||
         (b.dataset.view === 'writing-hub' && inWriting) ||
         (b.dataset.view === 'transform-hub' && inTransform) ||
+        (b.dataset.view === 'pronoun-hub' && (inPronounSpeak || inPronounPlace || (inComprehension && comprIsPronoun))) ||
         (b.dataset.view === 'shadow-hub' && inShadowDrill) ||
         (b.dataset.view === 'speaking-hub' && inSpeaking);
       b.classList.toggle('is-active', isActive);
@@ -10026,7 +10489,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       playBtn.addEventListener('click', async () => {
         playBtn.disabled = true;
         try {
-          const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.target_word }) });
+          const ttsBody = studyLang() === 'en' ? { text: f.target_word, locale: studyLocale } : { text: f.target_word };
+          const r = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsBody) });
           playAudio((await r.json()).audio_url);
         } finally { playBtn.disabled = false; }
       });
@@ -10663,6 +11127,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   // Natural French (casual spoken dialogue) — shares the comprehension runner.
   let comprMode    = 'passage';   // 'passage' (Listen & Answer) | 'dialogue' (Natural French)
+  let comprIsPronoun = false;      // true when the dialogue runner is showing a Pronouns · Décodage session
   let comprPassageVoice = 'chirp-random';  // fixed voice for a banked passage (stable cache), else random
   let comprLines   = [];          // [{speaker, text, audio_url}] in dialogue mode
   let natLevel     = 'B1';
@@ -10691,6 +11156,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function _comprHubView() {
+    if (comprIsPronoun)            return 'pronoun-hub';
     if (comprMode === 'dialogue')  return 'natural-hub';
     return 'comprehension-hub';
   }
@@ -10703,7 +11169,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function compTryAgain() {
-    if (comprMode === 'dialogue') startNatural();
+    if (comprIsPronoun) startPronounListen();
+    else if (comprMode === 'dialogue') startNatural();
     else startComprehension();
   }
 
@@ -10799,6 +11266,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function startComprehension() {
     comprMode = 'passage';
+    comprIsPronoun = false;
     _dlgStop(); comprLines = [];
     document.getElementById('comp-header-title').textContent = 'Listen & Answer';
     document.getElementById('comp-new-btn').textContent = 'New passage';
@@ -10851,6 +11319,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function startNatural() {
     comprMode = 'dialogue';
+    comprIsPronoun = false;
     _dlgStop();
     comprPassage = ''; comprLines = []; comprAudioUrl = ''; comprAudioLoading = false;
     comprQuestions = []; comprVocabPreview = []; comprAnswers = [];
@@ -10909,7 +11378,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const el = document.getElementById('comp-transcript-text');
     const clean = (t) => (t || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/_(.+?)_/g, '$1');
     el.innerHTML = comprLines.map((l, i) =>
-      `<span class="dlg-line" id="dlg-line-${i}"><span class="dlg-spk dlg-spk-${l.role || l.speaker}">${esc(l.speaker)}</span>${esc(clean(l.text))}</span>`
+      `<span class="dlg-line" id="dlg-line-${i}" onclick="_dlgPlayLine(${i})" title="Play from here"><span class="dlg-spk dlg-spk-${l.role || l.speaker}">${esc(l.speaker)}</span>${esc(clean(l.text))}</span>`
     ).join('');
   }
 
@@ -10926,7 +11395,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _dlgHighlight(null);
   }
 
-  function _dlgStart() {
+  function _dlgBuildAudios() {
     _dlgStop();
     dlgAudios = comprLines.map(l => {
       const a = new Audio(l.audio_url);
@@ -10934,7 +11403,18 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       a.preload = 'auto';
       return a;
     });
+  }
+
+  function _dlgStart() {
+    _dlgBuildAudios();
     _dlgPlayFrom(0);
+  }
+
+  // Click a transcript line → play from that exchange onward.
+  function _dlgPlayLine(i) {
+    if (i == null || i < 0 || i >= comprLines.length) return;
+    _dlgBuildAudios();
+    _dlgPlayFrom(i);
   }
 
   function _dlgIcons(playing) {
@@ -10990,6 +11470,12 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function _dlgToggle() {
     if (!dlgAudios.length) { _dlgStart(); return; }
     const audio = dlgAudios[dlgIndex];
+    // Dialogue has fully finished → the play button restarts from the first line
+    // (otherwise it would replay only the last clip).
+    if (!dlgPlaying && dlgIndex >= dlgAudios.length - 1 && (!audio || audio.ended)) {
+      _dlgStart();
+      return;
+    }
     if (audio && !audio.paused) {
       dlgPlaying = false;
       audio.pause();
@@ -12512,6 +12998,362 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     startSpeaking();
   }
 
+  // ── Pronunciation Warm-up ──────────────────────────────────────────────────
+  // A fixed bank of French pangrams, virelangues (tongue-twisters) and single-sound drills to
+  // loosen the mouth before a lesson. Scored on the actual SOUND via Azure Pronunciation
+  // Assessment when local (phoneme-level), with the Web Speech + best-of-N path as fallback —
+  // same two engines as the pronoun placement drills. Each item carries an English gloss, a short
+  // target-sound label, and an articulatory cue (the "how to move your mouth" part Azure can't give).
+  const WARMUP_SETS = {
+    mix: {
+      label: 'Quick mix', desc: 'A short all-round warm-up',
+      items: [
+        { text: "Portez ce vieux whisky au juge blond qui fume.", gloss: "Take this old whisky to the blond judge who smokes.", focus: "Full range (pangram)", cue: "Range check — say it smoothly and don't rush the liaisons. Every French sound is in here." },
+        { text: "Un bon vin blanc.", gloss: "A good white wine.", focus: "Nasal vowels", cue: "Four nasal vowels in a row. Let the air flow through your nose and don't add a hard n/m at the end." },
+        { text: "As-tu vu la rue où roule la roue ?", gloss: "Did you see the street where the wheel rolls?", focus: "/y/ vs /u/", cue: "rue = /y/: lips tight and pushed forward, tongue near your front teeth. roue = /u/: lips rounded but tongue pulled back." },
+        { text: "J'ai été à la fête après le thé.", gloss: "I went to the party after tea.", focus: "é vs è", cue: "Closed é (été, thé): mouth fairly closed, corners slightly spread. Open è (fête): let the jaw drop a bit more." },
+        { text: "Trois tortues trottaient sur un trottoir très étroit.", gloss: "Three tortoises trotted on a very narrow sidewalk.", focus: "/t/ + /r/", cue: "Tap /t/ with your tongue on your teeth; keep every /r/ in the back of your throat — never an English r." },
+      ],
+    },
+    twisters: {
+      label: 'Tongue-twisters', desc: 'Virelangues — build muscle memory',
+      items: [
+        { text: "Un chasseur sachant chasser doit savoir chasser sans son chien.", gloss: "A hunter who knows how to hunt must know how to hunt without his dog.", focus: "ch / s", cue: "Alternate /ʃ/ (sh, lips forward) and /s/ (tongue tip near the ridge). Slow and clean first, then speed up." },
+        { text: "Les chaussettes de l'archiduchesse sont-elles sèches, archi-sèches ?", gloss: "Are the archduchess's socks dry, super-dry?", focus: "ch (boss level)", cue: "The famous one. Keep the /ʃ/ consistent — lips rounded and forward — and don't let it collapse into /s/." },
+        { text: "Ton thé t'a-t-il ôté ta toux ?", gloss: "Did your tea take away your cough?", focus: "Dental /t/", cue: "All dental /t/ — tongue tip on the back of the upper teeth, not the English alveolar ridge." },
+        { text: "Je veux et j'exige d'exquises excuses.", gloss: "I want and I demand exquisite apologies.", focus: "x sounds + é/è", cue: "x = /gz/ in 'exige' and 'exquises', /ks/ elsewhere. Keep the é/è clean too." },
+        { text: "Didon dîna, dit-on, du dos d'un dodu dindon.", gloss: "Dido dined, they say, on the back of a plump turkey.", focus: "Dental /d/", cue: "Dental /d/ — tongue on the teeth, light and quick. Keep the nasals in 'un/dindon' nasal." },
+      ],
+    },
+    sounds: {
+      label: 'By sound', desc: 'One target sound each',
+      items: [
+        { text: "As-tu vu la rue où roule la roue ?", gloss: "Did you see the street where the wheel rolls?", focus: "/y/ vs /u/", cue: "rue = /y/: lips tight and forward, tongue front. roue = /u/: lips rounded, tongue back. Feel the tongue move." },
+        { text: "Deux œufs, deux bœufs, un peu peureux.", gloss: "Two eggs, two oxen, a little fearful.", focus: "eu /ø/ /œ/", cue: "The 'eu' sound: round your lips as if for /o/, but say /e/. There is no English equivalent — exaggerate it." },
+        { text: "Un bon vin blanc dans un grand champ.", gloss: "A good white wine in a big field.", focus: "Nasal vowels", cue: "Every vowel here is nasal — air through the nose, and no final consonant sound after it." },
+        { text: "Paris a arrêté trois rats gris.", gloss: "Paris stopped three grey rats.", focus: "Uvular /r/", cue: "Uvular /ʁ/: a light gargle at the back of the throat. Never touch the tip of your tongue to the ridge." },
+        { text: "Pruneau cuit, pruneau cru.", gloss: "Cooked prune, raw prune.", focus: "u + r contrast", cue: "cuit = /kɥi/ (quick glide). cru = /kʁy/ (throat r + tight /y/). A brutal little minimal contrast." },
+      ],
+    },
+  };
+
+  let warmupSet = 'mix';
+  let warmupItems = [], warmupIdx = 0, warmupScores = [];
+  let _wuListening = false, _wuRecognition = null, _wuAzureRecognizer = null, _wuAzureReady = false;
+  let _wuUserStopped = false, _wuTranscript = '', _wuAltCandidates = new Set(), _wuSilenceTimer = null;
+
+  function selectWarmupSet(btn) {
+    document.querySelectorAll('#warmup-hub-sets .hub-subject-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    warmupSet = btn.getAttribute('data-set') || 'mix';
+  }
+
+  function startWarmup() {
+    const set = WARMUP_SETS[warmupSet] || WARMUP_SETS.mix;
+    warmupItems = set.items.slice();
+    warmupIdx = 0; warmupScores = [];
+    switchView('warmup');
+    document.getElementById('wu-set-label').textContent = set.label;
+    document.getElementById('wu-set-desc').textContent = set.desc;
+    // Warm up phoneme scoring in parallel; if Azure is unreachable (prod/offline) we use Web Speech.
+    _ensureAzure().then(ok => { _wuAzureReady = ok; });
+    document.getElementById('wu-summary').style.display = 'none';
+    document.getElementById('wu-exercise').style.display = '';
+    _renderWarmupItem();
+  }
+
+  function _renderWarmupItem() {
+    stopWarmupMic();
+    const item = warmupItems[warmupIdx];
+    if (!item) { _showWarmupSummary(); return; }
+    document.getElementById('wu-phrase-text').textContent = item.text;
+    document.getElementById('wu-gloss').textContent = item.gloss || '';
+    document.getElementById('wu-focus-label').textContent = item.focus || 'Warm-up';
+    const cue = document.getElementById('wu-cue');
+    cue.textContent = item.cue || '';
+    cue.style.display = 'none';
+    document.getElementById('wu-cue-btn').textContent = 'Tip';
+    // progress
+    const n = warmupItems.length;
+    document.getElementById('wu-progress-text').textContent = (warmupIdx + 1) + ' / ' + n;
+    document.getElementById('wu-progress-fill').style.width = ((warmupIdx) / n * 100) + '%';
+    // reset attempt UI
+    _wuTranscript = ''; _wuAltCandidates = new Set();
+    document.getElementById('wu-transcript-wrap').style.display = 'none';
+    document.getElementById('wu-result').style.display = 'none';
+    document.getElementById('wu-mic-status').textContent = 'Tap the mic and say it';
+    const adv = document.getElementById('wu-advance-btn');
+    adv.textContent = (warmupIdx >= n - 1) ? 'Finish →' : 'Skip';
+    adv.classList.remove('is-next');
+  }
+
+  function _warmupToggleCue() {
+    const cue = document.getElementById('wu-cue');
+    const btn = document.getElementById('wu-cue-btn');
+    const showing = cue.style.display !== 'none';
+    cue.style.display = showing ? 'none' : '';
+    btn.textContent = showing ? 'Tip' : 'Hide tip';
+  }
+
+  async function _warmupPlayModel() {
+    const item = warmupItems[warmupIdx];
+    if (!item) return;
+    try {
+      const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: item.text }) });
+      playAudio((await r.json()).audio_url);
+    } catch (e) {}
+  }
+
+  function toggleWarmupMic() {
+    if (_wuListening) { stopWarmupMic(); return; }
+    const item = warmupItems[warmupIdx];
+    if (_wuAzureReady && item && item.text) { console.info('[warmup] engine: azure'); _startWarmupAzureMic(item); return; }
+    console.info('[warmup] engine: webspeech');
+    _startWarmupWebSpeechMic();
+  }
+
+  function _startWarmupWebSpeechMic() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setDisplay('wu-unsupported', ''); return; }
+    _wuUserStopped = false; _wuTranscript = ''; _wuAltCandidates = new Set();
+    document.getElementById('wu-transcript-wrap').style.display = '';
+    document.getElementById('wu-transcript').innerHTML = '<span class="sp-interim">…</span>';
+
+    function attachAndStart() {
+      const sr = new SR();
+      sr.lang = 'fr-FR'; sr.continuous = true; sr.interimResults = true;
+      sr.maxAlternatives = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 1 : 5;
+      sr.onresult = e => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) {
+            const prefix = _wuTranscript;
+            for (let j = 0; j < r.length; j++) {
+              const cand = contractElisions(((prefix + ' ' + r[j].transcript).trim()));
+              if (cand) _wuAltCandidates.add(cand);
+            }
+            _wuTranscript = (prefix + ' ' + r[0].transcript.trim()).trim();
+          } else interim += r[0].transcript;
+        }
+        _renderWarmupTranscript(interim);
+        if (_wuSilenceTimer) clearTimeout(_wuSilenceTimer);
+        const last = e.results[e.results.length - 1];
+        _wuSilenceTimer = setTimeout(() => {
+          if (_wuListening && _wuTranscript.trim()) submitWarmup();
+        }, last.isFinal ? 2000 : 3500);
+      };
+      sr.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') stopWarmupMic(); };
+      sr.onend = () => { if (_wuUserStopped) return; try { _wuRecognition = attachAndStart(); } catch { stopWarmupMic(); } };
+      sr.start();
+      return sr;
+    }
+    try {
+      _wuRecognition = attachAndStart();
+      _wuListening = true;
+      document.getElementById('wu-mic-btn').classList.add('listening');
+      document.getElementById('wu-mic-status').textContent = 'Listening… say it, then pause';
+    } catch (e) { stopWarmupMic(); }
+  }
+
+  function _renderWarmupTranscript(interim) {
+    const tEl = document.getElementById('wu-transcript');
+    const finalPart = _wuTranscript ? `<span class="sp-final">${esc(_wuTranscript)}</span>` : '';
+    const interimPart = interim ? ` <span class="sp-interim">${esc(interim)}</span>` : '';
+    tEl.innerHTML = (finalPart + interimPart).trim() || '<span class="sp-interim">…</span>';
+  }
+
+  function stopWarmupMic() {
+    _wuUserStopped = true; _wuListening = false;
+    if (_wuSilenceTimer) { clearTimeout(_wuSilenceTimer); _wuSilenceTimer = null; }
+    if (_wuRecognition) { try { _wuRecognition.stop(); } catch (e) {} _wuRecognition = null; }
+    if (_wuAzureRecognizer) { try { _wuAzureRecognizer.close(); } catch (e) {} _wuAzureRecognizer = null; }
+    const micBtn = document.getElementById('wu-mic-btn');
+    if (micBtn) micBtn.classList.remove('listening');
+  }
+
+  async function _startWarmupAzureMic(item) {
+    const micBtn = document.getElementById('wu-mic-btn');
+    const status = document.getElementById('wu-mic-status');
+    if (!(await _ensureAzure())) { _wuAzureReady = false; _startWarmupWebSpeechMic(); return; }
+    const SDK = window.SpeechSDK;
+    let recognizer;
+    try {
+      const speechConfig = SDK.SpeechConfig.fromAuthorizationToken(_azToken, _azRegion);
+      speechConfig.speechRecognitionLanguage = 'fr-FR';
+      const audioConfig = SDK.AudioConfig.fromDefaultMicrophoneInput();
+      const paConfig = new SDK.PronunciationAssessmentConfig(
+        item.text,
+        SDK.PronunciationAssessmentGradingSystem.HundredMark,
+        SDK.PronunciationAssessmentGranularity.Phoneme,
+        true
+      );
+      recognizer = new SDK.SpeechRecognizer(speechConfig, audioConfig);
+      paConfig.applyTo(recognizer);
+    } catch (e) { _wuAzureReady = false; _startWarmupWebSpeechMic(); return; }
+
+    _wuAzureRecognizer = recognizer;
+    _wuListening = true; _wuTranscript = '';
+    micBtn.classList.add('listening');
+    status.textContent = 'Listening… say it once';
+    document.getElementById('wu-transcript-wrap').style.display = '';
+    document.getElementById('wu-transcript').innerHTML = '<span class="sp-interim">…</span>';
+
+    recognizer.recognizeOnceAsync(async result => {
+      _wuListening = false; micBtn.classList.remove('listening'); _wuAzureRecognizer = null;
+      try {
+        if (!result || result.reason !== SDK.ResultReason.RecognizedSpeech) {
+          // Canceled = Azure itself failed (token/quota/network), not that you were inaudible —
+          // log it and drop to Web Speech for the rest of the session. A NoMatch just retries.
+          if (result && result.reason === SDK.ResultReason.Canceled) {
+            try {
+              const cd = SDK.CancellationDetails.fromResult(result);
+              console.warn('[warmup] azure canceled:', cd.reason, cd.errorCode, cd.errorDetails);
+            } catch (_) {}
+            _wuAzureReady = false;
+            status.textContent = 'Reconnaissance standard — redites-la';
+            _startWarmupWebSpeechMic();
+            return;
+          }
+          status.textContent = 'Pas entendu — retapez le micro'; return;
+        }
+        _wuTranscript = result.text || '';
+        _renderWarmupTranscript('');
+        status.textContent = 'Scoring…';
+        const raw = result.properties.getProperty(SDK.PropertyId.SpeechServiceResponse_JsonResult);
+        const res = await fetch('/warmup/azure/analyze', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target: item.text, azure_json: raw, sound_focus: item.focus, ...getAnalyticsFields() }),
+        });
+        const data = await res.json();
+        data.engine = 'azure';
+        _applyWarmupResult(data, item);
+      } catch (e) {
+        status.textContent = 'Erreur — retapez le micro';
+      } finally {
+        try { recognizer.close(); } catch (e) {}
+      }
+    }, err => {
+      _wuListening = false; micBtn.classList.remove('listening'); _wuAzureRecognizer = null;
+      console.warn('[warmup] azure recognizer error:', err);
+      try { recognizer.close(); } catch (e) {}
+      _wuAzureReady = false;
+      status.textContent = 'Reconnaissance standard — redites-la';
+      _startWarmupWebSpeechMic();
+    });
+  }
+
+  async function submitWarmup() {
+    stopWarmupMic();
+    const said = _wuTranscript.trim();
+    const item = warmupItems[warmupIdx];
+    if (!said || !item || !item.text) return;
+    document.getElementById('wu-mic-status').textContent = 'Scoring…';
+    try {
+      const res = await fetch('/warmup/speak/analyze', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: item.text,
+          transcription: contractElisions(said),
+          alt_transcriptions: Array.from(_wuAltCandidates),
+          sound_focus: item.focus,
+          ...getAnalyticsFields(),
+        }),
+      });
+      const data = await res.json();
+      _applyWarmupResult(data, item);
+    } catch (e) {
+      document.getElementById('wu-mic-status').textContent = 'Erreur — tapez le micro et réessayez';
+    }
+  }
+
+  function _applyWarmupResult(data, item) {
+    _renderWarmupFeedback(data, item);
+    document.getElementById('wu-result').style.display = '';
+    if (typeof data.score === 'number') warmupScores.push(data.score);
+    document.getElementById('wu-mic-status').textContent = data.passed
+      ? 'Bien ✓ — continuez, ou passez au suivant'
+      : 'Encore une fois — retapez le micro, ou passez au suivant';
+    // Flip Skip → Next once they've had a scored go at this phrase.
+    const adv = document.getElementById('wu-advance-btn');
+    adv.textContent = (warmupIdx >= warmupItems.length - 1) ? 'Finish →' : 'Next →';
+    adv.classList.add('is-next');
+  }
+
+  function _renderWarmupFeedback(data, item) {
+    const pct = Math.round((data.score || 0) * 100);
+    const passed = data.passed;
+    const tier = passed ? 'is-pass' : pct >= 60 ? 'is-progress' : pct >= 40 ? 'is-almost' : 'is-fail';
+    const scoreWrap = document.getElementById('wu-score');
+    scoreWrap.className = 'pa-score ' + tier;
+    scoreWrap.querySelector('.pa-score-num').textContent = pct + '%';
+    const fill = scoreWrap.querySelector('.pa-bar-fill');
+    fill.style.width = '0%';
+    requestAnimationFrame(() => { fill.style.width = pct + '%'; });
+
+    const diff = document.getElementById('wu-diff');
+    diff.innerHTML = '';
+    const row = document.createElement('div'); row.className = 'pa-transcript-row';
+    const label = document.createElement('span'); label.className = 'pa-transcript-label'; label.textContent = 'heard';
+    const heard = document.createElement('div'); heard.className = 'pa-transcript-heard';
+    (data.display_results || []).forEach(dr => {
+      const runEl = document.createElement('span');
+      if (dr.tier) {
+        const cls = dr.tier === 'green' ? 'is-pass' : dr.tier === 'amber' ? 'is-amber'
+                  : dr.tier === 'red'   ? 'is-fail' : 'is-unheard';
+        runEl.className = 'pa-run ' + cls;
+        runEl.textContent = dr.word;
+      } else if (dr.matched) { runEl.className = 'pa-run is-pass';    runEl.textContent = dr.word; }
+      else if (dr.said)      { runEl.className = 'pa-run is-fail';    runEl.textContent = dr.said; }
+      else                   { runEl.className = 'pa-run is-unheard'; runEl.textContent = dr.word; }
+      heard.appendChild(runEl);
+    });
+    row.appendChild(label); row.appendChild(heard); diff.appendChild(row);
+
+    const itemsEl = document.getElementById('wu-feedback');
+    itemsEl.innerHTML = '';
+    itemsEl.classList.remove('pa-word-list');
+    const feedback = data.feedback || [];
+    if (passed && feedback.length === 0) {
+      const allGreen = (data.display_results || []).every(dr => dr.tier ? dr.tier === 'green' : dr.matched);
+      const ok = document.createElement('div'); ok.className = 'pv-pass-label';
+      ok.textContent = allGreen ? 'Parfait — every sound landed.' : 'Bien — un son ou deux à polir.';
+      itemsEl.appendChild(ok);
+    }
+    if (feedback.length > 0) {
+      itemsEl.classList.add('pa-word-list');
+      const header = document.createElement('div'); header.className = 'pa-word-list-header'; header.textContent = 'Sounds to work on';
+      itemsEl.appendChild(header);
+      feedback.forEach((f, i) => {
+        const wi = buildWordExercise(f.target_word, f.said, f.tip, item.text, f.is_grammar, f.grammar_note, itemsEl);
+        wi.style.setProperty('--wi-delay', (i * 60) + 'ms');
+        itemsEl.appendChild(wi);
+      });
+    }
+    itemsEl.style.display = itemsEl.children.length ? '' : 'none';
+  }
+
+  function _warmupAdvance() {
+    if (warmupIdx >= warmupItems.length - 1) { _showWarmupSummary(); return; }
+    warmupIdx++;
+    _renderWarmupItem();
+  }
+
+  function _showWarmupSummary() {
+    stopWarmupMic();
+    document.getElementById('wu-exercise').style.display = 'none';
+    document.getElementById('wu-summary').style.display = '';
+    const n = warmupScores.length;
+    const body = document.getElementById('wu-summary-body');
+    if (!n) {
+      body.textContent = 'Warm-up done. Ready for your lesson.';
+    } else {
+      const avg = Math.round(warmupScores.reduce((a, b) => a + b, 0) / n * 100);
+      const best = Math.round(Math.max(...warmupScores) * 100);
+      body.textContent = `You scored ${n} phrase${n > 1 ? 's' : ''} — average ${avg}%, best ${best}%. Mouth's warm. Ready for your lesson.`;
+    }
+  }
+
   // ── Sentence Transformation ───────────────────────────────────────────────
   const TRANSFORM_MAX_ATTEMPTS = 3;
   let transformLevel = 'B1';
@@ -12690,6 +13532,862 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     startTransform();
   }
 
+  // ── Pronouns (Décodage listening + Reformulation speaking) ─────────────────
+  const PRONOUN_FOCUS_DESC = {
+    dislocation: 'Dislocation — "Marie, je la connais", "Moi, je…"',
+    on_nous:     'on instead of nous — the spoken default for "we"',
+    reduction:   'Reduced clitics in speech — "j\'le sais", "j\'la vois"',
+    dobj:        '3rd-person direct object — track who or what is meant',
+    iobj:        'lui / leur — track to whom something is said',
+    y_en:        'y and en — replace a place (à) or a thing (de)',
+    ordering:    'Double pronouns in order — "je te le donne"',
+  };
+  let pronounLevel = 'B1';
+  let pronounFocus = 'dobj';
+  let pronounMode  = 'listen';
+
+  function selectPronounMode(btn) {
+    document.querySelectorAll('#pronoun-hub-modes .hub-subject-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    pronounMode = btn.dataset.mode;
+    const desc = {
+      listen: 'Listen and decode the pronoun',
+      choice: 'Pick the version with the pronoun in the right place, and say it',
+      listen_choice: 'Hear a mini-exchange, pick which pronoun you heard, then say it',
+      scratch: 'Produce the answer yourself — pronoun in place',
+      select: 'Choose the RIGHT pronoun (le/lui/y/en) from the verb, and say it',
+    };
+    document.getElementById('pronoun-mode-desc').textContent = desc[pronounMode] || desc.listen;
+  }
+  function selectPronounLevel(btn) {
+    document.querySelectorAll('#pronoun-hub-levels .hub-subject-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    pronounLevel = btn.dataset.level;
+  }
+  function selectPronounFocus(btn) {
+    document.querySelectorAll('#pronoun-hub-focuses .hub-subject-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    pronounFocus = btn.dataset.focus;
+    const d = document.getElementById('pronoun-focus-desc');
+    if (d) d.textContent = PRONOUN_FOCUS_DESC[pronounFocus] || '';
+  }
+  function startPronoun() {
+    if (['choice', 'scratch', 'listen_choice', 'select'].includes(pronounMode)) startPronounDrill(pronounMode);
+    else startPronounListen();
+  }
+
+  // Décodage: reuse the Dialogue-French comprehension runner, but source from /pronoun/listen
+  // and route the runner's back/new/try-again navigation to the Pronouns hub.
+  async function startPronounListen() {
+    comprMode = 'dialogue';
+    comprIsPronoun = true;
+    _dlgStop();
+    comprPassage = ''; comprLines = []; comprAudioUrl = ''; comprAudioLoading = false;
+    comprQuestions = []; comprVocabPreview = []; comprAnswers = [];
+    comprCurrentQ = 0; comprScore = 0; comprListenCount = 0; comprQAttempts = 0;
+    comprLevel = pronounLevel; comprTopic = 'une conversation du quotidien';
+
+    document.getElementById('comp-header-title').textContent = 'Pronouns — Décodage';
+    document.getElementById('comp-new-btn').textContent = 'New dialogue';
+    document.getElementById('comp-transcript-text').style.whiteSpace = 'normal';
+
+    switchView('comprehension');
+    const listenCountEl = document.getElementById('comp-listen-count');
+    if (listenCountEl) listenCountEl.style.display = 'none';
+    const notesEl = document.getElementById('comp-notes-textarea');
+    if (notesEl) notesEl.value = '';
+    document.getElementById('comp-notes-body').style.display = 'none';
+    document.getElementById('comp-notes-toggle').classList.remove('open');
+
+    _comprSetState('loading');
+    const btn = document.getElementById('pronoun-generate-btn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch('/pronoun/listen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: pronounLevel, focus: pronounFocus, topic: comprTopic, ...getAnalyticsFields() }),
+      });
+      const data = await res.json();
+      comprLines        = data.lines || [];
+      comprQuestions    = data.questions || [];
+      comprVocabPreview = data.vocab_preview || [];
+      comprPassage      = comprLines.map(l => l.text).join(' ');
+
+      _dlgRenderTranscript();
+      document.getElementById('comp-q-total').textContent = comprQuestions.length;
+      _comprRenderVocab();
+      _comprSetState('passage');
+      document.getElementById('comp-listen-guidance').textContent = '1ère écoute — repérez de qui ou de quoi on parle';
+      setPlaybackSpeed(1);
+      if (comprLines.length) _dlgStart();
+      else document.getElementById('comp-audio-status').textContent = 'Dialogue indisponible — réessayez';
+    } catch (e) {
+      _comprSetState('passage');
+      document.getElementById('comp-audio-status').textContent = 'Error generating dialogue — try again';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // Reformulation: mic-based spoken production, scored against the natural accepted_answer.
+  let pronounCue = '', pronounInstruction = '', pronounAccepted = '';
+  let _psTranscript = '', _psRecognition = null, _psListening = false, _psUserStopped = false;
+
+  function _pronounSpeakSetState(state) {
+    document.getElementById('ps-loading').style.display      = state === 'loading' ? '' : 'none';
+    document.getElementById('ps-prompt-area').style.display  = state === 'input'   ? '' : 'none';
+    document.getElementById('ps-results').style.display      = state === 'results' ? '' : 'none';
+  }
+  function _pronounResetInput() {
+    _psTranscript = '';
+    document.getElementById('ps-transcript-wrap').style.display = 'none';
+    document.getElementById('ps-transcript').innerHTML = '';
+    document.getElementById('ps-submit-btn').disabled = true;
+    setDisplay('ps-redo-btn', 'none');
+    document.getElementById('ps-mic-status').textContent = 'Tap the mic and say your answer';
+  }
+
+  async function startPronounSpeak() {
+    switchView('pronoun-speak');
+    pronounCue = ''; pronounInstruction = ''; pronounAccepted = '';
+    _pronounResetInput();
+    _pronounSpeakSetState('loading');
+    const btn = document.getElementById('pronoun-generate-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/pronoun/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: pronounLevel, focus: pronounFocus }),
+      });
+      const data = await res.json();
+      pronounCue         = data.cue || '';
+      pronounInstruction = data.instruction || '';
+      pronounAccepted    = data.accepted_answer || '';
+      document.getElementById('ps-cue-text').textContent = pronounCue;
+      document.getElementById('ps-instruction-text').textContent = pronounInstruction;
+      _pronounSpeakSetState('input');
+    } catch (e) {
+      _pronounSpeakSetState('loading');
+      document.getElementById('ps-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function togglePronounMic() {
+    if (_psListening) { stopPronounMic(); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setDisplay('ps-unsupported', ''); return; }
+    _psUserStopped = false;
+    document.getElementById('ps-transcript-wrap').style.display = '';
+
+    function attachAndStart() {
+      const sr = new SR();
+      sr.lang = 'fr-FR';
+      sr.continuous = true;
+      sr.interimResults = true;
+      sr.maxAlternatives = 1;
+      sr.onresult = e => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) _psTranscript = (_psTranscript + ' ' + r[0].transcript.trim()).trim();
+          else interim += r[0].transcript;
+        }
+        _renderPronounTranscript(interim);
+      };
+      sr.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') stopPronounMic(); };
+      sr.onend = () => { if (_psUserStopped) return; try { _psRecognition = attachAndStart(); } catch { stopPronounMic(); } };
+      sr.start();
+      return sr;
+    }
+
+    try {
+      _psRecognition = attachAndStart();
+      _psListening = true;
+      document.getElementById('ps-mic-btn').classList.add('listening');
+      document.getElementById('ps-mic-status').textContent = 'Listening… tap again to stop';
+    } catch (e) { stopPronounMic(); }
+  }
+  function _renderPronounTranscript(interim) {
+    const tEl = document.getElementById('ps-transcript');
+    const finalPart = _psTranscript ? `<span class="sp-final">${esc(_psTranscript)}</span>` : '';
+    const interimPart = interim ? ` <span class="sp-interim">${esc(interim)}</span>` : '';
+    tEl.innerHTML = (finalPart + interimPart).trim() || '<span class="sp-interim">…</span>';
+    const hasText = !!_psTranscript.trim();
+    document.getElementById('ps-submit-btn').disabled = !hasText;
+    setDisplay('ps-redo-btn', hasText ? '' : 'none');
+  }
+  function stopPronounMic() {
+    _psUserStopped = true;
+    _psListening = false;
+    if (_psRecognition) { try { _psRecognition.stop(); } catch (e) {} _psRecognition = null; }
+    const micBtn = document.getElementById('ps-mic-btn');
+    if (micBtn) micBtn.classList.remove('listening');
+    const statusEl = document.getElementById('ps-mic-status');
+    const view = document.getElementById('pronoun-speak-view');
+    if (statusEl && view && view.style.display !== 'none') {
+      statusEl.textContent = _psTranscript.trim() ? 'Tap the mic to redo, or score your answer' : 'Tap the mic and say your answer';
+      _renderPronounTranscript('');
+    }
+  }
+  function pronounSpeakRedo() { stopPronounMic(); _pronounResetInput(); }
+
+  async function submitPronounSpeak() {
+    stopPronounMic();
+    const said = _psTranscript.trim();
+    if (!said || !pronounAccepted) return;
+    const btn = document.getElementById('ps-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Scoring…'; }
+    try {
+      const res = await fetch('/pronoun/speak/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: pronounAccepted,
+          transcription: contractElisions(said),
+          level: pronounLevel,
+          sound_focus: pronounFocus,
+          ...getAnalyticsFields(),
+        }),
+      });
+      const data = await res.json();
+      const diff = document.getElementById('ps-diff');
+      diff.innerHTML = '';
+      (data.display_results || []).forEach(dr => {
+        diff.appendChild(buildScoredToken(dr.word, dr.matched, dr.said));
+        diff.appendChild(document.createTextNode(' '));
+      });
+      document.getElementById('ps-ref-text').textContent = pronounAccepted;
+      document.getElementById('ps-ref-play').onclick = async () => {
+        const b = document.getElementById('ps-ref-play');
+        b.disabled = true;
+        try {
+          const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: pronounAccepted }) });
+          playAudio((await r.json()).audio_url);
+        } finally { b.disabled = false; }
+      };
+      const cf = document.getElementById('ps-check-feedback'); cf.style.display = 'none'; cf.innerHTML = '';
+      const cb = document.getElementById('ps-check-btn'); cb.style.display = ''; cb.disabled = false; cb.textContent = 'Check the grammar →';
+      _pronounSpeakSetState('results');
+      trackEvent('pronoun_speak_attempt', { focus: pronounFocus, level: pronounLevel, score: data.score });
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Score my answer →'; }
+    }
+  }
+
+  async function checkPronounWritten() {
+    const said = _psTranscript.trim();
+    if (!said) return;
+    const btn = document.getElementById('ps-check-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    try {
+      const res = await fetch('/pronoun/speak/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cue: pronounCue, instruction: pronounInstruction, accepted_answer: pronounAccepted,
+          response: said, level: pronounLevel, focus: pronounFocus, attempt: 1,
+          ...getAnalyticsFields(),
+        }),
+      });
+      const data = await res.json();
+      const wrap = document.getElementById('ps-check-feedback');
+      wrap.innerHTML = ''; wrap.style.display = '';
+      if (data.overall) {
+        const o = document.createElement('div');
+        o.className = data.has_errors ? 'wr-overall' : 'wr-perfect';
+        o.textContent = data.overall;
+        wrap.appendChild(o);
+      }
+      if (data.has_errors && (data.tips || []).length) {
+        const list = document.createElement('div');
+        list.className = 'wr-tips-list';
+        data.tips.forEach(tip => {
+          const item = document.createElement('div');
+          item.className = 'wr-tip-item';
+          item.innerHTML = `<span class="wr-tip-bullet">—</span><span>${esc(tip)}</span>`;
+          list.appendChild(item);
+        });
+        wrap.appendChild(list);
+      }
+      if (btn) btn.style.display = 'none';
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Check the grammar →'; }
+    }
+  }
+  function pronounSpeakNext() { startPronounSpeak(); }
+
+  // ── Placement drill (one scene, one kind: 'choice' or 'scratch'; say once, scored) ──
+  const PRONOUN_DRILL_META = {
+    choice:        { title: 'Choisissez et dites', desc: 'Choisissez la version où le pronom est à la bonne place, et dites-la.' },
+    listen_choice: { title: 'Écouter & choisir',   desc: 'Écoutez le mini-échange, repérez le pronom qui a été dit, puis dites-le.' },
+    scratch:       { title: 'À vous',              desc: 'Formez la réponse vous-même — le pronom à la bonne place.' },
+    select:        { title: 'Quel pronom ?',       desc: 'Choisissez le bon pronom (le/la/les · lui/leur · y · en) selon le verbe, puis dites la phrase.' },
+  };
+  let placementKind = 'choice', placementItems = [], placementIdx = 0, placementContext = '', placementScores = [];
+  let _plPicked = false;  // listen_choice: has the learner chosen the RIGHT line yet
+  let _plHasAttempt = false;  // has a spoken attempt been scored for the current item
+  let _plTranscript = '', _plRecognition = null, _plListening = false, _plUserStopped = false, _plSilenceTimer = null;
+  // STT alternatives mining: Web Speech mangles unstressed object clitics (les→est, le→leur…),
+  // which are exactly what these drills test. We collect Chrome's top hypotheses and score against
+  // the one that best matches the target, so a correctly-said pronoun isn't failed for a bad top guess.
+  let _plAltCandidates = new Set();
+  // Azure Pronunciation Assessment (phoneme-level). Local-only — /azure/token is unavailable in
+  // production, so _plAzureReady stays false there and the Web Speech + best-of-N path runs instead.
+  let _azToken = null, _azRegion = null, _azTokenAt = 0, _azSDKLoading = null;
+  let _plAzureReady = false, _plAzureRecognizer = null;
+
+  // Load the Azure Speech SDK on demand (≈1.5 MB) and cache the promise.
+  function _loadAzureSDK() {
+    if (window.SpeechSDK) return Promise.resolve(true);
+    if (!_azSDKLoading) {
+      _azSDKLoading = new Promise(resolve => {
+        const s = document.createElement('script');
+        s.src = 'https://aka.ms/csspeech/jsbrowserpackageraw';
+        s.onload = () => resolve(true);
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+      });
+    }
+    return _azSDKLoading;
+  }
+  // Fetch/reuse a short-lived Azure token (valid ~10 min; refresh at 9). Returns false if the
+  // endpoint is off (503/403 in prod) so callers cleanly fall back to Web Speech.
+  async function _fetchAzureToken() {
+    if (_azToken && (Date.now() - _azTokenAt) < 9 * 60 * 1000) return true;
+    try {
+      const r = await fetch('/azure/token');
+      if (!r.ok) return false;
+      const d = await r.json();
+      _azToken = d.token; _azRegion = d.region; _azTokenAt = Date.now();
+      return true;
+    } catch (e) { return false; }
+  }
+  async function _ensureAzure() {
+    const [sdkOk, tokOk] = await Promise.all([_loadAzureSDK(), _fetchAzureToken()]);
+    return !!(sdkOk && tokOk && window.SpeechSDK);
+  }
+
+  function _placementSetState(state) {
+    document.getElementById('pl-loading').style.display  = state === 'loading'  ? '' : 'none';
+    document.getElementById('pl-exercise').style.display = state === 'exercise' ? '' : 'none';
+    document.getElementById('pl-summary').style.display  = state === 'summary'  ? '' : 'none';
+  }
+
+  async function startPronounDrill(kind) {
+    placementKind = ['choice', 'scratch', 'listen_choice', 'select'].includes(kind) ? kind : 'choice';
+    switchView('pronoun-placement');
+    const meta = PRONOUN_DRILL_META[placementKind];
+    const hdr = document.querySelector('#pronoun-placement-view .header-title');
+    if (hdr) hdr.textContent = 'Pronouns — ' + meta.title;
+    document.getElementById('pl-stage-label').textContent = meta.title;
+    document.getElementById('pl-stage-desc').textContent = meta.desc;
+    placementItems = []; placementIdx = 0; placementContext = ''; placementScores = [];
+    _placementSetState('loading');
+    // Warm up phoneme-level scoring in parallel with content generation. If Azure isn't
+    // reachable (production, or offline), _plAzureReady stays false → Web Speech fallback.
+    _ensureAzure().then(ok => { _plAzureReady = ok; });
+    const btn = document.getElementById('pronoun-generate-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const endpoint = placementKind === 'listen_choice' ? '/pronoun/discriminate' : '/pronoun/placement';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: pronounLevel, focus: pronounFocus, kind: placementKind, ...getAnalyticsFields() }),
+      });
+      const data = await res.json();
+      placementContext = data.context || '';
+      placementItems = data.items || [];
+      document.getElementById('pl-context-text').textContent = placementContext;
+      if (!placementItems.length) {
+        document.getElementById('pl-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+        return;
+      }
+      placementIdx = 0;
+      _renderPlacementItem();
+    } catch (e) {
+      document.getElementById('pl-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function _placementPlay(text) {
+    if (!text) return;
+    try {
+      const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      playAudio((await r.json()).audio_url);
+    } catch (e) {}
+  }
+
+  function _renderPlacementItem() {
+    _placementSetState('exercise');
+    stopPlacementMic();
+    _plTranscript = '';
+    _plAltCandidates = new Set();
+    _plPicked = false;
+    _plHasAttempt = false;
+    const item = placementItems[placementIdx];
+    const n = placementItems.length, cur = placementIdx + 1;
+    document.getElementById('pl-progress-fill').style.width = (cur / n * 100) + '%';
+    document.getElementById('pl-progress-text').textContent = cur + ' / ' + n;
+    document.getElementById('pl-cue-text').textContent = item.cue || '';
+    // scratch/select: the cue is a source sentence to transform (not to read aloud) — label it so.
+    document.getElementById('pl-cue-label').textContent =
+      (placementKind === 'scratch' || placementKind === 'select') ? 'Phrase de départ' : 'À dire';
+
+    const optsEl  = document.getElementById('pl-options');
+    const instrEl = document.getElementById('pl-instruction');
+    const audioRow = document.getElementById('pl-audio-row');
+    optsEl.style.display = 'none'; optsEl.innerHTML = '';
+    instrEl.style.display = 'none';
+    audioRow.style.display = 'none';
+
+    if (placementKind === 'listen_choice') {
+      audioRow.style.display = '';
+      optsEl.style.display = '';
+      (item.options || []).forEach((opt, i) => {
+        const row = document.createElement('div');
+        row.className = 'pl-option pl-option-click'; row.id = 'pl-opt-' + i;
+        row.innerHTML = `<span class="pl-opt-num">${i + 1}</span><span>${esc(opt)}</span>`;
+        row.onclick = () => _placementPickOption(i);
+        optsEl.appendChild(row);
+      });
+      // Keep the control row (Skip / Show answer) reachable, but hide the mic until
+      // they've correctly identified which line they heard.
+      document.getElementById('pl-answer-area').style.display = '';
+      document.getElementById('pl-mic-btn').style.display = 'none';
+    } else if (placementKind === 'choice') {
+      document.getElementById('pl-answer-area').style.display = '';
+      document.getElementById('pl-mic-btn').style.display = '';
+      optsEl.style.display = '';
+      (item.options || []).forEach((opt, i) => {
+        const row = document.createElement('div');
+        row.className = 'pl-option'; row.id = 'pl-opt-' + i;
+        row.innerHTML = `<span class="pl-opt-num">${i + 1}</span><span>${esc(opt)}</span>`;
+        optsEl.appendChild(row);
+      });
+    } else {
+      document.getElementById('pl-answer-area').style.display = '';
+      document.getElementById('pl-mic-btn').style.display = '';
+      instrEl.style.display = '';
+      instrEl.textContent = item.instruction || 'Dites la réponse en remplaçant les mots.';
+    }
+
+    document.getElementById('pl-transcript-wrap').style.display = 'none';
+    document.getElementById('pl-transcript').innerHTML = '';
+    document.getElementById('pl-mic-status').textContent =
+      (placementKind === 'scratch' || placementKind === 'select')
+      ? 'Tap the mic and say your answer'
+      : 'Tap the mic and say the correct one';
+    document.getElementById('pl-result').style.display = 'none';
+    document.getElementById('pl-reveal').style.display = 'none';
+    document.getElementById('pl-diff').innerHTML = '';
+    document.getElementById('pl-diff').style.display = '';
+    document.getElementById('pl-feedback').innerHTML = '';
+    // Right-side button starts as "Skip"; becomes "Next" once the item is solved/revealed.
+    const advBtn = document.getElementById('pl-advance-btn');
+    advBtn.textContent = 'Skip';
+    advBtn.classList.remove('is-next');
+    document.getElementById('pl-giveup-btn').style.display = '';
+
+    // listen_choice: auto-play the exchange so they hear it first.
+    if (placementKind === 'listen_choice' && item.audio_url) playAudio(item.audio_url);
+  }
+
+  function _placementReplayAudio() {
+    const item = placementItems[placementIdx];
+    if (item && item.audio_url) playAudio(item.audio_url);
+  }
+
+  function _placementPickOption(i) {
+    if (_plPicked) return;  // already solved — ignore further clicks
+    const item = placementItems[placementIdx];
+    const correct = (i === item.correct_index);
+    trackEvent('pronoun_discriminate_pick', { focus: pronounFocus, level: pronounLevel, correct });
+
+    if (!correct) {
+      // Gate the answer: mark ONLY their pick wrong and let them re-listen and try again.
+      // Never green-highlight the correct option here — that would hand them the answer.
+      const row = document.getElementById('pl-opt-' + i);
+      if (row) { row.classList.add('wrong'); row.onclick = null; row.classList.remove('pl-option-click'); }
+      return;
+    }
+
+    // Correct pick — lock it in, green the correct option, and open the mic to say it.
+    _plPicked = true;
+    (item.options || []).forEach((opt, j) => {
+      const r = document.getElementById('pl-opt-' + j);
+      if (!r) return;
+      r.onclick = null;
+      r.classList.remove('pl-option-click');
+      if (j === item.correct_index) r.classList.add('correct');
+    });
+    document.getElementById('pl-answer-area').style.display = '';
+    document.getElementById('pl-mic-btn').style.display = '';
+    document.getElementById('pl-mic-status').textContent = 'Bien entendu ✓ — maintenant dites-la : tapez le micro';
+  }
+
+  function togglePlacementMic() {
+    if (_plListening) { stopPlacementMic(); return; }
+    const item = placementItems[placementIdx];
+    // Prefer Azure phoneme grading when available; otherwise the Web Speech + best-of-N path.
+    if (_plAzureReady && item && item.answer) { console.info('[pronoun] engine: azure'); _startAzureMic(item); return; }
+    console.info('[pronoun] engine: webspeech');
+    _startWebSpeechMic();
+  }
+
+  function _startWebSpeechMic() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setDisplay('pl-unsupported', ''); return; }
+    _plUserStopped = false;
+    _plTranscript = '';
+    _plAltCandidates = new Set();
+    document.getElementById('pl-transcript-wrap').style.display = '';
+    document.getElementById('pl-transcript').innerHTML = '<span class="sp-interim">…</span>';
+
+    function attachAndStart() {
+      const sr = new SR();
+      sr.lang = 'fr-FR';
+      sr.continuous = true;
+      sr.interimResults = true;
+      // Ask Chrome for several hypotheses (desktop only — mobile shows a native overlay at >1).
+      sr.maxAlternatives = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 1 : 5;
+      sr.onresult = e => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) {
+            // Build a full-sentence candidate from each hypothesis of this segment, keeping the
+            // already-finalised prefix (alt[0]) in front. For a short phrase this is up to 5
+            // whole-sentence variants; the backend scores them all and keeps the best match.
+            const prefix = _plTranscript;
+            for (let j = 0; j < r.length; j++) {
+              const cand = contractElisions(((prefix + ' ' + r[j].transcript).trim()));
+              if (cand) _plAltCandidates.add(cand);
+            }
+            _plTranscript = (prefix + ' ' + r[0].transcript.trim()).trim();
+          } else interim += r[0].transcript;
+        }
+        _renderPlacementTranscript(interim);
+        // Auto-submit after a brief silence — same one-shot feel as the phrase exercise.
+        if (_plSilenceTimer) clearTimeout(_plSilenceTimer);
+        const last = e.results[e.results.length - 1];
+        const delay = last.isFinal ? 2000 : 3500;
+        _plSilenceTimer = setTimeout(() => {
+          if (_plListening && _plTranscript.trim()) submitPlacement();
+        }, delay);
+      };
+      sr.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') stopPlacementMic(); };
+      sr.onend = () => { if (_plUserStopped) return; try { _plRecognition = attachAndStart(); } catch { stopPlacementMic(); } };
+      sr.start();
+      return sr;
+    }
+
+    try {
+      _plRecognition = attachAndStart();
+      _plListening = true;
+      document.getElementById('pl-mic-btn').classList.add('listening');
+      document.getElementById('pl-mic-status').textContent = 'Listening… say it, then pause';
+    } catch (e) { stopPlacementMic(); }
+  }
+  function _renderPlacementTranscript(interim) {
+    const tEl = document.getElementById('pl-transcript');
+    const finalPart = _plTranscript ? `<span class="sp-final">${esc(_plTranscript)}</span>` : '';
+    const interimPart = interim ? ` <span class="sp-interim">${esc(interim)}</span>` : '';
+    tEl.innerHTML = (finalPart + interimPart).trim() || '<span class="sp-interim">…</span>';
+  }
+  function stopPlacementMic() {
+    _plUserStopped = true;
+    _plListening = false;
+    if (_plSilenceTimer) { clearTimeout(_plSilenceTimer); _plSilenceTimer = null; }
+    if (_plRecognition) { try { _plRecognition.stop(); } catch (e) {} _plRecognition = null; }
+    if (_plAzureRecognizer) { try { _plAzureRecognizer.close(); } catch (e) {} _plAzureRecognizer = null; }
+    const micBtn = document.getElementById('pl-mic-btn');
+    if (micBtn) micBtn.classList.remove('listening');
+  }
+
+  // Azure phoneme-level assessment: recognise once against the reference (item.answer), post the
+  // raw result to the backend for mapping, then render via the shared result path. Falls back to
+  // Web Speech if the token/SDK/mic setup fails.
+  async function _startAzureMic(item) {
+    const micBtn = document.getElementById('pl-mic-btn');
+    const status = document.getElementById('pl-mic-status');
+    if (!(await _ensureAzure())) { _plAzureReady = false; _startWebSpeechMic(); return; }
+    const SDK = window.SpeechSDK;
+    let recognizer;
+    try {
+      const speechConfig = SDK.SpeechConfig.fromAuthorizationToken(_azToken, _azRegion);
+      speechConfig.speechRecognitionLanguage = 'fr-FR';
+      const audioConfig = SDK.AudioConfig.fromDefaultMicrophoneInput();
+      const paConfig = new SDK.PronunciationAssessmentConfig(
+        item.answer,
+        SDK.PronunciationAssessmentGradingSystem.HundredMark,
+        SDK.PronunciationAssessmentGranularity.Phoneme,
+        true /* enableMiscue: flags a wrong/omitted pronoun vs the reference */
+      );
+      recognizer = new SDK.SpeechRecognizer(speechConfig, audioConfig);
+      paConfig.applyTo(recognizer);
+    } catch (e) { _plAzureReady = false; _startWebSpeechMic(); return; }
+
+    _plAzureRecognizer = recognizer;
+    _plListening = true;
+    _plTranscript = '';
+    micBtn.classList.add('listening');
+    status.textContent = 'Listening… say it once';
+    document.getElementById('pl-transcript-wrap').style.display = '';
+    document.getElementById('pl-transcript').innerHTML = '<span class="sp-interim">…</span>';
+
+    recognizer.recognizeOnceAsync(async result => {
+      _plListening = false; micBtn.classList.remove('listening'); _plAzureRecognizer = null;
+      try {
+        if (!result || result.reason !== SDK.ResultReason.RecognizedSpeech) {
+          // A Canceled result means Azure itself failed (expired token, wrong region, network
+          // drop, or F0 quota exhausted) — NOT that you were inaudible. Log the real reason and
+          // disable Azure for the rest of the session so the mic drops to Web Speech instead of
+          // dead-ending on "Pas entendu". A genuine NoMatch keeps the retry-on-Azure message.
+          if (result && result.reason === SDK.ResultReason.Canceled) {
+            try {
+              const cd = SDK.CancellationDetails.fromResult(result);
+              console.warn('[pronoun] azure canceled:', cd.reason, cd.errorCode, cd.errorDetails);
+            } catch (_) {}
+            _plAzureReady = false;
+            status.textContent = 'Reconnaissance standard — redites-la';
+            _startWebSpeechMic();
+            return;
+          }
+          status.textContent = 'Pas entendu — retapez le micro'; return;
+        }
+        _plTranscript = result.text || '';
+        _renderPlacementTranscript('');
+        status.textContent = 'Scoring…';
+        const raw = result.properties.getProperty(SDK.PropertyId.SpeechServiceResponse_JsonResult);
+        const res = await fetch('/pronoun/azure/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            target: item.answer, azure_json: raw,
+            level: pronounLevel, sound_focus: pronounFocus,
+            ...getAnalyticsFields(),
+          }),
+        });
+        const data = await res.json();
+        data.engine = 'azure';
+        _applyPlacementResult(data, item);
+      } catch (e) {
+        status.textContent = 'Erreur — retapez le micro';
+      } finally {
+        try { recognizer.close(); } catch (e) {}
+      }
+    }, err => {
+      _plListening = false; micBtn.classList.remove('listening'); _plAzureRecognizer = null;
+      console.warn('[pronoun] azure recognizer error:', err);
+      try { recognizer.close(); } catch (e) {}
+      // Azure setup/recognition failed outright — drop to Web Speech for the rest of the session.
+      _plAzureReady = false;
+      status.textContent = 'Reconnaissance standard — redites-la';
+      _startWebSpeechMic();
+    });
+  }
+
+  async function submitPlacement() {
+    stopPlacementMic();
+    const said = _plTranscript.trim();
+    const item = placementItems[placementIdx];
+    if (!said || !item || !item.answer) return;
+    document.getElementById('pl-mic-status').textContent = 'Scoring…';
+    try {
+      const res = await fetch('/pronoun/speak/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: item.answer,
+          transcription: contractElisions(said),
+          alt_transcriptions: Array.from(_plAltCandidates),
+          level: pronounLevel,
+          sound_focus: pronounFocus,
+          ...getAnalyticsFields(),
+        }),
+      });
+      const data = await res.json();
+      _applyPlacementResult(data, item);
+    } catch (e) {
+      document.getElementById('pl-mic-status').textContent = 'Erreur — tapez le micro et réessayez';
+    }
+  }
+
+  // Shared result handler for both engines (Web Speech + best-of-N, and Azure phoneme grading).
+  // Only reveal the correct answer on a pass; a miss shows the score but hides the diff/answer so
+  // they can retry or give up via "Show answer". A pass flips "Skip" → "Next".
+  function _applyPlacementResult(data, item) {
+    _plHasAttempt = true;
+    _renderPlacementFeedback(data, item);
+    document.getElementById('pl-result').style.display = '';
+    if (data.passed) {
+      _placementRevealAnswer(item);
+      _placementSetAdvanceLabel();
+    } else {
+      _placementHideAnswer();
+    }
+    if (typeof data.score === 'number') placementScores.push(data.score);
+    document.getElementById('pl-mic-status').textContent = data.passed
+      ? 'Bien ✓ — continuez'
+      : 'Pas encore — retapez le micro pour réessayer, ou « Show answer »';
+    trackEvent('pronoun_placement_attempt', {
+      focus: pronounFocus, level: pronounLevel, kind: placementKind,
+      score: data.score, passed: data.passed, engine: data.engine || 'webspeech',
+    });
+  }
+
+  // Reveal the correct answer: green-highlight the right option (choice / listen_choice),
+  // show the "Correct answer" box, and (if there was a scored attempt) the word-level diff.
+  // Called only on a pass or an explicit give-up.
+  function _placementRevealAnswer(item) {
+    if (_plHasAttempt) {
+      document.getElementById('pl-result').style.display = '';
+      document.getElementById('pl-diff').style.display = '';
+      const fb = document.getElementById('pl-feedback');
+      fb.style.display = fb.children.length ? '' : 'none';
+    }
+    const reveal = document.getElementById('pl-reveal');
+    if (placementKind === 'choice' || placementKind === 'listen_choice') {
+      // The correct answer is one of the on-screen options — greening it IS the reveal,
+      // so the separate "Correct answer" box would just repeat it. Skip the box here.
+      (item.options || []).forEach((opt, i) => {
+        const row = document.getElementById('pl-opt-' + i);
+        if (row) row.classList.toggle('correct', i === item.correct_index);
+      });
+      reveal.style.display = 'none';
+    } else {
+      // scratch / select: no options on screen, so the box is the only place the answer appears.
+      // select also shows the rection rule (item.note) that justifies which pronoun — the teaching payload.
+      const note = (placementKind === 'select' && item.note)
+        ? `<div class="pl-reveal-note">Règle : ${esc(item.note)}</div>` : '';
+      reveal.style.display = '';
+      reveal.innerHTML =
+        `<div class="pl-reveal-label">Correct answer</div>` +
+        `<div class="pl-reveal-row"><span>${esc(item.answer)}</span>` +
+        `<button id="pl-reveal-play" class="pa-wi-play" title="Hear it">` +
+        `<svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,0 10,5 1,10"/></svg></button></div>` +
+        note;
+      document.getElementById('pl-reveal-play').onclick = () => _placementPlay(item.answer);
+    }
+    document.getElementById('pl-giveup-btn').style.display = 'none';
+  }
+
+  // Keep the answer hidden after a missed attempt — score stays, word diff/tips/answer go.
+  function _placementHideAnswer() {
+    document.getElementById('pl-diff').style.display = 'none';
+    document.getElementById('pl-feedback').style.display = 'none';
+    document.getElementById('pl-reveal').style.display = 'none';
+  }
+
+  // Flip the right-side button from "Skip" to "Next →" (or "Finish →" on the last item).
+  function _placementSetAdvanceLabel() {
+    const btn = document.getElementById('pl-advance-btn');
+    btn.textContent = (placementIdx >= placementItems.length - 1) ? 'Finish →' : 'Next →';
+    btn.classList.add('is-next');
+  }
+
+  // "Show answer" — the learner gives up; reveal everything and let them continue.
+  function placementGiveUp() {
+    stopPlacementMic();
+    const item = placementItems[placementIdx];
+    if (!item || !item.answer) return;
+    if (placementKind === 'listen_choice') _plPicked = true;  // stop further option clicks
+    _placementRevealAnswer(item);
+    document.getElementById('pl-mic-btn').style.display = '';  // let them still say it
+    _placementSetAdvanceLabel();
+    document.getElementById('pl-mic-status').textContent = 'Réponse affichée — dites-la, ou continuez';
+    trackEvent('pronoun_placement_giveup', { focus: pronounFocus, level: pronounLevel, kind: placementKind });
+  }
+
+  // Render the attempt result with the SAME shape as the phrase exercise (renderFeedback):
+  // score % + animated bar + a "heard" row (what the STT returned, snapped to target) +
+  // per-word pronunciation tips. Shares the same backend scoring pipeline.
+  function _renderPlacementFeedback(data, item) {
+    const pct = Math.round((data.score || 0) * 100);
+    const passed = data.passed;
+    // Colour by pass state (engines pass at different %: Web Speech 90, Azure 80) so a pass is always green.
+    const tier = passed ? 'is-pass' : pct >= 60 ? 'is-progress' : pct >= 40 ? 'is-almost' : 'is-fail';
+
+    const scoreWrap = document.getElementById('pl-score');
+    scoreWrap.className = 'pa-score ' + tier;
+    scoreWrap.querySelector('.pa-score-num').textContent = pct + '%';
+    const fill = scoreWrap.querySelector('.pa-bar-fill');
+    fill.style.width = '0%';
+    requestAnimationFrame(() => { fill.style.width = pct + '%'; });
+
+    // "heard" row — matched words snap to the target surface; misses show what was said.
+    const diff = document.getElementById('pl-diff');
+    diff.innerHTML = '';
+    const row = document.createElement('div'); row.className = 'pa-transcript-row';
+    const label = document.createElement('span'); label.className = 'pa-transcript-label'; label.textContent = 'heard';
+    const heard = document.createElement('div'); heard.className = 'pa-transcript-heard';
+    (data.display_results || []).forEach(dr => {
+      const runEl = document.createElement('span');
+      if (dr.tier) {
+        // Azure: colour the target word by pronunciation tier (green / amber / red / grey).
+        const cls = dr.tier === 'green' ? 'is-pass' : dr.tier === 'amber' ? 'is-amber'
+                  : dr.tier === 'red'   ? 'is-fail' : 'is-unheard';
+        runEl.className = 'pa-run ' + cls;
+        runEl.textContent = dr.word;
+      } else if (dr.matched) { runEl.className = 'pa-run is-pass';    runEl.textContent = dr.word; }
+      else if (dr.said)      { runEl.className = 'pa-run is-fail';    runEl.textContent = dr.said; }
+      else                   { runEl.className = 'pa-run is-unheard'; runEl.textContent = dr.word; }
+      heard.appendChild(runEl);
+    });
+    row.appendChild(label); row.appendChild(heard); diff.appendChild(row);
+
+    // Per-word feedback tips (reuses the phrase exercise's word-exercise atom).
+    const itemsEl = document.getElementById('pl-feedback');
+    itemsEl.innerHTML = '';
+    itemsEl.classList.remove('pa-word-list');
+    const feedback = data.feedback || [];
+    if (passed && feedback.length === 0) {
+      // A pass with no listed words: "Parfait" only if truly all-green, else acknowledge the amber polish.
+      const allGreen = (data.display_results || []).every(dr => dr.tier ? dr.tier === 'green' : dr.matched);
+      const ok = document.createElement('div'); ok.className = 'pv-pass-label';
+      ok.textContent = allGreen ? 'Parfait — every word matched.' : 'Bien — un son ou deux à polir.';
+      itemsEl.appendChild(ok);
+    }
+    if (feedback.length > 0) {
+      itemsEl.classList.add('pa-word-list');
+      const header = document.createElement('div'); header.className = 'pa-word-list-header'; header.textContent = 'Words to work on';
+      itemsEl.appendChild(header);
+      feedback.forEach((f, i) => {
+        const wi = buildWordExercise(f.target_word, f.said, f.tip, item.answer, f.is_grammar, f.grammar_note, itemsEl);
+        wi.style.setProperty('--wi-delay', (i * 60) + 'ms');
+        itemsEl.appendChild(wi);
+      });
+    }
+    itemsEl.style.display = itemsEl.children.length ? '' : 'none';
+  }
+
+  // The right-side button (Skip / Next) always just advances to the next item.
+  function placementNext() { _placementAdvance(); }
+  function _placementAdvance() {
+    if (placementIdx >= placementItems.length - 1) { _showPlacementSummary(); return; }
+    placementIdx++;
+    _renderPlacementItem();
+  }
+
+  function _showPlacementSummary() {
+    _placementSetState('summary');
+    const n = placementScores.length;
+    const avg = n ? Math.round(placementScores.reduce((a, b) => a + b, 0) / n * 100) : 0;
+    document.getElementById('pl-summary-text').textContent =
+      `${n} phrases · score moyen ${avg}%. Les pronoms se placent avant le verbe — reviens-y souvent.`;
+    trackEvent('pronoun_placement_completed', {
+      focus: pronounFocus, level: pronounLevel, kind: placementKind, items: n, avg_score: avg / 100,
+    });
+  }
+
   // Shared helper: render dictation feedback items (phonetic + grammar notes)
   function _renderDictFeedbackList(feedback, container) {
     feedback.forEach(f => {
@@ -12704,8 +14402,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       playBtn.addEventListener('click', async () => {
         playBtn.disabled = true;
         try {
-          const ttsBody = studyLang() === 'en' ? { text: f.target_word, locale: studyLocale } : { text: f.target_word };
-          const r = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsBody) });
+          const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.target_word }) });
           playAudio((await r.json()).audio_url);
         } finally { playBtn.disabled = false; }
       });

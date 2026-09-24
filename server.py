@@ -90,6 +90,11 @@ _SMTP2GO_API_KEY = os.environ.get("SMTP2GO_API_KEY", "")
 _EMAIL_FROM      = os.environ.get("EMAIL_FROM", "VraiFrench <noreply@vraifrench.com>")
 _APP_BASE_URL    = os.environ.get("APP_BASE_URL", "http://127.0.0.1:8000")
 
+# Azure Speech (Pronunciation Assessment spike). The browser SDK authenticates with a
+# short-lived token minted here so the subscription key never leaves the server.
+_AZURE_SPEECH_KEY    = os.environ.get("AZURE_SPEECH_KEY", "")
+_AZURE_SPEECH_REGION = os.environ.get("AZURE_SPEECH_REGION", "")
+
 
 async def _send_email(to: str, subject: str, html: str) -> bool:
     """Send one transactional email via the SMTP2GO HTTP API. Returns True on success."""
@@ -109,6 +114,34 @@ async def _send_email(to: str, subject: str, html: str) -> bool:
             timeout=10,
         )
         return r.status_code == 200
+
+
+@app.get("/azure/token")
+async def azure_token(request: Request):
+    """Mint a short-lived (~10 min) Azure Speech auth token for the browser SDK.
+    Keeps AZURE_SPEECH_KEY server-side. Returns {token, region}.
+
+    Gated to LOCAL use only: the key lives solely in the local .env (never in Render),
+    and this endpoint additionally refuses any non-localhost request — so Azure usage
+    can only be driven from this machine, capping the free-tier spend to your own testing."""
+    client_host = (request.client.host if request.client else "") or ""
+    if client_host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(status_code=403, detail="Azure token endpoint is local-only")
+    if not (_AZURE_SPEECH_KEY and _AZURE_SPEECH_REGION):
+        raise HTTPException(status_code=503, detail="Azure Speech not configured")
+    url = f"https://{_AZURE_SPEECH_REGION}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            url,
+            headers={
+                "Ocp-Apim-Subscription-Key": _AZURE_SPEECH_KEY,
+                "Content-Length": "0",
+            },
+            timeout=10,
+        )
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Azure token request failed ({r.status_code})")
+    return {"token": r.text, "region": _AZURE_SPEECH_REGION}
 
 
 from contextlib import contextmanager
@@ -370,6 +403,9 @@ class ShadowPhraseResponse(BaseModel):
 class ShadowAnalyzeRequest(BaseModel):
     target: str
     transcription: str
+    # Extra STT hypotheses (Chrome maxAlternatives). When present, scoring picks the
+    # best-matching one — recovers correctly-said words the top guess mangled (e.g. clitics).
+    alt_transcriptions: Optional[list] = None
     confidence: Optional[float] = None
     noun_adj_tokens: Optional[list] = None
     # analytics fields
@@ -400,6 +436,8 @@ class WordResult(BaseModel):
     word: str
     matched: bool
     said: str
+    # Azure phoneme grading only: "green" | "amber" | "red" | "omitted". Empty for Web Speech scoring.
+    tier: str = ""
 
 
 class ShadowAnalyzeResponse(BaseModel):
@@ -408,6 +446,20 @@ class ShadowAnalyzeResponse(BaseModel):
     feedback: list[ShadowFeedbackItem]
     word_results: list[WordResult]
     display_results: list[WordResult]
+
+
+class AzurePronAnalyzeRequest(BaseModel):
+    """Pronoun drills only: the browser runs Azure Pronunciation Assessment (phoneme-level)
+    and posts the raw result JSON here to be mapped onto the shared feedback shape."""
+    target: str
+    azure_json: str
+    level: Optional[str] = None
+    sound_focus: Optional[str] = None
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+    attempt_number: Optional[int] = None
+    phrase_id: Optional[str] = None
 
 
 
@@ -1623,7 +1675,16 @@ async def _phrase_generate(req: ShadowPhraseRequest) -> ShadowPhraseResponse:
 
 async def _phrase_analyze(req: ShadowAnalyzeRequest, exercise_type: str) -> ShadowAnalyzeResponse:
     noun_adj_set = _build_noun_adj_set(req.noun_adj_tokens)
-    result = score_attempt(req.target, req.transcription, noun_adj_set)
+    # Score the top hypothesis and any extra STT alternatives; keep the best-matching one.
+    # (Only clients that send alt_transcriptions — the pronoun drills — opt into this.)
+    transcription = req.transcription
+    result = score_attempt(req.target, transcription, noun_adj_set)
+    for alt in (req.alt_transcriptions or [])[:6]:
+        if not alt or alt == transcription:
+            continue
+        alt_result = score_attempt(req.target, alt, noun_adj_set)
+        if alt_result["score"] > result["score"]:
+            transcription, result = alt, alt_result
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
             "exercise_type": exercise_type,
@@ -1639,7 +1700,7 @@ async def _phrase_analyze(req: ShadowAnalyzeRequest, exercise_type: str) -> Shad
             "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
         }, req.visit_id)
     feedback_raw = await asyncio.to_thread(
-        lambda: analyze_shadow_mismatches(req.target, req.transcription, result["mismatches"])
+        lambda: analyze_shadow_mismatches(req.target, transcription, result["mismatches"])
     )
     feedback = [
         ShadowFeedbackItem(
@@ -3503,6 +3564,722 @@ async def transform_check(req: TransformCheckRequest):
             "tip_count": tip_count,
         }, req.visit_id)
     return result
+
+
+# ── Pronoun routes (structured-input listening + spoken production) ─────────────
+#
+# Two modes on one hub. Décodage (listening) reuses the Dialogue-French machinery
+# (Chirp3-HD audio + content bank + comprehension runner) but forces a referent-
+# decoding question — the Processing-Instruction step that fixes perception.
+# Reformulation (speaking) reuses the Transform generate→check loop plus the
+# speaking scoring pipeline (_phrase_analyze). Content is natural-first: the natural
+# spoken form (on, dislocation, reduced clitics) is the DEFAULT target.
+
+# focus -> (French label, listening directive, production directive). The listen and
+# speak generators both read from here so a focus behaves consistently across modes.
+_PRONOUN_FOCI = {
+    "dislocation": (
+        "la dislocation",
+        "Feature LEFT/RIGHT DISLOCATION very heavily: name a topic then resume it with a "
+        "pronoun — \"Marie, je la connais bien\", \"Moi, je pense que...\", \"il est sympa, ton frère\". "
+        "Most lines should dislocate. This is the whole point of the exercise.",
+        "The natural answer MUST use dislocation: topicalise the noun then resume it with a "
+        "pronoun (\"Marie, ouais je la connais\", \"Moi, je préfère le train\").",
+    ),
+    "on_nous": (
+        "on plutôt que nous",
+        "Use \"on\" for \"we\" EVERYWHERE (never \"nous\" as a subject). Several lines should talk "
+        "about shared plans/activities using \"on\" (\"on y va\", \"nous on fait ça\").",
+        "The natural answer MUST use \"on\" (not \"nous\") for the first-person plural subject.",
+    ),
+    "reduction": (
+        "la réduction à l'oral",
+        "Use reduced spoken subject+clitic forms the voice still pronounces cleanly: \"j'le\", "
+        "\"j'la\", \"j'les\", \"tu l'as\", \"i'faut\". Attach object clitics to the verb naturally.",
+        "The natural answer should use the reduced spoken form (\"j'le sais\", \"j'la vois\") — the "
+        "way it is really said, not the clean textbook form.",
+    ),
+    "dobj": (
+        "les pronoms le / la / les",
+        "Feature 3rd-person DIRECT object pronouns le / la / les referring to a person or thing "
+        "named a line or two earlier, so the listener must track WHO or WHAT is meant.",
+        "The answer MUST replace the direct-object noun with le / la / les (correct gender and number).",
+    ),
+    "iobj": (
+        "les pronoms lui / leur",
+        "Feature INDIRECT object pronouns lui / leur referring to a person named earlier (parler à, "
+        "dire à, donner à), so the listener must track to WHOM.",
+        "The answer MUST replace the indirect-object (à + person) with lui or leur.",
+    ),
+    "y_en": (
+        "les pronoms y et en",
+        "Feature the pronouns \"y\" (replacing à + place/thing) and \"en\" (replacing de + thing, or a "
+        "quantity) standing in for something named earlier.",
+        "The answer MUST use \"y\" or \"en\" to replace the à-place / de-thing / quantity.",
+    ),
+    "ordering": (
+        "l'ordre des doubles pronoms",
+        "Feature DOUBLE object pronouns in their correct order in natural sentences: \"je te le "
+        "donne\", \"il me l'a dit\", \"on lui en parle\", \"je les y emmène\".",
+        "The answer MUST combine TWO pronouns in the correct order (me le, te la, le lui, lui en, y en...).",
+    ),
+}
+
+
+def _pronoun_focus(focus: str):
+    return _PRONOUN_FOCI.get(focus, _PRONOUN_FOCI["dobj"])
+
+
+def _pronoun_listen_system(focus: str) -> str:
+    """Dialogue-French base (TTS-safe spoken forms, unscripted feel) plus a pronoun
+    focus block and a referent-forcing question rule. Returns the same JSON shape as
+    _natural_system so _render_dialogue_lines and the comprehension runner work as-is."""
+    label, listen_directive, _ = _pronoun_focus(focus)
+    base = _natural_system("everyday")
+    return base + f"""
+
+PRONOUN FOCUS — {label} (this overrides the generic guidance above where they conflict):
+- {listen_directive}
+- The focus pronoun must appear in MOST lines, always in natural, reduced spoken form.
+- REFERENT-FORCING QUESTIONS (critical): at least TWO questions must be IMPOSSIBLE to answer
+  without decoding the focus pronoun — ask WHO or WHAT a pronoun refers to (e.g. "Qui est-ce
+  qu'il connaît ?", "De quoi elle parle ?"). One distractor in each must be a person or thing
+  that IS mentioned in the dialogue but is the WRONG referent (wrong gender or wrong role), so
+  guessing from surface words alone fails. Keep the other question types after these two."""
+
+
+_PRONOUN_SPEAK_GENERATE_SYSTEM = """You generate French PRONOUN production prompts for a learner who
+speaks the answer aloud. Content is natural spoken French, not textbook French.
+
+Return ONLY a raw JSON object (no markdown) with exactly these fields:
+{
+  "cue": "a short French question or full-noun sentence that sets up the answer",
+  "instruction": "a brief French command telling the learner how to answer using a pronoun",
+  "accepted_answer": "the natural spoken French answer the learner should say, using the target pronoun"
+}
+
+CEFR guidelines: A1/A2 simple present, one pronoun; B1 le/la/les, lui/leur, passé composé; B2 y/en and
+double pronouns; C1 richer, still spoken.
+
+PRONOUN FOCUS for this item: {focus_directive}
+
+CRITICAL — there must be real work to do:
+- The cue must still contain the FULL NOUN (or the à/de phrase) that the answer replaces with a pronoun.
+- The accepted_answer must be in NATURAL SPOKEN register: use "on" for we, drop the "ne" of negation
+  ("j'la vois pas"), and prefer the reduced/dislocated spoken form over the clean written one.
+- accepted_answer must be sayable in one breath and contain ONLY letters/apostrophes/spaces the browser
+  speech recognizer returns cleanly — no digits, no parentheses, no quotes.
+
+Write cue and instruction in French. Return ONLY the raw JSON object."""
+
+
+_PRONOUN_SPEAK_CHECK_SYSTEM = """You are a French coach checking whether a learner correctly used a
+pronoun in their spoken answer.
+
+Cue: {cue}
+Instruction: {instruction}
+A reference natural answer: {accepted}
+Learner's answer (speech-to-text, may miss punctuation): {response}
+CEFR level: {level}
+Attempt number: {attempt} of 3
+
+Return a JSON object with exactly:
+{{
+  "has_errors": true or false,
+  "tips": ["a pedagogical hint calibrated to the level"],
+  "overall": "one honest, encouraging sentence in English"
+}}
+
+Judge ONLY whether the learner used the RIGHT pronoun correctly (right pronoun, right gender/number,
+right position/order) and preserved the meaning. Accept ANY valid natural variant — do not require the
+exact reference wording, and do not penalise dropped "ne", "on" for "nous", or spoken reductions; those
+are correct here. Ignore missing punctuation/capitalisation from speech-to-text. Never invent errors and
+never call a form wrong while stating that same form is right.
+
+NEVER give the correct answer directly — guide with hints. Attempt 1: name the rule and point to the area.
+Attempt 2+: zoom in on the same issue. Max 3 tips. If has_errors is false, tips must be [].
+Return ONLY the raw JSON object."""
+
+
+_PRONOUN_DRILL_INTRO = (
+    "You generate a SHORT French pronoun-PLACEMENT speaking drill — ONE coherent little scene, then "
+    "5 items that all reuse the same people/things. Anglophones put object pronouns in the wrong place "
+    "and order (French puts them BEFORE the verb, and le/la/les come before lui/leur — the reverse of "
+    "English instinct). This drill fixes exactly that."
+)
+
+_PRONOUN_DRILL_KINDS = {
+    "choice": {
+        "schema": """{
+  "context": "one short French sentence naming the people/things the whole drill refers to",
+  "items": [
+    { "cue": "a short French question or prompt", "options": ["three short answer variants"], "correct_index": 0, "answer": "the correct variant, copied verbatim from options" }
+  ]
+}""",
+        "rules": (
+            "- Each item's THREE options differ ONLY in pronoun placement/order. EXACTLY ONE is correct.\n"
+            "  The two wrong options must be the classic anglophone errors — pronoun AFTER the verb "
+            "(\"je donne le livre à lui\") or REVERSED order (\"je lui le donne\" instead of \"je le lui "
+            "donne\"). Never make a distractor wrong for vocabulary, tense, or agreement.\n"
+            "- \"answer\" must be copied verbatim from the correct option and MUST always be present."
+        ),
+    },
+    "scratch": {
+        "schema": """{
+  "context": "one short French sentence naming the people/things the whole drill refers to",
+  "items": [
+    { "cue": "a COMPLETE French declarative sentence with an explicit subject, the exact verb, and the FULL noun object(s) to replace — e.g. Il donne les cahiers à Clara.", "instruction": "a brief self-contained French task, e.g. Remplace les compléments par des pronoms", "answer": "the SAME sentence with only the objects turned into pronouns in the right place — e.g. Il les lui donne." }
+  ]
+}""",
+        "rules": (
+            "- Because the answer is HIDDEN, the cue MUST make it 100% predictable: give a COMPLETE declarative "
+            "sentence containing the EXACT verb and the FULL noun object(s), with an explicit subject the "
+            "context makes clear — a pronoun subject (il / elle / on / ils / elles) is cleanest. "
+            "e.g. cue \"Il donne les cahiers à Clara.\"\n"
+            "- The \"answer\" is that SAME sentence with ONLY the object noun(s) turned into pronouns in the "
+            "correct place, keeping the SAME subject and the SAME verb — e.g. \"Il les lui donne.\" The "
+            "answer's verb is ALWAYS the cue's verb; NEVER use a vague verb like \"faire\" or leave the verb "
+            "open. You MUST always fill \"answer\"; never leave it null, empty, or missing.\n"
+            "- The instruction MUST be SELF-CONTAINED plain words (e.g. \"Remplace les compléments par des "
+            "pronoms\") and NEVER refer to bold / highlighted / underlined words — the app renders plain text."
+        ),
+    },
+    "select": {
+        "schema": """{
+  "context": "one short French sentence naming the people/things the whole drill refers to",
+  "items": [
+    { "cue": "a COMPLETE French declarative sentence using a verb whose PRONOUN CHOICE is the point — e.g. Il téléphone à sa mère.", "instruction": "a brief self-contained French task, e.g. Remplace le complément par le bon pronom", "answer": "the pronominalised sentence, same subject and verb — e.g. Il lui téléphone.", "note": "the rection rule that justifies the pronoun, short and in French — e.g. téléphoner à qqn → lui (COI)" }
+  ]
+}""",
+        "rules": (
+            "- This drill trains SELECTION (which pronoun), not placement. Each cue is a COMPLETE declarative "
+            "sentence (with explicit subject + exact verb + full noun object) whose object must become a "
+            "pronoun; the CHALLENGE is choosing le/la/les (COD, direct object) vs lui/leur (COI, à + PERSON) "
+            "vs y (à + thing/place) vs en (de + thing, or a quantity).\n"
+            "- Regardless of the FOCUS line above, DELIBERATELY MIX these types across the 5 items, and FAVOUR "
+            "the verbs anglophones get wrong because English uses a different construction: téléphoner / "
+            "parler / répondre / plaire / obéir / offrir / demander à qqn → lui/leur; regarder / écouter / "
+            "attendre / chercher / aider qqn → le/la/les; penser / réfléchir à qch → y; avoir besoin / parler "
+            "de qch → en. Keep the SAME subject and verb in the answer; only the object becomes a pronoun.\n"
+            "- y and en are for THINGS/places ONLY: à + thing/place → y; de + thing or a quantity → en. "
+            "NEVER use y or en for a PERSON (à + person is ALWAYS lui/leur). Do NOT create \"de + person\" "
+            "items (they need stressed pronouns, out of scope) — for people, stick to COD (le/la/les) and "
+            "COI (lui/leur).\n"
+            "- \"note\" = the rule justifying the choice, short, French: e.g. \"téléphoner à qqn → lui (COI)\" "
+            "or \"penser à qch → y\". ALWAYS fill both \"answer\" and \"note\"; never leave them empty.\n"
+            "- The instruction MUST be SELF-CONTAINED plain words and NEVER refer to bold / highlighted words."
+        ),
+    },
+}
+
+
+def _pronoun_drill_system(kind: str, focus: str) -> str:
+    spec = _PRONOUN_DRILL_KINDS.get(kind, _PRONOUN_DRILL_KINDS["choice"])
+    if kind == "select":
+        # « Quel pronom ? » is ABOUT choosing among types, so ignore the narrow focus chip and force a mix.
+        prod_directive = ("Mix COD (le/la/les), COI (lui/leur), y and en across the 5 items — choosing the "
+                          "RIGHT pronoun from the verb IS the exercise, so never stay on a single type.")
+    else:
+        _, _, prod_directive = _pronoun_focus(focus)
+    return f"""{_PRONOUN_DRILL_INTRO}
+
+Return ONLY a raw JSON object (no markdown):
+{spec['schema']}
+
+Produce EXACTLY 5 items.
+
+RULES:
+- FOCUS for this drill: {prod_directive}
+- Every item reuses the SAME people/things from "context" so the learner only ever thinks about pronoun PLACEMENT, never new vocabulary.
+- CRITICAL — every item must have EXACTLY ONE correct spoken answer. The subject, the VERB, and which
+  words become pronouns must ALL be fully determined for the learner — they are only working out pronoun
+  form, order and placement, never guessing the verb or the subject. (See the mode's rules for how.)
+{spec['rules']}
+- All answers must be natural SPOKEN French (drop "ne", use "on" instead of "nous", reduced forms) and contain ONLY letters,
+  apostrophes and spaces — no digits, quotes, or parentheses — so the browser speech recognizer scores them cleanly.
+- Calibrate vocabulary to the CEFR level. Keep every cue and answer short — one breath.
+Return ONLY the raw JSON object."""
+
+
+_PRONOUN_DISCRIMINATE_SYSTEM = """You generate a French pronoun LISTENING-discrimination drill: one scene, then
+5 short 2-line exchanges. The learner HEARS each exchange and must identify which object pronoun(s) were said.
+
+Return ONLY a raw JSON object (no markdown):
+{
+  "context": "one short French sentence naming the people/things",
+  "items": [
+    {
+      "setup": "line 1 — a short, natural spoken line that opens the exchange",
+      "answer": "line 2 — the spoken reply using object pronoun(s): COD le/la/les and/or COI lui/leur",
+      "options": ["three variants of line 2 differing ONLY in the object pronoun(s)"],
+      "correct_index": 0
+    }
+  ]
+}
+
+Produce EXACTLY 5 items.
+
+RULES:
+- FOCUS: {focus_directive}
+- The THREE options differ ONLY in the OBJECT PRONOUN — swap le/la/les (COD), lui/leur (COI), or COD vs COI —
+  so the learner must rely on SOUND, not word order or vocabulary. EXACTLY ONE option is identical to "answer".
+  Example: answer "je le lui donne" -> options ["je le lui donne", "je les lui donne", "je le leur donne"].
+- All three options must be grammatically plausible replies to the setup, so ONLY hearing tells them apart —
+  do NOT let line 1 obviously give away which pronoun is correct.
+- Every item reuses the same people/things from "context".
+- Natural SPOKEN French (drop "ne", use "on", reduced forms). Options and answer: letters, apostrophes, spaces only.
+- Keep both lines short — one breath each. Return ONLY the raw JSON object."""
+
+
+class PronounListenRequest(BaseModel):
+    level: str = "B1"
+    topic: str = "la vie quotidienne"
+    focus: str = "dobj"
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+
+
+class PronounSpeakRequest(BaseModel):
+    level: str = "B1"
+    focus: str = "dobj"
+
+
+class PronounSpeakCheckRequest(BaseModel):
+    cue: str
+    instruction: str = ""
+    accepted_answer: str = ""
+    response: str
+    level: str = "B1"
+    focus: Optional[str] = None
+    attempt: int = 1
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+
+
+@app.post("/pronoun/listen")
+async def pronoun_listen(req: PronounListenRequest):
+    """Structured-input listening: a short spoken dialogue that features the focus
+    pronoun, with referent-decoding questions. Banked per focus so replays are free."""
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+
+    q_count = _NATURAL_Q_COUNT.get(req.level, 4)
+    # Bucket pronoun content separately from Dialogue French: register="pronoun", style=focus.
+    dlg = _bank_pick("passage", "pronoun", req.level, req.topic, req.focus, req.access_code)
+    if dlg is not None:
+        out_lines = await _render_dialogue_lines(dlg.get("lines", []))
+        _analytics.mark_bank_seen(req.access_code, dlg["id"], "dialogue")
+        if req.session_id and req.access_code:
+            _analytics.track(req.session_id, req.access_code, "pronoun_listen_started", {
+                "exercise_type": "pronoun_listen", "level": req.level, "topic": req.topic,
+                "focus": req.focus, "question_count": len(dlg.get("questions", [])),
+            }, req.visit_id)
+        return {"title": dlg.get("title", ""), "lines": out_lines,
+                "questions": dlg.get("questions", []), "vocab_preview": dlg.get("vocab_preview", [])}
+
+    voice_a, voice_b = pick_dialogue_voices()
+    name_a = voice_display_name(voice_a)
+    name_b = voice_display_name(voice_b)
+    user_prompt = (
+        f"CEFR level: {req.level}\n"
+        f"Topic / situation: {req.topic}\n"
+        f"Number of questions: {q_count}\n"
+        f"Speaker names: the two friends are named {name_a} and {name_b}. Use these exact names "
+        f"as the \"speaker\" label on every line and refer to them by name in all questions.\n\n"
+        "Write the dialogue, vocab_preview and questions now."
+    )
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": _pronoun_listen_system(req.focus)},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.85,
+        max_tokens=2400,
+    ))
+    result = json.loads(resp.choices[0].message.content)
+    title = result.get("title", "")
+    lines = result.get("lines", [])
+    questions = result.get("questions", [])
+    vocab_preview = result.get("vocab_preview", [])
+
+    for q in questions:
+        opts = q.get("options")
+        if not isinstance(opts, list) or len(opts) < 2:
+            continue
+        ci = q.get("correct_index", 0)
+        if not isinstance(ci, int) or not (0 <= ci < len(opts)):
+            ci = 0
+        correct_opt = opts[ci]
+        random.shuffle(opts)
+        q["options"] = opts
+        q["correct_index"] = opts.index(correct_opt)
+
+    banked_lines = []
+    prev_role = "B"
+    for ln in lines:
+        text = (ln.get("text") or "").strip()
+        if not text:
+            continue
+        label = (ln.get("speaker") or "").strip().lower()
+        if label == name_a.lower():
+            role = "A"
+        elif label == name_b.lower():
+            role = "B"
+        else:
+            role = "A" if prev_role == "B" else "B"
+        prev_role = role
+        banked_lines.append({
+            "speaker": name_a if role == "A" else name_b, "role": role,
+            "text": text, "voice": voice_a if role == "A" else voice_b,
+        })
+
+    out_lines = await _render_dialogue_lines(banked_lines)
+    dlg_rec = content_bank.add_passage(
+        "pronoun", req.level, req.topic, voice_a, [], style=req.focus,
+        questions=questions, vocab_preview=vocab_preview,
+        payload={"title": title, "lines": banked_lines, "voices": [voice_a, voice_b]},
+    )
+    _analytics.mark_bank_seen(req.access_code, dlg_rec["id"], "dialogue")
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "pronoun_listen_started", {
+            "exercise_type": "pronoun_listen", "level": req.level, "topic": req.topic,
+            "focus": req.focus, "question_count": len(questions),
+        }, req.visit_id)
+    return {"title": title, "lines": out_lines, "questions": questions, "vocab_preview": vocab_preview}
+
+
+@app.post("/pronoun/speak")
+async def pronoun_speak(req: PronounSpeakRequest):
+    """Spoken production: return a cue + French instruction + the natural spoken
+    accepted_answer that the learner will say aloud and be scored against."""
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    _, _, prod_directive = _pronoun_focus(req.focus)
+    system = _PRONOUN_SPEAK_GENERATE_SYSTEM.replace("{focus_directive}", prod_directive)
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": f"CEFR level: {req.level}\nFocus: {req.focus}"},
+        ],
+        temperature=0.9,
+        max_tokens=250,
+    ))
+    raw = resp.choices[0].message.content.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    try:
+        result = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Generation parse error")
+    result["focus"] = req.focus
+    return result
+
+
+@app.post("/pronoun/speak/analyze", response_model=ShadowAnalyzeResponse)
+async def pronoun_speak_analyze(req: ShadowAnalyzeRequest):
+    """Score the spoken answer against the accepted_answer (passed as target) using the
+    shared speaking pipeline — identical to /shadow/analyze. Pronoun content isn't tagged
+    at generation time, so tag the target here (when the client didn't) to give the same
+    noun/adjective gender-number-aware scoring the phrase exercise gets."""
+    if not req.noun_adj_tokens:
+        req.noun_adj_tokens = await asyncio.to_thread(tag_nouns_adjs, req.target)
+    return await _phrase_analyze(req, "pronoun_speak")
+
+
+# Azure Pronunciation Assessment → shared feedback shape. Grades the *sound* (le/la/les vowel),
+# which browser STT structurally can't. Per-word 3-tier: green (solid) / amber (acceptable, minor
+# polish) / red (needs work). Pass = overall pronunciation ≥ 80 AND no red/omitted word (amber is
+# fine). "Words to work on" lists only red/omitted words, so a clean pass doesn't nag about an amber.
+_AZURE_PASS_SCORE = 80   # overall PronScore (0-100) needed to pass
+_AZURE_WORD_GREEN = 80   # per-word AccuracyScore: ≥ this is green
+_AZURE_WORD_AMBER = 60   # 60–79 amber (acceptable); < 60 red (needs work)
+
+
+def _azure_word_tier(acc: float, err: str) -> str:
+    if err == "Omission":
+        return "omitted"
+    if err == "Insertion":
+        return "red"
+    # None / Mispronunciation → tier purely by accuracy so a decent-but-imperfect word isn't alarming red.
+    if acc >= _AZURE_WORD_GREEN:
+        return "green"
+    if acc >= _AZURE_WORD_AMBER:
+        return "amber"
+    return "red"
+
+
+def _parse_azure_pa(raw: str) -> dict:
+    """Map an Azure Pronunciation Assessment JSON result onto score/passed/word+display/feedback."""
+    data = json.loads(raw)
+    nbest = data.get("NBest") or []
+    if not nbest:
+        return {"score": 0.0, "passed": False, "word_results": [], "display_results": [], "feedback": []}
+    nb = nbest[0]
+    pa = nb.get("PronunciationAssessment") or {}
+    pron = pa.get("PronScore", pa.get("AccuracyScore", 0)) or 0
+    words = nb.get("Words") or []
+
+    word_results, feedback = [], []
+    has_problem = False   # any red/omitted word blocks the pass; amber does not
+    for w in words:
+        wa = w.get("PronunciationAssessment") or {}
+        word = w.get("Word", "")
+        acc = wa.get("AccuracyScore", 0) or 0
+        err = wa.get("ErrorType", "None") or "None"
+        tier = _azure_word_tier(acc, err)
+        matched = (tier == "green")
+        said = "" if tier == "omitted" else word
+        word_results.append({"word": word, "matched": matched, "said": said, "tier": tier})
+        if tier in ("red", "omitted"):
+            has_problem = True
+            if tier == "omitted":
+                tip = f"Tu n'as pas dit « {word} » — le pronom doit être là."
+            else:
+                weakest = None
+                for p in (w.get("Phonemes") or []):
+                    pacc = (p.get("PronunciationAssessment") or {}).get("AccuracyScore", 100)
+                    if weakest is None or pacc < weakest[1]:
+                        weakest = (p.get("Phoneme", ""), pacc)
+                if weakest and weakest[0]:
+                    tip = f"« {word} » — le son [{weakest[0]}] a été noté {int(weakest[1])}/100 ; articule-le plus nettement."
+                else:
+                    tip = f"« {word} » — noté {int(acc)}/100 ; reprends l'articulation."
+            feedback.append({"target_word": word, "said": said, "tip": tip})
+
+    passed = (pron >= _AZURE_PASS_SCORE) and not has_problem
+    return {
+        "score": round(pron / 100.0, 3),
+        "passed": passed,
+        "word_results": word_results,
+        "display_results": list(word_results),
+        "feedback": feedback,
+    }
+
+
+@app.post("/pronoun/azure/analyze", response_model=ShadowAnalyzeResponse)
+async def pronoun_azure_analyze(req: AzurePronAnalyzeRequest):
+    try:
+        parsed = _parse_azure_pa(req.azure_json)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Bad Azure payload: {e}")
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
+            "exercise_type": "pronoun_speak",
+            "level": req.level,
+            "score": parsed["score"],
+            "passed": parsed["passed"],
+            "attempt_number": req.attempt_number,
+            "phrase_id": req.phrase_id,
+            "sound_focus": req.sound_focus,
+            "engine": "azure",
+            "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in parsed["word_results"]],
+        }, req.visit_id)
+    return ShadowAnalyzeResponse(
+        score=parsed["score"],
+        passed=parsed["passed"],
+        feedback=[ShadowFeedbackItem(target_word=f["target_word"], said=f.get("said", ""),
+                                     tip=f.get("tip", ""), is_grammar=False, grammar_note="")
+                  for f in parsed["feedback"]],
+        word_results=[WordResult(**wr) for wr in parsed["word_results"]],
+        display_results=[WordResult(**wr) for wr in parsed["display_results"]],
+    )
+
+
+@app.post("/warmup/speak/analyze", response_model=ShadowAnalyzeResponse)
+async def warmup_speak_analyze(req: ShadowAnalyzeRequest):
+    """Pronunciation warm-up (fixed pangrams / virelangues / sound drills) — Web Speech fallback
+    path. Reuses the shared speaking pipeline exactly like /pronoun/speak/analyze, but tags its own
+    exercise_type so warm-up reps don't inflate pronoun stats. Content isn't tagged at generation,
+    so tag the target here for the same gender/number-aware scoring the phrase exercise gets."""
+    if not req.noun_adj_tokens:
+        req.noun_adj_tokens = await asyncio.to_thread(tag_nouns_adjs, req.target)
+    return await _phrase_analyze(req, "warmup")
+
+
+@app.post("/warmup/azure/analyze", response_model=ShadowAnalyzeResponse)
+async def warmup_azure_analyze(req: AzurePronAnalyzeRequest):
+    """Pronunciation warm-up — Azure phoneme grading. Mirrors /pronoun/azure/analyze (same parser
+    and feedback shape) but tags exercise_type='warmup'."""
+    try:
+        parsed = _parse_azure_pa(req.azure_json)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Bad Azure payload: {e}")
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
+            "exercise_type": "warmup",
+            "level": req.level,
+            "score": parsed["score"],
+            "passed": parsed["passed"],
+            "attempt_number": req.attempt_number,
+            "phrase_id": req.phrase_id,
+            "sound_focus": req.sound_focus,
+            "engine": "azure",
+            "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in parsed["word_results"]],
+        }, req.visit_id)
+    return ShadowAnalyzeResponse(
+        score=parsed["score"],
+        passed=parsed["passed"],
+        feedback=[ShadowFeedbackItem(target_word=f["target_word"], said=f.get("said", ""),
+                                     tip=f.get("tip", ""), is_grammar=False, grammar_note="")
+                  for f in parsed["feedback"]],
+        word_results=[WordResult(**wr) for wr in parsed["word_results"]],
+        display_results=[WordResult(**wr) for wr in parsed["display_results"]],
+    )
+
+
+@app.post("/pronoun/speak/check")
+async def pronoun_speak_check(req: PronounSpeakCheckRequest):
+    """Optional written grammar check of the pronoun answer (accepts valid variants)."""
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    if not req.cue.strip() or not req.response.strip():
+        raise HTTPException(status_code=400, detail="cue and response are required")
+    system = _PRONOUN_SPEAK_CHECK_SYSTEM.format(
+        cue=req.cue, instruction=req.instruction, accepted=req.accepted_answer,
+        response=req.response, level=req.level, attempt=req.attempt,
+    )
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": "Check my pronoun use."},
+        ],
+        temperature=0.3,
+        max_tokens=800,
+    ))
+    raw = resp.choices[0].message.content.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    try:
+        result = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Feedback parse error")
+    if req.session_id and req.access_code:
+        has_errors = result.get("has_errors", True)
+        score = 1.0 if not has_errors else (0.5 if req.attempt > 1 else 0.0)
+        _analytics.track(req.session_id, req.access_code, "pronoun_speak_checked", {
+            "exercise_type": "pronoun_speak", "level": req.level, "focus": req.focus,
+            "attempt": req.attempt, "has_errors": has_errors, "score": round(score, 3),
+        }, req.visit_id)
+    return result
+
+
+class PronounPlacementRequest(BaseModel):
+    level: str = "B1"
+    focus: str = "ordering"
+    kind: str = "choice"  # "choice" (pick the right order + say it) | "scratch" (produce it yourself)
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+
+
+@app.post("/pronoun/placement")
+async def pronoun_placement(req: PronounPlacementRequest):
+    """One-scene pronoun-placement drill of a single kind: "choice" (multiple-choice word
+    order, say the correct one) or "scratch" (produce the answer yourself). 5 items; each is
+    scored client-side via /pronoun/speak/analyze against its answer."""
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    kind = req.kind if req.kind in _PRONOUN_DRILL_KINDS else "choice"
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": _pronoun_drill_system(kind, req.focus)},
+            {"role": "user", "content": f"CEFR level: {req.level}\nFocus: {req.focus}"},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.85,
+        max_tokens=1400,
+    ))
+    result = json.loads(resp.choices[0].message.content)
+
+    # Every item is scored against its "answer"; drop any the model returned without one
+    # (a blank answer would render an unscoreable item that only shows the transcript).
+    items = [it for it in result.get("items", []) if (it.get("answer") or "").strip()]
+    for it in items:
+        it["stage"] = kind  # the frontend renders by this
+        if kind == "choice":
+            opts = it.get("options")
+            ans = it.get("answer", "")
+            if isinstance(opts, list) and len(opts) >= 2:
+                random.shuffle(opts)
+                it["options"] = opts
+                it["correct_index"] = opts.index(ans) if ans in opts else it.get("correct_index", 0)
+    result["items"] = items
+    result["kind"] = kind
+    result["focus"] = req.focus
+
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "pronoun_placement_started", {
+            "exercise_type": "pronoun_placement", "level": req.level, "focus": req.focus,
+            "kind": kind, "item_count": len(items),
+        }, req.visit_id)
+    return result
+
+
+class PronounDiscriminateRequest(BaseModel):
+    level: str = "B1"
+    focus: str = "dobj"
+    session_id: Optional[str] = None
+    access_code: Optional[str] = None
+    visit_id: Optional[str] = None
+
+
+@app.post("/pronoun/discriminate")
+async def pronoun_discriminate(req: PronounDiscriminateRequest):
+    """Listening-discrimination drill: one scene, 5 short 2-line exchanges. Each item's audio
+    (setup + reply, Chirp3-HD, cached to R2) plays; the learner picks which pronoun combo was
+    said (options differ only in the pronoun), then says it — scored via /pronoun/speak/analyze."""
+    if _mistral is None:
+        raise HTTPException(status_code=503, detail="Mistral not configured")
+    _, _, prod_directive = _pronoun_focus(req.focus)
+    system = _PRONOUN_DISCRIMINATE_SYSTEM.replace("{focus_directive}", prod_directive)
+    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": f"CEFR level: {req.level}\nFocus: {req.focus}"},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.8,
+        max_tokens=1600,
+    ))
+    result = json.loads(resp.choices[0].message.content)
+
+    kept = []
+    for it in result.get("items", []):
+        ans = (it.get("answer") or "").strip()
+        opts = it.get("options")
+        if not ans or not isinstance(opts, list) or len(opts) < 2:
+            continue
+        if ans not in opts:          # guarantee the correct line is selectable
+            opts = [ans] + [o for o in opts if o != ans]
+        opts = opts[:3]
+        random.shuffle(opts)
+        it["options"] = opts
+        it["correct_index"] = opts.index(ans)
+        it["stage"] = "listen_choice"
+        it["cue"] = it.get("setup", "")
+        # Render the exchange (setup + reply) once, via Chirp3-HD → cached to R2.
+        voice_a, _ = pick_dialogue_voices()
+        exchange = f"{it.get('setup', '')} {ans}".strip()
+        audio_file = await generate_library_audio(exchange, voice_a)
+        it["audio_url"] = f"/audio/{audio_file}"
+        kept.append(it)
+
+    out = {"context": result.get("context", ""), "items": kept,
+           "kind": "listen_choice", "focus": req.focus}
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "pronoun_discriminate_started", {
+            "exercise_type": "pronoun_discriminate", "level": req.level, "focus": req.focus,
+            "item_count": len(kept),
+        }, req.visit_id)
+    return out
 
 
 if __name__ == "__main__":
