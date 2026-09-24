@@ -21,6 +21,7 @@ Feedback prompts write their explanations in French for French-speaking learners
 """
 
 import re
+import unicodedata
 
 CODE = "en"
 
@@ -219,10 +220,17 @@ def normalize_text(t: str) -> str:
     return spell_numbers(expand_contractions(t))
 
 
+def strip_accents(words: list) -> list:
+    """Accents on English loanwords are optional spelling (café/cafe, naïve/naive,
+    fiancé/fiance), so they never count — in any mode, dictation included."""
+    return ["".join(c for c in unicodedata.normalize("NFKD", w) if not unicodedata.combining(c))
+            for w in words]
+
+
 def normalize_words(words: list, phonetic: bool = False) -> list:
-    """Token-level English normalization: US/UK spelling always; with ``phonetic``
-    (speaking exercises) also merge one-token homophones."""
-    words = canonicalize_spelling(words)
+    """Token-level English normalization: accents and US/UK spelling always; with
+    ``phonetic`` (speaking exercises) also merge one-token homophones."""
+    words = canonicalize_spelling(strip_accents(words))
     if phonetic:
         words = normalize_homophones(words)
     return words

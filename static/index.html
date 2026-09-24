@@ -322,6 +322,8 @@
     .sb-locale { padding: var(--vk-sp-2) var(--vk-sp-5) var(--vk-sp-1); }
     /* Nav items/sections are display:flex/block, which beats the UA [hidden] rule. */
     #sidebar [hidden] { display: none !important; }
+    /* French-only controls (sound focus, rhythm, paragraphs, …) while studying English. */
+    #app.study-en .fr-only { display: none !important; }
 
     /* ── Collapsed state ── */
     #app.sb-collapsed .sb-locale,
@@ -3579,12 +3581,12 @@
           <!-- Utterance card -->
           <div class="pv-card" id="phv-card">
             <div class="phv-toolbar">
-              <button class="phv-save-btn" id="phrase-save-btn" title="Save phrase to library">
+              <button class="phv-save-btn fr-only" id="phrase-save-btn" title="Save phrase to library">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
               </button>
               <span class="phv-toolbar-spacer"></span>
-              <button class="phv-toolbar-btn" id="phrase-syllable-btn" onclick="toggleSyllableLine()" title="Show syllables">SYL</button>
-              <button class="phv-toolbar-btn" id="phrase-rhythm-btn" onclick="toggleRhythmPanel()" title="Show rhythm">
+              <button class="phv-toolbar-btn fr-only" id="phrase-syllable-btn" onclick="toggleSyllableLine()" title="Show syllables">SYL</button>
+              <button class="phv-toolbar-btn fr-only" id="phrase-rhythm-btn" onclick="toggleRhythmPanel()" title="Show rhythm">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M1 8h2M3 8V5M3 8v3M5 8h1M6 8V3M6 8v5M8 8h1M9 8V6M9 8v2M11 8h1M12 8V4M12 8v4M14 8h1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
               </button>
               <button class="phv-toolbar-btn" id="phrase-blur-btn" onclick="togglePhraseBlur()" title="Toggle blur">
@@ -3726,16 +3728,16 @@
               <button class="hub-subject-chip active" data-style="story" onclick="selectStyleChip(this)">Story</button>
               <button class="hub-subject-chip" data-style="educational" onclick="selectStyleChip(this)">Educational</button>
               <button class="hub-subject-chip" data-style="howto" onclick="selectStyleChip(this)">How-to</button>
-              <button class="hub-subject-chip" data-style="vocabulary" onclick="selectStyleChip(this)">Vocabulary</button>
-              <button class="hub-subject-chip" data-style="proverbs" onclick="selectStyleChip(this)">Proverbs</button>
-              <div class="hub-style-divider-label">Paragraphs only</div>
-              <button class="hub-subject-chip" data-style="opinion" data-paragraphs-only="true" onclick="selectStyleChip(this)">Opinion</button>
+              <button class="hub-subject-chip fr-only" data-style="vocabulary" onclick="selectStyleChip(this)">Vocabulary</button>
+              <button class="hub-subject-chip fr-only" data-style="proverbs" onclick="selectStyleChip(this)">Proverbs</button>
+              <div class="hub-style-divider-label fr-only">Paragraphs only</div>
+              <button class="hub-subject-chip fr-only" data-style="opinion" data-paragraphs-only="true" onclick="selectStyleChip(this)">Opinion</button>
             </div>
           </div>
         </div>
 
         <!-- Sound Focus -->
-        <div class="hub-row">
+        <div class="hub-row fr-only">
           <div class="hub-row-label">
             <span class="hub-row-name">Sound Focus</span>
             <span class="hub-row-desc">Target a specific phoneme</span>
@@ -3791,7 +3793,7 @@
                 <div class="hub-mode-title">Phrases</div>
                 <div class="hub-mode-desc">Short individual sentences. Great for drilling pronunciation word by word.</div>
               </button>
-              <button class="hub-mode-card vk-card" data-mode="paragraph" onclick="selectHubMode(this)">
+              <button class="hub-mode-card vk-card fr-only" data-mode="paragraph" onclick="selectHubMode(this)">
                 <div class="hub-mode-icon">
                   <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 7h10M2 11h12M2 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 </div>
@@ -6010,6 +6012,18 @@
     if (sel) sel.value = studyLocale;
     if (recognition) recognition.lang = sttLang();
     const english = studyLang() === 'en';
+    document.getElementById('app').classList.toggle('study-en', english);
+    if (english) {
+      // Don't leave a now-hidden French-only choice selected in the Speaking hub.
+      if (!['story', 'educational', 'howto'].includes(shadowingStyle)) {
+        const story = document.querySelector('#hub-styles [data-style="story"]');
+        if (story) selectStyleChip(story);
+      }
+      if (selectedHubMode === 'paragraph') {
+        const phrases = document.getElementById('hub-mode-phrases');
+        if (phrases) selectHubMode(phrases);
+      }
+    }
     // Hide exercises English doesn't have yet, then any section left empty.
     let section = null, sectionHasItems = false;
     const closeSection = () => { if (section) section.hidden = !sectionHasItems; };
@@ -7521,10 +7535,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       } else {
         const activeFocusWord = coachFocusWords.length && coachFocusIndex < coachFocusWords.length
           ? coachFocusWords[coachFocusIndex] : undefined;
-        const res = await fetch('/speaking/phrase', {
+        const phraseBody = studyLang() === 'en'
+          ? { level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, locale: studyLocale, ...getAnalyticsFields() }
+          : { level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: shadowingSoundFocus || undefined, focus_word: activeFocusWord, ...getAnalyticsFields() };
+        const res = await apiFetch('/speaking/phrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: shadowingSoundFocus || undefined, focus_word: activeFocusWord, ...getAnalyticsFields() }),
+          body: JSON.stringify(phraseBody),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -7639,12 +7656,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     try {
       phraseAttemptNumber++;
-      const res = await fetch('/speaking/analyze', {
+      const res = await apiFetch('/speaking/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target: currentPhrase, transcription: text, confidence, noun_adj_tokens: currentNounAdjTokens,
           ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId, listen_count: phraseListenCount, sound_focus: shadowingSoundFocus || null,
+          locale: studyLocale,
         }),
       });
       const data = await res.json();
@@ -7791,7 +7809,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     playBtn.addEventListener('click', async () => {
       playBtn.disabled = true;
       try {
-        const res = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: word }) });
+        const ttsBody = studyLang() === 'en' ? { text: word, locale: studyLocale } : { text: word };
+        const res = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsBody) });
         playAudio((await res.json()).audio_url);
       } finally { playBtn.disabled = false; }
     });
@@ -7871,7 +7890,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     });
 
     const actionsRow = document.createElement('div');
-    actionsRow.className = 'pa-wi-actions';
+    actionsRow.className = 'pa-wi-actions fr-only';  // practice list + word drill are French-only for now
     actionsRow.appendChild(micBtn);
     actionsRow.appendChild(drillBtn);
     actionsRow.appendChild(saveBtn);

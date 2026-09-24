@@ -41,14 +41,14 @@ Return ONLY valid JSON in this exact shape (no markdown, no extra text):
 
 
 
-def score_attempt(target: str, transcription: str, noun_adj_set=None) -> dict:
+def score_attempt(target: str, transcription: str, noun_adj_set=None, lang: str = "fr") -> dict:
     """
     Compare transcription to target using sequence alignment (SequenceMatcher).
     Returns word_results (normalized, used for scoring/mismatches) and
     display_results (aligned to original phrase tokens, used for visual diff).
     """
-    target_words = _normalize(target, noun_adj_set, phonetic=True)
-    said_words = _normalize(transcription, noun_adj_set, phonetic=True)
+    target_words = _normalize(target, noun_adj_set, phonetic=True, lang=lang)
+    said_words = _normalize(transcription, noun_adj_set, phonetic=True, lang=lang)
 
     if not target_words:
         return {"score": 1.0, "passed": True, "mismatches": [], "word_results": [], "display_results": []}
@@ -56,7 +56,7 @@ def score_attempt(target: str, transcription: str, noun_adj_set=None) -> dict:
     word_results = run_sequence_match(target_words, said_words)
     matches = sum(1 for wr in word_results if wr["matched"])
     score = matches / len(target_words)
-    display_results = build_display_results(target, word_results, noun_adj_set)
+    display_results = build_display_results(target, word_results, noun_adj_set, lang=lang)
     mismatches = [
         {"target_word": dr["word"], "said": dr["said"]}
         for dr in display_results if not dr["matched"]
@@ -141,6 +141,82 @@ def generate_phrase(level: str = 'A1', topic: str = None, style: str = 'story', 
             raise
 
 
-def analyze_mismatches(target: str, transcription: str, mismatches: list) -> list:
+def analyze_mismatches(target: str, transcription: str, mismatches: list, lang: str = "fr") -> list:
     """Call Mistral to get pronunciation tips for each mismatch."""
-    return _analyze_mismatches(target, transcription, mismatches, _client)
+    return _analyze_mismatches(target, transcription, mismatches, _client, lang=lang)
+
+
+# ── English (private beta) ──────────────────────────────────────────────────────
+_PHRASE_SYSTEM_EN = """You are generating English sentences for a shadowing exercise. The learners are French speakers learning English.
+
+Rules:
+- Generate ONE natural spoken English sentence appropriate for the given CEFR level.
+- A1: 3–5 words, present simple only, very high-frequency vocabulary (I am, this is, I like, thank you).
+- A2: 5–7 words, present and simple past, common contractions (I'm, don't, it's, there's).
+- B1: 7–10 words, mix of tenses (present perfect, past continuous, going to), everyday phrasal verbs and idioms.
+- B2: 10–13 words, complex clauses, conditionals, passive voice, richer vocabulary.
+- C1: 13–16 words, sophisticated structure, idiomatic expressions, nuanced vocabulary.
+- C2: 16+ words, highly idiomatic or formal English, complex embedded clauses, register variation.
+- The sentence must sound like natural spoken English, the way a native speaker actually says it — use contractions where a native speaker would.
+- Write numbers as words (three, not 3). No abbreviations.
+- Use plain English spelling without accents, even for loanwords (cafe, naive, fiance, cliche — not café, naïve).
+- The subject may be given in French; write about it in English.
+- STYLE "story": a narrative fragment — a character, a moment, an action, an opinion on the subject. Conversational and personal.
+- STYLE "educational": an informative statement that teaches a real fact about the subject (history, science, geography, culture, how things work).
+- STYLE "howto": a practical instruction or step in a process. Use imperative or instructional phrasing.
+
+Return ONLY valid JSON in this exact shape (no markdown, no extra text):
+{"phrase": "..."}"""
+
+_ACCENT_CLAUSES = {
+    "en-US": " Use American English spelling and vocabulary (color, apartment, vacation, fall).",
+    "en-GB": " Use British English spelling and vocabulary (colour, flat, holiday, autumn).",
+}
+
+
+def generate_phrase_en(level: str = 'A1', topic: str = None, style: str = 'story',
+                       locale: str = 'en-US') -> dict:
+    """English counterpart of generate_phrase (no sound focus / liaison / tagging).
+    Returns {"phrase": str, "noun_adj_tokens": []}."""
+    if level not in _VALID_LEVELS:
+        level = 'A1'
+    if style not in _VALID_STYLES:
+        style = 'story'
+    if locale not in _ACCENT_CLAUSES:
+        raise ValueError("Unsupported English locale: {!r}".format(locale))
+    topic_clause = f" about {topic}" if topic else ""
+    style_clause = f" Style: {style.upper()}."
+    key = ("en", locale, level, topic, style)
+    recent = _recent_phrases.get(key, deque())
+    avoid_clause = ""
+    if recent:
+        listed = "; ".join(f'"{p}"' for p in recent)
+        avoid_clause = f" Do NOT generate any of these recently used phrases: {listed}."
+
+    for attempt in range(3):
+        try:
+            resp = _client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "system", "content": _PHRASE_SYSTEM_EN},
+                    {"role": "user", "content": f"Generate a {level}-level English shadowing phrase{topic_clause}.{style_clause}{_ACCENT_CLAUSES[locale]}{avoid_clause}"},
+                ],
+                temperature=0.9,
+                max_tokens=120,
+            )
+            raw = resp.choices[0].message.content.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json\n"):
+                    raw = raw[5:]
+                raw = raw.rstrip()
+            phrase = json.loads(raw)["phrase"]
+            if key not in _recent_phrases:
+                _recent_phrases[key] = deque(maxlen=_RECENT_MAX)
+            _recent_phrases[key].append(phrase)
+            return {"phrase": phrase, "noun_adj_tokens": []}
+        except Exception as e:
+            if attempt < 2 and "429" in str(e):
+                time.sleep(2 ** attempt)
+                continue
+            raise

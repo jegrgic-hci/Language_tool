@@ -33,6 +33,7 @@ BASE_DIR = Path(__file__).parent
 from document_engine import UPLOADS_DIR
 import shadow_engine as _shadow_module
 from shadow_engine import generate_phrase, score_attempt, analyze_mismatches as analyze_shadow_mismatches
+from shadow_engine import generate_phrase_en
 import paragraph_engine as _paragraph_module
 from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mismatches, analyze_patterns
 from score_utils import normalize, run_sequence_match, build_display_results, analyze_dictation_mismatches
@@ -255,7 +256,7 @@ content_bank.register_canonical_topics(list(TOPICS))
 
 
 def _bank_pick(kind: str, register: str, level: str, topic: str, style: str,
-               access_code: Optional[str]) -> Optional[dict]:
+               access_code: Optional[str], locale: str = "fr-FR") -> Optional[dict]:
     """Apply the reuse-vs-generate policy for a (learner, bucket): returns a banked
     record to reuse, or None meaning the caller should generate + bank a new one.
 
@@ -263,7 +264,7 @@ def _bank_pick(kind: str, register: str, level: str, topic: str, style: str,
     hiccup degrades to "generate one" rather than failing the student's exercise.
     """
     try:
-        return _bank_pick_inner(kind, register, level, topic, style, access_code)
+        return _bank_pick_inner(kind, register, level, topic, style, access_code, locale)
     except Exception as e:
         logging.getLogger("bank").warning(
             "bank pick failed for %s/%s/%s/%s (%s: %s) — generating instead",
@@ -272,20 +273,21 @@ def _bank_pick(kind: str, register: str, level: str, topic: str, style: str,
 
 
 def _bank_pick_inner(kind: str, register: str, level: str, topic: str, style: str,
-                     access_code: Optional[str]) -> Optional[dict]:
+                     access_code: Optional[str], locale: str = "fr-FR") -> Optional[dict]:
     budget_ok = library_store.generation_budget_ok()
     # No access_code = local/personal use (only the maintainer, testing). The per-user
     # seen-map is empty, so the normal policy would serve the same shallow-bucket piece
     # forever. Instead prefer generating fresh to grow the bank toward POOL_MAX while
     # budget allows; only reuse once the bucket is full or the budget is tight.
     if not access_code:
-        if budget_ok and content_bank.count(kind, register, level, topic, style) < content_bank.POOL_MAX:
+        if budget_ok and content_bank.count(kind, register, level, topic, style, locale=locale) < content_bank.POOL_MAX:
             rec = None
         else:
-            rec = content_bank.pick_unseen(kind, register, level, topic, style)
+            rec = content_bank.pick_unseen(kind, register, level, topic, style, locale=locale)
     else:
         seen_map = _analytics.get_bank_seen_map(access_code)
-        rec = content_bank.select_for_user(kind, register, level, topic, style, seen_map, budget_ok)
+        rec = content_bank.select_for_user(kind, register, level, topic, style, seen_map, budget_ok,
+                                           locale=locale)
     # Efficiency telemetry: a returned record = served from the bank (no Mistral/Chirp
     # spend); None = the caller will generate + bank a fresh unit (a billable miss).
     if rec is not None:
@@ -325,13 +327,14 @@ def _mark_bank_seen_safe(access_code: Optional[str], unit_id: str, surface: str)
 
 
 async def _synth_and_bank_phrase(text: str, register: str, level: str, topic: str,
-                                 style: str, voice: str) -> dict:
+                                 style: str, voice: str, locale: str = "fr-FR") -> dict:
     """Synthesize a phrase with Chirp (content-addressed), tag it, and bank it as a
     reusable PHRASE. Returns the banked record."""
     audio_hash = await generate_library_audio(text, voice)
-    tokens = await asyncio.to_thread(tag_nouns_adjs, text)
+    tag = _lang.get(_lang.lang_of(locale)).tag_nouns_adjs
+    tokens = await asyncio.to_thread(tag, text)
     return content_bank.add_phrase(text, register, level, topic, voice, audio_hash,
-                                   style=style, noun_adj_tokens=tokens)
+                                   style=style, noun_adj_tokens=tokens, locale=locale)
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
@@ -348,6 +351,7 @@ class ShadowPhraseRequest(BaseModel):
     style: Optional[str] = 'story'
     sound_focus: Optional[str] = None
     focus_word: Optional[str] = None
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
     # analytics / bank novelty
     session_id: Optional[str] = None
     access_code: Optional[str] = None
@@ -376,6 +380,7 @@ class ShadowAnalyzeRequest(BaseModel):
     phrase_id: Optional[str] = None
     listen_count: Optional[int] = None
     sound_focus: Optional[str] = None
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 class ShadowFeedbackItem(BaseModel):
@@ -1644,8 +1649,77 @@ async def _phrase_analyze(req: ShadowAnalyzeRequest, exercise_type: str) -> Shad
 
 # ── Speaking routes ────────────────────────────────────────────────────────────
 
+# English (private beta) runs on its own generate/analyze path so the French one
+# above stays byte-for-byte untouched. No sound focus, coach focus, liaison or
+# noun/adj tagging — those are French-only.
+async def _phrase_generate_en(req: ShadowPhraseRequest, locale: str) -> ShadowPhraseResponse:
+    style = req.style or 'story'
+    topic = req.topic or random.choice(TOPICS)
+    rec = _bank_pick("phrase", "standard", req.level, topic, "", req.access_code, locale)
+    if rec is None:
+        gen = await asyncio.to_thread(lambda: generate_phrase_en(req.level, topic, style, locale))
+        voice = random.choice(chirp_voices(locale))
+        rec = await _synth_and_bank_phrase(gen["phrase"], "standard", req.level, topic, style,
+                                           voice, locale)
+    _mark_bank_seen_safe(req.access_code, rec["id"], "shadow")
+    return ShadowPhraseResponse(
+        phrase=rec["text"],
+        audio_url=f"/audio/{rec['audio_hash']}",
+        level=req.level,
+        noun_adj_tokens=[],
+    )
+
+
+async def _phrase_analyze_en(req: ShadowAnalyzeRequest, locale: str,
+                             exercise_type: str) -> ShadowAnalyzeResponse:
+    result = score_attempt(req.target, req.transcription, None, lang="en")
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
+            "exercise_type": exercise_type,
+            "locale": locale,
+            "level": req.level,
+            "topic": req.topic,
+            "score": result["score"],
+            "passed": result["passed"],
+            "attempt_number": req.attempt_number,
+            "phrase_id": req.phrase_id,
+            "listen_count": req.listen_count,
+            "stt_confidence": req.confidence,
+            "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
+        }, req.visit_id)
+    feedback_raw = await asyncio.to_thread(
+        lambda: analyze_shadow_mismatches(req.target, req.transcription, result["mismatches"], lang="en")
+    )
+    return ShadowAnalyzeResponse(
+        score=result["score"],
+        passed=result["passed"],
+        feedback=[
+            ShadowFeedbackItem(
+                target_word=f.get("target_word", ""),
+                said=f.get("said", ""),
+                tip=f.get("tip", ""),
+                is_grammar=f.get("is_grammar", False),
+                grammar_note=f.get("grammar_note", ""),
+            )
+            for f in feedback_raw
+        ],
+        word_results=[WordResult(word=wr["word"], matched=wr["matched"], said=wr["said"])
+                      for wr in result["word_results"]],
+        display_results=[WordResult(word=dr["word"], matched=dr["matched"], said=dr["said"])
+                         for dr in result["display_results"]],
+    )
+
+
 @app.post("/speaking/phrase", response_model=ShadowPhraseResponse)
-async def speaking_phrase(req: ShadowPhraseRequest):
+async def speaking_phrase(req: ShadowPhraseRequest, authorization: Optional[str] = Header(None)):
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
+        try:
+            return await _phrase_generate_en(req, locale)
+        except Exception as e:
+            logging.getLogger("phrase").exception("/speaking/phrase (%s) failed", locale)
+            raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
     try:
         return await _phrase_generate(req)
     except Exception as e:
@@ -1654,7 +1728,11 @@ async def speaking_phrase(req: ShadowPhraseRequest):
 
 
 @app.post("/speaking/analyze", response_model=ShadowAnalyzeResponse)
-async def speaking_analyze(req: ShadowAnalyzeRequest):
+async def speaking_analyze(req: ShadowAnalyzeRequest, authorization: Optional[str] = Header(None)):
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
+        return await _phrase_analyze_en(req, locale, "speaking")
     return await _phrase_analyze(req, "speaking")
 
 
