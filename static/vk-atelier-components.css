@@ -1021,6 +1021,95 @@
   align-items: center;
   gap: 12px;
 }
+.pv-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ── First-run guide ────────────────────────────────────────────────────────
+   Inline step strip that walks a first-time user through one attempt
+   (mic → listen → speak → read). Driven by pvGuide* in index.html. */
+
+.pv-guide-link {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--vk-border-mid);
+  color: var(--vk-fg-2);
+  padding: 2px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 120ms cubic-bezier(0.4,0,0.2,1), border-color 120ms cubic-bezier(0.4,0,0.2,1);
+}
+.pv-guide-link:hover { color: var(--vk-accent-text); border-color: var(--vk-accent); }
+
+.pv-guide {
+  background: var(--vk-accent-bg);
+  border: 1px solid var(--vk-accent-border);
+  border-left: 3px solid var(--vk-accent);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pv-guide-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pv-guide-step {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vk-accent-text);
+}
+.pv-guide-skip {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  color: var(--vk-fg-2);
+  padding: 2px 0;
+  cursor: pointer;
+  transition: color 120ms cubic-bezier(0.4,0,0.2,1);
+}
+.pv-guide-skip:hover { color: var(--vk-fg-1); }
+.pv-guide-title {
+  font-family: var(--pa-font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--vk-fg-1);
+}
+.pv-guide-body {
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--vk-fg-2);
+  margin: 0;
+}
+.pv-guide-actions { display: flex; gap: 8px; margin-top: 6px; }
+.pv-guide-actions:empty { display: none; }
+
+/* The control the current step is asking the user to press */
+.pv-guide-target {
+  outline: 2px solid var(--vk-accent);
+  outline-offset: 4px;
+}
+
+@media (max-width: 480px) {
+  .pv-header-left { gap: 10px; }
+  .pv-guide-link  { font-size: 10px; letter-spacing: 0.04em; }
+}
 
 /* Level tabs */
 .pv-levels { display: flex; gap: 3px; }

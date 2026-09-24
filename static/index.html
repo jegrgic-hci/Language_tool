@@ -3622,8 +3622,11 @@
     ══════════════════════════════════════ -->
     <div id="phrase-view" style="display:none; flex:1; flex-direction:column; overflow:visible;">
       <div class="pv-header">
-        <span class="pv-title">Phrases</span>
-<div class="pv-header-right">
+        <div class="pv-header-left">
+          <span class="pv-title">Phrases</span>
+          <button class="pv-guide-link" onclick="pvGuideStart('phrase')">How it works</button>
+        </div>
+        <div class="pv-header-right">
           <div class="pv-levels" id="phrase-levels">
             <button class="pv-level-btn is-active" data-level="A1" onclick="setShadowLevel('A1')">A1</button>
             <button class="pv-level-btn" data-level="A2" onclick="setShadowLevel('A2')">A2</button>
@@ -3729,6 +3732,9 @@
             <span class="pv-live-label" id="phrase-attempt-prefix">Speech input</span>
             <span class="pv-live-text" id="phrase-attempt-text"></span>
           </div>
+
+          <!-- First-run guide (pvGuide*) -->
+          <div class="pv-guide" id="phrase-guide" style="display:none;" role="status" aria-live="polite"></div>
 
           <!-- Controls row -->
           <div class="pv-func" id="phrase-actions">
@@ -4051,7 +4057,10 @@
     ══════════════════════════════════════ -->
     <div id="paragraph-view" style="display:none;">
       <div class="pv-header">
-        <span class="pv-title">Paragraphs</span>
+        <div class="pv-header-left">
+          <span class="pv-title">Paragraphs</span>
+          <button class="pv-guide-link" onclick="pvGuideStart('paragraph')">How it works</button>
+        </div>
         <div class="pv-header-right">
           <span class="header-status">LEVEL</span>
           <div class="pv-levels" id="pv-levels">
@@ -4141,6 +4150,9 @@
 
           <!-- Bottom tray: score viz + live transcript + controls + sentence scores -->
           <div id="para-bottom-tray">
+
+            <!-- First-run guide (pvGuide*) -->
+            <div class="pv-guide" id="paragraph-guide" style="display:none;" role="status" aria-live="polite"></div>
 
             <!-- Score ring + per-chunk bars (shown after scoring) -->
             <div id="para-viz" class="pv-viz" style="display:none;">
@@ -7101,6 +7113,7 @@
       b.classList.toggle('is-active', isActive);
     });
 
+    pvGuideOnView(view);
     if (inShadow && !currentPhrase) fetchNextPhrase();
     if (inShadowDrill) startShadowDrill();
     if (inPractice) {
@@ -7255,6 +7268,177 @@
     const startBtn = document.getElementById('hub-start-btn');
     if (!startBtn) return;
     startBtn.disabled = !(shadowingLevel && shadowingTopic && selectedHubMode);
+  }
+
+  // ── First-run guide (Phrases / Paragraphs) ─────────────────────────────────
+  // An inline step strip that walks a first-time user through one real attempt:
+  // allow the mic → listen → speak → read the score. Each step waits for the user
+  // to actually do the thing (pvGuideEvent from the play / mic / score hooks), and
+  // an out-of-order action jumps forward. Shown once per format (localStorage);
+  // the "How it works" link in the exercise header replays it.
+  const PV_GUIDE_KEYS  = { phrase: 'vf_guide_phrase', paragraph: 'vf_guide_paragraph' };
+  // Steps during which the exercise's own auto-play is held back
+  const PV_GUIDE_HOLDS = { phrase: ['mic', 'listen'], paragraph: ['mic'] };
+  let pvGuide = null;  // { fmt, steps, i, micState, held }
+
+  function _pvGuideSeen(fmt) {
+    try { return localStorage.getItem(PV_GUIDE_KEYS[fmt]) === '1'; } catch (_) { return true; }
+  }
+
+  function _pvGuideSteps(fmt) {
+    const langName = studyLang() === 'en' ? 'English' : 'French';
+    const micStep = {
+      id: 'mic',
+      title: 'Allow your microphone',
+      body: `You'll speak ${langName} out loud and get a score on every word. Your browser will ask for the microphone once.`,
+    };
+    if (fmt === 'phrase') return [
+      micStep,
+      { id: 'listen', waitFor: 'played', target: '#phrase-replay-btn',
+        title: 'Listen first',
+        body: 'Press play to hear the phrase. Replay it as often as you like, and use the speed buttons at the top to slow it down.' },
+      { id: 'speak', waitFor: 'scored', target: '#phrase-mic-btn',
+        title: 'Now say it',
+        body: 'Tap the mic and say the phrase out loud. When you pause, it stops and scores you automatically.' },
+      { id: 'read', done: true,
+        title: 'Read your score',
+        body: 'Green words matched. Red shows what was heard instead, and grey means the word wasn\'t heard. Each missed word below comes with a tip. Try again as many times as you like: pass and Next appears, or press skip for a new phrase.' },
+    ];
+    return [
+      micStep,
+      { id: 'context', waitFor: 'chunk', skipIf: () => paraStage >= 1,
+        title: 'Listen to the whole paragraph',
+        body: 'It plays once so you hear it in context. Just listen, or press skip to start speaking straight away.' },
+      { id: 'speak', waitFor: 'scored', target: '#para-mic-btn',
+        title: 'Say the highlighted part',
+        body: 'The bold text is your block. Tap the mic and say it out loud. When you pause, it stops and scores you automatically. Press play first if you want to hear it again.' },
+      { id: 'read', done: true,
+        title: 'Read your score',
+        body: 'The ring is your score for this block. Below it, each sentence shows green for matched words and red for missed ones. Pass and press continue: each new block adds one more sentence until you can say the whole paragraph.' },
+    ];
+  }
+
+  // 'granted' | 'prompt' | 'denied' | 'unsupported'
+  async function _pvGuideMicState(fmt) {
+    const hasSR = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    // English phrases can run on Azure without Web Speech; everything else needs it.
+    if (!hasSR && !(fmt === 'phrase' && studyLang() === 'en')) return 'unsupported';
+    if (micPermissionGranted) return 'granted';
+    try {
+      const p = await navigator.permissions.query({ name: 'microphone' });
+      return p.state;
+    } catch (_) { return 'prompt'; }
+  }
+
+  async function pvGuideStart(fmt) {
+    if (pvGuide) _pvGuideClose(false, false);
+    const guide = { fmt, steps: null, i: 0, micState: null, held: null };
+    pvGuide = guide;  // set synchronously so the view's first auto-play is held
+    const micState = await _pvGuideMicState(fmt);
+    if (pvGuide !== guide) return;  // closed or restarted while checking
+    guide.micState = micState;
+    guide.steps = _pvGuideSteps(fmt).filter(s =>
+      !(s.id === 'mic' && micState === 'granted') && !(s.skipIf && s.skipIf()));
+    _pvGuideGoTo(0);
+  }
+
+  // Called by the views before auto-playing. Returns true (and keeps `resume`
+  // to run later) while the current step wants the user to act first.
+  function pvGuideHolds(fmt, resume) {
+    if (!pvGuide || pvGuide.fmt !== fmt) return false;
+    const id = pvGuide.steps ? pvGuide.steps[pvGuide.i]?.id : 'mic';
+    if (!PV_GUIDE_HOLDS[fmt].includes(id)) return false;
+    if (resume) pvGuide.held = resume;
+    return true;
+  }
+
+  function pvGuideEvent(fmt, ev) {
+    if (!pvGuide || pvGuide.fmt !== fmt || !pvGuide.steps || currentView !== fmt) return;
+    for (let j = pvGuide.i; j < pvGuide.steps.length; j++) {
+      if (pvGuide.steps[j].waitFor === ev) { _pvGuideGoTo(j + 1); return; }
+    }
+  }
+
+  function _pvGuideGoTo(i) {
+    pvGuide.i = Math.min(i, pvGuide.steps.length - 1);
+    if (pvGuide.held && !pvGuideHolds(pvGuide.fmt)) {
+      const resume = pvGuide.held;
+      pvGuide.held = null;
+      resume();
+    }
+    _pvGuideRender();
+  }
+
+  function _pvGuideRender() {
+    const { fmt, steps, i } = pvGuide;
+    const step = steps[i];
+    const el = document.getElementById(fmt + '-guide');
+    if (!el || !step) return;
+
+    let title = step.title, body = step.body, actions = '';
+    if (step.id === 'mic') {
+      if (pvGuide.micState === 'unsupported') {
+        title = 'This browser can\'t hear you';
+        body  = 'Speech scoring needs Chrome or Edge. Open this page in one of those to practise speaking.';
+        actions = '<button class="vk-btn vk-btn-outline sm" onclick="_pvGuideClose(false, true)">Close</button>';
+      } else if (pvGuide.micState === 'denied') {
+        title = 'Microphone blocked';
+        body  = 'Your browser is blocking the microphone for this site. Click the icon to the left of the address bar, set Microphone to Allow, then press Try again.';
+        actions = '<button class="vk-btn vk-btn-primary sm" onclick="pvGuideAllowMic(this)">Try again</button>';
+      } else {
+        actions = '<button class="vk-btn vk-btn-primary sm" onclick="pvGuideAllowMic(this)">Allow microphone</button>';
+      }
+    } else if (step.done) {
+      actions = '<button class="vk-btn vk-btn-primary sm" onclick="_pvGuideClose(true, true)">Got it</button>';
+    }
+
+    el.innerHTML =
+      '<div class="pv-guide-head">' +
+        `<span class="pv-guide-step">Step ${i + 1} of ${steps.length}</span>` +
+        (step.done ? '' : '<button class="pv-guide-skip" onclick="_pvGuideClose(true, true)">Skip guide</button>') +
+      '</div>' +
+      `<div class="pv-guide-title">${esc(title)}</div>` +
+      `<p class="pv-guide-body">${esc(body)}</p>` +
+      `<div class="pv-guide-actions">${actions}</div>`;
+    el.style.display = '';
+
+    document.querySelectorAll('.pv-guide-target').forEach(t => t.classList.remove('pv-guide-target'));
+    if (step.target) document.querySelector(step.target)?.classList.add('pv-guide-target');
+  }
+
+  async function pvGuideAllowMic(btn) {
+    if (!pvGuide) return;
+    const guide = pvGuide;
+    btn.disabled = true;
+    btn.textContent = 'Waiting for permission…';
+    const ok = await ensureMicPermission();
+    if (pvGuide !== guide) return;
+    if (ok) {
+      guide.micState = 'granted';
+      _pvGuideGoTo(guide.i + 1);
+    } else {
+      guide.micState = 'denied';
+      _pvGuideRender();
+    }
+  }
+
+  // markSeen: finished or skipped (don't show again). resume: run any held
+  // auto-play — false when closing because the user left the view.
+  function _pvGuideClose(markSeen, resume) {
+    if (!pvGuide) return;
+    const { fmt, held } = pvGuide;
+    pvGuide = null;
+    if (markSeen) { try { localStorage.setItem(PV_GUIDE_KEYS[fmt], '1'); } catch (_) {} }
+    const el = document.getElementById(fmt + '-guide');
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+    document.querySelectorAll('.pv-guide-target').forEach(t => t.classList.remove('pv-guide-target'));
+    if (resume && held) held();
+  }
+
+  // From switchView: start on a format's first visit, close when leaving it.
+  function pvGuideOnView(view) {
+    if (pvGuide && pvGuide.fmt !== view) _pvGuideClose(false, false);
+    if (!pvGuide && PV_GUIDE_KEYS[view] && !_pvGuideSeen(view)) pvGuideStart(view);
   }
 
   function launchShadowing() {
@@ -8062,9 +8246,11 @@
       currentAudio.play().catch(() => {});
       setShadowPlayBtnState(true);
       phraseListenCount++;
+      pvGuideEvent('phrase', 'played');
     } else if (currentAudioUrl) {
       playAudio(currentAudioUrl);
       phraseListenCount++;
+      pvGuideEvent('phrase', 'played');
     }
   }
 
@@ -8140,7 +8326,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         document.getElementById('phrase-text').classList.toggle('is-blurred', isBlurred);
         document.getElementById('phrase-replay-btn').disabled = false;
         _hidePhraseStatus();
-        playAudio(ttsData.audio_url);
+        if (!pvGuideHolds('phrase')) playAudio(ttsData.audio_url);
       } else {
         const activeFocusWord = coachFocusWords.length && coachFocusIndex < coachFocusWords.length
           ? coachFocusWords[coachFocusIndex] : undefined;
@@ -8161,7 +8347,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         document.getElementById('phrase-text').classList.toggle('is-blurred', isBlurred);
         document.getElementById('phrase-replay-btn').disabled = false;
         _hidePhraseStatus();
-        playAudio(data.audio_url);
+        if (!pvGuideHolds('phrase')) playAudio(data.audio_url);
       }
     } catch (err) {
       document.getElementById('phrase-text').textContent = 'Error — tap skip to retry';
@@ -8288,6 +8474,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       });
       const data = await res.json();
       renderFeedback(data, text, undefined, confidence);
+      pvGuideEvent('phrase', 'scored');
 
       if (data.passed) {
         shadowPassStreak++;
@@ -9542,8 +9729,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     paraNowUrls   = paraSentenceAudioUrls ? paraSentenceAudioUrls.slice() : null;
     paraNowSingle = paraSentenceAudioUrls ? null : paraFullAudioUrl;
     paraAudioUrl  = paraFullAudioUrl;  // legacy field kept in sync for custom path
-    paraPlayNow();
-    setParaContextBtnState(true);
+    const playContext = () => { paraPlayNow(); setParaContextBtnState(true); };
+    // First-run guide: wait until the mic step is done (unless the user has
+    // since pressed play or moved past the context read).
+    if (pvGuideHolds('paragraph', () => { if (paraStage === 0 && !currentAudio) playContext(); })) return;
+    playContext();
   }
 
   function renderParagraphWithChunkHighlight() {
@@ -9615,6 +9805,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('para-mic-btn').disabled = false;
     setParaPlayBtnState(true);
     trackEvent('chunk_listened', { paragraph_id: paragraphId, chunk_index: paraChunkIndex, chunk_size: chunkSize });
+    pvGuideEvent('paragraph', 'chunk');
   }
 
   function advanceToNextStage() {
@@ -10018,6 +10209,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       lastSentenceScores = computeSentenceScores(paragraphSentences.slice(start, end), data.display_results || [], data.sentence_scores || []);
       lastSentenceStart = start;
       renderSentenceScores();
+      pvGuideEvent('paragraph', 'scored');
 
     } catch (err) {
       paraAnalysisPending = false;
