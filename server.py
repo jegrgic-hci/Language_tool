@@ -1282,7 +1282,7 @@ async def coach_refresh(access_code: str = ""):
 
 
 @app.get("/analytics/progress")
-async def analytics_progress(access_code: str = "", days: int = 30):
+async def analytics_progress(access_code: str = "", days: int = 30, lang: str = "fr"):
     """Student-facing progress data for the landing page.
 
     Access-code only (no teacher key), mirroring /coach — the student tool has
@@ -1292,7 +1292,9 @@ async def analytics_progress(access_code: str = "", days: int = 30):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
     since_days = max(1, min(days, 365))
-    return _analytics.get_home_data(access_code, since_days=since_days)
+    if lang not in _lang.SUPPORTED:
+        raise HTTPException(status_code=400, detail="Unsupported language")
+    return _analytics.get_home_data(access_code, since_days=since_days, lang=lang)
 
 
 def _window_to_since_days(window: str, access_code: str) -> Optional[int]:

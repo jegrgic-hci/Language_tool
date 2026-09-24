@@ -2612,7 +2612,13 @@ _HOME_SKILL = {
 _NEXT_LEVEL = {"A1": "A2", "A2": "B1", "B1": "B2", "B2": "C1", "C1": "C2", "C2": None}
 
 
-def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30) -> dict:
+def _event_lang(payload: dict) -> str:
+    """Study language of an event: English events carry a "locale" (en-US/en-GB);
+    everything else — including all history from before English existed — is French."""
+    return "en" if str(payload.get("locale") or "").startswith("en") else "fr"
+
+
+def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: str = "fr") -> dict:
     """Everything the redesigned student Home needs, in one payload.
 
     Three speaking KPIs (Performance, Precision, Words mastered), each with a
@@ -2657,6 +2663,8 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30) -> dic
 
     for r in rows:
         p = json.loads(r["payload"]); et = r["event_type"]; ts = r["ts"] or ""
+        if _event_lang(p) != lang:
+            continue
         if not ts:
             continue
         try:
@@ -2940,6 +2948,8 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30) -> dic
                          for et in _sec_et_set}
     for r in sec_rows:
         p = json.loads(r["payload"]); et = r["event_type"]; ts_s = r["ts"] or ""
+        if _event_lang(p) != lang:
+            continue
         try:
             d = date.fromisoformat(ts_s[:10])
         except Exception:

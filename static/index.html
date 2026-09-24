@@ -5778,6 +5778,8 @@
 
   // ── Analytics helpers ──────────────────────────────────────────────────────
   function trackEvent(eventType, payload = {}) {
+    // English events carry their locale so analytics can keep the two languages apart.
+    try { if (studyLang() === 'en' && !payload.locale) payload = { ...payload, locale: studyLocale }; } catch (_) {}
     const accessCode = _activeAccessCode();
     const token = localStorage.getItem('ft_jwt');
     const headers = { 'Content-Type': 'application/json' };
@@ -6072,6 +6074,10 @@
       }
     }
     closeSection();
+    // Same filter for the exercise tiles on Home.
+    document.querySelectorAll('.home-action[data-action-key]').forEach(el => {
+      el.style.display = english && !EN_VIEWS.has(el.dataset.actionKey) ? 'none' : '';
+    });
   }
 
   function setStudyLocale(locale) {
@@ -6079,6 +6085,8 @@
     studyLocale = locale;
     try { localStorage.setItem(STUDY_LOCALE_KEY, locale); } catch (_) {}
     applyStudyLocale();
+    // Home caches its stats; drop them so it reloads for the new language.
+    _homeLoaded = false; _homeData = null; _homeCoachData = null;
     switchView('home');
   }
 
@@ -10280,13 +10288,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (_homeLoaded && _homeData) { renderHome(); return; }
     try {
       const [progRes, coachRes, meRes] = await Promise.allSettled([
-        fetch(`/analytics/progress?access_code=${encodeURIComponent(code)}`),
-        fetch(`/coach?access_code=${encodeURIComponent(code)}`),
+        fetch(`/analytics/progress?access_code=${encodeURIComponent(code)}&lang=${studyLang()}`),
+        // The coach is French-only for now; English Home shows progress without it.
+        studyLang() === 'en' ? Promise.resolve(null) : fetch(`/coach?access_code=${encodeURIComponent(code)}`),
         apiFetch('/auth/me'),
       ]);
       if (progRes.status !== 'fulfilled' || !progRes.value.ok) throw new Error('progress fetch failed');
       _homeData = await progRes.value.json();
-      _homeCoachData = (coachRes.status === 'fulfilled' && coachRes.value.ok)
+      _homeCoachData = (coachRes.status === 'fulfilled' && coachRes.value && coachRes.value.ok)
         ? await coachRes.value.json() : null;
       let meData = null;
       if (meRes.status === 'fulfilled' && meRes.value && meRes.value.ok) {
