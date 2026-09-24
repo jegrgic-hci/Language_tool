@@ -33,7 +33,7 @@ BASE_DIR = Path(__file__).parent
 from document_engine import UPLOADS_DIR
 import shadow_engine as _shadow_module
 from shadow_engine import generate_phrase, score_attempt, analyze_mismatches as analyze_shadow_mismatches
-from shadow_engine import generate_phrase_en
+from shadow_engine import generate_phrase_en, SOUND_FOCUS_EN
 import paragraph_engine as _paragraph_module
 from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mismatches, analyze_patterns
 from score_utils import normalize, run_sequence_match, build_display_results, analyze_dictation_mismatches
@@ -1659,6 +1659,15 @@ async def _phrase_analyze(req: ShadowAnalyzeRequest, exercise_type: str) -> Shad
 async def _phrase_generate_en(req: ShadowPhraseRequest, locale: str) -> ShadowPhraseResponse:
     style = req.style or 'story'
     topic = req.topic or random.choice(TOPICS)
+    if req.sound_focus in SOUND_FOCUS_EN:
+        # The target sound shapes the sentence, so focus phrases are generated fresh
+        # rather than drawn from the shared pool (same as French). Audio is still
+        # content-cached.
+        gen = await asyncio.to_thread(
+            lambda: generate_phrase_en(req.level, topic, style, locale, req.sound_focus))
+        audio = await generate_library_audio(gen["phrase"], random.choice(chirp_voices(locale)))
+        return ShadowPhraseResponse(phrase=gen["phrase"], audio_url=f"/audio/{audio}",
+                                    level=req.level, noun_adj_tokens=[])
     rec = _bank_pick("phrase", "standard", req.level, topic, "", req.access_code, locale)
     if rec is None:
         gen = await asyncio.to_thread(lambda: generate_phrase_en(req.level, topic, style, locale))

@@ -324,6 +324,7 @@
     #sidebar [hidden] { display: none !important; }
     /* French-only controls (sound focus, rhythm, paragraphs, …) while studying English. */
     #app.study-en .fr-only { display: none !important; }
+    #app:not(.study-en) .en-only { display: none !important; }
 
     /* ── Collapsed state ── */
     #app.sb-collapsed .sb-locale,
@@ -3848,6 +3849,24 @@
           </div>
         </div>
 
+        <!-- Sound Focus (English) — graded on the sound itself by Azure -->
+        <div class="hub-row en-only">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Sound Focus</span>
+            <span class="hub-row-desc">Target a sound that's hard for French speakers</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="hub-en-sound-chips">
+              <button class="hub-subject-chip active" data-focus="" onclick="selectHubEnSoundChip(this)">Any</button>
+              <button class="hub-subject-chip" data-focus="th" onclick="selectHubEnSoundChip(this)">TH</button>
+              <button class="hub-subject-chip" data-focus="ough" onclick="selectHubEnSoundChip(this)">OUGH words</button>
+              <button class="hub-subject-chip" data-focus="h_sound" onclick="selectHubEnSoundChip(this)">H sound</button>
+              <button class="hub-subject-chip" data-focus="vowel_length" onclick="selectHubEnSoundChip(this)">Short / long vowels</button>
+              <button class="hub-subject-chip" data-focus="ed_endings" onclick="selectHubEnSoundChip(this)">-ED endings</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Subject -->
         <div class="hub-row">
           <div class="hub-row-label">
@@ -6632,6 +6651,16 @@
   let shadowingLevel = 'A1';
   let shadowingStyle = 'story';
   let shadowingSoundFocus = null;
+  let enSoundFocus = null;  // English sound focus (th / ough / h_sound / vowel_length / ed_endings)
+
+  function selectHubEnSoundChip(btn) {
+    enSoundFocus = btn.dataset.focus || null;
+    document.querySelectorAll('#hub-en-sound-chips .hub-subject-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // The sound focus for the current study language (the two sets never mix).
+  function activeSoundFocus() { return (studyLang() === 'en' ? enSoundFocus : shadowingSoundFocus) || null; }
 
   function selectHubSoundChip(btn) {
     shadowingSoundFocus = btn.dataset.focus || null;
@@ -7636,7 +7665,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const activeFocusWord = coachFocusWords.length && coachFocusIndex < coachFocusWords.length
           ? coachFocusWords[coachFocusIndex] : undefined;
         const phraseBody = studyLang() === 'en'
-          ? { level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, locale: studyLocale, ...getAnalyticsFields() }
+          ? { level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: enSoundFocus || undefined, locale: studyLocale, ...getAnalyticsFields() }
           : { level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: shadowingSoundFocus || undefined, focus_word: activeFocusWord, ...getAnalyticsFields() };
         const res = await apiFetch('/speaking/phrase', {
           method: 'POST',
@@ -7678,7 +7707,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           exercise_type: 'speaking',
           level: shadowLevel,
           topic: shadowingTopic,
-          sound_focus: shadowingSoundFocus || null,
+          sound_focus: activeSoundFocus(),
           phrase_id: currentPhraseId,
         });
       }
@@ -7773,7 +7802,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target: currentPhrase, transcription: text, confidence, noun_adj_tokens: currentNounAdjTokens,
-          ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId, listen_count: phraseListenCount, sound_focus: shadowingSoundFocus || null,
+          ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId, listen_count: phraseListenCount, sound_focus: activeSoundFocus(),
           locale: studyLocale, azure_json: azureJson || undefined,
         }),
       });

@@ -168,6 +168,18 @@ Rules:
 Return ONLY valid JSON in this exact shape (no markdown, no extra text):
 {"phrase": "..."}"""
 
+# English sound focuses: only sounds Azure grades reliably at phoneme level, and the
+# ones French speakers most often get wrong. Where possible the sentence should make
+# sense with the mispronounced minimal pair too, so the error can't be "corrected"
+# away by context.
+SOUND_FOCUS_EN = {
+    "th":           "several words with the English 'th' sounds /θ/ and /ð/ (think, three, this, mother, months, clothes, with). Prefer words where a French-accented t/s/d/z substitution makes another real word (think/sink, three/tree, thank/tank, then/den)",
+    "ough":         "two or more 'ough' words that are pronounced differently (through, though, thought, tough, cough, thorough, bought, enough)",
+    "h_sound":      "several words that begin with an aspirated h (house, hungry, hold, heat, happy, hair), ideally ones where dropping the h makes another word (hold/old, heat/eat, hair/air, hand/and)",
+    "vowel_length": "a short/long vowel contrast (ship/sheep, live/leave, full/fool, sit/seat, fill/feel), built so that either member of the pair could make sense in the sentence",
+    "ed_endings":   "several regular past-tense verbs covering the three -ed endings: /t/ (walked, stopped, watched), /d/ (played, called, cleaned) and /ɪd/ (wanted, needed, visited)",
+}
+
 _ACCENT_CLAUSES = {
     "en-US": " Use American English spelling and vocabulary (color, apartment, vacation, fall).",
     "en-GB": " Use British English spelling and vocabulary (colour, flat, holiday, autumn).",
@@ -175,8 +187,9 @@ _ACCENT_CLAUSES = {
 
 
 def generate_phrase_en(level: str = 'A1', topic: str = None, style: str = 'story',
-                       locale: str = 'en-US') -> dict:
-    """English counterpart of generate_phrase (no sound focus / liaison / tagging).
+                       locale: str = 'en-US', sound_focus: str = None) -> dict:
+    """English counterpart of generate_phrase (no liaison / tagging). ``sound_focus``
+    is a SOUND_FOCUS_EN key; anything else is ignored.
     Returns {"phrase": str, "noun_adj_tokens": []}."""
     if level not in _VALID_LEVELS:
         level = 'A1'
@@ -186,7 +199,9 @@ def generate_phrase_en(level: str = 'A1', topic: str = None, style: str = 'story
         raise ValueError("Unsupported English locale: {!r}".format(locale))
     topic_clause = f" about {topic}" if topic else ""
     style_clause = f" Style: {style.upper()}."
-    key = ("en", locale, level, topic, style)
+    sound_clause = (f" Sound focus: the phrase must feature {SOUND_FOCUS_EN[sound_focus]}."
+                    if sound_focus in SOUND_FOCUS_EN else "")
+    key = ("en", locale, level, topic, style, sound_focus)
     recent = _recent_phrases.get(key, deque())
     avoid_clause = ""
     if recent:
@@ -199,7 +214,7 @@ def generate_phrase_en(level: str = 'A1', topic: str = None, style: str = 'story
                 model="mistral-small-latest",
                 messages=[
                     {"role": "system", "content": _PHRASE_SYSTEM_EN},
-                    {"role": "user", "content": f"Generate a {level}-level English shadowing phrase{topic_clause}.{style_clause}{_ACCENT_CLAUSES[locale]}{avoid_clause}"},
+                    {"role": "user", "content": f"Generate a {level}-level English shadowing phrase{topic_clause}.{style_clause}{sound_clause}{_ACCENT_CLAUSES[locale]}{avoid_clause}"},
                 ],
                 temperature=0.9,
                 max_tokens=120,
