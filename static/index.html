@@ -4820,7 +4820,9 @@
               <button class="hub-subject-chip" data-subject="le travail" onclick="selectVocabSubject(this)">Work</button>
               <button class="hub-subject-chip" data-subject="la santé" onclick="selectVocabSubject(this)">Health</button>
               <button class="hub-subject-chip" data-subject="la culture" onclick="selectVocabSubject(this)">Culture</button>
-              <button class="hub-subject-chip" data-subject="Marseille" onclick="selectVocabSubject(this)">Marseille</button>
+              <button class="hub-subject-chip fr-only" data-subject="Marseille" onclick="selectVocabSubject(this)">Marseille</button>
+              <button class="hub-subject-chip en-only" data-subject="phrasal verbs" onclick="selectVocabSubject(this)">Phrasal verbs</button>
+              <button class="hub-subject-chip en-only" data-subject="business English" onclick="selectVocabSubject(this)">Business</button>
               <button class="hub-subject-chip" data-subject="l'argot" onclick="selectVocabSubject(this)">Slang</button>
             </div>
             <div class="vocab-custom-row">
@@ -6032,6 +6034,11 @@
 
   function studyLang() { return studyLocale.slice(0, 2); }
   function sttLang() { return studyLocale; }
+  // /tts request body in the study language (French requests stay exactly as before).
+  function ttsRequestBody(text) { return studyLang() === 'en' ? { text, locale: studyLocale } : { text }; }
+  // English register labels (informal/neutral/formal) reuse the French register styles.
+  const _REGISTER_STYLE = { informal: 'familier', neutral: 'courant', formal: 'soutenu' };
+  function registerClass(usage) { return _REGISTER_STYLE[usage] || usage || 'courant'; }
 
   function applyStudyLocale() {
     const sel = document.getElementById('sb-locale-select');
@@ -6039,6 +6046,12 @@
     if (recognition) recognition.lang = sttLang();
     const english = studyLang() === 'en';
     document.getElementById('app').classList.toggle('study-en', english);
+    // A Flashcards subject that only exists in the other language falls back to Daily life.
+    const vocabOnlyIn = { 'Marseille': 'fr', 'phrasal verbs': 'en', 'business English': 'en' };
+    if (vocabOnlyIn[_vocabSubject] && vocabOnlyIn[_vocabSubject] !== studyLang()) {
+      const daily = document.querySelector('#vocab-hub-subjects [data-subject="la vie quotidienne"]');
+      if (daily) selectVocabSubject(daily);
+    }
     if (english) {
       // Don't leave a now-hidden French-only choice selected in the Speaking hub.
       if (!['story', 'educational', 'howto', 'opinion'].includes(shadowingStyle)) {
@@ -12992,10 +13005,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     try {
       _vocabIsCumulative = (_vocabCount === 'cumulative');
       const apiCount = _vocabIsCumulative ? 20 : _vocabCount;
-      const res = await fetch('/vocab/generate', {
+      const res = await apiFetch('/vocab/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: _vocabLevel, subject: _vocabSubject, count: apiCount, ...getAnalyticsFields() }),
+        body: JSON.stringify({ level: _vocabLevel, subject: _vocabSubject, count: apiCount, locale: studyLocale, ...getAnalyticsFields() }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -13164,6 +13177,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       allGenerated: _vocabAllGenerated,
       batchIdx:     _vocabBatchIdx,
       totalBatches: Math.ceil(_vocabAllGenerated.length / 5),
+      locale:       studyLocale,
     };
   }
 
@@ -13198,6 +13212,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       if (!data || !Array.isArray(data.allGenerated) || !data.allGenerated.length) return;
       const total = data.totalBatches || Math.ceil(data.allGenerated.length / 5);
       if ((data.batchIdx || 0) >= total) return;  // already complete
+      if ((data.locale || 'fr-FR') !== studyLocale) return;  // saved in the other study language
       _vocabResumeData = data;
       document.getElementById('vocab-resume-title').textContent = `${data.subject} · ${data.level}`;
       document.getElementById('vocab-resume-meta').textContent =
@@ -13310,7 +13325,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('vc-pos').textContent  = card.part_of_speech;
     const regEl = document.getElementById('vc-register');
     regEl.textContent = card.usage;
-    regEl.className   = 'vocab-card-register ' + (card.usage || 'courant');
+    regEl.className   = 'vocab-card-register ' + registerClass(card.usage);
     document.getElementById('vocab-counter').textContent = '';
     document.getElementById('vc-card-counter').textContent = `Word ${idx + 1} of ${total}`;
     _vocabShowOnly('vocab-card-wrap');
@@ -13341,7 +13356,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _vocabRoundCards.forEach(function(card, i) {
       const item = document.createElement('div');
       item.className = 'vc-exp-item pv-card';
-      const regClass = 'vocab-card-register ' + (card.usage || 'courant');
+      const regClass = 'vocab-card-register ' + registerClass(card.usage);
       item.innerHTML =
         '<div class="vocab-meta-row vc-exp-meta">' +
           '<span class="vocab-pos">' + (card.part_of_speech || '') + '</span>' +
@@ -13503,7 +13518,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _vocabChipPlayingWord = word;
     btnEl.classList.add('is-playing');
     try {
-      const r    = await fetch('/tts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: word}) });
+      const r    = await apiFetch('/tts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ttsRequestBody(word)) });
       const url  = (await r.json()).audio_url;
       if (_vocabChipPlayingWord !== word) return;
       const audio = new Audio(url);
@@ -13611,7 +13626,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     btnEl.classList.add('is-playing');
     _pathBPlayingSlot = slotIdx;
     try {
-      const r   = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: _pathBChoices[slotIdx].french_definition }) });
+      const r   = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsRequestBody(_pathBChoices[slotIdx].french_definition)) });
       const url = (await r.json()).audio_url;
       if (_pathBPlayingSlot !== slotIdx) return;
       if (currentAudio) { currentAudio.pause(); currentAudio = null; }
@@ -13701,7 +13716,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   async function _vocabTTS(text) {
     if (!text) return;
     try {
-      const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      const r = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsRequestBody(text)) });
       playAudio((await r.json()).audio_url);
     } catch (_) {}
   }
@@ -13711,7 +13726,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     return new Promise(async (resolve) => {
       if (!text) { resolve(); return; }
       try {
-        const r    = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+        const r    = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsRequestBody(text)) });
         const url  = (await r.json()).audio_url;
         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
         const audio = new Audio(url);

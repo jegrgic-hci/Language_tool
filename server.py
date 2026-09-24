@@ -2900,6 +2900,7 @@ class VocabGenerateRequest(BaseModel):
     level: str
     subject: str
     count: int = 8
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
     session_id: Optional[str] = None
     access_code: Optional[str] = None
     visit_id: Optional[str] = None
@@ -2939,10 +2940,91 @@ _VOCAB_ANGLES = [
     "Prioritise words related to the senses — sight, sound, touch, taste, smell in this context.",
 ]
 
+_VOCAB_SYSTEM_EN = """You are an English teacher generating vocabulary flashcards for French-speaking learners of English.
+
+Generate exactly {count} vocabulary items (words, phrasal verbs, idioms, or collocations) appropriate for a {level} learner on the subject: {subject}. The subject may be given in French; the vocabulary must be English.
+
+Rules:
+- For A1/A2: use high-frequency words and simple phrases only
+- For B1/B2: include common phrasal verbs, idioms and collocations
+- For C1/C2: include nuanced expressions, formal and literary terms, register variation
+- definition: a concise definition IN ENGLISH, appropriate to the learner's level (simple English for A1/A2)
+- definition_fr: a French translation of the definition (translate the definition, not the word)
+- example_sentence: one natural English sentence using the word/phrase in context
+- example_fr: a French translation of the example sentence
+- part_of_speech: one of "noun", "verb", "adjective", "adverb", "phrasal verb", "idiom", "expression"
+- usage: one of "neutral", "informal", "formal"
+- {accent}
+- Plain English spelling without accents (cafe, naive). Write numbers as words.
+
+Focus for this session: {angle}
+
+Return ONLY valid JSON array, no other text:
+[{{"word": "...", "part_of_speech": "...", "usage": "...", "definition": "...", "definition_fr": "...", "example_sentence": "...", "example_fr": "..."}}, ...]"""
+
+_VOCAB_ACCENTS = {
+    "en-US": "Use American English spelling and vocabulary (color, apartment, vacation, fall).",
+    "en-GB": "Use British English spelling and vocabulary (colour, flat, holiday, autumn).",
+}
+
+
+async def _vocab_generate_en(req: VocabGenerateRequest, locale: str) -> VocabGenerateResponse:
+    """English flashcards. The card keeps the French card's slots so the whole Vocab
+    UI works unchanged: french_definition holds the definition in the language being
+    learned (English here), english_definition / english_translation hold the hidden
+    helper translations (French here)."""
+    level = req.level.upper()
+    count = max(4, min(20, req.count))
+    system = _VOCAB_SYSTEM_EN.format(count=count, level=level, subject=req.subject,
+                                     accent=_VOCAB_ACCENTS[locale], angle=random.choice(_VOCAB_ANGLES))
+    raw = await asyncio.to_thread(
+        lambda: _mistral.chat.complete(
+            model="mistral-small-latest",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": f"Generate {count} vocabulary cards."},
+            ],
+            temperature=1.0,
+            max_tokens=3200,
+        )
+    )
+    text = raw.choices[0].message.content.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    cards = [
+        VocabCard(
+            word=c["word"],
+            part_of_speech=c.get("part_of_speech", ""),
+            usage=c.get("usage", "neutral"),
+            french_definition=c["definition"],
+            english_definition=c.get("definition_fr", ""),
+            example_sentence=c.get("example_sentence", ""),
+            english_translation=c.get("example_fr", ""),
+        )
+        for c in json.loads(text)[:count]
+    ]
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "vocab_session_started", {
+            "exercise_type": "vocab",
+            "locale": locale,
+            "level": level,
+            "subject": req.subject,
+            "card_count": len(cards),
+        }, req.visit_id)
+    return VocabGenerateResponse(cards=cards)
+
+
 @app.post("/vocab/generate", response_model=VocabGenerateResponse)
-async def vocab_generate(req: VocabGenerateRequest):
+async def vocab_generate(req: VocabGenerateRequest, authorization: Optional[str] = Header(None)):
     if _mistral is None:
         raise HTTPException(status_code=503, detail="API key not configured")
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
+        try:
+            return await _vocab_generate_en(req, locale)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
     level = req.level.upper()
     count = max(4, min(20, req.count))
     angle = random.choice(_VOCAB_ANGLES)
