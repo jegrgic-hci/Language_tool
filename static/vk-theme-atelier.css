@@ -6,9 +6,14 @@
    ─────────────────────────────────────────────────────────────────────────
    A *deepened* product theme — NOT a new design system. It nests inside the
    light theme and overrides only the Tier-2 semantic tokens the Atelier
-   direction changes: warm canvas, friendly-blue accent, the three-font roles,
-   softer corners, and the scoring / recording / veil tokens the practice
-   atoms consume. Everything else (borders, elevation, motion, spacing) is
+   direction changes: the Tonal (Material 3) surface ladder, friendly-blue
+   accent, the font roles, pill/rounded shapes, and the scoring / recording /
+   veil tokens the practice atoms consume.
+
+   Tonal refresh (2026-09): separation comes from tone, not borders — cards
+   are --vk-surface on a --vk-bg page, nested panels use --vk-surface-lowest,
+   selected/tonal controls use --vk-tonal / --vk-on-tonal. Hover and press are
+   8% / 12% overlays of the control's content colour (color-mix). Everything else (borders, elevation, motion, spacing) is
    inherited from the light theme it sits inside.
 
    Composition
@@ -51,17 +56,32 @@
   --vk-font-body: var(--pa-font-sans);
   --vk-font-ui:   var(--pa-font-sans);
 
-  /* ── Environment — the room (design doc §4) ───────────────────────────── */
-  --vk-bg:        #FAF7F2;   /* warm paper, easy for long reading */
-  --vk-bg-alt:    #F3EEE6;
-  --vk-surface:   #FFFFFF;   /* soft card — border + faint shadow, no hard line */
-  --vk-surface-2: #FAF7F2;
-  --vk-surface-3: #F0EAE0;
+  /* ── Environment — Tonal surface ladder (M3, seed #2D6CB3) ────────────────
+     Depth comes from tone, not borders or shadows. Every step is a slightly
+     deeper blue-tinted neutral; cards sit one step above the page, nested
+     panels go back to the lowest (white) tone so they read inside a card.   */
+  --vk-bg:             #F8F9FF;   /* surface — page */
+  --vk-bg-alt:         #F0F3FB;   /* surface-container-low */
+  --vk-surface:        #EEF1FA;   /* surface-container — cards, panels */
+  --vk-surface-2:      #E4E9F6;   /* surface-container-high — wells, hovers */
+  --vk-surface-3:      #DCE2F0;   /* surface-container-highest */
+  --vk-surface-lowest: #FFFFFF;   /* nested panel inside a card */
+  --vk-sidebar:        #EBEEF7;   /* navigation drawer — one tone deeper than the page so the two areas read apart */
 
-  --vk-fg-1: #211F1B;                  /* warm near-black — never pure #000 */
-  --vk-fg-2: #5C574F;                  /* labels, hints, supporting text */
-  --vk-fg-3: rgba(33, 31, 27, 0.52);
-  --vk-fg-4: rgba(33, 31, 27, 0.36);
+  --vk-fg-1: #191C21;                  /* on-surface */
+  --vk-fg-2: #44474F;                  /* on-surface-variant — floor for ALL readable text */
+  --vk-fg-3: rgba(25, 28, 33, 0.52);   /* decoration only */
+  --vk-fg-4: rgba(25, 28, 33, 0.36);   /* decoration only */
+
+  /* Tonal roles */
+  --vk-tonal:           #D6E3FA;   /* secondary-container — selected, tonal buttons */
+  --vk-on-tonal:        #0F2A4D;   /* on-secondary-container */
+  --vk-outline:         #74777F;   /* segmented-button + switch outlines */
+  --vk-outline-variant: #C4C6D0;   /* dividers, chip outlines */
+  --vk-fill-2:          #D9DFEC;   /* inactive pips / switch track */
+
+  /* Sentence case everywhere — M3 voice, not the all-caps tool signal */
+  --vk-ui-case: none;
 
   /* Honey — sparing warmth, celebration on wins only */
   --pa-honey: #C9883E;
@@ -85,17 +105,19 @@
   --vk-border-focus:       #2D6CB3;
   --vk-input-border-focus: #2D6CB3;
   --vk-card-border-hover:  rgba(45, 108, 179, 0.45);
+  --vk-card-bg:            #EEF1FA;   /* core .vk-card on the tonal surface */
+  --vk-card-border:        transparent;
 
-  --vk-focus-ring: 0 0 0 2px #FAF7F2, 0 0 0 4px #2D6CB3;
-  --vk-focus-glow: 0 0 0 2px #FAF7F2, 0 0 0 4px #2D6CB3, 0 0 8px rgba(45, 108, 179, 0.20);
+  --vk-focus-ring: 0 0 0 2px #F8F9FF, 0 0 0 4px #2D6CB3;
+  --vk-focus-glow: 0 0 0 2px #F8F9FF, 0 0 0 4px #2D6CB3, 0 0 8px rgba(45, 108, 179, 0.20);
   --vk-selection-bg: rgba(45, 108, 179, 0.18);
 
-  /* ── Soft corners — warmer than core's hard edges (design doc §6) ─────── */
-  --vk-radius-ui:    8px;    /* buttons, inputs */
-  --vk-radius-card:  10px;   /* cards, panels */
-  --vk-btn-radius:   8px;
-  --vk-input-radius: 8px;
-  --vk-card-radius:  10px;
+  /* ── Tonal shape scale (M3) ──────────────────────────────────────────── */
+  --vk-radius-ui:    12px;   /* inputs, small controls */
+  --vk-radius-card:  16px;   /* generic panels */
+  --vk-btn-radius:   999px;  /* buttons are pills */
+  --vk-input-radius: 12px;
+  --vk-card-radius:  24px;   /* practice cards */
   --vk-tag-radius:   8px;
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -133,13 +155,14 @@
 
   /* Unheard — a target word the learner didn't say / wasn't picked up. Gray:
      neither a win nor a mistake, just absent from the attempt.               */
-  --pa-unheard:    rgba(33, 31, 27, 0.42);
-  --pa-unheard-bg: rgba(33, 31, 27, 0.05);
+  --pa-unheard:    rgba(25, 28, 33, 0.50);
+  --pa-unheard-bg: rgba(25, 28, 33, 0.05);
 
   /* Instrument scale — the objective reference line. Does not move for the
-     learner (doc §7.4): thresholds painted at 40 and 70 on every bar.        */
-  --pa-scale-track:    rgba(33, 31, 27, 0.10);
-  --pa-scale-thresh:   rgba(33, 31, 27, 0.28);
+     learner (doc §7.4): thresholds painted at 40 and 70 on every bar.
+     Track is a tonal step (not black-alpha) so it stays clean on tinted cards. */
+  --pa-scale-track:    #D9DFEC;
+  --pa-scale-thresh:   rgba(25, 28, 33, 0.35);
 
   /* ── Recording — pulses the ACCENT (blue), never red (hard rule, doc §4) ─ */
   --pa-record:        var(--vk-accent);
@@ -153,7 +176,7 @@
 
   /* ── Veil (listening mode) — blur tutor bubbles / utterance until revealed */
   --pa-veil-blur:     10px;
-  --pa-veil-tint:     rgba(250, 247, 242, 0.35);
+  --pa-veil-tint:     rgba(248, 249, 255, 0.35);
 
   /* ── Motion (doc §8) — calm + confident; spring on rewarding moments ───── */
   --pa-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
@@ -177,25 +200,23 @@
 }
 
 
-/* ── KPI card — atelier hierarchy ───────────────────────────────────────────
-   Stronger top anchor; hover + is-accent picks up the friendly blue.         */
+/* ── KPI tile — tonal: filled surface, no rules; is-accent = tonal fill ──── */
 [data-theme="atelier"] .vk-kpi {
-  border-top-width: 3px;
-  border-top-color: var(--vk-border-mid);
+  background: var(--vk-surface);
+  border: none;
+  border-radius: 20px;
 }
 [data-theme="atelier"] .vk-kpi:hover {
-  border-top-color: var(--vk-accent-border);
-  border-color: var(--vk-accent-border);
+  transform: none;
+  background: color-mix(in srgb, var(--vk-fg-1) 6%, var(--vk-surface));
 }
 [data-theme="atelier"] .vk-kpi.is-accent {
-  border-top-width: 3px;
-  border-top-color: var(--vk-accent);
-  border-color: var(--vk-accent-border);
-  background: var(--vk-accent-bg);
+  border: none;
+  background: var(--vk-tonal);
 }
 [data-theme="atelier"] .vk-kpi.is-accent:hover {
-  background: var(--vk-accent-bg-hover);
-  box-shadow: var(--vk-card-hover-glow);
+  background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal));
+  box-shadow: none;
 }
 [data-theme="atelier"] .vk-kpi.is-accent .vk-kpi-num {
   color: var(--vk-accent-text);

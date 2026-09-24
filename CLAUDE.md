@@ -16,7 +16,7 @@ A French language learning webapp built for a user living in Marseille who wants
 - **TTS**: Google Cloud **Chirp3-HD** (8 French voices) for the listening modes, cached to a Cloudflare R2 library (`library_store.py`); **edge-tts** (`fr-FR-DeniseNeural`) everywhere else and as the Chirp fallback
 - **Speech input**: Web Speech API (browser-native, fr-FR, Chrome/Edge only)
 - **RAG**: pypdf text extraction injected into system prompt from `/uploads/*.pdf`
-- **Design system**: Kronos — IBM Plex Mono (UI), IBM Plex Sans (body), Impact (display), `#1A1A1A` sidebar, `#7A9393` teal, sharp corners, no border-radius
+- **Design system**: vraiKronos engine + Atelier product theme in the **Tonal** (Material 3) style — Hanken Grotesk (UI/body), Geist Mono (numbers + transcript), friendly blue `#2D6CB3`, tonal blue-tinted surfaces, pill buttons, rounded cards
 
 ## File map
 | File | Purpose |
@@ -83,7 +83,7 @@ The app is an exercise platform, not a chatbot — there is no `/chat` route or 
 - **Analytics / coach** — `/track`, `/analytics/*`, `/coach`: event logging + teacher dashboard (see `analytics.md`)
 
 ## Frontend features
-`static/index.html` is a single-file app with a left nav and a set of swappable views (`home`, `phrase`/`phrase-hub`, `paragraph`, `practice`, `comprehension-hub`/`comprehension`, `vocab-hub`/`vocab`, `custom`, …). It opens on `home`. Each exercise view shares the same control atoms:
+`static/index.html` is a single-file app with M3 navigation — a **rail** on desktop (language FAB at top, avatar/account menu at bottom), a **bottom navigation bar** on phone (≤768px, "More" sheet beyond 5 destinations), and **area tabs** at the top of each hub page. All of it is driven by the `NAV_AREAS` config in the script (area → hub views); `navHubFor()` maps exercise views back to their hub. Trim `NAV_AREAS` to reshape the app. It has a set of swappable views (`home`, `phrase`/`phrase-hub`, `paragraph`, `practice`, `comprehension-hub`/`comprehension`, `vocab-hub`/`vocab`, `custom`, …). It opens on `home`. Each exercise view shares the same control atoms:
 - **Play / pause** — `pa-ctrl-play`, plays the edge-tts audio of the target
 - **Mic** — Web Speech API, fr-FR; the `…-mic-btn` toggles a `listening` class; works only in Chrome/Edge
 - **Skip / Next / Continue** — `pv-func-skip` and the per-view advance buttons, laid out in the centered `.pv-func` controls row
@@ -128,18 +128,21 @@ Design system files live in `static/`. Token source of truth: `vk-tokens.css`. C
 
 **Always use `--vk-*` tokens directly in new CSS. Never use `--k-*` or `--k35-*` bridge tokens — those exist only to support JS-injected styles and legacy code copied from `index.html`. Writing new CSS with bridge tokens hides the real token and breaks the contrast/colour rules below.**
 
-- No border-radius anywhere
-- No shadows on cards/buttons — borders only. Elevation reserved for floating UI (dropdowns, modals, toasts)
-- Font families: `--vkg-font-mono` (IBM Plex Mono, UI labels) · `--vkg-font-sans` (IBM Plex Sans / Hanken Grotesk, body) · display: Anton/Impact
-- **Accent**: `--vk-accent` (fills, active borders) · `--vk-accent-dim` (hover on solid fills) · `--vk-accent-text` (accent text on light bg) · `--vk-accent-fg` (text on solid accent fill)
+The student app (`<body data-theme="atelier">`) uses the **Tonal** style (Material 3–inspired, adopted 2026-09). Tokens live in `vk-theme-atelier.css`; practice components in `vk-atelier-components.css`.
+- **Separation by tone, not borders**: page `--vk-bg` (#F8F9FF) → cards `--vk-surface` (#EEF1FA) → nested panels inside a card `--vk-surface-lowest` (#FFF). Wells/hover `--vk-surface-2`. No borders or shadows on cards; dividers inside lists use `--vk-outline-variant`. Elevation only for the record FAB and floating UI (dropdowns, modals, toasts)
+- **Shape**: buttons are pills (`--vk-btn-radius` 999px) · inputs/small controls 12px (`--vk-radius-ui`) · generic panels 16px (`--vk-radius-card`) · practice cards 24px (`--vk-card-radius`) · chips 8px
+- **Selected / active**: `--vk-tonal` fill + `--vk-on-tonal` text (nav items, segmented buttons, toggle icon buttons, in-progress chips). No left-border active states
+- **Hover / press**: an 8% / 12% overlay of the control's content colour via `color-mix(in srgb, <content> 8%, <bg>)` — not a separate hover colour per component
+- **Type**: Hanken Grotesk for all UI + body, **sentence case** (`--vk-ui-case: none`), no letter-spaced uppercase labels. Geist Mono only for numbers (scores, percentages, counters). French words — target sentence, heard/transcript row, word feedback, syllables — are always Hanken, never mono
+- **Accent**: `--vk-accent` (primary fills, focus, recording) · `--vk-accent-text` (text buttons / accent text) · `--vk-accent-fg` (text on solid accent). Recording is always blue, never red
+- **Performance colours** (`--pa-pass` #1F7A52 · `--pa-progress` #1A6B9A · `--pa-almost` #8A5A00 · `--pa-fail` #B0472E) are for scoring only, never for system state — use the tokens, never hardcoded hex. One exception: `.vk-btn-pass`, the pass-green filled button that appears only after a pass (phrase Next), carrying the verdict into the "go forward" action
 - Red: `--vk-error` (destructive actions only)
-- Score bars / status badges: green `#1F5A40` (≥70%) · amber `#8A5A00` (40–70%) · red `--vk-error` (<40%)
-- All buttons: uppercase, letter-spacing, mono font; primary fill `--vk-accent`, hover `--vk-accent-dim`
-- Active state: `--vk-accent` left border + `--vk-accent-bg` background tint
-- Motion: 80–150ms `cubic-bezier(0.4,0,0.2,1)` — transitions on `color`, `background`, `border-color` only
+- Progress & loading (M3): every bar is `.pa-lp` + `.pa-lp-fill` (4px, gap between fill and track, stop dot; `--pa-lp-h: 8px` for thick); rings are `.pa-cp` (JS sets `--pa-cp-pct` 0–1 on the `<svg>`); loading states use `.pa-loading` + `.pa-loader` (Expressive morphing shape) with `toggleLoading()` / `showLoadingError()` / `loadingHtml()`. Never hand-roll a track div
+- Controls: play = tonal circle (`.pa-ctrl.is-outline`); record = 80px FAB with 24px corners that morphs to a circle while `.listening`; levels/speed = connected segmented buttons
+- Motion: 100–150ms `cubic-bezier(0.4,0,0.2,1)` for colour/background; `--pa-ease-spring` for shape changes (mic, switch thumb, score landing)
 
 ## Accessibility — text contrast (WCAG AA)
-On light surfaces, `--vk-fg-2` is the minimum for any readable text. `--vk-fg-3` and `--vk-fg-4` fail WCAG AA and must not be used on text elements. Full contrast table in `vraiKronos/design.md` under "Foreground token contrast — light theme".
+On light surfaces, `--vk-fg-2` is the minimum for any readable text (in Tonal it is on-surface-variant `#44474F`, AA on every surface tone). `--vk-fg-3` and `--vk-fg-4` fail WCAG AA and must not be used on text elements. Full contrast table in `vraiKronos/design.md` under "Foreground token contrast — light theme".
 
 The `--k-*` bridge tokens map directly to `--vk-*` — apply the same rule to them:
 - `--k-text-primary` = `--vk-fg-1` ✓ safe

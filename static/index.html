@@ -18,8 +18,11 @@
     /* ── TOKEN BRIDGE ─────────────────────────────────────────────────────────
        Maps old --k-* / --k35-* tokens → --vk-* so legacy HTML keeps working.
        Also sets the Atelier two-font system.
+       Re-declared on [data-theme="atelier"] (the <body>) so var(--vk-*) resolves
+       to the Atelier/Tonal values there — on :root alone they'd freeze to the
+       light-theme values (e.g. #main would stay warm #f5f3ef).
     ──────────────────────────────────────────────────────────────────────────── */
-    :root {
+    :root, [data-theme="atelier"] {
       --vkg-font-sans:  'Hanken Grotesk', system-ui, -apple-system, sans-serif;
       --vkg-font-mono:  'Geist Mono', 'IBM Plex Mono', 'Courier New', monospace;
       --font-display:   'Hanken Grotesk', system-ui, -apple-system, sans-serif;
@@ -68,10 +71,6 @@
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
       --panel-width: 240px;
 
-      /* Sidebar collapse vars */
-      --sb-width: 260px;
-      --sb-collapsed: 52px;
-      --sb-transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -83,117 +82,158 @@
     }
 
     /* ── APP SHELL ────────────────────────────────────────────────────────────
-       Two-column grid: sidebar | main. Sidebar collapses to icon-only rail.
+       M3 navigation rail | main. The rail picks the AREA (Speaking, Listening…);
+       tabs at the top of the page pick the exercise inside it. No hover menus,
+       nothing to collapse. Areas/tabs come from NAV_AREAS in the script.
     ──────────────────────────────────────────────────────────────────────────── */
     #app {
       display: grid;
-      grid-template-columns: var(--sb-width) 1fr;
+      grid-template-columns: 88px minmax(0, 1fr);
       grid-template-rows: 1fr;
       height: 100dvh;
       overflow: hidden;
     }
-    #app.sb-collapsed {
-      grid-template-columns: var(--sb-collapsed) 1fr;
-    }
 
-    /* ── SIDEBAR ────────────────────────────────────────────────────────────── */
-    #sidebar {
-      width: var(--sb-width);
-      transition: width var(--sb-transition);
-      overflow-x: hidden;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      height: 100dvh;
-      position: sticky;
-      top: 0;
+    /* ── Navigation rail ── */
+    .m3-rail {
+      grid-column: 1; grid-row: 1;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      height: 100dvh; padding: 16px 0 14px;
+      overflow-y: auto; scrollbar-width: none;
+      background: var(--vk-sidebar);
     }
-    #sidebar::-webkit-scrollbar { width: 0; }
-    #sidebar { scrollbar-width: none; }
-    #app.sb-collapsed #sidebar { width: var(--sb-collapsed); }
+    .m3-rail::-webkit-scrollbar { width: 0; }
+    .m3-rail [hidden], .m3-navbar [hidden], #mobile-bar [hidden] { display: none !important; }
+    /* Study-language FAB (top of rail) — opens the language FAB menu */
+    .nav-lang-fab {
+      width: 56px; height: 56px; flex: none; margin-bottom: 18px;
+      border: none; border-radius: 16px; cursor: pointer;
+      background: var(--vk-accent); color: var(--vk-accent-fg);
+      font: 600 15px/1 var(--pa-font-mono); letter-spacing: 0.02em;
+      box-shadow: 0 1px 3px rgba(0,0,0,.16), 0 3px 8px rgba(0,0,0,.08);
+      transition: background 150ms var(--vk-ease);
+    }
+    .nav-lang-fab:hover { background: color-mix(in srgb, var(--vk-accent-fg) 10%, var(--vk-accent)); }
+    .nav-lang-fab:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    /* French-only accounts: a label, not a control */
+    .nav-lang-fab.is-static,
+    .nav-lang-fab.is-static:hover { cursor: default; box-shadow: none; background: var(--vk-tonal); color: var(--vk-on-tonal); }
+    .rail-items { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .rail-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      width: 80px; padding: 4px 0 8px; border: none; background: none; cursor: pointer;
+      color: var(--vk-fg-2); font: 500 12px/1.2 var(--pa-font-sans); text-align: center;
+    }
+    .rail-item .ind {
+      width: 56px; height: 32px; border-radius: 999px; display: grid; place-items: center;
+      transition: background 200ms cubic-bezier(.2,0,0,1);
+    }
+    .rail-item svg { width: 22px; height: 22px; }
+    .rail-item:hover .ind { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+    .rail-item.is-on { color: var(--vk-fg-1); font-weight: 700; }
+    .rail-item.is-on .ind { background: var(--vk-tonal); color: var(--vk-on-tonal); }
+    .rail-item:focus-visible { outline: none; }
+    .rail-item:focus-visible .ind { box-shadow: var(--vk-focus-ring); }
+    .rail-foot { margin-top: auto; padding-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .rail-acct { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 500 12px/1.2 var(--pa-font-sans); color: var(--vk-fg-2); }
+    .rail-logo { width: 32px; height: 32px; background: url('/static/Icon_language.png') center / contain no-repeat; }
 
-    /* Light bg hover — override dark-surface default in vk-components.css */
-    #sidebar .vk-sb-item:hover {
-      color: var(--vk-fg-1);
-      background: rgba(0, 0, 0, 0.04);
+    /* Avatar (rail foot + phone top bar) — opens the account menu */
+    .nav-avatar {
+      width: 40px; height: 40px; flex: none; border: none; border-radius: 50%; cursor: pointer;
+      display: grid; place-items: center;
+      background: var(--vk-tonal); color: var(--vk-on-tonal);
+      font: 700 16px/1 var(--pa-font-sans);
+      transition: box-shadow 150ms var(--vk-ease);
     }
-    #sidebar .vk-sb-item.is-active {
-      border-left-width: 3px;
-      padding-left: calc(var(--vk-sp-5) - 3px);
-    }
+    .nav-avatar:hover { box-shadow: 0 0 0 4px color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+    .nav-avatar[aria-expanded="true"], .nav-avatar.is-on { box-shadow: 0 0 0 3px var(--vk-accent); }
+    .nav-avatar:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
 
-    /* ── Brand labels ── */
-    #sidebar .vk-sb-brand {
-      padding-top: var(--vk-sp-3);
-      flex-direction: row;
-      align-items: center;
-      gap: 10px;
+    /* ── Area tabs (top of the page, M3 docs-style pill bar) ── */
+    .area-tabs { position: sticky; top: 0; z-index: 6; flex-shrink: 0; background: var(--vk-bg); padding: 16px 32px 4px; }
+    .area-tabs[hidden] { display: none; }
+    .area-tabs-inner { display: flex; gap: 4px; padding: 4px; max-width: 760px; margin: 0 auto; background: var(--vk-surface); border-radius: 999px; }
+    .area-tab {
+      flex: 1 1 0; min-width: 0; height: 48px; padding: 0 16px;
+      border: none; border-radius: 999px; cursor: pointer; background: transparent;
+      color: var(--vk-fg-2); font: 500 14.5px/1 var(--pa-font-sans);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: background 150ms var(--vk-ease), color 150ms var(--vk-ease);
     }
-    #sidebar .vk-sb-brand::before {
-      content: '';
-      display: block;
-      width: 48px;
-      height: 48px;
-      background: url('/static/Icon_language.png') center / contain no-repeat;
-      flex-shrink: 0;
-    }
-    #sidebar .vk-sb-brand .version {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    #sidebar .vk-sb-brand .version .wm {
-      display: flex;
-      align-items: baseline;
-      font-family: var(--font-body);
-      font-size: var(--vk-text-lg);
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1;
-    }
-    #sidebar .vk-sb-brand .version .wm::before {
-      content: "vrai";
-      color: var(--vk-accent);
-    }
-    #sidebar .vk-sb-brand .version .wm::after {
-      content: "French";
-      color: var(--vk-fg-1);
-    }
-    #sidebar .vk-sb-brand .version::after {
-      content: "by vraifactors";
-      font-family: var(--font-ui);
-      font-size: var(--vk-text-2xs);
-      font-weight: 500;
-      letter-spacing: var(--vk-track-wide);
-      color: var(--vk-fg-3);
-      text-transform: uppercase;
-    }
+    .area-tab:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); color: var(--vk-fg-1); }
+    .area-tab.is-on { background: var(--vk-tonal); color: var(--vk-on-tonal); font-weight: 600; }
+    .area-tab:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
 
-    /* ── Section labels ── */
-    .sb-sec-speaking::after      { content: "Speaking"; }
-    .sb-sec-listening::after     { content: "Listening"; }
-    .sb-sec-writing::after       { content: "Writing"; }
-    .sb-sec-pronouns::after      { content: "Pronouns"; }
-    .sb-sec-vocabulary::after    { content: "Vocabulary"; }
-    .sb-sec-personal::after      { content: "Personal"; }
+    /* ── Floating nav menus: language FAB menu + account menu ── */
+    .nav-layer { position: fixed; inset: 0; z-index: 400; }
+    .nav-layer[hidden] { display: none; }
+    .fab-menu { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    .fab-menu.is-right { align-items: flex-end; }
+    .fab-close {
+      width: 56px; height: 56px; border: none; border-radius: 50%; cursor: pointer;
+      display: grid; place-items: center; background: var(--vk-accent); color: var(--vk-accent-fg);
+      box-shadow: 0 3px 10px rgba(0,0,0,.20);
+      animation: fab-morph 350ms var(--pa-ease-spring) both;
+    }
+    .fab-close svg { width: 24px; height: 24px; }
+    .fab-close:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    @keyframes fab-morph { from { border-radius: 16px; transform: rotate(-45deg); } }
+    .fab-opts { display: flex; flex-direction: column; gap: 8px; align-items: inherit; }
+    .lang-opt {
+      display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 22px 0 10px;
+      border: none; border-radius: 999px; cursor: pointer; white-space: nowrap;
+      background: var(--vk-tonal); color: var(--vk-on-tonal); font: 600 15px/1 var(--pa-font-sans);
+      box-shadow: 0 2px 8px rgba(0,0,0,.14), 0 1px 2px rgba(0,0,0,.10);
+      animation: fab-item 320ms var(--pa-ease-spring) both;
+    }
+    .lang-opt:nth-child(2) { animation-delay: 40ms; }
+    .lang-opt:nth-child(3) { animation-delay: 80ms; }
+    @keyframes fab-item { from { opacity: 0; transform: translateY(-10px) scale(.85); } }
+    .lang-opt:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+    .lang-opt:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    .lang-opt .bd { width: 36px; height: 36px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--vk-surface-lowest, #fff); color: var(--vk-fg-1); font: 600 12px/1 var(--pa-font-mono); }
+    .lang-opt .sub { font-weight: 500; font-size: 13px; opacity: .8; }
+    .lang-opt[aria-checked="true"] { background: var(--vk-accent); color: var(--vk-accent-fg); }
+    .lang-opt[aria-checked="true"] .bd { background: #fff; color: var(--vk-accent-text); }
+    .lang-opt .ck { width: 20px; height: 20px; display: none; }
+    .lang-opt[aria-checked="true"] .ck { display: block; }
 
-    /* ── Nav item labels ── */
-    .sb-nav-home::after        { content: "Progress"; }
-    .sb-nav-exercises::after   { content: "Speaking"; }
-    .sb-nav-listen::after      { content: "Listen & Answer"; }
-    .sb-nav-natural::after     { content: "Dialogue French"; }
-    .sb-nav-dictation::after   { content: "Dictation"; }
-    .sb-nav-writing::after     { content: "Prompted Writing"; }
-    .sb-nav-transform::after   { content: "Transformation"; }
-    .sb-nav-pronoun::after     { content: "Pronouns"; }
-    .sb-nav-flashcards::after  { content: "Flashcards"; }
-    .sb-nav-practice::after    { content: "Practice List"; }
-    .sb-nav-my-content::after  { content: "My Content"; }
-    .sb-nav-shadowing::after   { content: "Shadowing"; }
-    .sb-nav-prompted-speaking::after { content: "Prompted Free Speaking"; }
+    .acct-menu {
+      position: absolute; width: 272px; padding: 8px 0;
+      background: var(--vk-surface-lowest, #fff); border-radius: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.12), 0 12px 32px rgba(0,0,0,.12);
+      animation: nav-menu-in 200ms cubic-bezier(.2,0,0,1) both;
+    }
+    @keyframes nav-menu-in { from { opacity: 0; transform: scale(.94); } }
+    .acct-head { display: flex; align-items: center; gap: 12px; padding: 10px 18px 14px; }
+    .acct-head .nav-avatar { width: 44px; height: 44px; cursor: default; box-shadow: none; }
+    .acct-head-text { min-width: 0; }
+    .acct-head-text b { display: block; font: 600 15px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .acct-head-text span { display: block; font: 13px/1.4 var(--pa-font-sans); color: var(--vk-fg-2); }
+    .acct-divider { height: 1px; background: var(--vk-outline-variant); margin: 0 0 6px; }
+    .nav-menu-item {
+      width: 100%; height: 48px; padding: 0 18px; display: flex; align-items: center; gap: 14px;
+      border: none; background: none; cursor: pointer; text-align: left;
+      color: var(--vk-fg-1); font: 500 14.5px/1 var(--pa-font-sans);
+    }
+    .nav-menu-item svg { width: 20px; height: 20px; color: var(--vk-fg-2); }
+    .nav-menu-item:hover, .nav-menu-item:focus-visible { outline: none; background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
 
-    /* ── Footer ── */
-    .sb-footer { margin-top: auto; }
+    /* "More" bottom sheet (phone, only when there are more than 5 destinations) */
+    .nav-sheet-layer { background: rgba(25,28,33,.32); display: flex; align-items: flex-end; }
+    .nav-sheet-layer[hidden] { display: none; }
+    .nav-sheet { width: 100%; background: var(--vk-surface-lowest, #fff); border-radius: 28px 28px 0 0; padding: 10px 12px calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 2px; }
+    .nav-sheet-grab { width: 32px; height: 4px; border-radius: 2px; background: var(--vk-outline-variant); justify-self: center; margin: 4px 0 12px; }
+    #more-list { display: grid; gap: 2px; }
+    .nav-sheet-item { height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 14px; border: none; border-radius: 999px; background: none; cursor: pointer; text-align: left; color: var(--vk-fg-1); font: 500 15px/1 var(--pa-font-sans); }
+    .nav-sheet-item svg { width: 22px; height: 22px; color: var(--vk-fg-2); }
+    .nav-sheet-item:hover, .nav-sheet-item:focus-visible { outline: none; background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+    .nav-sheet-item.is-on { background: var(--vk-tonal); color: var(--vk-on-tonal); font-weight: 600; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fab-close, .lang-opt, .acct-menu { animation: none; }
+    }
 
     /* ── Teach mode banner ── */
     #teach-banner {
@@ -284,7 +324,7 @@
     }
     .acct-input:focus { border-color: var(--vk-accent); }
     .acct-error { font-family: var(--vk-font-ui); font-size: var(--vk-text-xs); color: var(--vk-error); min-height: 16px; margin-bottom: var(--vk-sp-3); }
-    .acct-success { font-family: var(--vk-font-ui); font-size: var(--vk-text-xs); color: #1F5A40; min-height: 16px; margin-bottom: var(--vk-sp-3); }
+    .acct-success { font-family: var(--vk-font-ui); font-size: var(--vk-text-xs); color: var(--pa-pass); min-height: 16px; margin-bottom: var(--vk-sp-3); }
     .acct-actions { display: flex; gap: var(--vk-sp-3); align-items: center; flex-wrap: wrap; }
     .acct-meta-grid {
       display: grid;
@@ -299,53 +339,12 @@
       font-weight: 600;
       color: var(--vk-fg-1);
     }
-.sb-collapse-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      background: none;
-      border: none;
-      color: var(--vk-fg-3);
-      cursor: pointer;
-      padding: 0;
-      margin-left: auto;
-      transition: color var(--vk-dur-quick) var(--vk-ease);
-    }
-    .sb-collapse-btn:hover { color: var(--vk-fg-1); }
-    .sb-collapse-icon {
-      width: 15px; height: 15px; flex-shrink: 0;
-      transition: transform var(--sb-transition);
-    }
-    #app.sb-collapsed .sb-collapse-icon { transform: rotate(180deg); }
-
-    /* ── Study-locale switch (English beta accounts only) ── */
-    .sb-locale { padding: var(--vk-sp-2) var(--vk-sp-5) var(--vk-sp-1); }
-    /* Nav items/sections are display:flex/block, which beats the UA [hidden] rule. */
-    #sidebar [hidden] { display: none !important; }
     /* French-only controls (sound focus, rhythm, paragraphs, …) while studying English. */
     #app.study-en .fr-only { display: none !important; }
     #app:not(.study-en) .en-only { display: none !important; }
 
-    /* ── Collapsed state ── */
-    #app.sb-collapsed .sb-locale,
-    #app.sb-collapsed .vk-sb-section,
-    #app.sb-collapsed .vk-sb-item::after,
-    #app.sb-collapsed .vk-sb-brand .version {
-      display: none;
-    }
-    #app.sb-collapsed .vk-sb-brand    { align-items: center; padding-left: 0; padding-right: 0; justify-content: center; }
-    #app.sb-collapsed .sb-collapse-btn { display: none; }
-    #app.sb-collapsed .vk-sb-brand::after { display: none; }
-    #app.sb-collapsed .vk-sb-item     { justify-content: center; padding-left: 0; padding-right: 0; }
-    #app.sb-collapsed .vk-sb-item.is-active { padding-left: 0; }
-    #app.sb-collapsed .vk-sb-profile  { padding-left: 0; padding-right: 0; justify-content: center; }
-    #app.sb-collapsed .vk-sb-profile-btn { justify-content: center; }
-    #app.sb-collapsed .vk-sb-profile-info,
-    #app.sb-collapsed .vk-sb-signout  { display: none; }
-
     #main {
+      grid-column: 2; grid-row: 1;
       overflow-y: auto;
       height: 100vh;
       background: var(--k-bg);
@@ -354,100 +353,66 @@
       flex-direction: column;
     }
 
-    /* ── MOBILE ───────────────────────────────────────────────────────────────
-       Stack layout: 48px top bar + remaining height for main.
-       Sidebar becomes a fixed off-canvas drawer.
+    /* ── PHONE ────────────────────────────────────────────────────────────────
+       M3 top app bar (back when inside an exercise · title · language · avatar)
+       + M3 navigation bar at the bottom (Home + areas, "More" beyond 5).
+       Inside an exercise the bottom bar hides so the exercise owns the bottom
+       edge (sticky trays); the top bar's back arrow returns to its hub.
     ──────────────────────────────────────────────────────────────────────────── */
     #mobile-bar { display: none; }
-    #sb-overlay  { display: none; }
+    .m3-navbar  { display: none; }
 
     @media (max-width: 768px) {
       html, body { overflow: hidden; }
 
       #app {
         grid-template-columns: 1fr;
-        grid-template-rows: 48px 1fr;
+        grid-template-rows: 56px minmax(0, 1fr) auto;
       }
+      .m3-rail { display: none; }
       #mobile-bar {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 0 16px;
-        background: var(--vk-surface);
-        border-bottom: 1px solid var(--vk-border);
-        height: 48px;
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        grid-column: 1;
-        grid-row: 1;
+        display: flex; align-items: center; gap: 4px;
+        grid-column: 1; grid-row: 1; z-index: 50;
+        height: 56px; padding: 0 12px 0 4px;
+        background: var(--vk-bg);
       }
-      .mobile-brand {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+      .mb-back {
+        width: 48px; height: 48px; flex: none; border: none; border-radius: 50%;
+        background: none; color: var(--vk-fg-1); cursor: pointer; display: grid; place-items: center;
       }
-      .mobile-logo-icon {
-        width: 24px;
-        height: 24px;
-        flex-shrink: 0;
-        background: url('/static/Icon_language.png') center / contain no-repeat;
+      .mb-back:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+      .mb-back svg { width: 24px; height: 24px; }
+      .mb-title {
+        flex: 1; min-width: 0; padding-left: 12px;
+        font: 600 18px/1.2 var(--pa-font-sans); color: var(--vk-fg-1);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .mobile-wordmark {
-        display: flex;
-        align-items: baseline;
-        font-family: var(--font-body);
-        font-weight: 800;
-        font-size: 1rem;
-        letter-spacing: -0.02em;
-        line-height: 1;
-      }
-      .mobile-wordmark::before { content: "vrai"; color: var(--vk-accent); }
-      .mobile-wordmark::after  { content: "French"; color: var(--vk-fg-1); }
-      #mobile-bar .mobile-mode-chip {
-        font-family: var(--font-ui);
-        font-size: 0.55rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        padding: 2px 6px;
-        border: 1px solid var(--vk-accent-border);
-        color: var(--vk-accent-text);
-        margin-left: auto;
-        flex-shrink: 0;
-      }
-      #hamburger {
-        background: none;
-        border: none;
-        color: var(--vk-fg-2);
-        padding: 6px;
-        cursor: pointer;
-        flex-shrink: 0;
-      }
+      .mb-back:not([hidden]) + .mb-title { padding-left: 0; }
+      #mobile-bar .nav-lang-fab { width: 40px; height: 40px; margin: 0 4px 0 0; border-radius: 12px; font-size: 13px; box-shadow: none; }
+      #main { grid-column: 1; grid-row: 2; height: auto; min-height: 0; overflow-y: auto; }
 
-      #sidebar {
-        position: fixed;
-        top: 0; left: 0;
-        height: 100%;
-        width: var(--sb-width) !important;
-        z-index: 200;
-        transform: translateX(-100%);
-        transition: transform var(--sb-transition);
+      .m3-navbar {
+        display: flex; justify-content: space-around;
+        grid-column: 1; grid-row: 3;
+        padding: 10px 4px calc(12px + env(safe-area-inset-bottom, 0px));
+        background: var(--vk-sidebar);
       }
-      #sidebar.is-open {
-        transform: translateX(0);
-        box-shadow: 4px 0 32px rgba(0,0,0,0.3);
+      #app.nav-in-task .m3-navbar { display: none; }
+      .nb-item {
+        flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        border: none; background: none; cursor: pointer; color: var(--vk-fg-2); font: 500 12px/1.2 var(--pa-font-sans);
       }
-      #sb-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 199;
-        background: var(--vk-overlay);
-        backdrop-filter: blur(2px);
-        -webkit-backdrop-filter: blur(2px);
-      }
-      #sb-overlay.is-open { display: block; }
-      #main { grid-column: 1; grid-row: 2; height: calc(100dvh - 48px); overflow-y: auto; }
-      .sb-collapse-btn { display: none; }
+      .nb-item .ind { width: 56px; height: 32px; border-radius: 999px; display: grid; place-items: center; }
+      .nb-item svg { width: 22px; height: 22px; }
+      .nb-item.is-on { color: var(--vk-fg-1); font-weight: 700; }
+      .nb-item.is-on .ind { background: var(--vk-tonal); color: var(--vk-on-tonal); }
+      .nb-item:focus-visible { outline: none; }
+      .nb-item:focus-visible .ind { box-shadow: var(--vk-focus-ring); }
+
+      .area-tabs { padding: 4px 12px 4px; }
+      .area-tabs-inner { overflow-x: auto; scrollbar-width: none; }
+      .area-tabs-inner::-webkit-scrollbar { display: none; }
+      .area-tab { flex: 0 0 auto; height: 40px; padding: 0 14px; font-size: 13.5px; }
     }
 
     /* ── GATE ─────────────────────────────────────────────────────────────────
@@ -606,12 +571,8 @@
     .diff-pip.active { background: var(--k-teal); }
     .diff-pip:hover  { background: var(--k-teal-dark); }
 
-    /* Speed buttons — JS toggles .active; external CSS expects .is-active */
-    .pv-speed-btn.active {
-      background: var(--vk-accent-bg);
-      border-color: var(--vk-accent-border);
-      color: var(--vk-accent-text);
-    }
+    /* Speed buttons — JS toggles .active; the segmented-button selected state
+       for both .active and .is-active lives in vk-atelier-components.css. */
 
     /* Phrase view scrolls with the page (#main), not as an internal fixed-height
        box — so a long "words to work on" list extends past the viewport and the
@@ -619,16 +580,39 @@
        window height. Overrides the shared .pv-body { overflow-y: auto }. */
     #phrase-content { overflow: visible; }
 
+    /* Main column: card, live transcript, guide, controls. On desktop the
+       "Words to work on" list becomes a second column of cards beside it.
+       Scoped to #phrase-view so the drill tray (which borrows #phrase-content)
+       keeps the single column. */
+    .phv-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .phv-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .phv-side > .phv-tiles            { order: 2; }
+    .phv-side > #phv-word-list        { order: 3; }
+    @media (min-width: 1200px) {
+      #phrase-view .pv-col.is-split {
+        max-width: 1120px;
+        display: grid;
+        grid-template-columns: minmax(0, 680px) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+      #phrase-view .pv-col.is-split .phv-tiles { order: 0; }
+      #phrase-view #phv-word-list.pa-word-list {
+        display: flex; flex-direction: column; gap: 12px;
+        background: none; border-radius: 0; overflow: visible; margin-top: 0;
+      }
+      #phrase-view #phv-word-list .pa-word-list-header { padding: 6px 4px 0; }
+      #phrase-view #phv-word-list .pa-word-item {
+        background: var(--vk-surface);
+        border-radius: var(--vk-card-radius);
+        border-bottom: none;
+        padding: 16px 20px 18px;
+      }
+    }
+
     /* ID resets — pv-card / pv-func own layout; these neutralise old position/sizing */
     #phv-card       { width: auto; max-width: none; text-align: left; position: static; }
     #phrase-actions { width: auto; max-width: none; }
-
-    /* Syllable button typography (no matching class in external file) */
-    #phrase-syllable-btn {
-      font-family: var(--pa-font-mono);
-      font-size: 0.6rem;
-      letter-spacing: 0.04em;
-    }
 
     /* Syllable + rhythm inline markup */
     .syl-dot  { color: var(--vk-accent); opacity: 0.5; margin: 0 1px; font-size: 0.8em; vertical-align: middle; }
@@ -652,21 +636,21 @@
     .phrase-skip-btn:hover { border-color: var(--vk-fg-2); color: var(--vk-fg-1); }
 
     .phrase-limit-skip {
-      font-family: var(--pa-font-mono);
-      font-size: 0.62rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background: none;
-      border: 1px solid var(--vk-border);
-      color: var(--vk-fg-1);
-      padding: 4px 10px;
+      font-family: var(--pa-font-sans);
+      font-size: 13.5px;
+      font-weight: 600;
+      background: var(--vk-accent);
+      border: none;
+      border-radius: 999px;
+      color: var(--vk-accent-fg);
+      height: 36px;
+      padding: 0 16px;
+      margin-left: 8px;
       cursor: pointer;
       white-space: nowrap;
-      transition: background var(--vk-dur-quick) var(--vk-ease),
-                  color var(--vk-dur-quick) var(--vk-ease),
-                  border-color var(--vk-dur-quick) var(--vk-ease);
+      transition: background var(--vk-dur-quick) var(--vk-ease);
     }
-    .phrase-limit-skip:hover { background: var(--vk-accent-dim); color: var(--vk-accent-fg); border-color: var(--vk-accent-dim); }
+    .phrase-limit-skip:hover { background: color-mix(in srgb, var(--vk-accent-fg) 8%, var(--vk-accent)); }
 
     /* Accent outline button variant — color/border only; font/case from Atelier theme */
     .vk-btn-outline-accent {
@@ -684,46 +668,49 @@
       flex-direction: column;
       overflow: hidden;
     }
+    /* Hub shell (all 10 hubs share it): a two-column grid of rows —
+       label | controls. Tonal: rows are separated by space, not rules. */
     #hub-content {
       flex: 1;
       min-height: 0;
       overflow-y: auto;
-      padding: 48px;
+      padding: 24px 48px 48px;
       display: grid;
       grid-template-columns: 180px 1fr;
-      column-gap: 52px;
+      column-gap: 48px;
       align-content: start;
     }
     #hub-content::-webkit-scrollbar { width: 4px; }
     #hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
     .hub-row { display: contents; }
     .hub-row-label {
-      border-top: 1px solid var(--vk-border);
-      padding: 32px 0;
+      border-top: none;
+      padding: 28px 0 0;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
       align-self: start;
     }
     .hub-row-controls {
-      border-top: 1px solid var(--vk-border);
-      padding: 32px 0;
+      border-top: none;
+      padding: 28px 0 0;
+      min-width: 0;
     }
     .hub-row:first-child > .hub-row-label,
     .hub-row:first-child > .hub-row-controls {
-      border-top: none;
       padding-top: 0;
     }
     .hub-row-name {
-      font-family: var(--pa-font-mono);
-      font-size: 0.58rem;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
+      font-family: var(--pa-font-sans);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
       color: var(--vk-fg-1);
     }
     .hub-row-desc {
       font-family: var(--pa-font-sans);
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.45;
       color: var(--vk-fg-2);
     }
@@ -733,23 +720,45 @@
       gap: 8px;
       align-items: center;
     }
+    /* M3 filter chip — 32px, 8px corners; selected = tonal fill + leading check */
     .hub-subject-chip {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-family: var(--pa-font-mono);
-      font-size: 0.65rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 7px 14px;
+      height: 32px;
+      font-family: var(--pa-font-sans);
+      font-size: 13.5px;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+      font-variant-numeric: tabular-nums;
+      padding: 0 14px;
       background: transparent;
-      border: 1px solid var(--vk-border-mid);
-      color: var(--vk-fg-2);
+      border: 1px solid var(--vk-outline-variant);
+      border-radius: 8px;
+      color: var(--vk-fg-1);
       cursor: pointer;
-      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, padding 0.15s;
     }
-    .hub-subject-chip:hover  { border-color: var(--vk-accent); color: var(--vk-accent-text); }
-    .hub-subject-chip.active { border-color: var(--vk-accent); color: var(--vk-accent-fg); background: var(--vk-accent); }
+    .hub-subject-chip:hover  { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+    .hub-subject-chip.active {
+      background: var(--vk-tonal);
+      border-color: transparent;
+      color: var(--vk-on-tonal);
+      font-weight: 600;
+      padding-left: 10px;
+    }
+    .hub-subject-chip.active:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+    .hub-subject-chip.active::before {
+      content: '';
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      background: currentColor;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z'/%3E%3C/svg%3E") center / contain no-repeat;
+              mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z'/%3E%3C/svg%3E") center / contain no-repeat;
+    }
+    .hub-subject-chip:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
     .hub-chip-delete {
       display: none;
       background: none;
@@ -765,12 +774,20 @@
     .hub-subject-chip.deletable .hub-chip-delete { display: inline; }
     .hub-style-divider-label {
       width: 100%;
-      font-family: var(--pa-font-mono);
-      font-size: 0.58rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      font-family: var(--pa-font-sans);
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
       color: var(--vk-fg-2);
-      margin: 6px 0 2px;
+      margin: 8px 0 0;
+    }
+    /* Inline note under a hub row (e.g. "only available for paragraphs") */
+    .hub-note {
+      font-family: var(--pa-font-sans);
+      font-size: 13px;
+      color: var(--vk-accent-text);
+      margin-bottom: 10px;
     }
     .hub-custom-row { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
     .hub-custom-input-wrap {
@@ -799,57 +816,95 @@
     .hub-custom-add-btn:hover { border-color: var(--vk-accent); color: var(--vk-accent-text); }
     #hub-modes {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 240px));
-      gap: 16px;
+      grid-template-columns: repeat(2, minmax(0, 260px));
+      gap: 12px;
     }
+    /* Selectable card — tonal surface; selected = secondary container */
+    .hub-mode-card.vk-card,
     .hub-mode-card {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      padding: 20px;
+      gap: 10px;
+      padding: 18px 20px 20px;
       cursor: pointer;
       text-align: left;
+      background: var(--vk-surface);
+      border: none;
+      border-radius: 16px;
+      box-shadow: none;
+      transition: background 0.15s;
     }
-    .hub-mode-card.active {
-      border-color: var(--vk-accent);
-      background: var(--vk-accent-bg);
-      box-shadow: 0 0 0 1px var(--vk-accent);
+    .hub-mode-card:hover {
+      background: color-mix(in srgb, var(--vk-fg-1) 6%, var(--vk-surface));
+      box-shadow: none;
+      transform: none;                      /* cancel core .vk-card:hover lift */
     }
-    .hub-mode-card.active .hub-mode-icon { opacity: 1; color: var(--vk-accent-text); }
-    .hub-mode-card.disabled { opacity: 0.35; pointer-events: none; }
-    .hub-mode-icon  { color: var(--vk-fg-2); opacity: 0.75; }
+    .hub-mode-card.active,
+    .hub-mode-card.active:hover {
+      background: var(--vk-tonal);
+      box-shadow: inset 0 0 0 2px var(--vk-accent);
+    }
+    .hub-mode-card.active .hub-mode-title,
+    .hub-mode-card.active .hub-mode-desc { color: var(--vk-on-tonal); }
+    .hub-mode-card.disabled { opacity: 0.38; pointer-events: none; }
+    .hub-mode-card:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    .hub-mode-icon {
+      width: 40px; height: 40px;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      background: var(--vk-surface-lowest, #fff);
+      color: var(--vk-accent);
+    }
+    .hub-mode-card.active .hub-mode-icon { background: var(--vk-accent); color: var(--vk-accent-fg); }
     .hub-mode-title {
-      font-family: var(--vkg-font-sans);
-      font-size: 15px;
+      font-family: var(--pa-font-sans);
+      font-size: 16px;
       font-weight: 600;
       letter-spacing: -0.01em;
       color: var(--vk-fg-1);
     }
     .hub-mode-desc {
-      font-family: var(--vkg-font-sans);
-      font-size: 13px;
+      font-family: var(--pa-font-sans);
+      font-size: 13.5px;
       color: var(--vk-fg-2);
-      line-height: 1.55;
+      line-height: 1.5;
     }
     .hub-footer {
       flex-shrink: 0;
-      padding: 28px 48px 48px calc(48px + 180px + 52px);
-      border-top: 1px solid var(--vk-border);
+      padding: 20px 48px 40px calc(48px + 180px + 48px);
+      border-top: none;
     }
+    /* Primary action — M3 filled button (pill, 48px) */
     .hub-start-btn {
-      font-family: var(--vkg-font-mono);
-      font-size: 0.72rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 13px 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 48px;
+      font-family: var(--pa-font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      padding: 0 28px;
       background: var(--vk-accent);
       color: var(--vk-accent-fg);
       border: none;
+      border-radius: 999px;
       cursor: pointer;
-      transition: background 0.15s, opacity 0.15s;
+      transition: background 0.15s, color 0.15s;
     }
-    .hub-start-btn:disabled          { opacity: 0.3; cursor: not-allowed; }
-    .hub-start-btn:not(:disabled):hover { background: var(--vk-accent-dim); }
+    .hub-start-btn:disabled {
+      background: color-mix(in srgb, var(--vk-fg-1) 12%, transparent);
+      color: color-mix(in srgb, var(--vk-fg-1) 45%, transparent);
+      cursor: not-allowed;
+    }
+    .hub-start-btn:not(:disabled):hover { background: color-mix(in srgb, var(--vk-accent-fg) 8%, var(--vk-accent)); }
+    .hub-start-btn:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    /* Hub rows that hold only the action — keep it clear of the rows above */
+    .hub-row-controls > .hub-start-btn { margin-top: 8px; }
+    /* A full-width feature card inside a hub grid (e.g. speaking warm-up) */
+    .hub-feature-card { grid-column: 1 / -1; margin-bottom: 8px; }
 
     /* ── SHADOW HUB + SHADOW DRILL VIEW ─────────────────────────────────────── */
     #shadow-hub {
@@ -861,7 +916,7 @@
       flex: 1;
       min-height: 0;
       overflow-y: auto;
-      padding: 48px;
+      padding: 24px 48px 48px;
       display: grid;
       grid-template-columns: 180px 1fr;
       column-gap: 52px;
@@ -873,12 +928,14 @@
       display: flex;
       align-items: flex-start;
       gap: 12px;
-      margin: 0 48px 0;
+      margin: 12px 48px 0;
       padding: 12px 16px;
-      background: var(--vk-accent-bg);
-      border: 1px solid var(--vk-accent-border);
-      color: var(--vk-accent-text);
-      font-size: 0.78rem;
+      background: var(--vk-tonal);
+      border: none;
+      border-radius: 16px;
+      color: var(--vk-on-tonal);
+      font-family: var(--pa-font-sans);
+      font-size: 14px;
       line-height: 1.5;
     }
     .sd-headphone-notice svg { flex-shrink: 0; margin-top: 2px; }
@@ -964,11 +1021,46 @@
 
     #para-main-column {
       width: 100%;
-      max-width: 860px;
+      max-width: 780px;
       display: flex;
       flex-direction: column;
       gap: 24px;
     }
+    /* Main (card, controls, speech block) + side (tiles, completion card).
+       Starts as one centred column; after the first attempt on a wide screen
+       the card glides left and the tiles take the right column. Stays split
+       across blocks — only a new paragraph / retry glides back to centre. */
+    .para-main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+    .para-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    #para-cheer:empty { display: none; }
+    @media (min-width: 1200px) {
+      #para-main-column.is-split {
+        max-width: 1180px;
+        display: grid;
+        grid-template-columns: minmax(0, 780px) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+    }
+    .pv-card-top-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+    /* Paragraph tiles — ring + block side by side, sentence bars full width */
+    #para-viz.para-tiles { flex-wrap: wrap; align-items: stretch; justify-content: flex-start; gap: 12px; }
+    #para-viz .para-tile-ring,
+    #para-viz .para-tile-block { flex: 1 1 calc(50% - 6px); }
+    #para-viz .para-tile-bars  { flex: 1 1 100%; }
+    #para-viz .para-tile-bars:has(#para-viz-phrases:empty) { display: none; }
+    #para-viz .para-tile-ring .pv-viz-ring-chart { align-self: center; }
+    #para-viz .phv-tile { animation: pa-rise-tile 420ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+    #para-viz .phv-tile:nth-child(1) { animation-delay: 180ms; }
+    #para-viz .phv-tile:nth-child(2) { animation-delay: 240ms; }
+    #para-viz .phv-tile:nth-child(3) { animation-delay: 300ms; }
+    #para-block-pips .phv-attempt-pip.is-step { background: var(--vk-accent); }
+    /* Sentence rows inside the speech block — the block is the card */
+    #para-live-transcript .pv-sentence-scores { background: none; border-radius: 0; }
+    #para-live-transcript .pv-ss-row { padding: 12px 0; }
+    #para-live-transcript .pv-ss-row:first-child { padding-top: 4px; }
+    @media (prefers-reduced-motion: reduce) { #para-viz .phv-tile { animation: none; } }
 
     #para-blur-btn.is-active { color: var(--vk-accent-text); background: var(--vk-accent-bg); }
     #para-save-btn.saved { border-color: var(--pa-pass); color: var(--pa-pass); }
@@ -1216,16 +1308,8 @@
     .psdp-score-pct.almost { color: var(--pa-almost); }
     .psdp-score-pct.fail   { color: var(--pa-fail); }
     .psdp-result-label { font-family: var(--vkg-font-sans); font-size: 0.82rem; color: var(--vk-fg-2); white-space: nowrap; }
-    .psdp-score-bar-wrap {
-      flex: 1;
-      height: 6px;
-      background: var(--pa-scale-track);
-      border-radius: 999px;
-      overflow: hidden;
-    }
+    .psdp-score-bar-wrap { flex: 1; }   /* M3 linear progress: .pa-lp */
     .psdp-score-bar-fill {
-      height: 100%;
-      border-radius: 999px;
       transition: width 0.5s var(--pa-ease-soft);
     }
     .psdp-score-bar-fill.pass   { background: var(--pa-pass); }
@@ -1278,7 +1362,6 @@
     /* ── Para bottom tray ── */
     #para-bottom-tray { display: flex; flex-direction: column; gap: 24px; }
     #para-tray-results { overflow-y: visible; max-height: none; }
-    #para-viz { padding: 8px 0; animation: pa-rise 220ms var(--pa-ease-spring) both; }
     #para-sentence-scores { animation: pa-rise 180ms var(--pa-ease-spring) both; }
     /* Chunk transition — results fade out when user hits continue */
     .para-chunk-exit {
@@ -1287,22 +1370,50 @@
       transition: opacity 200ms cubic-bezier(0.4,0,0.2,1);
     }
     /* Live transcript — eases in, pushing pv-func down */
-    #phrase-attempt-label,
+    /* Paragraph speech block — same true-height open as the phrase one;
+       collapsed it eats the #para-bottom-tray gap (24px). */
     #para-live-transcript {
+      interpolate-size: allow-keywords;
       overflow: hidden;
-      max-height: 0;
+      height: 0;
       opacity: 0;
       pointer-events: none;
-      transition: max-height 180ms cubic-bezier(0.4,0,0.2,1),
-                  opacity    180ms cubic-bezier(0.4,0,0.2,1),
-                  margin-top 180ms cubic-bezier(0.4,0,0.2,1);
+      padding-block: 0;
+      margin-top: -24px;
+      transition: height 280ms cubic-bezier(0.2,0,0,1), padding 280ms cubic-bezier(0.2,0,0,1),
+                  margin-top 280ms cubic-bezier(0.2,0,0,1), opacity 200ms cubic-bezier(0.4,0,0.2,1);
     }
-    /* pv-col gap is 16px — eat it so collapsed transcript leaves no space */
-    #phrase-attempt-label { margin-top: -16px; }
-    /* para-bottom-tray gap is 24px */
-    #para-live-transcript { margin-top: -24px; }
-    #phrase-attempt-label.is-visible,
-    #para-live-transcript.is-visible { max-height: 60px; opacity: 1; margin-top: 0; pointer-events: auto; }
+    #para-live-transcript.is-visible { height: auto; opacity: 1; pointer-events: auto; padding-block: 16px; margin-top: 0; }
+    @media (prefers-reduced-motion: reduce) { #para-live-transcript { transition: none; } }
+    /* Phrase speech block — opens to its true height (interpolate-size), so the
+       motion always matches the content. Collapsed: no padding, and eat the
+       .phv-main gap so no strip is left under the controls. State-to-state
+       height changes (live → heard) are tweened in JS (_phraseSpeechState). */
+    #phrase-attempt-label {
+      interpolate-size: allow-keywords;
+      overflow: hidden;
+      height: 0;
+      opacity: 0;
+      pointer-events: none;
+      padding-block: 0;
+      margin-top: -16px;
+      transition: height 280ms cubic-bezier(0.2,0,0,1), padding 280ms cubic-bezier(0.2,0,0,1),
+                  margin-top 280ms cubic-bezier(0.2,0,0,1), opacity 200ms cubic-bezier(0.4,0,0.2,1);
+    }
+    #phrase-attempt-label.is-visible { height: auto; opacity: 1; pointer-events: auto; padding-block: 16px; margin-top: 0; }
+
+    /* Score section inside the card — grows open instead of appearing at once,
+       so the controls and speech block below glide down rather than jump. */
+    #phv-score-block {
+      interpolate-size: allow-keywords;
+      overflow: clip;
+      transition: height 380ms cubic-bezier(0.2,0,0,1), opacity 260ms cubic-bezier(0.4,0,0.2,1) 80ms,
+                  display 380ms allow-discrete;
+    }
+    @starting-style { #phv-score-block { height: 0; opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      #phrase-attempt-label, #phv-score-block { transition: none; }
+    }
     #para-controls { display: flex; flex-direction: column; gap: 0; }
 
     /* ── Level chip dropdown (mobile level selector) ── */
@@ -1643,7 +1754,7 @@
     #practice-content {
       flex: 1;
       overflow-y: auto;
-      padding: 24px 16px;
+      padding: 24px 16px 104px;   /* bottom clears the add FAB */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1775,25 +1886,16 @@
     .practice-item-actions { display: flex; gap: var(--vk-sp-2); align-items: center; }
 
     /* FAB + add modal */
+    /* M3 FAB (.pa-fab) pinned lower-right of the practice view */
     #pl-add-fab {
       position: absolute;
-      bottom: 148px;
-      right: 18px;
+      right: 24px;
+      bottom: 24px;
       z-index: 8;
-      width: 40px; height: 40px;
-      background: var(--vk-fg-1);
-      color: #fff;
-      border: none;
-      cursor: pointer;
-      font-size: 1.4rem;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     }
-    #pl-add-fab:hover { background: var(--vk-accent); }
+    @media (max-width: 768px) {
+      #pl-add-fab { right: 16px; bottom: 16px; }
+    }
     #pl-add-modal {
       display: none;
       position: fixed;
@@ -1858,14 +1960,14 @@
     /* Practice guide panel */
 
     /* word-check STT UI */
-    .word-check-mic.listening { background: var(--vk-error) !important; border-color: var(--vk-error) !important; color: #fff !important; animation: micPulse 1s ease-in-out infinite; }
+    /* Recording pulses the accent (blue), never red — red reads as failure */
+    .word-check-mic.listening { background: var(--vk-accent) !important; border-color: var(--vk-accent) !important; color: var(--vk-accent-fg) !important; animation: micPulse 1s ease-in-out infinite; }
     #practice-psdp-word-check-btn, #practice-psdp-drill-btn { height: 44px; margin-top: 0; padding: 0 12px; }
     .word-check-interim {
       display: none;
-      font-family: var(--vkg-font-mono);
-      font-size: 0.68rem;
-      color: var(--vk-fg-3);
-      letter-spacing: 0.02em;
+      font-family: var(--pa-font-sans);
+      font-size: 15px;
+      color: var(--vk-fg-2);
       padding: 6px 0 2px;
       font-style: italic;
     }
@@ -1873,42 +1975,44 @@
     .word-check-log {
       display: none;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
       margin-top: 6px;
-      max-height: 160px;
+      max-height: 180px;
       overflow-y: auto;
     }
     .word-check-log.active { display: flex; }
+    /* One attempt: the recognizer's alternatives, best first. Words in the UI
+       sans (like the rest of the feedback); only the % confidence stays mono. */
     .word-check-entry {
-      font-family: var(--vkg-font-mono);
-      font-size: 0.65rem;
-      letter-spacing: 0.02em;
-      padding: 4px 6px;
-      border-left: 2px solid var(--vk-border-mid);
+      font-family: var(--pa-font-sans);
+      font-size: 14px;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 10px;
+      background: var(--vk-surface-lowest, #fff);
       display: flex;
       flex-direction: row;
       align-items: baseline;
       flex-wrap: wrap;
-      gap: 2px 8px;
+      gap: 2px 10px;
       color: var(--vk-fg-2);
     }
-    .word-check-entry.hit { border-left-color: #4caf50; background: rgba(76,175,80,0.07); }
-    .wce-row { display: flex; align-items: baseline; gap: 4px; }
-    .wce-rank { color: var(--vk-fg-3); font-size: 0.58rem; min-width: 12px; flex-shrink: 0; }
-    .wce-rank-1 .wce-alt { color: var(--vk-fg-1); font-weight: 500; }
-    .word-check-entry.hit .wce-rank-1 .wce-alt { color: #4caf50; }
+    .word-check-entry.hit { background: var(--pa-pass-bg); }
+    .wce-row { display: flex; align-items: baseline; gap: 6px; }
+    .wce-rank { color: var(--vk-fg-2); font-family: var(--pa-font-mono); font-size: 11px; min-width: 12px; flex-shrink: 0; }
+    .wce-rank-1 .wce-alt { color: var(--vk-fg-1); font-weight: 600; }
+    .word-check-entry.hit .wce-rank-1 .wce-alt { color: var(--pa-pass); }
     .wce-alt { color: var(--vk-fg-2); }
-    .wce-pct { color: var(--vk-fg-3); font-size: 0.6rem; margin-left: auto; }
+    .wce-pct { color: var(--vk-fg-2); font-family: var(--pa-font-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; margin-left: auto; }
     .word-check-summary {
-      font-family: var(--vkg-font-mono);
-      font-size: 0.65rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 6px 0 2px;
-      color: var(--vk-fg-3);
+      font-family: var(--pa-font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 0 2px;
+      color: var(--vk-fg-2);
     }
-    .word-check-summary .wcs-score { font-size: 0.8rem; letter-spacing: 0.02em; color: var(--vk-fg-1); }
-    .word-check-summary.wcs-good .wcs-score { color: #4caf50; }
+    .word-check-summary .wcs-score { font-family: var(--pa-font-mono); font-size: 15px; font-variant-numeric: tabular-nums; color: var(--vk-fg-1); }
+    .word-check-summary.wcs-good .wcs-score { color: var(--pa-pass); }
 
     /* Practice drill tray */
     #practice-drill-backdrop {
@@ -1939,9 +2043,9 @@
 
     /* ── Comprehension hub ── */
     #comp-hub-content, #nat-hub-content {
-      flex: 1; overflow-y: auto; padding: 48px;
+      flex: 1; overflow-y: auto; padding: 24px 48px 48px;
       display: grid; grid-template-columns: 180px 1fr;
-      column-gap: 52px; align-content: start;
+      column-gap: 48px; align-content: start;
     }
     #comp-hub-content::-webkit-scrollbar, #nat-hub-content::-webkit-scrollbar { width: 4px; }
     #comp-hub-content::-webkit-scrollbar-thumb, #nat-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
@@ -1951,8 +2055,8 @@
     }
     #comp-level-desc, #comp-para-desc, #nat-level-desc, #nat-type-desc {
       margin-top: 10px;
-      font-family: var(--vkg-font-mono); font-size: 0.6rem;
-      letter-spacing: 0.06em; color: var(--vk-fg-3);
+      font-family: var(--pa-font-sans); font-size: 13px;
+      line-height: 1.45; color: var(--vk-fg-2);
     }
     #comp-custom-topic-input, #nat-custom-topic-input { margin-top: 10px; width: 100%; max-width: 300px; }
 
@@ -1968,11 +2072,7 @@
       max-width: 760px; width: 100%; margin: 0 auto;
       display: flex; flex-direction: column;
     }
-    #comp-loading {
-      display: flex; align-items: center; gap: 12px; padding: 48px 0;
-      font-family: var(--vkg-font-mono); font-size: 0.65rem;
-      letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-3);
-    }
+    #comp-loading { padding: 48px 0; }
 
     /* Audio bar */
     .comp-audio-bar {
@@ -2011,11 +2111,8 @@
       color: var(--vk-accent-fg); background: var(--vk-accent); flex-shrink: 0;
     }
     .dlg-spk-B { background: #1F5A40; }
-    .comp-progress-rail { height: 3px; background: var(--vk-border-mid); position: relative; }
-    .comp-progress-fill {
-      position: absolute; left: 0; top: 0; bottom: 0;
-      background: var(--vk-accent); width: 0%; transition: width 0.1s linear;
-    }
+    /* M3 linear progress: .pa-lp / .pa-lp-fill */
+    .comp-progress-fill { transition: width 0.1s linear; }
     .comp-replay-btn {
       width: 28px; height: 28px; flex-shrink: 0;
       background: transparent; border: 1px solid var(--vk-border-mid);
@@ -2102,7 +2199,7 @@
     }
     .comp-q-type-badge.type-literal    { color: #2D6CB3; }
     .comp-q-type-badge.type-inference  { color: #7A6A00; }
-    .comp-q-type-badge.type-vocabulary { color: #1F5A40; }
+    .comp-q-type-badge.type-vocabulary { color: var(--pa-pass); }
     .comp-q-type-badge.type-main_idea  { color: #7A3A00; }
     #comp-question-text {
       font-family: var(--vkg-font-sans); font-size: 14px;
@@ -2126,8 +2223,8 @@
       letter-spacing: 0.1em; text-transform: uppercase;
       color: var(--vk-fg-3); min-width: 16px; padding-top: 1px; flex-shrink: 0;
     }
-    .comp-option-btn.comp-correct { border-color: #1F5A40; background: rgba(31,90,64,0.08); }
-    .comp-option-btn.comp-correct .comp-opt-label { color: #1F5A40; }
+    .comp-option-btn.comp-correct { border-color: var(--pa-pass); background: var(--pa-pass-bg); }
+    .comp-option-btn.comp-correct .comp-opt-label { color: var(--pa-pass); }
     .comp-option-btn.comp-wrong   { border-color: var(--vk-error); background: rgba(168,40,28,0.08); }
     .comp-option-btn.comp-wrong .comp-opt-label { color: var(--vk-error); }
     .comp-option-btn.comp-wrong-soft { border-color: #8A5A00; background: rgba(138,90,0,0.08); }
@@ -2187,9 +2284,9 @@
 
     /* ── Vocabulary hub ──────────────────────────────────────────────────────── */
     #vocab-hub-content {
-      flex: 1; overflow-y: auto; padding: 48px;
+      flex: 1; overflow-y: auto; padding: 24px 48px 48px;
       display: grid; grid-template-columns: 180px 1fr;
-      column-gap: 52px; align-content: start;
+      column-gap: 48px; align-content: start;
     }
     #vocab-hub-content::-webkit-scrollbar { width: 4px; }
     #vocab-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
@@ -2319,10 +2416,10 @@
     /* pv-ss-drill-btn used for text+icon play actions; add icon layout + state */
     .pv-ss-drill-btn.with-icon { display: inline-flex; align-items: center; gap: 6px; }
     .pv-ss-drill-btn.playing   { background: var(--vk-accent-bg); }
-    .pv-ss-drill-btn.done      { border-color: #1F5A40; color: #1F5A40; }
+    .pv-ss-drill-btn.done      { border-color: var(--pa-pass); color: var(--pa-pass); }
     /* pa-wi-play used for icon-only word play; add state variants */
     .pa-wi-play.playing { border-color: var(--vk-accent-border-strong); color: var(--vk-accent-text); background: var(--vk-accent-bg); }
-    .pa-wi-play.done    { border-color: #1F5A40; color: #1F5A40; }
+    .pa-wi-play.done    { border-color: var(--pa-pass); color: var(--pa-pass); }
 
     /* ── Definition reveal ─────────────────────────────────────────────────── */
     .vocab-exp-def-wrap { display: flex; align-items: flex-start; gap: 8px; }
@@ -2351,8 +2448,8 @@
     }
     .vc-row:not(.disabled):not(.correct):not(.reveal):not(.wrong):hover { border-color: var(--vk-accent-border); background: var(--vk-accent-bg); }
     .vc-row.selected { border-color: var(--vk-accent); background: var(--vk-accent-bg); }
-    .vc-row.correct  { border-color: #1F5A40; background: rgba(31,90,64,0.07); cursor: default; }
-    .vc-row.reveal   { border-color: #1F5A40; background: rgba(31,90,64,0.07); cursor: default; }
+    .vc-row.correct  { border-color: var(--pa-pass); background: var(--pa-pass-bg); cursor: default; }
+    .vc-row.reveal   { border-color: var(--pa-pass); background: var(--pa-pass-bg); cursor: default; }
     .vc-row.wrong    { border-color: var(--vk-error); background: rgba(220,38,38,0.05); cursor: default; }
     .vc-row.disabled { pointer-events: none; }
     .vcr-num {
@@ -2367,7 +2464,7 @@
       color: var(--vk-fg-1);
     }
     .vc-row.correct .vcr-label,
-    .vc-row.reveal  .vcr-label { color: #1F5A40; }
+    .vc-row.reveal  .vcr-label { color: var(--pa-pass); }
     .vc-row.wrong   .vcr-label { color: var(--vk-error); }
     .vcr-play {
       width: 52px; height: 44px; flex-shrink: 0;
@@ -2421,7 +2518,7 @@
       padding: 8px 12px; margin-bottom: 10px;
       border-left: 3px solid;
     }
-    .vocab-result-banner.correct { border-color: #1F5A40; color: #1F5A40; background: rgba(31,90,64,0.07); }
+    .vocab-result-banner.correct { border-color: var(--pa-pass); color: var(--pa-pass); background: var(--pa-pass-bg); }
     .vocab-result-banner.wrong   { border-color: var(--vk-error); color: var(--vk-error); background: rgba(220,38,38,0.05); }
 
     /* ── Round transition / final summary panel ────────────────────────────── */
@@ -2465,7 +2562,6 @@
       display: flex; align-items: center; justify-content: center;
       width: 100%; padding: 64px;
     }
-    .vocab-loading-text { font-family: var(--pa-font-mono); font-size: 13px; color: var(--vk-fg-2); }
     .vocab-counter { font-family: var(--pa-font-mono); font-size: 12px; color: var(--vk-fg-2); margin-left: auto; }
 
     /* ── Exposure list (all cards shown at once) ─────────────────────── */
@@ -2513,8 +2609,8 @@
       display: grid;
       grid-template-columns: 180px 1fr;
       align-content: start;
-      gap: 0;
-      padding: 0 24px 40px;
+      column-gap: 48px;
+      padding: 24px 48px 48px;
     }
     #dict-hub-content::-webkit-scrollbar { width: 4px; }
     #dict-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
@@ -2530,8 +2626,8 @@
       display: grid;
       grid-template-columns: 180px 1fr;
       align-content: start;
-      gap: 0;
-      padding: 48px 48px 40px;
+      column-gap: 48px;
+      padding: 24px 48px 48px;
     }
     #transform-hub-content::-webkit-scrollbar,
     #pronoun-hub-content::-webkit-scrollbar { width: 4px; }
@@ -2549,11 +2645,9 @@
       font-family: var(--vkg-font-sans); font-size: 0.85rem;
       color: var(--vk-fg-2); margin-top: 4px;
     }
-    .pl-progress-track { height: 3px; background: var(--vk-border); margin-top: 14px; }
-    .pl-progress-fill {
-      height: 100%; width: 0%; background: var(--vk-accent);
-      transition: width 150ms cubic-bezier(0.4,0,0.2,1);
-    }
+    /* M3 linear progress: .pa-lp / .pa-lp-fill */
+    .pl-progress-track { margin-top: 14px; }
+    .pl-progress-fill { transition: width 150ms cubic-bezier(0.4,0,0.2,1); }
     .pl-progress-text {
       font-family: var(--vkg-font-mono); font-size: 0.62rem; letter-spacing: 0.08em;
       color: var(--vk-fg-2); margin-top: 6px; text-align: right;
@@ -2566,7 +2660,7 @@
       display: flex; align-items: center; gap: 12px;
     }
     .pl-option .pl-opt-num { font-family: var(--vkg-font-mono); font-size: 0.72rem; color: var(--vk-fg-3); }
-    .pl-option.correct { border-color: #1F5A40; background: rgba(31,90,64,0.08); }
+    .pl-option.correct { border-color: var(--pa-pass); background: var(--pa-pass-bg); }
     .pl-option.wrong   { border-color: var(--vk-error); background: color-mix(in srgb, var(--vk-error) 8%, transparent); }
     .pl-option-click { cursor: pointer; }
     .pl-option-click:hover { border-color: var(--vk-accent); }
@@ -2652,8 +2746,8 @@
       display: grid;
       grid-template-columns: 180px 1fr;
       align-content: start;
-      gap: 0;
-      padding: 48px 48px 40px;
+      column-gap: 48px;
+      padding: 24px 48px 48px;
     }
     #writing-hub-content::-webkit-scrollbar,
     #speaking-hub-content::-webkit-scrollbar { width: 4px; }
@@ -2661,15 +2755,6 @@
     #speaking-hub-content::-webkit-scrollbar-thumb { background: var(--vk-border-mid); }
 
     /* ── Writing view chrome ── */
-    .wr-loading-text {
-      font-family: var(--vkg-font-mono);
-      font-size: 0.65rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--vk-fg-3);
-      padding: 32px 0;
-      text-align: center;
-    }
     .wr-prompt-card {
       border: 1px solid var(--vk-border);
       padding: 20px 22px;
@@ -2770,8 +2855,8 @@
       padding: 14px 16px;
       font-family: var(--vkg-font-sans);
       font-size: 0.9rem;
-      color: #1F5A40;
-      border-left: 2px solid #1F5A40;
+      color: var(--pa-pass);
+      border-left: 2px solid var(--pa-pass);
       margin-bottom: 16px;
     }
 
@@ -2847,7 +2932,7 @@
       font-family: var(--pa-font-sans);
       font-size: var(--vk-text-body);
       font-weight: 600;
-      color: #1F5A40;
+      color: var(--pa-pass);
     }
     .wr-corr-why {
       font-family: var(--pa-font-sans);
@@ -2900,7 +2985,7 @@
       line-height: 1.55;
       padding: 14px 16px;
       border: 1px solid var(--vk-border);
-      border-left: 2px solid #1F5A40;
+      border-left: 2px solid var(--pa-pass);
       border-radius: var(--vk-radius-card);
       background: var(--vk-surface);
     }
@@ -3066,37 +3151,29 @@
         padding: 24px 16px 32px;
       }
       .hub-row-label {
-        border-top: 1px solid var(--vk-border);
-        padding: 20px 0 10px;
+        border-top: none;
+        padding: 22px 0 10px;
       }
       .hub-row-controls {
         border-top: none;
-        padding: 0 0 8px;
+        padding: 0 0 4px;
       }
-      .hub-row:first-child > .hub-row-label { border-top: none; padding-top: 0; }
+      .hub-row:first-child > .hub-row-label { padding-top: 0; }
       #hub-modes {
         grid-template-columns: 1fr;
         gap: 12px;
       }
+      /* Sticky action bar — tonal surface, full-width pill */
       .hub-footer {
-        padding: 0;
-        border-top: 1px solid var(--vk-border);
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+        border-top: none;
         background: var(--vk-surface);
       }
-      .hub-footer .hub-start-btn { width: 100%; padding: 16px; text-align: center; }
-      .sd-headphone-notice { margin: 0 16px; }
+      .hub-footer .hub-start-btn { width: 100%; }
+      .sd-headphone-notice { margin: 8px 16px 0; }
     }
 
     /* ── Dictation view chrome ── */
-    .dict-loading-text {
-      font-family: var(--vkg-font-mono);
-      font-size: 0.65rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--vk-fg-3);
-      padding: 32px 0;
-      text-align: center;
-    }
     .dict-player-top {
       display: flex;
       align-items: center;
@@ -3127,17 +3204,8 @@
       letter-spacing: 0.06em;
       color: var(--vk-fg-3);
     }
-    .dict-progress-track {
-      height: 3px;
-      background: var(--pa-scale-track);
-      overflow: hidden;
-    }
-    .dict-progress-fill {
-      height: 100%;
-      background: var(--vk-accent);
-      width: 0%;
-      transition: width 0.3s linear;
-    }
+    /* M3 linear progress: .pa-lp / .pa-lp-fill */
+    .dict-progress-fill { transition: width 0.3s linear; }
     .dict-replay-btn {
       background: none;
       border: 1px solid var(--vk-border);
@@ -3340,167 +3408,120 @@
     </div>
   </div>
 
-  <!-- ── SIDEBAR ── -->
-  <nav id="sidebar" class="vk-sidebar">
-
-    <div class="vk-sb-brand">
-      <span class="version">
-        <span class="wm"></span>
-      </span>
-      <button class="sb-collapse-btn" onclick="toggleSidebar()">
-        <svg class="sb-collapse-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
-          <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
-
-    <div class="sb-locale" id="sb-locale" hidden>
-      <div class="vk-select-wrap">
-        <select class="vk-select" id="sb-locale-select" aria-label="Study language" onchange="setStudyLocale(this.value)">
-          <option value="fr-FR">Français</option>
-          <option value="en-US">English (US)</option>
-          <option value="en-GB">English (UK)</option>
-        </select>
+  <!-- ── NAVIGATION RAIL (desktop) — items rendered from NAV_AREAS by renderNav() ── -->
+  <nav class="m3-rail" id="rail" aria-label="Main">
+    <button type="button" class="nav-lang-fab is-static" id="rail-lang" data-open-lang aria-label="Study language: Français">FR</button>
+    <div class="rail-items" id="rail-items"></div>
+    <div class="rail-foot">
+      <div class="rail-acct">
+        <button type="button" class="nav-avatar" id="rail-avatar" data-open-acct aria-haspopup="menu" aria-expanded="false" aria-label="Account">·</button>
+        <span>You</span>
       </div>
+      <span class="rail-logo" role="img" aria-label="vraiFrench"></span>
     </div>
-
-    <button class="vk-sb-item sb-nav-home is-active" data-view="home" onclick="switchView('home')" title="Progress">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><polyline points="2,12 6,7 9,9 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-
-    <div class="vk-sb-section sb-sec-speaking"></div>
-    <button class="vk-sb-item sb-nav-exercises" data-view="phrase-hub" onclick="switchView('phrase-hub')" title="Speaking">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h2M5 5v6M8 3v10M11 5v6M14 8h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-shadowing" data-view="shadow-hub" onclick="switchView('shadow-hub')" title="Shadowing">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8a5 5 0 0110 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M1 9.5C1 8.7 1.7 8 2.5 8H4v4H2.5C1.7 12 1 11.3 1 10.5v-1zM15 9.5C15 8.7 14.3 8 13.5 8H12v4h1.5c.8 0 1.5-.7 1.5-1.5v-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-prompted-speaking" data-view="speaking-hub" onclick="switchView('speaking-hub')" title="Prompted Free Speaking">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="6" y="1.5" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 7a4.5 4.5 0 009 0M8 11.5V14M5.5 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-
-    <div class="vk-sb-section sb-sec-listening"></div>
-    <button class="vk-sb-item sb-nav-listen" data-view="comprehension-hub" onclick="switchView('comprehension-hub')" title="Listen & Answer">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 6.5c0-1.1.9-2 2-2s2 .9 2 2c0 .8-.5 1.5-1.2 1.8L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="13" r="0.5" fill="currentColor"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-natural" data-view="natural-hub" onclick="switchView('natural-hub')" title="Dialogue French">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3.5h7a1.5 1.5 0 011.5 1.5v3A1.5 1.5 0 019 9.5H6l-2.5 2V9.5H2.5A1.5 1.5 0 011 8V5a1.5 1.5 0 011-1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M14 6.5h.5a1 1 0 011 1v2.5a1 1 0 01-1 1H14v1.5l-2-1.5h-1" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-dictation" data-view="dictation-hub" onclick="switchView('dictation-hub')" title="Dictation">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 10l2 2-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-
-    <div class="vk-sb-section sb-sec-writing"></div>
-    <button class="vk-sb-item sb-nav-writing" data-view="writing-hub" onclick="switchView('writing-hub')" title="Prompted Writing">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12l1-4L10 2l3 3-7 6-4 1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 3l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-transform" data-view="transform-hub" onclick="switchView('transform-hub')" title="Transformation">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 5h9M8 3l3 2-3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11H5M8 9l-3 2 3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-
-    <div class="vk-sb-section sb-sec-pronouns"></div>
-    <button class="vk-sb-item sb-nav-pronoun" data-view="pronoun-hub" onclick="switchView('pronoun-hub')" title="Pronouns">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="11" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 5h4a2 2 0 012 2v1M9 11H5a2 2 0 01-2-2V8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-    </button>
-
-    <div class="vk-sb-section sb-sec-vocabulary"></div>
-    <button class="vk-sb-item sb-nav-flashcards" data-view="vocab-hub" onclick="switchView('vocab-hub')" title="Flashcards">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 3V1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-
-    <div class="vk-sb-section sb-sec-personal"></div>
-    <button class="vk-sb-item sb-nav-practice" data-view="practice" onclick="switchView('practice')" title="Practice List">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v10H2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 7l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button class="vk-sb-item sb-nav-my-content" data-view="custom" onclick="switchView('custom')" title="My Content">
-      <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v12H3V2z" stroke="currentColor" stroke-width="1.5"/><path d="M5 5h6M5 8h4M5 11h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
-
-    <div class="sb-footer">
-      <div class="vk-sb-profile">
-        <button class="vk-sb-profile-btn" data-view="account" onclick="switchView('account')" title="Account">
-          <div class="vk-sb-avatar">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.25"/>
-              <path d="M2 12c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="vk-sb-profile-info">
-            <div class="vk-sb-profile-name" id="sb-student-name">—</div>
-            <div class="vk-sb-profile-role" id="sb-student-role">Student</div>
-          </div>
-        </button>
-        <button class="vk-sb-signout" onclick="signOut()" title="Sign out">Sign out</button>
-      </div>
-    </div>
-
   </nav>
 
-  <!-- ── MOBILE TOP BAR ── -->
+  <!-- ── PHONE TOP APP BAR ── -->
   <div id="mobile-bar">
-    <button id="hamburger" onclick="openMobileSidebar()" aria-label="Open navigation">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </button>
-    <span class="mobile-brand">
-      <span class="mobile-logo-icon"></span>
-      <span class="mobile-wordmark"></span>
-    </span>
-    <span class="mobile-mode-chip" id="mobile-mode-chip">Exercises</span>
+    <button type="button" class="mb-back" id="mb-back" aria-label="Back" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+    <span class="mb-title" id="mb-title">Home</span>
+    <button type="button" class="nav-lang-fab is-static" id="mb-lang" data-open-lang aria-label="Study language: Français">FR</button>
+    <button type="button" class="nav-avatar" id="mb-avatar" data-open-acct aria-haspopup="menu" aria-expanded="false" aria-label="Account">·</button>
   </div>
 
   <!-- ── MAIN CONTENT ── -->
   <main id="main">
 
+    <!-- Area tabs — the exercises inside the current rail area (renderNav) -->
+    <div class="area-tabs" id="area-tabs" hidden><div class="area-tabs-inner" id="area-tabs-inner" role="tablist"></div></div>
+
     <!-- ══════════════════════════════════════
          HOME / LANDING — progress + what's next
     ══════════════════════════════════════ -->
     <style>
-      /* Landing layout */
-      #home-view .home-wrap { max-width: 920px; width: 100%; margin: 0 auto; padding: 30px 28px 64px; }
+      /* Landing layout — Tonal: tinted cards on the page tone, no borders */
+      #home-view .home-wrap { max-width: 920px; width: 100%; margin: 0 auto; padding: 8px 28px 64px; }
+      #home-view .hub-intro-eyebrow { margin-top: 20px; }
+
       .home-header { margin-bottom: 4px; }
-      /* Primary KPI cards — design-system .vk-kpi-card; selectable, drive the chart */
-      .home-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+
+      /* Primary KPI cards — .vk-kpi-card on the tonal surface; selectable, drive the chart.
+         Selected = tonal fill + 2px accent ring (same as the hub format cards). */
+      .home-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
       @media (max-width: 680px) { .home-kpis { grid-template-columns: 1fr; } }
+      #home-view .vk-kpi-card {
+        background: var(--vk-surface); border: none; border-radius: 24px; box-shadow: none;
+        padding: 20px 22px; gap: 10px; transition: background 150ms var(--vk-ease), box-shadow 150ms var(--vk-ease);
+      }
+      #home-view .vk-kpi-card::before { display: none; }          /* drop the core left accent bar */
       .home-kpis .vk-kpi-card { cursor: pointer; }
-      .home-kpis .vk-kpi-card.is-active { border-color: var(--vk-accent); background: var(--vk-surface-tint, var(--vk-accent-bg)); box-shadow: var(--vk-elev-1); }
-      .home-kpis .vk-kpi-card.is-active::before { opacity: 1; }
-      .home-kpis .vk-kpi-card:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+      #home-view .home-kpis .vk-kpi-card:hover { background: color-mix(in srgb, var(--vk-fg-1) 6%, var(--vk-surface)); box-shadow: none; }
+      #home-view .home-kpis .vk-kpi-card.is-active,
+      #home-view .home-kpis .vk-kpi-card.is-active:hover { background: var(--vk-tonal); box-shadow: inset 0 0 0 2px var(--vk-accent); }
+      #home-view .home-kpis .vk-kpi-card:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+      #home-view .vk-kpi-label { font-family: var(--pa-font-sans); font-size: 13.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--vk-fg-2); }
+      #home-view .vk-kpi-card.is-active .vk-kpi-label { color: var(--vk-on-tonal); }
+      #home-view .vk-kpi-value { font-family: var(--pa-font-mono); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+      #home-view .vk-kpi-context { color: var(--vk-fg-2); }
       .home-kpi-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       .home-kpi-badge { flex-shrink: 0; font-size: var(--vk-text-2xs); }
-      .home-kpi-tests { font-family: var(--vk-font-body); font-size: var(--vk-text-sm); color: var(--vk-fg-3); margin: 0; line-height: 1.4; }
-      .home-kpis .vk-kpi-value .unit { font-size: var(--vk-text-lg); font-weight: 500; color: var(--vk-fg-3); margin-left: 2px; }
+      .home-kpi-tests { font-family: var(--pa-font-sans); font-size: 13.5px; color: var(--vk-fg-2); margin: 0; line-height: 1.45; }
+      .home-kpis .vk-kpi-value .unit { font-size: var(--vk-text-lg); font-weight: 500; color: var(--vk-fg-2); margin-left: 2px; }
+
       /* Chart — detail view of the highlighted KPI */
-      .home-trend-chart .empty { font-family: var(--vk-font-body); color: var(--vk-fg-3); font-size: var(--vk-text-sm); text-align: center; padding: 40px 0; }
-      .home-chart-hint { font-family: var(--vk-font-ui); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--vk-fg-4); margin-top: 10px; }
+      #home-view .vk-chart {
+        --vk-chart-bg: var(--vk-surface);   /* re-resolve here: on :root it froze to white, ringing the points */
+        background: var(--vk-surface); border: none; border-radius: 24px; padding: 20px 22px;
+      }
+      /* Axis + level labels: legible (fg-2, 11px) — vk-chart.css is shared with the teacher dashboard, so scoped here */
+      #home-view .atl-chart .atl-axis-label,
+      #home-view .atl-chart .atl-levellabel { fill: var(--vk-fg-2); font-family: var(--pa-font-mono); font-size: 11px; letter-spacing: 0; }
+      #home-view .vk-chart-title { font-family: var(--pa-font-sans); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; text-transform: none; color: var(--vk-fg-1); }
+      #home-view .vk-chart-subtitle { font-size: 13.5px; color: var(--vk-fg-2); }
+      .home-trend-chart .empty { font-family: var(--pa-font-sans); color: var(--vk-fg-2); font-size: 14px; text-align: center; padding: 40px 0; }
+      .home-chart-hint { font-family: var(--pa-font-sans); font-size: 13px; color: var(--vk-fg-2); margin: 10px 4px 0; }
+
       /* Secondary KPIs — compact .vk-kpi tiles, hidden until instrumented */
-      .home-secondary { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--vk-border); }
-      .home-secondary-label { font-family: var(--vk-font-ui); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--vk-fg-3); margin: 0 0 12px; }
-      .home-secondary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+      .home-secondary { margin-top: 32px; padding-top: 0; border-top: none; }
+      .home-secondary-label { font-family: var(--pa-font-sans); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; color: var(--vk-fg-1); margin: 0 0 12px; }
+      .home-secondary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
       @media (max-width: 680px) { .home-secondary-grid { grid-template-columns: 1fr; } }
       .home-secondary .vk-kpi-num { display: flex; align-items: baseline; gap: 8px; }
+
       /* Section + Practice-now action cards */
-      .home-section { margin-top: 36px; }
-      .home-section-title { font-family: var(--vk-font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-2); margin: 0 0 4px; }
+      .home-section { margin-top: 40px; }
+      .home-section-title { font-family: var(--pa-font-sans); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; text-transform: none; color: var(--vk-fg-1); margin: 0; }
       .home-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
-      .home-action { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left; border: 1px solid var(--vk-border-mid); background: var(--vk-surface); padding: 16px; cursor: pointer; position: relative;
-        transition: border-color 120ms cubic-bezier(0.4,0,0.2,1), background 120ms cubic-bezier(0.4,0,0.2,1); }
-      .home-action:hover { border-color: var(--vk-accent); background: var(--vk-accent-bg); }
-      .home-action-icon { color: var(--vk-accent-text); }
-      .home-action-name { font-family: var(--vk-font-ui); font-size: 13px; font-weight: 700; color: var(--vk-fg-1); }
-      .home-action-desc { font-family: var(--vk-font-body); font-size: 12px; color: var(--vk-fg-2); line-height: 1.4; }
-      /* Next lesson indicator */
-      .home-next-lesson-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--vk-border-mid); background: var(--vk-surface); width: fit-content; }
-      .home-next-lesson-label { font-family: var(--vk-font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-3); }
-      .home-next-lesson-date { font-family: var(--vk-font-ui); font-size: 13px; font-weight: 700; color: var(--vk-fg-1); }
-      .home-next-lesson-countdown { font-family: var(--vk-font-ui); font-size: 11px; color: var(--vk-fg-2); }
+      .home-action {
+        display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left;
+        border: none; border-radius: 20px; background: var(--vk-surface); padding: 16px 18px 18px; cursor: pointer; position: relative;
+        transition: background 150ms cubic-bezier(0.4,0,0.2,1);
+      }
+      .home-action:hover { background: color-mix(in srgb, var(--vk-fg-1) 6%, var(--vk-surface)); }
+      .home-action:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+      .home-action-icon {
+        width: 40px; height: 40px; display: grid; place-items: center; margin-bottom: 6px;
+        border-radius: 50%; background: var(--vk-surface-lowest, #fff); color: var(--vk-accent);
+      }
+      .home-action-name { font-family: var(--pa-font-sans); font-size: 15px; font-weight: 600; color: var(--vk-fg-1); }
+      .home-action-desc { font-family: var(--pa-font-sans); font-size: 13.5px; color: var(--vk-fg-2); line-height: 1.4; }
+
+      /* Next lesson indicator — tonal pill */
+      .home-next-lesson-row { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border: none; border-radius: 999px; background: var(--vk-surface); width: fit-content; flex-wrap: wrap; }
+      .home-next-lesson-label { font-family: var(--pa-font-sans); font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--vk-fg-2); }
+      .home-next-lesson-date { font-family: var(--pa-font-sans); font-size: 14px; font-weight: 600; color: var(--vk-fg-1); }
+      .home-next-lesson-countdown { font-family: var(--pa-font-sans); font-size: 13px; color: var(--vk-accent-text); }
+
+      @media (max-width: 768px) {
+        #home-view .home-wrap { padding: 0 16px 48px; }
+        #home-view .hub-intro-eyebrow { margin-top: 16px; }
+      }
     </style>
     <div id="home-view" style="display:none; flex:1; flex-direction:column; overflow-y:auto;">
       <div class="home-wrap">
 
         <div class="home-header">
-          <span class="hub-intro-eyebrow" id="home-eyebrow">Progress</span>
+          <span class="hub-intro-eyebrow" id="home-eyebrow">Your progress</span>
           <h2 class="hub-intro-heading" id="home-heading">Your spoken French</h2>
           <p class="hub-intro-text" id="home-greeting-sub">Here's where things stand.</p>
         </div>
@@ -3646,6 +3667,7 @@
 
       <div class="pv-body" id="phrase-content">
         <div class="pv-col">
+         <div class="phv-main">
 
           <!-- Coach focus banner (hidden by default) -->
           <div class="phv-coach-banner" id="coach-focus-banner" style="display:none;">
@@ -3662,10 +3684,14 @@
           <!-- Utterance card -->
           <div class="pv-card" id="phv-card">
             <div class="phv-toolbar">
+              <button class="pa-ctrl pa-ctrl-play is-outline is-sm" id="phrase-replay-btn" onclick="toggleShadowAudio()" title="Play / Pause" aria-label="Play the phrase" disabled>
+                <svg id="phrase-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg id="phrase-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+              </button>
+              <span class="phv-toolbar-spacer"></span>
               <button class="phv-save-btn fr-only" id="phrase-save-btn" title="Save phrase to library">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
               </button>
-              <span class="phv-toolbar-spacer"></span>
               <button class="phv-toolbar-btn fr-only" id="phrase-syllable-btn" onclick="toggleSyllableLine()" title="Show syllables">SYL</button>
               <button class="phv-toolbar-btn fr-only" id="phrase-rhythm-btn" onclick="toggleRhythmPanel()" title="Show rhythm">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M1 8h2M3 8V5M3 8v3M5 8h1M6 8V3M6 8v5M8 8h1M9 8V6M9 8v2M11 8h1M12 8V4M12 8v4M14 8h1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -3676,7 +3702,7 @@
               </button>
             </div>
 
-            <div id="phrase-text" class="pa-utterance">—</div>
+            <div id="phrase-text" class="pa-utterance is-hero">—</div>
             <div id="phrase-syllable-line" class="phv-syllable-line" style="display:none;"></div>
 
             <!-- Score + diff (shown inside card after scoring) -->
@@ -3685,15 +3711,14 @@
                 <div class="pa-score-head">
                   <span class="pa-score-num">—</span>
                 </div>
-                <div class="pa-bar">
-                  <div class="pa-bar-fill" style="width:0%"></div>
+                <div class="pa-bar pa-lp">
+                  <div class="pa-bar-fill pa-lp-fill" style="width:0%"></div>
                   <span class="pa-bar-thresh at-90"></span>
                 </div>
                 <div class="pa-bar-scale">
                   <span class="at-90">90</span>
                 </div>
               </div>
-              <div class="pa-transcript feedback-phrase-diff"></div>
             </div>
 
             <div id="phrase-limit-msg" style="display:none;" class="phv-limit-msg">
@@ -3702,51 +3727,18 @@
             </div>
 
             <div id="phrase-dict-trigger-row" style="display:none;"></div>
-
-            <!-- Attempt footer — always visible at card bottom -->
-            <div class="phv-attempt-row">
-              <div class="phv-attempt-left">
-                <span class="phv-attempt-label" id="phrase-attempt-meta">Attempt</span>
-                <div class="phv-attempt-pips" id="phrase-attempt-pips">
-                  <span class="phv-attempt-pip is-current"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                  <span class="phv-attempt-pip"></span>
-                </div>
-              </div>
-              <div class="phv-attempt-right" id="phrase-attempt-best-row" style="display:none;">
-                <span class="phv-attempt-best-label">Highest accuracy</span>
-                <span class="phv-attempt-best" id="phrase-attempt-best"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Live transcript strip (shown while recording) -->
-          <div class="pv-live-transcript" id="phrase-attempt-label">
-            <span class="pv-live-label" id="phrase-attempt-prefix">Speech input</span>
-            <span class="pv-live-text" id="phrase-attempt-text"></span>
           </div>
 
           <!-- First-run guide (pvGuide*) -->
           <div class="pv-guide" id="phrase-guide" style="display:none;" role="status" aria-live="polite"></div>
 
           <!-- Controls row -->
-          <div class="pv-func" id="phrase-actions">
-            <button class="phv-auto-row" id="phrase-auto-advance-btn" onclick="togglePhraseAutoAdvance()" title="Auto-advance to next phrase on pass">
+          <div class="pv-func is-split" id="phrase-actions">
+            <button class="phv-auto-row pv-func-start" id="phrase-auto-advance-btn" onclick="togglePhraseAutoAdvance()" title="Auto-advance to next phrase on pass">
               <span class="phv-auto-label" id="phrase-auto-advance-label">Auto</span>
               <span class="phv-auto-track" id="phrase-auto-advance-track">
                 <span class="phv-auto-thumb" id="phrase-auto-advance-thumb"></span>
               </span>
-            </button>
-            <button class="pa-ctrl pa-ctrl-play is-outline" id="phrase-replay-btn" onclick="toggleShadowAudio()" title="Play / Pause" disabled>
-              <svg id="phrase-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              <svg id="phrase-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
             </button>
             <button class="pa-ctrl pa-ctrl-record" id="phrase-mic-btn" onclick="toggleShadowMic()" title="Repeat the phrase">
               <svg viewBox="0 0 24 24" fill="none">
@@ -3754,14 +3746,51 @@
                 <path d="M6 11a6 6 0 0012 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
               </svg>
             </button>
-            <button class="pv-func-skip" id="phrase-skip-btn" onclick="fetchNextPhrase()">skip</button>
-            <button id="phrase-next-btn" class="vk-btn vk-btn-outline-accent" onclick="fetchNextPhrase()" style="display:none;">Next →</button>
+            <span class="pv-func-end">
+              <button class="pv-func-skip" id="phrase-skip-btn" onclick="fetchNextPhrase()">skip</button>
+              <button id="phrase-next-btn" class="vk-btn vk-btn-pass" onclick="fetchNextPhrase()" style="display:none;">Next →</button>
+            </span>
+          </div>
+
+          <!-- Speech block — sits under the mic it belongs to: live → reading back → what I heard -->
+          <div class="pv-live-transcript pv-speech" id="phrase-attempt-label" aria-live="polite">
+            <span class="pv-live-label" id="phrase-attempt-prefix">Speech input</span>
+            <span class="pv-live-text" id="phrase-attempt-text"></span>
+            <div class="pa-transcript feedback-phrase-diff pv-speech-heard" id="phv-heard"></div>
           </div>
 
           <span id="phrase-retry-hint" style="display:none;"></span>
+         </div><!-- /.phv-main -->
 
-          <!-- Word feedback list — below controls, outside card -->
+         <!-- Side column — built up as the tool learns things about the attempt:
+              attempt + best tiles, then words to work on. Beside the card on
+              desktop after the first attempt; stacked below otherwise. -->
+         <div class="phv-side">
+          <div class="phv-tiles" id="phv-tiles">
+            <div class="phv-tile">
+              <span class="phv-tile-label">Attempt</span>
+              <span class="phv-tile-value"><span id="phrase-attempt-meta">0</span><small>of 10</small></span>
+              <div class="phv-attempt-pips" id="phrase-attempt-pips">
+                <span class="phv-attempt-pip is-current"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+              </div>
+            </div>
+            <div class="phv-tile" id="phrase-attempt-best-row">
+              <span class="phv-tile-label">Highest accuracy</span>
+              <span class="phv-tile-value"><span class="phv-attempt-best is-empty" id="phrase-attempt-best">—</span></span>
+            </div>
+          </div>
+
           <div id="phv-word-list" class="feedback-items" style="display:none;"></div>
+         </div><!-- /.phv-side -->
 
         </div>
       </div>
@@ -3886,7 +3915,7 @@
             <span class="hub-row-desc">How you'll practise</span>
           </div>
           <div class="hub-row-controls">
-            <div id="hub-dialogue-note" style="display:none; font-family:var(--font-ui); font-size:0.68rem; letter-spacing:0.04em; color:var(--k-teal); margin-bottom:8px;">This style is only available for paragraph exercises.</div>
+            <div id="hub-dialogue-note" class="hub-note" style="display:none;">This style is only available for paragraph exercises.</div>
             <div id="hub-modes">
               <button class="hub-mode-card vk-card" id="hub-mode-phrases" data-mode="phrase" onclick="selectHubMode(this)">
                 <div class="hub-mode-icon">
@@ -4021,15 +4050,15 @@
                 <div class="pa-score-head">
                   <span class="pa-score-num" id="sd-score-num">—</span>
                 </div>
-                <div class="pa-bar">
-                  <div class="pa-bar-fill" id="sd-bar-fill" style="width:0%"></div>
+                <div class="pa-bar pa-lp">
+                  <div class="pa-bar-fill pa-lp-fill" id="sd-bar-fill" style="width:0%"></div>
                 </div>
               </div>
               <div class="sd-word-count" id="sd-word-count"></div>
 
               <!-- Reveal section (hidden until user taps Reveal) -->
               <div class="sd-reveal-section" id="sd-reveal-section" style="display:none;">
-                <div id="sd-reveal-phrase" class="pa-utterance"></div>
+                <div id="sd-reveal-phrase" class="pa-utterance is-hero"></div>
                 <div class="pa-transcript feedback-phrase-diff" id="sd-reveal-diff"></div>
               </div>
 
@@ -4112,11 +4141,18 @@
 
       <div id="para-content" data-state="idle">
         <div id="para-main-column">
+         <div class="para-main" id="para-main">
 
           <!-- Utterance card -->
           <div id="para-card" class="pv-card">
             <div class="pv-card-top">
-              <span id="para-stage-label" class="pa-drill-prompt">—</span>
+              <div class="pv-card-top-left">
+                <button class="pa-ctrl pa-ctrl-play is-outline is-sm" id="para-replay-btn" onclick="toggleParaPlayPause()" disabled aria-label="Play / Pause">
+                  <svg id="para-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  <svg id="para-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+                </button>
+                <span id="para-stage-label" class="pa-drill-prompt">—</span>
+              </div>
               <div class="pv-card-top-right">
                 <button id="para-save-btn" class="pv-action-btn fr-only" aria-label="Save paragraph to library">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
@@ -4148,52 +4184,26 @@
             </div>
           </div>
 
-          <!-- Bottom tray: score viz + live transcript + controls + sentence scores -->
+          <!-- Bottom tray: controls + speech block (live → reading back → what I heard) -->
           <div id="para-bottom-tray">
 
             <!-- First-run guide (pvGuide*) -->
             <div class="pv-guide" id="paragraph-guide" style="display:none;" role="status" aria-live="polite"></div>
 
-            <!-- Score ring + per-chunk bars (shown after scoring) -->
-            <div id="para-viz" class="pv-viz" style="display:none;">
-              <div class="pv-viz-ring">
-                <div class="vk-ring-chart" style="width:96px;height:96px;">
-                  <svg class="vk-ring-svg" viewBox="0 0 120 120" width="96" height="96" aria-hidden="true">
-                    <circle class="vk-ring-track" cx="60" cy="60" r="50"/>
-                    <circle class="vk-ring-seg solo" id="para-score-ring-fill" cx="60" cy="60" r="50"
-                            style="--pct:0;--offset:0;"/>
-                  </svg>
-                  <div class="vk-ring-center">
-                    <span class="vk-ring-total" id="para-score"></span>
-                  </div>
-                </div>
-                <span class="pv-viz-ring-label">overall</span>
-              </div>
-              <div id="para-viz-phrases" class="pv-viz-phrases"></div>
-            </div>
-
-            <!-- Live transcript (shown while recording) -->
-            <div id="para-live-transcript" class="pv-live-transcript">
-              <span class="pv-live-label">Speech input</span>
-              <span id="para-live-transcript-text" class="pv-live-text">…</span>
-            </div>
-
             <!-- Controls -->
             <div id="para-controls">
 
-              <!-- unified: play | mic | skip-or-continue -->
-              <div id="para-controls-main" class="pv-func">
-                <button class="pa-ctrl pa-ctrl-play is-outline" id="para-replay-btn" onclick="toggleParaPlayPause()" disabled aria-label="Play / Pause">
-                  <svg id="para-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                  <svg id="para-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
-                </button>
+              <!-- record dead centre · skip / continue pinned right -->
+              <div id="para-controls-main" class="pv-func is-split">
                 <button class="pa-ctrl pa-ctrl-record" id="para-mic-btn" onclick="toggleParaMic()" disabled aria-label="Record">
                   <svg viewBox="0 0 24 24" fill="none">
                     <path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z" fill="currentColor"/>
                     <path d="M6 11a6 6 0 0012 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
                   </svg>
                 </button>
-                <button class="pv-func-skip" id="para-action-btn" onclick="handleParaAction()" style="display:none;">skip</button>
+                <span class="pv-func-end">
+                  <button class="pv-func-skip" id="para-action-btn" onclick="handleParaAction()" style="display:none;">skip</button>
+                </span>
               </div>
 
               <!-- complete: all chunks done -->
@@ -4204,16 +4214,49 @@
 
             </div><!-- /#para-controls -->
 
-            <!-- Per-sentence scores (shown after scoring) -->
-            <div id="para-tray-results">
-              <div id="para-sentence-scores" class="pv-sentence-scores" style="display:none;">
+            <!-- Completion card — under the controls on the end screen -->
+            <div id="para-cheer"></div>
 
-                <div class="pv-ss-header">Per-sentence scores</div>
-                <div id="pss-rows"></div>
+            <!-- Speech block — under the mic: live → reading back → what I heard
+                 (the per-sentence rows are the paragraph's "heard") -->
+            <div id="para-live-transcript" class="pv-live-transcript pv-speech" aria-live="polite">
+              <span class="pv-live-label" id="para-speech-label">Speech input</span>
+              <span id="para-live-transcript-text" class="pv-live-text">…</span>
+              <div id="para-tray-results" class="pv-speech-heard">
+                <div id="para-sentence-scores" class="pv-sentence-scores" style="display:none;">
+                  <div id="pss-rows"></div>
+                </div>
               </div>
             </div>
 
           </div><!-- /#para-bottom-tray -->
+         </div><!-- /.para-main -->
+
+         <!-- Side column — tiles after the first attempt: this block's ring,
+              block progress, sentence scores -->
+         <div class="para-side" id="para-side">
+           <div id="para-viz" class="pv-viz para-tiles" style="display:none;">
+             <div class="phv-tile para-tile-ring">
+               <span class="phv-tile-label">This block</span>
+               <div class="pv-viz-ring-chart">
+                 <svg class="pa-cp" id="para-score-ring" viewBox="0 0 96 96" width="96" height="96" aria-hidden="true">
+                   <circle class="pa-cp-track" cx="48" cy="48" r="42" pathLength="100"/>
+                   <circle class="pa-cp-fill" id="para-score-ring-fill" cx="48" cy="48" r="42" pathLength="100"/>
+                 </svg>
+                 <span class="pv-viz-ring-value" id="para-score"></span>
+               </div>
+             </div>
+             <div class="phv-tile para-tile-block">
+               <span class="phv-tile-label">Block</span>
+               <span class="phv-tile-value"><span id="para-block-num">1</span><small id="para-block-of">of 1</small></span>
+               <div class="phv-attempt-pips" id="para-block-pips"></div>
+             </div>
+             <div class="phv-tile para-tile-bars">
+               <span class="phv-tile-label">Sentence scores</span>
+               <div id="para-viz-phrases" class="pv-viz-phrases"></div>
+             </div>
+           </div>
+         </div><!-- /.para-side -->
 
         </div><!-- /#para-main-column -->
       </div><!-- /#para-content -->
@@ -4251,8 +4294,8 @@
           <div id="psdp-score-area" style="display:none;">
             <div class="psdp-score-row">
               <span class="psdp-score-pct" id="psdp-score-pct">—</span>
-              <div class="psdp-score-bar-wrap">
-                <div class="psdp-score-bar-fill" id="psdp-score-bar-fill" style="width:0%"></div>
+              <div class="psdp-score-bar-wrap pa-lp">
+                <div class="psdp-score-bar-fill pa-lp-fill" id="psdp-score-bar-fill" style="width:0%"></div>
               </div>
               <span class="psdp-result-label" id="psdp-result-label"></span>
             </div>
@@ -4283,7 +4326,7 @@
             </button>
             <div style="flex:1;">
               <div id="para-dict-audio-status" style="font-family:var(--vkg-font-mono); font-size:0.6rem; letter-spacing:0.04em; color:var(--vk-fg-3); margin-bottom:3px;">Loading…</div>
-              <div style="height:3px; background:var(--pa-scale-track); overflow:hidden;"><div id="para-dict-audio-progress" style="height:100%; background:var(--vk-accent); width:0%; transition:width 0.3s linear;"></div></div>
+              <div class="pa-lp"><div id="para-dict-audio-progress" class="pa-lp-fill" style="transition:width 0.3s linear;"></div></div>
             </div>
             <button onclick="paraDictReplay()" title="Replay" style="display:flex; align-items:center; justify-content:center; width:28px; height:28px; background:transparent; border:1.5px solid var(--vk-accent-border); border-radius:999px; color:var(--vk-accent-text); cursor:pointer;">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/></svg>
@@ -4306,7 +4349,7 @@
           <div id="para-dict-results" style="display:none;">
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
               <span id="para-dict-score-label" style="font-family:var(--vkg-font-mono); font-size:1rem; font-weight:600; font-variant-numeric:tabular-nums; min-width:40px;"></span>
-              <div style="flex:1; height:6px; background:var(--pa-scale-track); overflow:hidden;"><div id="para-dict-score-bar" style="height:100%; width:0%; transition:width 300ms;"></div></div>
+              <div class="pa-lp" style="flex:1;"><div id="para-dict-score-bar" class="pa-lp-fill" style="transition:width 300ms;"></div></div>
             </div>
             <div id="para-dict-word-diff" style="font-family:var(--vkg-font-sans); font-size:0.95rem; line-height:1.8; margin-bottom:12px; padding:10px 12px; border:1px solid var(--vk-border); background:var(--vk-surface-2); white-space:normal; word-break:break-word;"></div>
             <div id="para-dict-feedback-items" class="feedback-items" style="margin-bottom:12px;"></div>
@@ -4389,7 +4432,9 @@
         <button class="vk-tab" data-tab="phrase">Phrases</button>
         <button class="vk-tab" data-tab="paragraph">Paragraphs</button>
       </div>
-      <button id="pl-add-fab" title="Add word or phrase">+</button>
+      <button id="pl-add-fab" class="pa-fab" title="Add a word or phrase" aria-label="Add a word or phrase">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div id="practice-content">
         <div class="practice-empty">No saved words yet.<br>Complete a phrase exercise and save difficult words.</div>
       </div>
@@ -4461,8 +4506,8 @@
           <div id="practice-psdp-score-area" style="display:none;">
             <div class="psdp-score-row">
               <span class="psdp-score-pct" id="practice-psdp-score-pct">—</span>
-              <div class="psdp-score-bar-wrap">
-                <div class="psdp-score-bar-fill" id="practice-psdp-score-bar-fill" style="width:0%"></div>
+              <div class="psdp-score-bar-wrap pa-lp">
+                <div class="psdp-score-bar-fill pa-lp-fill" id="practice-psdp-score-bar-fill" style="width:0%"></div>
               </div>
               <span class="psdp-result-label" id="practice-psdp-result-label"></span>
             </div>
@@ -4651,7 +4696,7 @@
         <div class="comp-inner">
 
           <!-- Loading -->
-          <div id="comp-loading" style="display:none;">Generating passage…</div>
+          <div id="comp-loading" class="pa-loading" role="status" style="display:none;"><svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg><span class="pa-loading-label">Generating passage…</span></div>
 
           <!-- Persistent player (passage + quiz states) -->
           <div id="comp-player" style="display:none;">
@@ -4664,8 +4709,8 @@
               </button>
               <div class="comp-audio-track">
                 <span id="comp-audio-status" class="comp-audio-status">Press play to listen</span>
-                <div class="comp-progress-rail">
-                  <div id="comp-audio-progress" class="comp-progress-fill"></div>
+                <div class="comp-progress-rail pa-lp">
+                  <div id="comp-audio-progress" class="comp-progress-fill pa-lp-fill"></div>
                 </div>
               </div>
               <div class="pv-speed-btns">
@@ -4735,8 +4780,8 @@
                 </button>
                 <div class="comp-audio-track">
                   <span id="comp-q-audio-status" class="comp-audio-status">Press play to listen</span>
-                  <div class="comp-progress-rail">
-                    <div id="comp-q-audio-progress" class="comp-progress-fill"></div>
+                  <div class="comp-progress-rail pa-lp">
+                    <div id="comp-q-audio-progress" class="comp-progress-fill pa-lp-fill"></div>
                   </div>
                 </div>
                 <div class="pv-speed-btns">
@@ -4821,7 +4866,7 @@
       .ds-live { font-family: var(--vkg-font-mono); font-size: 13px; color: var(--vk-fg-2); min-height: 18px; }
       .ds-score-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
       .ds-pct { font-family: var(--vkg-font-mono); font-weight: 700; font-size: 18px; }
-      .ds-pct.is-pass { color: #1F5A40; } .ds-pct.is-almost { color: #8A5A00; } .ds-pct.is-fail { color: var(--vk-error); }
+      .ds-pct.is-pass { color: var(--pa-pass); } .ds-pct.is-almost { color: #8A5A00; } .ds-pct.is-fail { color: var(--vk-error); }
     </style>
     <div id="dialogue-speak-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
       <div class="ds-header">
@@ -4972,8 +5017,9 @@
       <div id="vocab-content">
 
         <!-- Loading -->
-        <div id="vocab-loading" style="display:none;">
-          <span class="vocab-loading-text">Generating cards…</span>
+        <div id="vocab-loading" class="pa-loading" role="status" style="display:none;">
+          <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+          <span class="pa-loading-label">Generating cards…</span>
         </div>
 
         <!-- Card wrap -->
@@ -5133,8 +5179,9 @@
         <div class="pv-col">
 
           <!-- Loading -->
-          <div id="dict-loading" style="display:none;">
-            <div class="dict-loading-text">Generating sentence…</div>
+          <div id="dict-loading" class="pa-loading" role="status" style="display:none;">
+            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <div class="pa-loading-label">Generating sentence…</div>
           </div>
 
           <!-- Player (listen → input → results) -->
@@ -5146,7 +5193,7 @@
               </button>
               <div class="dict-player-info">
                 <div id="dict-audio-status" class="dict-audio-status">Loading…</div>
-                <div class="dict-progress-track"><div id="dict-audio-progress" class="dict-progress-fill"></div></div>
+                <div class="dict-progress-track pa-lp"><div id="dict-audio-progress" class="dict-progress-fill pa-lp-fill"></div></div>
               </div>
               <button class="dict-replay-btn" onclick="dictReplay()" title="Replay">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M14 8A6 6 0 1 1 8 2V0l4 3-4 3V4a4 4 0 1 0 4 4h2z"/></svg>
@@ -5261,8 +5308,9 @@
         <div class="pv-col">
 
           <!-- Loading -->
-          <div id="wr-loading" style="display:none;">
-            <div class="wr-loading-text">Generating prompt…</div>
+          <div id="wr-loading" class="pa-loading" role="status" style="display:none;">
+            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <div class="pa-loading-label">Generating prompt…</div>
           </div>
 
           <!-- Prompt + input -->
@@ -5323,7 +5371,7 @@
       <div id="speaking-hub-content">
 
         <!-- Warm-up (Azure-scored articulation warm-up before a lesson) -->
-        <div class="pv-card" style="margin-bottom:18px; border-color:var(--vk-accent);">
+        <div class="pv-card hub-feature-card">
           <div class="pv-live-label" style="color:var(--vk-accent-text);">Before you start</div>
           <div class="sp-prompt-text" style="margin-top:4px;">Pronunciation warm-up</div>
           <p class="hub-row-desc" style="margin:8px 0 14px;">Loosen up with French tongue-twisters and sound drills, scored on the actual sounds you make (Azure, when running locally). Say each one, get instant per-sound feedback.</p>
@@ -5398,8 +5446,9 @@
         <div class="pv-col">
 
           <!-- Loading -->
-          <div id="sp-loading" style="display:none;">
-            <div class="wr-loading-text">Generating prompt…</div>
+          <div id="sp-loading" class="pa-loading" role="status" style="display:none;">
+            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <div class="pa-loading-label">Generating prompt…</div>
           </div>
 
           <!-- Prompt + mic -->
@@ -5466,7 +5515,7 @@
             <div class="pl-stagebar">
               <div id="wu-set-label" class="pl-stage-label">Warm-up</div>
               <div id="wu-set-desc" class="pl-stage-desc">Say each phrase clearly</div>
-              <div class="pl-progress-track"><div id="wu-progress-fill" class="pl-progress-fill"></div></div>
+              <div class="pl-progress-track pa-lp"><div id="wu-progress-fill" class="pl-progress-fill pa-lp-fill"></div></div>
               <div id="wu-progress-text" class="pl-progress-text">1 / 5</div>
             </div>
 
@@ -5508,7 +5557,7 @@
               <div id="wu-result" style="display:none; margin-top:14px;">
                 <div class="pa-score" id="wu-score">
                   <div class="pa-score-head"><span class="pa-score-num">—</span></div>
-                  <div class="pa-bar"><div class="pa-bar-fill" style="width:0%"></div><span class="pa-bar-thresh at-90"></span></div>
+                  <div class="pa-bar pa-lp"><div class="pa-bar-fill pa-lp-fill" style="width:0%"></div><span class="pa-bar-thresh at-90"></span></div>
                   <div class="pa-bar-scale"><span class="at-90">90</span></div>
                 </div>
                 <div id="wu-diff" class="pa-transcript feedback-phrase-diff"></div>
@@ -5606,8 +5655,9 @@
         <div class="pv-col">
 
           <!-- Loading -->
-          <div id="tr-loading" style="display:none;">
-            <div class="wr-loading-text">Generating sentence…</div>
+          <div id="tr-loading" class="pa-loading" role="status" style="display:none;">
+            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <div class="pa-loading-label">Generating sentence…</div>
           </div>
 
           <!-- Source + instruction + input -->
@@ -5744,8 +5794,9 @@
         <div class="pv-col">
 
           <!-- Loading -->
-          <div id="ps-loading" style="display:none;">
-            <div class="wr-loading-text">Generating prompt…</div>
+          <div id="ps-loading" class="pa-loading" role="status" style="display:none;">
+            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <div class="pa-loading-label">Generating prompt…</div>
           </div>
 
           <!-- Cue + instruction + mic -->
@@ -5827,8 +5878,9 @@
         <div class="pv-col">
 
           <!-- Loading -->
-          <div id="pl-loading" style="display:none;">
-            <div class="wr-loading-text">Building your drill…</div>
+          <div id="pl-loading" class="pa-loading" role="status" style="display:none;">
+            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <div class="pa-loading-label">Building your drill…</div>
           </div>
 
           <!-- Exercise -->
@@ -5838,7 +5890,7 @@
             <div class="pl-stagebar">
               <div id="pl-stage-label" class="pl-stage-label">Étape 1 · Répétez</div>
               <div id="pl-stage-desc" class="pl-stage-desc"></div>
-              <div class="pl-progress-track"><div id="pl-progress-fill" class="pl-progress-fill"></div></div>
+              <div class="pl-progress-track pa-lp"><div id="pl-progress-fill" class="pl-progress-fill pa-lp-fill"></div></div>
               <div id="pl-progress-text" class="pl-progress-text">1 / 9</div>
             </div>
 
@@ -5895,7 +5947,7 @@
               <div id="pl-result" style="display:none; margin-top:14px;">
                 <div class="pa-score" id="pl-score">
                   <div class="pa-score-head"><span class="pa-score-num">—</span></div>
-                  <div class="pa-bar"><div class="pa-bar-fill" style="width:0%"></div><span class="pa-bar-thresh at-90"></span></div>
+                  <div class="pa-bar pa-lp"><div class="pa-bar-fill pa-lp-fill" style="width:0%"></div><span class="pa-bar-thresh at-90"></span></div>
                   <div class="pa-bar-scale"><span class="at-90">90</span></div>
                 </div>
                 <div id="pl-diff" class="pa-transcript feedback-phrase-diff"></div>
@@ -5999,9 +6051,52 @@
 
   </main>
 
+  <!-- ── PHONE NAVIGATION BAR — rendered by renderNav() ── -->
+  <nav class="m3-navbar" id="bottom-nav" aria-label="Main"></nav>
+
+  <!-- ── Study-language FAB menu (beta accounts) ── -->
+  <div class="nav-layer" id="lang-layer" hidden>
+    <div class="fab-menu" id="lang-menu" role="menu" aria-label="Study language">
+      <button type="button" class="fab-close" id="lang-close" aria-label="Close language menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <div class="fab-opts">
+        <button type="button" class="lang-opt" role="menuitemradio" data-locale="fr-FR" aria-checked="true"><span class="bd">FR</span>Français<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z" fill="currentColor"/></svg></button>
+        <button type="button" class="lang-opt" role="menuitemradio" data-locale="en-US" aria-checked="false"><span class="bd">US</span>English <span class="sub">(US)</span><svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z" fill="currentColor"/></svg></button>
+        <button type="button" class="lang-opt" role="menuitemradio" data-locale="en-GB" aria-checked="false"><span class="bd">UK</span>English <span class="sub">(UK)</span><svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z" fill="currentColor"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Account menu ── -->
+  <div class="nav-layer" id="acct-layer" hidden>
+    <div class="acct-menu" id="acct-menu" role="menu" aria-label="Account">
+      <div class="acct-head">
+        <span class="nav-avatar" id="acct-avatar" aria-hidden="true">·</span>
+        <div class="acct-head-text"><b id="sb-student-name">—</b><span id="sb-student-role">Student</span></div>
+      </div>
+      <div class="acct-divider"></div>
+      <button type="button" class="nav-menu-item" role="menuitem" data-acct-action="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+        Account settings
+      </button>
+      <button type="button" class="nav-menu-item" role="menuitem" data-acct-action="signout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>
+        Sign out
+      </button>
+    </div>
+  </div>
+
+  <!-- ── "More" sheet (phone, >5 destinations) ── -->
+  <div class="nav-layer nav-sheet-layer" id="more-layer" hidden>
+    <div class="nav-sheet" role="dialog" aria-label="More">
+      <span class="nav-sheet-grab"></span>
+      <div id="more-list"></div>
+    </div>
+  </div>
+
 </div>
 
-<div id="sb-overlay" onclick="closeMobileSidebar()"></div>
 
 <!-- Practice list FAB add modal — must be at root level (not inside display:none parent) -->
 <div id="pl-add-modal">
@@ -6025,30 +6120,214 @@
 
 </html>
 <script>
-  // ── Sidebar collapse ────────────────────────────────────────────────────────
-  function toggleSidebar() {
-    document.getElementById('app').classList.toggle('sb-collapsed');
+  // ── Navigation: M3 rail (desktop) · bottom bar (phone) · area tabs ────────
+  // One config drives everything. An AREA is a rail destination; its VIEWS are
+  // the hub pages shown as tabs. Trim this list to reshape the app (e.g. the
+  // simplified live version = home, speaking, listening, vocabulary).
+  const NAV_ICONS = {
+    home:      '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
+    speaking:  '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+    listening: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/>',
+    vocabulary:'<rect x="3.5" y="6" width="13" height="14" rx="2"/><path d="M7.5 3h11a2 2 0 0 1 2 2v12"/><path d="M7 11h6M7 15h4"/>',
+    writing:   '<path d="M4 20h4L19.5 8.5l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+    pronouns:  '<circle cx="8" cy="8" r="3.5"/><circle cx="16" cy="16" r="3.5"/><path d="M11 8h4a3 3 0 0 1 3 3v1.5M13 16H9a3 3 0 0 1-3-3v-1.5"/>',
+    practice:  '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M8 12l3 3 5-6"/>',
+    more:      '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>',
+  };
+  const NAV_AREAS = [
+    { key: 'home',       label: 'Home',       views: [['home', 'Home']] },
+    { key: 'speaking',   label: 'Speaking',   views: [['phrase-hub', 'Phrases & paragraphs'], ['shadow-hub', 'Shadowing'], ['speaking-hub', 'Prompted speaking']] },
+    { key: 'listening',  label: 'Listening',  views: [['comprehension-hub', 'Listen & answer'], ['natural-hub', 'Dialogue'], ['dictation-hub', 'Dictation']] },
+    { key: 'vocabulary', label: 'Vocabulary', views: [['vocab-hub', 'Flashcards']] },
+    { key: 'writing',    label: 'Writing',    views: [['writing-hub', 'Prompted writing'], ['transform-hub', 'Transformation']] },
+    { key: 'pronouns',   label: 'Pronouns',   views: [['pronoun-hub', 'Pronouns']] },
+    { key: 'practice',   label: 'Practice',   views: [['practice', 'Practice list'], ['custom', 'My content']] },
+  ];
+  const NAV_BAR_MAX = 5;          // M3 navigation bar: 3–5 destinations
+  const _navLast = {};            // area key → last hub visited, so the rail returns you there
+
+  function _navSvg(key) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (NAV_ICONS[key] || '') + '</svg>';
+  }
+  // The hub page a view belongs to (exercise views map to the hub that launched them).
+  function navHubFor(view) {
+    const map = {
+      'phrase': 'phrase-hub', 'paragraph': 'phrase-hub', 'shadow-drill': 'shadow-hub',
+      'speaking': 'speaking-hub', 'warmup': 'speaking-hub', 'dialogue-speak': 'natural-hub',
+      'dictation': 'dictation-hub', 'vocab': 'vocab-hub', 'writing': 'writing-hub', 'transform': 'transform-hub',
+      'pronoun-speak': 'pronoun-hub', 'pronoun-placement': 'pronoun-hub',
+    };
+    if (view === 'comprehension') {
+      try { return _comprHubView(); } catch (_) { return 'comprehension-hub'; }
+    }
+    return map[view] || view;
+  }
+  // Areas and their views, filtered to what the current study language offers.
+  function _navAreas() {
+    let english = false;
+    try { english = studyLang() === 'en'; } catch (_) {}
+    return NAV_AREAS
+      .map(a => ({ ...a, views: a.views.filter(([v]) => !english || EN_VIEWS.has(v)) }))
+      .filter(a => a.views.length);
+  }
+  function navGo(key) {
+    const area = _navAreas().find(a => a.key === key);
+    if (!area) return;
+    const last = _navLast[key];
+    switchView(area.views.some(([v]) => v === last) ? last : area.views[0][0]);
   }
 
-  document.getElementById('sidebar').addEventListener('click', function(e) {
+  function renderNav() {
+    let view = 'home';
+    try { view = currentView; } catch (_) {}      // `let` declared later in this script
+    const hub   = navHubFor(view);
+    const areas = _navAreas();
+    const area  = areas.find(a => a.views.some(([v]) => v === hub)) || null;
+    if (area) _navLast[area.key] = hub;
+    const topLevel = view === hub || view === 'account';
+
+    const item = (cls, a, on) =>
+      `<button type="button" class="${cls}${on ? ' is-on' : ''}" data-area="${a.key}"${on ? ' aria-current="page"' : ''}>` +
+      `<span class="ind">${_navSvg(a.key)}</span>${a.label}</button>`;
+
+    // Rail
+    const railEl = document.getElementById('rail-items');
+    if (railEl) railEl.innerHTML = areas.map(a => item('rail-item', a, a === area)).join('');
+
+    // Phone bar — at most 5; the rest go in a "More" sheet
+    const barEl = document.getElementById('bottom-nav');
+    if (barEl) {
+      const overflow = areas.length > NAV_BAR_MAX;
+      const shown = overflow ? areas.slice(0, NAV_BAR_MAX - 1) : areas;
+      const extra = overflow ? areas.slice(NAV_BAR_MAX - 1) : [];
+      let html = shown.map(a => item('nb-item', a, a === area)).join('');
+      if (overflow) {
+        const onExtra = extra.includes(area);
+        html += `<button type="button" class="nb-item${onExtra ? ' is-on' : ''}" data-nav-more aria-haspopup="dialog"><span class="ind">${_navSvg('more')}</span>More</button>`;
+        document.getElementById('more-list').innerHTML = extra.map(a =>
+          `<button type="button" class="nav-sheet-item${a === area ? ' is-on' : ''}" data-area="${a.key}">${_navSvg(a.key)}${a.label}</button>`).join('');
+      }
+      barEl.innerHTML = html;
+    }
+
+    // Area tabs — only on the area's own hub pages, and only when there's a choice
+    const tabsEl = document.getElementById('area-tabs');
+    if (tabsEl) {
+      const show = !!area && area.views.length > 1 && topLevel && view !== 'account';
+      tabsEl.hidden = !show;
+      if (show) {
+        document.getElementById('area-tabs-inner').innerHTML = area.views.map(([v, label]) =>
+          `<button type="button" class="area-tab${v === hub ? ' is-on' : ''}" role="tab" aria-selected="${v === hub}" data-go="${v}">${label}</button>`).join('');
+      }
+    }
+
+    // Phone top app bar: back arrow inside an exercise, area title otherwise
     const app = document.getElementById('app');
-    if (app.classList.contains('sb-collapsed') && !e.target.closest('.sb-collapse-btn')) {
-      app.classList.remove('sb-collapsed');
+    if (app) app.classList.toggle('nav-in-task', !topLevel);
+    const back = document.getElementById('mb-back');
+    if (back) { back.hidden = topLevel; back.dataset.go = area ? hub : 'home'; }
+    const title = document.getElementById('mb-title');
+    if (title) title.textContent = view === 'account' ? 'Account' : (area ? area.label : 'vraiFrench');
+    document.querySelectorAll('[data-open-acct]').forEach(b => b.classList.toggle('is-on', view === 'account'));
+  }
+
+  // Avatar initial from the signed-in name (the login code fills #sb-student-name)
+  function navSetUser() {
+    const name = (document.getElementById('sb-student-name')?.textContent || '').trim();
+    const initial = name && name !== '—' ? name[0].toUpperCase() : '·';
+    document.querySelectorAll('.nav-avatar').forEach(a => { a.textContent = initial; });
+    document.querySelectorAll('[data-open-acct]').forEach(b => b.setAttribute('aria-label', name && name !== '—' ? 'Account: ' + name : 'Account'));
+  }
+
+  // ── Floating nav menus (language FAB menu · account menu · More sheet) ──
+  let _navMenuTrigger = null;
+  function _navOpenLayer(layerId, trigger) {
+    closeNavMenus(false);
+    _navMenuTrigger = trigger || null;
+    document.getElementById(layerId).hidden = false;
+    if (trigger) trigger.setAttribute('aria-expanded', 'true');
+  }
+  function closeNavMenus(refocus = true) {
+    let wasOpen = false;
+    ['lang-layer', 'acct-layer', 'more-layer'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.hidden) { el.hidden = true; wasOpen = true; }
+    });
+    document.querySelectorAll('[data-open-lang][aria-expanded],[data-open-acct][aria-expanded],[data-nav-more][aria-expanded]')
+      .forEach(b => b.setAttribute('aria-expanded', 'false'));
+    if (wasOpen && refocus && _navMenuTrigger && document.body.contains(_navMenuTrigger)) _navMenuTrigger.focus();
+    _navMenuTrigger = null;
+  }
+  function openLangMenu(trigger) {
+    if (trigger.classList.contains('is-static')) return;       // French-only account
+    const r = trigger.getBoundingClientRect(), menu = document.getElementById('lang-menu');
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const right = cx > window.innerWidth / 2;                     // phone top bar → unfold leftwards
+    menu.classList.toggle('is-right', right);
+    menu.style.top   = (cy - 28) + 'px';
+    menu.style.left  = right ? '' : (cx - 28) + 'px';
+    menu.style.right = right ? (window.innerWidth - cx - 28) + 'px' : '';
+    menu.querySelectorAll('[data-locale]').forEach(o => o.setAttribute('aria-checked', o.dataset.locale === studyLocale ? 'true' : 'false'));
+    _navOpenLayer('lang-layer', trigger);
+    (menu.querySelector('[aria-checked="true"]') || menu.querySelector('[data-locale]')).focus();
+  }
+  function openAcctMenu(trigger) {
+    const r = trigger.getBoundingClientRect(), menu = document.getElementById('acct-menu');
+    if (window.innerWidth <= 768) {                               // drop down from the top bar
+      Object.assign(menu.style, { left: '', bottom: '', top: (r.bottom + 8) + 'px', right: (window.innerWidth - r.right) + 'px', transformOrigin: 'top right' });
+    } else {                                                      // open beside the rail, bottom-aligned
+      Object.assign(menu.style, { right: '', top: '', left: (r.right + 16) + 'px', bottom: (window.innerHeight - r.bottom) + 'px', transformOrigin: 'bottom left' });
+    }
+    _navOpenLayer('acct-layer', trigger);
+    menu.querySelector('.nav-menu-item').focus();
+  }
+
+  document.addEventListener('click', e => {
+    let t;
+    if ((t = e.target.closest('[data-open-lang]'))) {
+      document.getElementById('lang-layer').hidden ? openLangMenu(t) : closeNavMenus();
+      return;
+    }
+    if ((t = e.target.closest('[data-open-acct]'))) {
+      document.getElementById('acct-layer').hidden ? openAcctMenu(t) : closeNavMenus();
+      return;
+    }
+    if ((t = e.target.closest('#lang-menu [data-locale]'))) {
+      closeNavMenus(false);
+      if (t.dataset.locale === studyLocale) switchView('home');   // same language: just go Home
+      else setStudyLocale(t.dataset.locale);                        // saves it + opens that language's Home
+      return;
+    }
+    if ((t = e.target.closest('[data-acct-action]'))) {
+      closeNavMenus(false);
+      if (t.dataset.acctAction === 'signout') signOut();
+      else switchView('account');
+      return;
+    }
+    if (e.target.closest('#lang-close') || e.target.classList.contains('nav-layer')) { closeNavMenus(); return; }
+    if ((t = e.target.closest('[data-nav-more]'))) {
+      _navOpenLayer('more-layer', t);
+      const first = document.querySelector('#more-list button'); if (first) first.focus();
+      return;
+    }
+    if ((t = e.target.closest('[data-area]')) && t.closest('#rail, #bottom-nav, #more-layer')) { closeNavMenus(false); navGo(t.dataset.area); return; }
+    if ((t = e.target.closest('[data-go]')) && t.closest('#area-tabs, #mobile-bar')) { switchView(t.dataset.go); }
+  });
+  document.addEventListener('keydown', e => {
+    const open = ['lang-layer', 'acct-layer', 'more-layer'].map(id => document.getElementById(id)).find(el => el && !el.hidden);
+    if (!open) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeNavMenus(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const items = [...open.querySelectorAll('[data-locale], .nav-menu-item, .nav-sheet-item')];
+      if (!items.length) return;
+      e.preventDefault();
+      const i = items.indexOf(document.activeElement);
+      const next = i < 0 ? 0 : (i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
+      items[next].focus();
     }
   });
-
-  // ── Mobile sidebar ─────────────────────────────────────────────────────────
-  function openMobileSidebar() {
-    document.getElementById('sidebar').classList.add('is-open');
-    document.getElementById('sb-overlay').classList.add('is-open');
-  }
-  function closeMobileSidebar() {
-    document.getElementById('sidebar').classList.remove('is-open');
-    document.getElementById('sb-overlay').classList.remove('is-open');
-  }
-  // Keep old names as aliases so any remaining references still work
-  function toggleMobilePanel() { openMobileSidebar(); }
-  function closeMobilePanel()  { closeMobileSidebar(); }
+  window.addEventListener('resize', () => closeNavMenus(false));
+  renderNav();                    // draw the rail before the first switchView
 
   // ── Level chip dropdowns ───────────────────────────────────────────────────
   function toggleDiffChip(e) {
@@ -6167,6 +6446,7 @@
       document.getElementById('sb-student-name').textContent =
         _teachStudentName ? decodeURIComponent(_teachStudentName) : _teachAccessCode;
       document.getElementById('sb-student-role').textContent = 'Student';
+      navSetUser();
     } else {
       try {
         const meRes = await apiFetch('/auth/me');
@@ -6179,6 +6459,7 @@
           document.getElementById('sb-student-name').textContent = me.username || me.email || '—';
           const roleLabels = { student_solo: 'Independent learner', student_teacher: 'Student', teacher: 'Teacher', super_admin: 'Admin' };
           document.getElementById('sb-student-role').textContent = roleLabels[me.role] || me.role || 'Student';
+          navSetUser();
           if (!localStorage.getItem('vf_onboarded') && me.role === 'student_solo') {
             document.getElementById('onboarding-modal').style.display = 'flex';
           }
@@ -6300,7 +6581,36 @@
   // Shared score bar updater for div-based bars.
   function updateScoreBar(fillEl, pct, passed, baseClass) {
     fillEl.style.width = pct + '%';
-    fillEl.className = baseClass + ' ' + (passed ? 'pass' : 'fail');
+    fillEl.classList.remove('pass', 'almost', 'fail');
+    fillEl.classList.add(passed ? 'pass' : 'fail');
+  }
+
+  // M3 loading indicator (.pa-loading) — show/hide a view's loading block.
+  // Showing it clears a previous error so a retry spins again with its label.
+  function toggleLoading(id, on) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = on ? '' : 'none';
+    if (on && el.classList.contains('is-error')) {
+      el.classList.remove('is-error');
+      const label = el.querySelector('.pa-loading-label');
+      if (label && label.dataset.label) label.textContent = label.dataset.label;
+    }
+  }
+
+  function showLoadingError(id, msg = 'Error — try again') {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('is-error');
+    const label = el.querySelector('.pa-loading-label');
+    if (!label) return;
+    if (!label.dataset.label) label.dataset.label = label.textContent;
+    label.textContent = msg;
+  }
+
+  // Inline loader markup for text slots that are later overwritten (paragraph).
+  function loadingHtml(label) {
+    return `<span class="pa-loading is-inline" role="status"><svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg><span>${label}</span></span>`;
   }
 
   // Lightweight toast for system notifications (upload/mic feedback).
@@ -6487,6 +6797,8 @@
   // built below, which reads sttLang() at load.
   const STUDY_LOCALE_KEY = 'vf_study_locale';
   const STUDY_LOCALES = ['fr-FR', 'en-US', 'en-GB'];
+  const STUDY_LOCALE_BADGE = { 'fr-FR': 'FR', 'en-US': 'US', 'en-GB': 'UK' };
+  const STUDY_LOCALE_NAME  = { 'fr-FR': 'Français', 'en-US': 'English (US)', 'en-GB': 'English (UK)' };
   // Views available while studying English (v1: Speaking phrases + Flashcards).
   const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'phrase', 'paragraph', 'vocab-hub', 'vocab']);
   let studyLocale = 'fr-FR';
@@ -6500,8 +6812,12 @@
   function registerClass(usage) { return _REGISTER_STYLE[usage] || usage || 'courant'; }
 
   function applyStudyLocale() {
-    const sel = document.getElementById('sb-locale-select');
-    if (sel) sel.value = studyLocale;
+    // Language buttons (rail FAB + phone top bar) show the current badge
+    const curName = STUDY_LOCALE_NAME[studyLocale] || 'Français';
+    document.querySelectorAll('[data-open-lang]').forEach(b => {
+      b.textContent = STUDY_LOCALE_BADGE[studyLocale] || 'FR';
+      b.setAttribute('aria-label', 'Study language: ' + curName);
+    });
     if (recognition) recognition.lang = sttLang();
     const english = studyLang() === 'en';
     document.getElementById('app').classList.toggle('study-en', english);
@@ -6518,19 +6834,8 @@
         if (story) selectStyleChip(story);
       }
     }
-    // Hide exercises English doesn't have yet, then any section left empty.
-    let section = null, sectionHasItems = false;
-    const closeSection = () => { if (section) section.hidden = !sectionHasItems; };
-    for (const el of document.getElementById('sidebar').children) {
-      if (el.classList.contains('vk-sb-section')) {
-        closeSection();
-        section = el; sectionHasItems = false;
-      } else if (el.classList.contains('vk-sb-item') && el.dataset.view) {
-        el.hidden = english && !EN_VIEWS.has(el.dataset.view);
-        if (!el.hidden) sectionHasItems = true;
-      }
-    }
-    closeSection();
+    // Rail / bottom bar / tabs hide exercises English doesn't have yet (and empty areas).
+    renderNav();
     // Same filter for the exercise tiles on Home.
     document.querySelectorAll('.home-action[data-action-key]').forEach(el => {
       el.style.display = english && !EN_VIEWS.has(el.dataset.actionKey) ? 'none' : '';
@@ -6550,17 +6855,23 @@
   // Called once /auth/me has answered. Non-beta accounts are pinned to French
   // even if an old stored choice says otherwise.
   function initStudyLocale(me) {
-    const wrap = document.getElementById('sb-locale');
-    if (!me || !me.english_beta) {
+    const beta = !!(me && me.english_beta);
+    // Everyone sees the language button; only beta accounts (more than one
+    // language) can open the language menu.
+    document.querySelectorAll('[data-open-lang]').forEach(b => {
+      b.classList.toggle('is-static', !beta);
+      if (beta) { b.setAttribute('aria-haspopup', 'menu'); b.setAttribute('aria-expanded', 'false'); }
+      else { b.removeAttribute('aria-haspopup'); b.removeAttribute('aria-expanded'); }
+    });
+    if (!beta) closeNavMenus(false);
+    if (!beta) {
       studyLocale = 'fr-FR';
-      if (wrap) wrap.hidden = true;
       applyStudyLocale();
       return;
     }
     let stored = null;
     try { stored = localStorage.getItem(STUDY_LOCALE_KEY); } catch (_) {}
     studyLocale = STUDY_LOCALES.includes(stored) ? stored : 'fr-FR';
-    if (wrap) wrap.hidden = false;
     applyStudyLocale();
     if (studyLang() === 'en' && !EN_VIEWS.has(currentView)) switchView('home');
   }
@@ -6992,7 +7303,7 @@
 
   function switchView(view) {
     if (studyLang() === 'en' && !EN_VIEWS.has(view)) view = 'home';
-    closeMobilePanel();
+    closeNavMenus(false);
     // Flush shadowing time if leaving a timed view
     if (_shadowingViewStart && _shadowingViewType) {
       const secs = (Date.now() - _shadowingViewStart) / 1000;
@@ -7112,6 +7423,7 @@
         (b.dataset.view === 'speaking-hub' && inSpeaking);
       b.classList.toggle('is-active', isActive);
     });
+    renderNav();
 
     pvGuideOnView(view);
     if (inShadow && !currentPhrase) fetchNextPhrase();
@@ -7968,11 +8280,14 @@
 
   async function startCustomPractice(text) {
     if (paraAdvanceTimer) { clearTimeout(paraAdvanceTimer); paraAdvanceTimer = null; }
+    setParaSplit(false);
+    paraMissCounts = {}; paraLastResults = [];
     setParaState('idle');
     resetParaScoreBar();
     paragraphChunkScores = [];
     paragraphMismatches = [];
-    document.getElementById('para-full-text').textContent = 'Loading…';
+    document.getElementById('para-full-text').innerHTML = loadingHtml('Preparing paragraph…');
+    document.getElementById('para-full-text').classList.remove('is-blurred');
 
     try {
       const res = await fetch('/custom/start', {
@@ -8011,6 +8326,7 @@
   let isPhraseLoading    = false;
   let phraseAdvanceTimer = null;
   let phraseAttemptNumber = 0;
+  let phraseMissCounts    = {};   // lowercased word → { word, count } for the current phrase
   let phraseListenCount   = 0;
   let phraseHighestScore  = -1;
   let currentPhraseId     = null;
@@ -8021,9 +8337,17 @@
     const pips = document.querySelectorAll('#phrase-attempt-pips .phv-attempt-pip');
     pips.forEach((p, i) => { p.className = 'phv-attempt-pip' + (i === 0 ? ' is-current' : ''); });
     const metaEl = document.getElementById('phrase-attempt-meta');
-    if (metaEl) metaEl.textContent = 'Attempt';
-    const bestRow = document.getElementById('phrase-attempt-best-row');
-    if (bestRow) bestRow.style.display = 'none';
+    if (metaEl) metaEl.textContent = '0';
+    const bestEl = document.getElementById('phrase-attempt-best');
+    if (bestEl) { bestEl.className = 'phv-attempt-best is-empty'; bestEl.textContent = '—'; }
+    document.getElementById('phv-tiles').classList.remove('is-visible');
+  }
+
+  // Replay the score-landing motion on a value that just changed
+  function _landValue(el) {
+    el.classList.remove('is-landing');
+    void el.offsetWidth;
+    el.classList.add('is-landing');
   }
 
   function _updatePhrasePips(attemptNum, passed) {
@@ -8041,29 +8365,69 @@
       scoredPip.addEventListener('animationend', () => scoredPip.classList.remove('pip-pop'), { once: true });
     }
     const metaEl = document.getElementById('phrase-attempt-meta');
-    if (metaEl) metaEl.textContent = `Attempt ${attemptNum}`;
+    if (metaEl) metaEl.textContent = String(attemptNum);
     if (phraseHighestScore >= 0) {
-      const bestRow = document.getElementById('phrase-attempt-best-row');
-      if (bestRow) bestRow.style.display = '';
       const bestEl = document.getElementById('phrase-attempt-best');
-      if (bestEl) {
+      const text = phraseHighestScore + '%';
+      if (bestEl && bestEl.textContent !== text) {
         const tier = phraseHighestScore >= 90 ? 'is-pass' : phraseHighestScore >= 60 ? 'is-progress' : phraseHighestScore >= 40 ? 'is-almost' : 'is-fail';
         bestEl.className = 'phv-attempt-best ' + tier;
-        bestEl.textContent = phraseHighestScore + '%';
+        bestEl.textContent = text;
+        _landValue(bestEl);   // a new best settles in, same motion as the score
       }
     }
   }
 
+  // ── Speech block — one block, three states per attempt ────────────────────
+  // live (words stream in) → analysing (a sweep reads them back) → heard (the
+  // same words recolour into the verdict). The heard state persists until the
+  // next recording or a new phrase.
+  // Shared by the phrase and paragraph speech blocks (.pv-speech).
+  function _pvSpeechState(blockId, labelId, state, prefix) {
+    const block = document.getElementById(blockId);
+    if (!block) return;
+    const wasOpen = block.classList.contains('is-visible');
+    const h0 = wasOpen && state ? block.offsetHeight : 0;
+    block.classList.toggle('is-visible', !!state);
+    block.classList.toggle('is-analysing', state === 'analysing');
+    block.classList.toggle('is-heard', state === 'heard');
+    if (prefix) document.getElementById(labelId).textContent = prefix;
+    // Open → open with different content (e.g. live text → heard diff): CSS
+    // can't interpolate auto → auto, so tween the measured heights.
+    if (h0 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const h1 = block.offsetHeight;
+      if (Math.abs(h1 - h0) > 1) {
+        block.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }],
+          { duration: 280, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+      }
+    }
+  }
+
+  function _phraseSpeechState(state, prefix) {
+    _pvSpeechState('phrase-attempt-label', 'phrase-attempt-prefix', state, prefix);
+  }
+
   function _hidePhraseStatus() {
-    const label = document.getElementById('phrase-attempt-label');
-    if (label) label.classList.remove('is-visible');
+    const block = document.getElementById('phrase-attempt-label');
+    if (block && !block.classList.contains('is-heard')) _phraseSpeechState(null);
   }
 
   function _showPhraseTranscript(text) {
-    const label = document.getElementById('phrase-attempt-label');
-    if (label) label.classList.add('is-visible');
+    _phraseSpeechState('live', 'Speech input');
     const textEl = document.getElementById('phrase-attempt-text');
     if (textEl) textEl.textContent = text || '…';
+  }
+
+  function _setPhraseAnalysing(text) {
+    _phraseSpeechState('analysing', 'Reading it back…');
+    const textEl = document.getElementById('phrase-attempt-text');
+    if (textEl && text) textEl.textContent = text;
+  }
+
+  function _resetPhraseSpeech() {
+    _phraseSpeechState(null, 'Speech input');
+    document.getElementById('phrase-attempt-text').textContent = '';
+    document.getElementById('phv-heard').innerHTML = '';
   }
 
   // ── Coach focus session state ──────────────────────────────────────────────
@@ -8279,17 +8643,21 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (isPhraseLoading) return;
     isPhraseLoading = true;
     phraseAttemptNumber = 0;
+    phraseMissCounts    = {};
     phraseListenCount   = 0;
     phraseHighestScore  = -1;
     currentPhraseId     = crypto.randomUUID();
     document.getElementById('phrase-retry-hint').style.display = 'none';
 
     document.getElementById('phv-score-block').style.display = 'none'; document.getElementById('phv-word-list').style.display = 'none';
+    _resetPhraseSpeech();
     _resetPhrasePips();
+    setPhraseSplit(false);
     document.getElementById('phrase-limit-msg').style.display = 'none';
     const _nextBtn = document.getElementById('phrase-next-btn');
     if (_nextBtn) _nextBtn.style.display = 'none';
-    document.getElementById('phrase-text').textContent = '…';
+    document.getElementById('phrase-text').innerHTML = loadingHtml('Generating phrase…');
+    document.getElementById('phrase-text').classList.remove('is-blurred');
     _hidePhraseStatus();
     rhythmOn = false;
     syllableOn = false;
@@ -8458,11 +8826,16 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   async function handleShadowResult(text, confidence, azureJson) {
-    _hidePhraseStatus();
-    document.getElementById('phv-score-block').style.display = 'none'; document.getElementById('phv-word-list').style.display = 'none';
+    _setPhraseAnalysing(text);
+    const analysingSince = performance.now();
 
     try {
       phraseAttemptNumber++;
+      const metaEl = document.getElementById('phrase-attempt-meta');
+      metaEl.textContent = String(phraseAttemptNumber);
+      if (phraseAttemptNumber > 1) _landValue(metaEl);
+      document.getElementById('phv-tiles').classList.add('is-visible');
+      setPhraseSplit(true);
       const res = await apiFetch('/speaking/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -8473,6 +8846,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         }),
       });
       const data = await res.json();
+      // Let the read-back sweep make at least one full pass
+      const wait = 700 - (performance.now() - analysingSince);
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
       renderFeedback(data, text, undefined, confidence);
       pvGuideEvent('phrase', 'scored');
 
@@ -8522,7 +8898,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       if (limitMsg) limitMsg.style.display = phraseAttemptNumber >= 10 ? '' : 'none';
     }
 
-    const phraseDiff = container.querySelector('.feedback-phrase-diff');
+    const phraseDiff = document.getElementById('phv-heard');
     phraseDiff.innerHTML = '';
     const results = data.display_results || [];
 
@@ -8534,8 +8910,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     transcriptLabel.textContent = 'heard';
     const heardSpans = document.createElement('div');
     heardSpans.className = 'pa-transcript-heard';
-    results.forEach(dr => {
+    results.forEach((dr, i) => {
       const run = document.createElement('span');
+      run.style.setProperty('--i', i);
       if (dr.matched) {
         run.className = 'pa-run is-pass';
         run.textContent = dr.word;
@@ -8551,6 +8928,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     transcriptRow.appendChild(transcriptLabel);
     transcriptRow.appendChild(heardSpans);
     phraseDiff.appendChild(transcriptRow);
+    _phraseSpeechState('heard', 'What I heard');
 
     const existingNote = phraseDiff.parentNode.querySelector('.conf-low-note');
     if (existingNote) existingNote.remove();
@@ -8566,7 +8944,19 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     itemsEl.innerHTML = '';
     itemsEl.classList.remove('pa-word-list');
 
-    if (passed && data.feedback.length === 0) {
+    const isPhraseBlock = container === document.getElementById('phv-score-block');
+    if (isPhraseBlock) {
+      (data.feedback || []).forEach(f => {
+        const w = (f.target_word || '').trim();
+        if (!w) return;
+        const k = w.toLowerCase();
+        phraseMissCounts[k] = { word: w, count: ((phraseMissCounts[k] || {}).count || 0) + 1 };
+      });
+    }
+
+    if (pct === 100) {
+      itemsEl.appendChild(buildPhraseCheer(phraseAttemptNumber, Object.values(phraseMissCounts)));
+    } else if (passed && data.feedback.length === 0) {
       const ok = document.createElement('div');
       ok.className = 'pv-pass-label';
       ok.textContent = 'Parfait — every word matched.';
@@ -8588,13 +8978,112 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     document.getElementById('phv-score-block').style.display = '';
     itemsEl.style.display = itemsEl.children.length ? '' : 'none';
+    if (isPhraseBlock && itemsEl.children.length) setPhraseSplit(true);
     _hidePhraseStatus();
-    if (container === document.getElementById('phv-score-block')) {
+    if (isPhraseBlock) {
       const nextBtn = document.getElementById('phrase-next-btn');
       if (nextBtn) nextBtn.style.display = passed ? '' : 'none';
       const skipBtn = document.getElementById('phrase-skip-btn');
       if (skipBtn) skipBtn.style.display = (passed || phraseInTray) ? 'none' : '';
     }
+  }
+
+  // ── Phrase layout: centred card → card + words column ──────────────────────
+  // The phrase opens centred. After the first attempt that has something to
+  // say, the card glides left and the words column slides in (desktop, full
+  // phrase view only — the drill tray keeps one column). A new phrase glides
+  // back to centre. FLIP: measure, switch layout, animate from the old spot.
+  // Shared by phrase + paragraph: toggles .is-split on the column and glides
+  // `main` from its old spot (only when `main` is given and the screen is wide).
+  function _flipSplit(col, main, on) {
+    if (!col || col.classList.contains('is-split') === on) return;
+    const animate = main
+      && window.matchMedia('(min-width: 1200px)').matches
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const before = animate ? main.getBoundingClientRect().left : 0;
+    col.classList.toggle('is-split', on);
+    if (!animate) return;
+    const ease = 'cubic-bezier(0.2, 0, 0, 1)';   // M3 emphasized
+    const dx = before - main.getBoundingClientRect().left;
+    if (Math.abs(dx) >= 1) {
+      main.animate([{ transform: `translateX(${dx}px)` }, { transform: 'translateX(0)' }],
+        { duration: 560, easing: ease });
+    }
+    // The side column doesn't travel: its tiles rise in place, staggered, as
+    // the card settles (CSS: .phv-tile entrance animations).
+  }
+
+  function setPhraseSplit(on) {
+    const col = document.querySelector('#phrase-content .pv-col');
+    // The drill tray borrows #phrase-content — no glide there, one column
+    _flipSplit(col, col && col.closest('#phrase-view') ? col.querySelector('.phv-main') : null, on);
+  }
+
+  // ── 100% celebration ─────────────────────────────────────────────────────
+  // A French line + English gloss, picked by how the win happened: first try,
+  // a quick fix, a long haul, or finally beating a word that kept slipping
+  // (missed 2+ times on this phrase). Named words get «guillemets».
+  const _q = w => `«\u202F${w}\u202F»`;
+  const PHRASE_CHEERS = {
+    first: [
+      { fr: 'Du premier coup\u202F!', en: () => 'First try. Show-off.' },
+      { fr: 'Nickel\u202F!', en: () => 'Spotless. Not a single slip.' },
+      { fr: 'Chapeau\u202F!', en: () => 'Hats off. Perfect on the first go.' },
+      { fr: 'Impeccable\u202F!', en: () => 'Flawless, first time round.' },
+      { fr: 'Rien à redire.', en: () => 'Nothing to add. Every word landed.' },
+    ],
+    quick: [
+      { fr: 'Et voilà\u202F!', en: n => `There it is, on attempt ${n}.` },
+      { fr: 'Bien joué\u202F!', en: n => `Nicely played. ${n} tries, one perfect take.` },
+      { fr: 'Ça y est\u202F!', en: () => 'Got it. That one’s yours now.' },
+    ],
+    long: [
+      { fr: 'Petit à petit, l’oiseau fait son nid.', en: n => `Little by little, the bird builds its nest. ${n} tries, one perfect nest.` },
+      { fr: 'Paris ne s’est pas fait en un jour.', en: n => `Paris wasn’t built in a day. This phrase took ${n} tries, which is close enough.` },
+      { fr: 'Enfin\u202F!', en: n => `Finally! Attempt ${n}. Persistence is very French.` },
+      { fr: 'Cent fois sur le métier…', en: n => `“A hundred times back to the workbench,” said Boileau. You only needed ${n}.` },
+    ],
+    word: [
+      { fr: w => `${_q(w)} s’est enfin rendu\u202F!`, en: (n, w, k) => `${_q(w)} finally surrendered, after ${k} misses.` },
+      { fr: w => `Vous avez dompté ${_q(w)}.`, en: (n, w, k) => `You tamed ${_q(w)}. It took ${k} rounds.` },
+      { fr: w => `Même ${_q(w)} y est passé\u202F!`, en: (n, w, k) => `Even ${_q(w)} made it. ${k} misses, now forgotten.` },
+    ],
+  };
+  let _lastCheer = '';
+
+  function buildPhraseCheer(attempts, misses) {
+    const beaten = misses.slice().sort((a, b) => b.count - a.count);
+    const nemesis = beaten.find(m => m.count >= 2);
+    const kind = attempts <= 1 ? 'first' : nemesis ? 'word' : attempts >= 4 ? 'long' : 'quick';
+    const bank = PHRASE_CHEERS[kind];
+    let pick = bank[Math.floor(Math.random() * bank.length)];
+    if (bank.length > 1 && (kind + bank.indexOf(pick)) === _lastCheer) pick = bank[(bank.indexOf(pick) + 1) % bank.length];
+    _lastCheer = kind + bank.indexOf(pick);
+
+    const w = nemesis ? nemesis.word : '';
+    const fr = typeof pick.fr === 'function' ? pick.fr(esc(w)) : pick.fr;
+    const en = pick.en(attempts, esc(w), nemesis ? nemesis.count : 0);
+    return _cheerEl(fr, en, 100, attempts > 1 ? beaten : [], true);
+  }
+
+  // Celebration card DOM — shared by phrase (100%) and paragraph (completion).
+  // `fr`/`en` are trusted HTML (words inside are already escaped).
+  function _cheerEl(fr, en, pct, beaten, burst) {
+    const tier = pct >= 90 ? 'is-pass' : pct >= 60 ? 'is-progress' : pct >= 40 ? 'is-almost' : 'is-fail';
+    const el = document.createElement('div');
+    el.className = 'pa-cheer';
+    el.setAttribute('role', 'status');
+    el.innerHTML =
+      (burst ? '<span class="pa-cheer-burst" aria-hidden="true">' + '<i></i>'.repeat(8) + '</span>' : '') +
+      `<span class="pa-cheer-score ${tier}">${pct}%</span>` +
+      `<p class="pa-cheer-fr" lang="fr">${fr}</p>` +
+      `<p class="pa-cheer-en">${en}</p>` +
+      (beaten.length
+        ? '<div class="pa-cheer-beaten"><span class="pa-cheer-beaten-label">Words you beat</span>' +
+          beaten.map(m => `<span class="pa-cheer-word" lang="fr">${esc(m.word)}<small>×${m.count}</small></span>`).join('') +
+          '</div>'
+        : '');
+    return el;
   }
 
   // ── Word exercise atom ────────────────────────────────────────────────────
@@ -8851,7 +9340,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       document.querySelectorAll('#practice-tabs .vk-tab').forEach(b =>
         b.classList.toggle('active', b.dataset.tab === activePracticeTab)
       );
-      document.getElementById('pl-add-fab').style.display = 'flex';
       await loadPracticeList();
       input.value = '';
       input.placeholder = '✓ Added';
@@ -8949,7 +9437,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     btn.addEventListener('click', () => {
       activePracticeTab = btn.dataset.tab;
       document.querySelectorAll('#practice-tabs .vk-tab').forEach(b => b.classList.toggle('active', b === btn));
-      document.getElementById('pl-add-fab').style.display = activePracticeTab === 'paragraph' ? 'none' : 'flex';
       renderPracticeTab(_cachedPracticeItems);
     });
   });
@@ -9185,6 +9672,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let paraSentenceAudioUrls = null;  // banked per-sentence Chirp audio (null for custom content)
   let isParaBlurred   = false;
   let isParaLoading   = false;
+  let paraMissCounts  = {};   // lowercased word → { word, count } across this paragraph's attempts
+  let paraLastResults = [];   // display_results of the latest attempt (the final full read at completion)
   let paraAdvanceTimer = null;
 
   // ── Sentence-playlist engine (banked paragraphs) ──────────────────────────────
@@ -9485,9 +9974,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const viz            = document.getElementById('para-viz');
     const trayResults    = document.getElementById('para-tray-results');
 
-    mainRow.style.display     = 'flex';
+    mainRow.style.display     = '';   // grid (.pv-func.is-split) — don't force flex
     completeRow.style.display = 'none';
-    liveTranscript.classList.remove('is-visible');
 
     if (state === 'context') {
       playBtn.disabled           = false;
@@ -9497,7 +9985,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       actionBtn.textContent      = 'skip';
       actionBtn.style.display    = '';
       if (viz) viz.style.display = 'none';
-      if (trayResults) trayResults.style.display = 'none';
     } else if (state === 'idle') {
       document.querySelectorAll('.para-chunk-exit').forEach(el => el.classList.remove('para-chunk-exit'));
       playBtn.disabled           = true;
@@ -9506,37 +9993,36 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       actionBtn.className        = 'pv-func-skip';
       actionBtn.style.display    = 'none';
       sentenceScores.style.display = 'none';
-      if (viz) viz.style.display = 'none';
-      if (trayResults) trayResults.style.display = 'none';
+      // Split (mid-paragraph): keep the tiles, clear them for the new block.
+      // Centred: nothing in the side column yet.
+      if (viz) {
+        if (_isParaSplit()) { paraVizResetAnimated(); updateParaVizPhrases(0); }
+        else                { viz.style.display = 'none'; }
+      }
       closeDrillTray();
     } else if (state === 'listening') {
       playBtn.disabled           = true;
       micBtn.disabled            = false;
       actionBtn.className        = 'pv-func-skip';
       actionBtn.style.display    = 'none';
-      liveTranscript.classList.add('is-visible');
       if (viz) {
         if (viz.style.display === 'flex') { paraVizResetAnimated(); }
         else                              { viz.style.display = 'none'; }
       }
-      if (trayResults) trayResults.style.display = 'none';
     } else if (state === 'listening-retry') {
       playBtn.disabled           = false;
       micBtn.disabled            = false;
       actionBtn.className        = 'pv-func-skip';
       actionBtn.textContent      = 'skip';
       actionBtn.style.display    = '';
-      liveTranscript.classList.add('is-visible');
       if (viz) { viz.style.display = 'flex'; paraVizResetAnimated(); }
-      if (trayResults) trayResults.style.display = 'block';
     } else if (state === 'feedback-pass') {
       playBtn.disabled           = false;
       micBtn.disabled            = false;
-      actionBtn.className        = 'vk-btn vk-btn-outline-accent sm';
-      actionBtn.textContent      = 'continue →';
+      actionBtn.className        = 'vk-btn vk-btn-pass sm';
+      actionBtn.textContent      = 'Continue →';
       actionBtn.style.display    = '';
       if (viz) viz.style.display = 'flex';
-      if (trayResults) trayResults.style.display = 'block';
     } else if (state === 'feedback-fail') {
       playBtn.disabled           = false;
       micBtn.disabled            = false;
@@ -9544,17 +10030,50 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       actionBtn.textContent      = 'skip';
       actionBtn.style.display    = '';
       if (viz) viz.style.display = 'flex';
-      if (trayResults) trayResults.style.display = 'block';
     } else if (state === 'complete') {
       mainRow.style.display      = 'none';
       completeRow.style.display  = 'flex';
       sentenceScores.style.display = 'none';
       if (viz) viz.style.display = 'flex';
-      if (trayResults) trayResults.style.display = 'block';
       closeDrillTray();
     }
+
+    // Speech block under the mic: live while recording, the per-sentence
+    // "what I heard" rows after scoring, closed otherwise.
+    if (state === 'listening' || state === 'listening-retry') {
+      document.getElementById('para-live-transcript-text').textContent = '…';
+      _paraSpeechState('live', 'Speech input');
+    } else if (state === 'feedback-pass' || state === 'feedback-fail') {
+      _paraSpeechState('heard', 'What I heard');
+    } else {
+      _paraSpeechState(null);
+    }
+    if (state !== 'complete') document.getElementById('para-cheer').innerHTML = '';
   }
 
+  function _paraSpeechState(state, prefix) {
+    _pvSpeechState('para-live-transcript', 'para-speech-label', state, prefix);
+  }
+
+  function _isParaSplit() {
+    return document.getElementById('para-main-column').classList.contains('is-split');
+  }
+
+  function setParaSplit(on) {
+    _flipSplit(document.getElementById('para-main-column'), document.getElementById('para-main'), on);
+  }
+
+  // Block tile: "Block k of n" + a pip per block (past + current filled)
+  function updateParaBlockTile() {
+    const n = paragraphSentences.length || 1;
+    const k = Math.max(1, Math.min(paraStage, n));
+    const numEl = document.getElementById('para-block-num');
+    if (numEl.textContent !== String(k) && _isParaSplit()) _landValue(numEl);
+    numEl.textContent = String(k);
+    document.getElementById('para-block-of').textContent = 'of ' + n;
+    document.getElementById('para-block-pips').innerHTML = Array.from({ length: n }, (_, i) =>
+      `<span class="phv-attempt-pip${i < k - 1 ? ' is-step' : i === k - 1 ? ' is-current' : ''}"></span>`).join('');
+  }
 
   function paraScoreGrade(pct) {
     return pct >= 70 ? 'pass' : pct >= 40 ? 'almost' : 'fail';
@@ -9569,7 +10088,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function resetParaScoreBar() {
     const rf = document.getElementById('para-score-ring-fill');
     if (rf) {
-      rf.style.setProperty('--pct', '0');
+      rf.ownerSVGElement.style.setProperty('--pa-cp-pct', '0');
       rf.classList.remove('is-pass', 'is-almost', 'is-fail');
     }
     const scoreEl = document.getElementById('para-score');
@@ -9578,7 +10097,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function paraVizResetAnimated() {
     const rf = document.getElementById('para-score-ring-fill');
-    if (rf) rf.style.setProperty('--pct', '0');
+    if (rf) rf.ownerSVGElement.style.setProperty('--pa-cp-pct', '0');
     const scoreEl = document.getElementById('para-score');
     if (scoreEl) scoreEl.textContent = '';
     document.querySelectorAll('#para-viz-phrases .pv-viz-p-fill').forEach(el => {
@@ -9591,7 +10110,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (!el) return;
     el.classList.remove('is-pass', 'is-almost', 'is-fail');
     el.classList.add('is-' + paraScoreGrade(pct));
-    el.style.setProperty('--pct', pct / 100);
+    el.ownerSVGElement.style.setProperty('--pa-cp-pct', pct / 100);
   }
 
   function scheduleParagraphAdvance(delayMs) {
@@ -9677,7 +10196,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (isParaLoading) return;
     isParaLoading = true;
 
-    // Reset to idle state and tracking
+    // Reset to idle state and tracking — glide back to centre first
+    setParaSplit(false);
+    paraMissCounts = {}; paraLastResults = [];
     setParaState('idle');
     resetParaScoreBar();
     isSummaryMistakesExpanded = false;
@@ -9686,7 +10207,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     lastSentenceScores = [];
     isSentenceDrill = false;
 
-    document.getElementById('para-full-text').textContent = 'Loading…';
+    document.getElementById('para-full-text').innerHTML = loadingHtml('Generating paragraph…');
+    document.getElementById('para-full-text').classList.remove('is-blurred');
 
     try {
       const res = await apiFetch('/paragraph/start', {
@@ -9721,7 +10243,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function startContextStage() {
     paraStage = 0;
-    document.getElementById('para-stage-label').textContent = 'Listen to full paragraph for context';
+    document.getElementById('para-stage-label').textContent = 'First, just listen to the whole paragraph';
     setParaState('context');
 
     // Full read: stitch all sentence clips (banked) or play the blob (custom).
@@ -9794,7 +10316,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     // Update display with chunk highlighting
     renderParagraphWithChunkHighlight();
-    document.getElementById('para-stage-label').textContent = `Block ${paraStage} of ${paragraphSentences.length} (${chunkSize} sentence${chunkSize > 1 ? 's' : ''})`;
+    document.getElementById('para-stage-label').textContent =
+      chunkSize >= paragraphSentences.length ? 'Now read the whole paragraph'
+      : chunkSize === 1 ? 'Read the first sentence'
+      : `Read the first ${chunkSize} sentences`;
+    updateParaBlockTile();
 
     setParaState('idle');  // resets display, hides action btn (also disables buttons)
     resetParaScoreBar();
@@ -10090,6 +10616,57 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     setParaState('complete');
     requestAnimationFrame(() => updateParaScoreBar(percent, finalScore >= 0.75));
+
+    const cheer = document.getElementById('para-cheer');
+    cheer.innerHTML = '';
+    cheer.appendChild(buildParaCheer(percent));
+  }
+
+  // ── Paragraph completion card ────────────────────────────────────────────
+  // Picked by the final full-paragraph read: perfect, a solid pass, or an
+  // honest "you finished — one more pass is worth it" (never inflated).
+  // "Words you beat" = words missed in earlier blocks but said right in the
+  // final full read.
+  const PARA_CHEERS = {
+    perfect: [
+      { fr: 'Sans faute\u202F!', en: () => 'The whole paragraph, without a single slip.' },
+      { fr: 'Du grand art\u202F!', en: () => 'Every sentence, every word. That’s high art.' },
+      { fr: 'Chapeau bas\u202F!', en: () => 'Hats all the way off. A perfect full read.' },
+    ],
+    good: [
+      { fr: 'Paragraphe terminé\u202F!', en: p => `The full read landed at ${p}%. Nicely carried.` },
+      { fr: 'Bien joué\u202F!', en: p => `${p}% on the whole paragraph. The sentence bars show the last few slips.` },
+      { fr: 'Et voilà\u202F!', en: (p, n) => `All ${n} sentences in one go, at ${p}%.` },
+    ],
+    finish: [
+      { fr: 'Terminé\u202F!', en: p => `You made it to the end. The full read came in at ${p}%, so one more pass is worth it.` },
+      { fr: 'Petit à petit…', en: p => `Little by little. ${p}% on the full read, and Retry This will lift it.` },
+    ],
+  };
+
+  function buildParaCheer(pct) {
+    const finalOk = new Set(paraLastResults.filter(dr => dr.matched && dr.word).map(dr => dr.word.toLowerCase()));
+    const beaten = Object.entries(paraMissCounts)
+      .filter(([k]) => finalOk.has(k))
+      .map(([, m]) => m)
+      .sort((a, b) => b.count - a.count);
+    const nemesis = beaten.find(m => m.count >= 2);
+    const kind = pct >= 100 ? 'perfect' : pct >= 70 ? 'good' : 'finish';
+
+    let fr, en;
+    if (kind !== 'finish' && nemesis) {
+      const bank = PHRASE_CHEERS.word;
+      const pick = bank[Math.floor(Math.random() * bank.length)];
+      fr = pick.fr(esc(nemesis.word));
+      en = pick.en(0, esc(nemesis.word), nemesis.count);
+    } else {
+      const bank = PARA_CHEERS[kind];
+      const pick = bank[Math.floor(Math.random() * bank.length)];
+      fr = pick.fr;
+      en = pick.en(pct, paragraphSentences.length);
+    }
+    // Honey burst only for a real win; an honest finish stays quiet
+    return _cheerEl(fr, en, pct, beaten, kind !== 'finish');
   }
 
   function toggleSummaryMistakes() {
@@ -10130,9 +10707,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     paragraphMismatches = [];
     lastSentenceScores = [];
     isSentenceDrill = false;
+    paraMissCounts = {}; paraLastResults = [];
 
-    document.getElementById('para-stage-label').textContent = 'Repetition helps reinforce learning. Listen again for context.';
+    document.getElementById('para-stage-label').textContent = 'Once more from the top. Listen to the whole paragraph first';
 
+    setParaSplit(false);
     setParaState('context');
 
     paraAudioUrl = paraFullAudioUrl;
@@ -10183,6 +10762,16 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const end = Math.min(start + chunkSize, paragraphSentences.length);
     const targetChunk = paragraphSentences.slice(start, end).join(' ');
 
+    // Speech block reads the words back; on the first attempt the card glides
+    // left and the tiles rise in (ring empty until the score lands).
+    document.getElementById('para-live-transcript-text').textContent = text;
+    _paraSpeechState('analysing', 'Reading it back…');
+    const analysingSince = performance.now();
+    setParaSplit(true);
+    const viz = document.getElementById('para-viz');
+    if (viz.style.display !== 'flex') { resetParaScoreBar(); viz.style.display = 'flex'; }
+    updateParaBlockTile();
+
     try {
       paraAnalysisPending = true;
       chunkAttemptNumber++;
@@ -10196,23 +10785,34 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         }),
       });
       const data = await res.json();
+      // Let the read-back sweep make at least one full pass
+      const wait = 700 - (performance.now() - analysingSince);
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
       paraAnalysisPending = false;
-      renderParaFeedback(data, text);
 
       // Track chunk score and mismatches
       paragraphChunkScores.push(data.score);
       if (data.mismatches && data.mismatches.length > 0) {
         paragraphMismatches.push(...data.mismatches);
       }
+      paraLastResults = data.display_results || [];
+      paraLastResults.forEach(dr => {
+        if (dr.matched || !dr.word) return;
+        const k = dr.word.toLowerCase();
+        paraMissCounts[k] = { word: dr.word, count: ((paraMissCounts[k] || {}).count || 0) + 1 };
+      });
 
-      // Compute and render per-sentence scores for all chunks
+      // Per-sentence rows first, so the speech block opens to its full
+      // "what I heard" height in one smooth move when the state flips
       lastSentenceScores = computeSentenceScores(paragraphSentences.slice(start, end), data.display_results || [], data.sentence_scores || []);
       lastSentenceStart = start;
       renderSentenceScores();
+      renderParaFeedback(data, text);
       pvGuideEvent('paragraph', 'scored');
 
     } catch (err) {
       paraAnalysisPending = false;
+      _paraSpeechState(null);
       console.error('handleParaResult failed:', err);
     }
   }
@@ -10315,7 +10915,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const grade = paraScoreGrade(pct);
         return `<div class="pv-viz-p-row">
           <span class="pv-viz-p-label">P${i + 1}</span>
-          <div class="pv-viz-p-track"><div class="pv-viz-p-fill is-${grade}" style="width:0%" data-pct="${pct}"></div></div>
+          <div class="pv-viz-p-track pa-lp"><div class="pv-viz-p-fill pa-lp-fill is-${grade}" style="width:0%" data-pct="${pct}"></div></div>
           <span class="pv-viz-p-pct">${pct}%</span>
         </div>`;
       }).join('');
@@ -12076,7 +12676,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         score: total ? Math.round(comprScore / total * 1000) / 1000 : 0,
       });
     }
-    const color = pct >= 75 ? '#1F5A40' : pct >= 50 ? '#8A5A00' : '#A8281C';
+    const color = pct >= 75 ? 'var(--pa-pass)' : pct >= 50 ? '#8A5A00' : '#A8281C';
     document.getElementById('comp-score-display').textContent = `${comprScore}/${total}`;
     document.getElementById('comp-score-display').style.color = color;
     const label = pct >= 75 ? 'Excellent travail !' : pct >= 50 ? 'Pas mal — réessaie !' : 'Continue à écouter !';
@@ -12088,7 +12688,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const labels = ['A', 'B', 'C', 'D'];
       reviewListEl.innerHTML = comprAnswers.map((a, idx) => {
         const correct = a.chosen === a.correct;
-        const statusColor = correct ? '#1F5A40' : '#A8281C';
+        const statusColor = correct ? 'var(--pa-pass)' : '#A8281C';
         const statusIcon  = correct ? '✓' : '✗';
         const chosenLabel = labels[a.chosen] !== undefined ? `${labels[a.chosen]}. ${esc(a.options[a.chosen] || '')}` : '—';
         const correctLabel = `${labels[a.correct]}. ${esc(a.options[a.correct] || '')}`;
@@ -12097,7 +12697,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           ${showSubj ? `<div class="review-subject">${esc(a.subject)}</div>` : ''}
           <div class="review-q">${idx + 1}. ${esc(a.question)}</div>
           <div class="review-answer" style="color:${statusColor};">${statusIcon} Ta réponse : ${chosenLabel}</div>
-          ${!correct ? `<div class="review-answer" style="color:#1F5A40;">✓ Bonne réponse : ${correctLabel}</div>` : ''}
+          ${!correct ? `<div class="review-answer" style="color:var(--pa-pass);">✓ Bonne réponse : ${correctLabel}</div>` : ''}
           ${a.explanation ? `<div class="review-exp">${esc(a.explanation)}</div>` : ''}
         </div>`;
       }).join('');
@@ -12350,6 +12950,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   async function loadPhraseForDrill(text, audioUrl) {
     if (phraseAdvanceTimer) { clearTimeout(phraseAdvanceTimer); phraseAdvanceTimer = null; }
     phraseAttemptNumber = 0;
+    phraseMissCounts    = {};
+    _resetPhraseSpeech();
+    document.getElementById('phv-tiles').classList.remove('is-visible');
+    setPhraseSplit(false);
     phraseHighestScore  = -1;
     currentPhraseId     = crypto.randomUUID();
     currentPhrase = text;
@@ -12667,7 +13271,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function _writingSetState(state) {
-    document.getElementById('wr-loading').style.display       = state === 'loading'  ? '' : 'none';
+    toggleLoading('wr-loading', state === 'loading');
     document.getElementById('wr-prompt-area').style.display   = (state === 'input' || state === 'results') ? '' : 'none';
     document.getElementById('wr-results').style.display       = state === 'results'  ? '' : 'none';
     const submitBtn = document.getElementById('wr-submit-btn');
@@ -12698,7 +13302,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       document.getElementById('wr-response-input').focus();
     } catch(e) {
       _writingSetState('loading');
-      document.getElementById('wr-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+      showLoadingError('wr-loading');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -12979,7 +13583,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function _speakingSetState(state) {
-    setDisplay('sp-loading',     state === 'loading' ? '' : 'none');
+    toggleLoading('sp-loading', state === 'loading');
     setDisplay('sp-prompt-area', state === 'input'   ? '' : 'none');
     setDisplay('sp-results',     state === 'results' ? '' : 'none');
   }
@@ -13018,7 +13622,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       _speakingSetState('input');
     } catch(e) {
       _speakingSetState('loading');
-      document.getElementById('sp-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+      showLoadingError('sp-loading');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -13577,7 +14181,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function _transformSetState(state) {
-    document.getElementById('tr-loading').style.display        = state === 'loading'  ? '' : 'none';
+    toggleLoading('tr-loading', state === 'loading');
     document.getElementById('tr-exercise-area').style.display  = (state === 'input' || state === 'results') ? '' : 'none';
     document.getElementById('tr-results').style.display        = state === 'results'  ? '' : 'none';
     const submitBtn = document.getElementById('tr-submit-btn');
@@ -13611,7 +14215,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       document.getElementById('tr-response-input').focus();
     } catch(e) {
       _transformSetState('loading');
-      document.getElementById('tr-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+      showLoadingError('tr-loading');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -13828,7 +14432,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let _psTranscript = '', _psRecognition = null, _psListening = false, _psUserStopped = false;
 
   function _pronounSpeakSetState(state) {
-    document.getElementById('ps-loading').style.display      = state === 'loading' ? '' : 'none';
+    toggleLoading('ps-loading', state === 'loading');
     document.getElementById('ps-prompt-area').style.display  = state === 'input'   ? '' : 'none';
     document.getElementById('ps-results').style.display      = state === 'results' ? '' : 'none';
   }
@@ -13863,7 +14467,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       _pronounSpeakSetState('input');
     } catch (e) {
       _pronounSpeakSetState('loading');
-      document.getElementById('ps-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+      showLoadingError('ps-loading');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -14065,7 +14669,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function _placementSetState(state) {
-    document.getElementById('pl-loading').style.display  = state === 'loading'  ? '' : 'none';
+    toggleLoading('pl-loading', state === 'loading');
     document.getElementById('pl-exercise').style.display = state === 'exercise' ? '' : 'none';
     document.getElementById('pl-summary').style.display  = state === 'summary'  ? '' : 'none';
   }
@@ -14097,13 +14701,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       placementItems = data.items || [];
       document.getElementById('pl-context-text').textContent = placementContext;
       if (!placementItems.length) {
-        document.getElementById('pl-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+        showLoadingError('pl-loading');
         return;
       }
       placementIdx = 0;
       _renderPlacementItem();
     } catch (e) {
-      document.getElementById('pl-loading').querySelector('.wr-loading-text').textContent = 'Error — try again';
+      showLoadingError('pl-loading');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -14755,13 +15359,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   function _renderParaDictResult(data) {
     const pct   = Math.round((data.score || 0) * 100);
-    const color = pct >= 70 ? 'var(--k-green)' : (pct >= 40 ? '#8A5A00' : 'var(--k-red)');
+    const color = pct >= 70 ? 'var(--pa-pass)' : (pct >= 40 ? 'var(--pa-almost)' : 'var(--pa-fail)');
     paraDictScores.push(pct);
 
     const scoreLabel = document.getElementById('para-dict-score-label');
     const fill = document.getElementById('para-dict-score-bar');
     if (scoreLabel) { scoreLabel.textContent = pct + '%'; scoreLabel.style.color = color; }
-    if (fill)  { fill.style.width = pct + '%'; fill.style.background = color; }
+    if (fill)  { fill.style.width = pct + '%'; fill.parentElement.style.setProperty('--pa-lp-stop', color); }
 
     const sentEl = document.getElementById('para-dict-sentence-text');
     if (sentEl) { sentEl.textContent = data.sentence || paraDictSentences[paraDictIdx]; sentEl.style.filter = 'none'; }

@@ -11,20 +11,23 @@
    ATOMS       Indivisible primitives. No internal composition.
                  pa-utterance   pa-token   pa-run   pa-badge
                  pa-ctrl        pa-drill-pip
+                 pa-lp          (M3 linear progress — gap + stop indicator)
+                 pa-cp          (M3 circular progress — gap between arc and track)
+                 pa-loader      (waveform loader — wavy arc travelling round a circle)
 
    MOLECULES   Atoms grouped into a functional unit.
                  pa-transcript   (token diff — target + heard rows)
                  pa-score        (bar form — num + bar + scale; thresholds at-40/at-70/at-90)
-                 pa-score-ring   (ring form — SVG donut for multi-phrase)
                  pa-bubble       (chat bubble — tutor / learner)
                  pa-drill        (prompt + attempt counter + pip row)
                  pa-word-item    (per-word feedback: target/said pair + tip + drill)
+                 pa-cheer        (100% celebration — French line + gloss + beaten words)
 
    ORGANISMS   Molecules + atoms composing a full interactive section.
                  pv-card             (utterance card — top bar, text body, footer)
                  pv-func             (controls row — play · record · skip/continue)
                  pv-live-transcript  (real-time STT strip between card and func)
-                 pv-viz              (score visualisation — ring + optional phrase bars)
+                 pv-viz              (score visualisation — pa-cp ring + optional pa-lp phrase bars)
                  pv-card-score       (inline score: num + bar, for footer/tray use)
                  pv-sentence-scores  (per-sentence score list after a chunk)
                  pv-fb               (feedback view — sentence-level diff list)
@@ -41,6 +44,8 @@
    PHRASE VIEW   Components specific to the single-phrase exercise.
                  phv-toolbar         (save · +word · SYL · rhythm · blur)
                  phv-attempt-*       (pip row + best-score display)
+                 phv-tiles           (attempt + highest-accuracy tiles, side column)
+                 pv-speech           (speech block: live → reading back → heard; phrase + paragraph)
                  phv-syllable-line   (syllable breakdown)
                  phv-score-block     (pa-score + pa-transcript after attempt)
                  phv-auto-row        (auto-advance toggle switch)
@@ -96,6 +101,15 @@
   filter: none;
   opacity: 1;
 }
+/* Hero size — a single phrase that IS the screen (phrase, shadowing).
+   Paragraph text keeps the base size. */
+.pa-utterance.is-hero {
+  font-size: clamp(21px, 2.6vw, 26px);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+  text-wrap: pretty;
+}
 /* Layout wrapper when an inline reveal eye is needed */
 .pa-utterance-wrap { position: relative; display: flex; align-items: flex-start; gap: 12px; }
 
@@ -104,8 +118,8 @@
    A single word in the target row — neutral, never stylized by score. */
 
 .pa-token {
-  font-family: var(--pa-font-mono);
-  font-size: 15px;
+  font-family: var(--pa-font-sans);
+  font-size: 16px;
   line-height: 1.5;
   color: var(--vk-fg-1);
   white-space: nowrap;
@@ -114,20 +128,22 @@
 
 /* ── Run ─────────────────────────────────────────────────────────────────────
    A span of heard words sharing a score state. Consecutive runs of the same
-   state merge visually — no per-word pills. */
+   state merge visually — no per-word pills. French words are set in the UI
+   sans (Hanken), like the target sentence; mono is reserved for numbers. */
 
 .pa-run {
-  font-family: var(--pa-font-mono);
-  font-size: 15px;
+  font-family: var(--pa-font-sans);
+  font-size: 16px;
+  font-weight: 500;
   color: var(--vk-fg-2);
 }
 .pa-run + .pa-run { margin-left: 5px; }
 
 .pa-run.is-pass    { color: var(--pa-token-hit); }
-.pa-run.is-fail    { color: var(--pa-token-miss); text-decoration: underline; text-underline-offset: 3px; }
+.pa-run.is-fail    { color: var(--pa-token-miss); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
 .pa-run.is-unheard { color: var(--pa-unheard); }
 /* Azure amber tier: acceptable but worth polishing — dotted underline, distinct from red's solid error underline. */
-.pa-run.is-amber   { color: var(--vk-warning); text-decoration: underline dotted; text-underline-offset: 3px; }
+.pa-run.is-amber   { color: var(--vk-warning); text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
 
 
 /* ── Badge ───────────────────────────────────────────────────────────────────
@@ -153,8 +169,9 @@
 
 
 /* ── Control button ──────────────────────────────────────────────────────────
-   Circular accent button — play (52 px) and record (76 px). Recording pulses
-   the ACCENT (blue), never red — a red record state reads as failure. */
+   Play = tonal circle (56 px). Record = M3 large FAB (80 px, 24 px corners)
+   that morphs to a circle with a pulsing ring while listening. Recording
+   pulses the ACCENT (blue), never red — a red record state reads as failure. */
 
 .pa-ctrl {
   position: relative;
@@ -167,23 +184,68 @@
   color: var(--vk-accent-fg);
   background: var(--vk-accent);
   transition: background var(--vk-dur-quick) var(--vk-ease),
-              transform var(--vk-dur-quick) var(--vk-ease);
+              transform var(--vk-dur-quick) var(--vk-ease),
+              border-radius 450ms var(--pa-ease-spring);
   flex-shrink: 0;
 }
-.pa-ctrl:hover         { background: var(--vk-accent-dim); }
+.pa-ctrl:hover         { background: color-mix(in srgb, var(--vk-accent-fg) 8%, var(--vk-accent)); }
 .pa-ctrl:active        { transform: scale(0.96); }
 .pa-ctrl:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
 .pa-ctrl svg           { width: 42%; height: 42%; display: block; }
 
-.pa-ctrl-record { width: 76px; height: 76px; }
-.pa-ctrl-play   { width: 52px; height: 52px; }
+.pa-ctrl-record {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+.pa-ctrl-play   { width: 56px; height: 56px; }
+.pa-ctrl.is-sm   { width: 44px; height: 44px; }   /* play inside a card toolbar */
 
-.pa-ctrl.is-outline       { background: var(--vk-surface); color: var(--vk-accent-text); border: 1.5px solid var(--vk-accent-border); }
-.pa-ctrl.is-outline:hover { background: var(--vk-accent-bg); }
+.pa-ctrl.is-outline       { background: var(--vk-tonal); color: var(--vk-on-tonal); border: none; }
+.pa-ctrl.is-outline:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
 .pa-ctrl.is-playing       { box-shadow: 0 0 0 4px var(--pa-record-ring); }
-.pa-ctrl.is-recording     { box-shadow: 0 0 0 4px var(--pa-record-ring); }
-.pa-ctrl.listening        { box-shadow: 0 0 0 4px var(--pa-record-ring); } /* bridge — JS uses .listening */
-.pa-ctrl:disabled         { opacity: 0.35; pointer-events: none; cursor: default; }
+.pa-ctrl.is-recording,
+.pa-ctrl.listening {                                   /* bridge — JS uses .listening */
+  border-radius: 50%;
+  animation: pa-ctrl-ring 1.6s ease-out infinite;
+}
+@keyframes pa-ctrl-ring {
+  0%   { box-shadow: 0 0 0 0    var(--pa-record-ring-0); }
+  100% { box-shadow: 0 0 0 18px rgba(45, 108, 179, 0); }
+}
+.pa-ctrl:disabled         { opacity: 0.38; pointer-events: none; cursor: default; }
+
+
+/* ── FAB (pa-fab) ────────────────────────────────────────────────────────────
+   M3 standard FAB — 56px, 16px corners, 24px icon, elevation 3. The screen's
+   primary create action (e.g. add to practice list). Position it per view,
+   16px from the lower-right edge (24px on desktop).
+     <button class="pa-fab" aria-label="Add"><svg viewBox="0 0 24 24">…</svg></button> */
+
+.pa-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 16px;
+  background: var(--vk-accent);
+  color: var(--vk-accent-fg);
+  box-shadow: var(--vk-elev-3);
+  cursor: pointer;
+  transition: background var(--vk-dur-quick) var(--vk-ease),
+              box-shadow var(--vk-dur-quick) var(--vk-ease),
+              transform var(--vk-dur-quick) var(--vk-ease);
+}
+.pa-fab svg           { width: 24px; height: 24px; display: block; }
+.pa-fab:hover         { background: color-mix(in srgb, var(--vk-accent-fg) 8%, var(--vk-accent)); }
+.pa-fab:active        { background: color-mix(in srgb, var(--vk-accent-fg) 12%, var(--vk-accent)); transform: scale(0.96); }
+.pa-fab:focus-visible { outline: none; box-shadow: var(--vk-elev-3), var(--vk-focus-ring); }
+@media (prefers-reduced-motion: reduce) {
+  .pa-ctrl.is-recording, .pa-ctrl.listening { animation: none; box-shadow: 0 0 0 4px var(--pa-record-ring); }
+}
 
 
 /* ── Drill pip ───────────────────────────────────────────────────────────────
@@ -201,6 +263,181 @@
 .pa-drill-pip.is-fail     { background: var(--pa-fail); }
 
 
+/* ── Linear progress (pa-lp) ─────────────────────────────────────────────────
+   M3 determinate linear indicator. Active indicator and track are separate
+   rounded shapes with a 4px gap between them; a 4px stop indicator marks the
+   end of the track. The fill is sized by JS (style.width); the remaining track
+   is drawn by the fill's ::after so the gap follows the fill without any extra
+   markup. The gap collapses at 0% so an empty bar shows a full track.
+   Stop-indicator colour follows the fill's grade (is-pass / pass …) or an
+   ancestor that sets --pa-lp-stop; neutral bars use the accent.
+     <div class="pa-lp"><div class="pa-lp-fill is-pass" style="width:64%"></div></div>
+   Thick variant (8px): set --pa-lp-h on the track. */
+
+.pa-lp {
+  --pa-lp-h:   4px;
+  --pa-lp-gap: 4px;
+  position: relative;
+  height: var(--pa-lp-h);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pa-lp-fill {
+  position: relative;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--pa-lp-stop, var(--vk-accent));
+}
+.pa-lp-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(100% + min(var(--pa-lp-gap), 100% * 1000));
+  width: 100vw;
+  border-radius: 999px;
+  background: var(--pa-scale-track);
+}
+.pa-lp::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: calc((var(--pa-lp-h) - 4px) / 2);
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--pa-lp-stop, var(--vk-accent));
+}
+.pa-lp:has(> .is-pass, > .pass)         { --pa-lp-stop: var(--pa-pass); }
+.pa-lp:has(> .is-progress)              { --pa-lp-stop: var(--pa-progress); }
+.pa-lp:has(> .is-almost, > .almost)     { --pa-lp-stop: var(--pa-almost); }
+.pa-lp:has(> .is-fail, > .fail)         { --pa-lp-stop: var(--pa-fail); }
+
+
+/* ── Circular progress (pa-cp) ───────────────────────────────────────────────
+   M3 determinate circular indicator: round-capped active arc, then a gap, then
+   the track arc back to the start. Both circles use pathLength="100", so dash
+   values are in percent of the circumference; the round caps (which extend
+   past each dash by half the stroke) are compensated with --pa-cp-cap.
+   JS sets --pa-cp-pct (0–1) on the <svg>; it's a registered property so the arc,
+   gap and track all animate together.
+     <svg class="pa-cp" viewBox="0 0 96 96" style="--pa-cp-pct:0.64">
+       <circle class="pa-cp-track" cx="48" cy="48" r="42" pathLength="100"/>
+       <circle class="pa-cp-fill is-pass" cx="48" cy="48" r="42" pathLength="100"/>
+     </svg>
+   Geometry: r=42 → circumference 263.9px. 8px stroke → cap 8/263.9 ≈ 3.03;
+   4px gap → 1.52. Update both if r or stroke change. */
+
+@property --pa-cp-pct {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+.pa-cp {
+  --pa-cp-cap: 3.03;
+  --pa-cp-gap: calc(1.52 * min(1, var(--pa-cp-pct) * 1000));   /* no gap at 0% */
+  display: block;
+  transform: rotate(-90deg);
+  transition: --pa-cp-pct 600ms var(--pa-ease-spring);
+}
+.pa-cp-track,
+.pa-cp-fill {
+  fill: none;
+  stroke-width: 8px;
+  stroke-linecap: round;
+}
+.pa-cp-fill {
+  stroke: var(--vk-accent);
+  stroke-dasharray: max(0px, var(--pa-cp-pct) * 100px - var(--pa-cp-cap) * 1px) 200px;
+  stroke-dashoffset: calc(var(--pa-cp-cap) * -0.5px);
+  opacity: min(1, var(--pa-cp-pct) * 1000);
+  transition: stroke var(--pa-dur-land) ease;
+}
+.pa-cp-track {
+  stroke: var(--pa-scale-track);
+  stroke-dasharray: max(0px, (100 - var(--pa-cp-pct) * 100 - 2 * var(--pa-cp-gap) - var(--pa-cp-cap)) * 1px) 200px;
+  stroke-dashoffset: calc(-1px * (var(--pa-cp-pct) * 100 + var(--pa-cp-gap) + var(--pa-cp-cap) / 2));
+  opacity: min(1, (1 - var(--pa-cp-pct)) * 1000);
+}
+.pa-cp-fill.is-pass     { stroke: var(--pa-pass); }
+.pa-cp-fill.is-progress { stroke: var(--pa-progress); }
+.pa-cp-fill.is-almost   { stroke: var(--pa-almost); }
+.pa-cp-fill.is-fail     { stroke: var(--pa-fail); }
+@media (prefers-reduced-motion: reduce) {
+  .pa-cp { transition: none; }
+}
+
+
+/* ── Loading indicator (pa-loader) ───────────────────────────────────────────
+   Waveform loader for short, indeterminate waits (content generation) — a
+   voice-shaped take on M3's wavy circular indicator. A 12-wave ring (defined
+   once here via the CSS `d` property) is traced by an accent arc that grows,
+   shrinks and travels around a faint flat track while the whole ring turns,
+   so the wave appears to flow along the circle. Pair with a short text label;
+   the SVG is aria-hidden.
+     <span class="pa-loading" role="status">
+       <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true">
+         <circle class="pa-loader-track" cx="24" cy="24" r="17"/>
+         <path class="pa-loader-wave" pathLength="100"/>
+       </svg>
+       <span>Generating passage…</span>
+     </span>
+   Hidden inside an .is-error container. */
+
+.pa-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 0;
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  color: var(--vk-fg-2);
+}
+.pa-loading.is-inline { flex-direction: row; justify-content: flex-start; padding: 0; }
+.pa-loading.is-error .pa-loader { display: none; }
+.pa-loader {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  overflow: visible;
+  animation: pa-loader-turn 2400ms linear infinite;
+}
+.pa-loader-track {
+  fill: none;
+  stroke: var(--pa-scale-track);
+  stroke-width: 3px;
+}
+.pa-loader-wave {
+  fill: none;
+  stroke: var(--vk-accent);
+  stroke-width: 3.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  d: path("M24.00 7.00 L24.46 6.54 L24.94 6.14 L25.43 5.84 L25.93 5.67 L26.41 5.66 L26.88 5.80 L27.32 6.09 L27.72 6.51 L28.08 7.02 L28.40 7.58 L28.70 8.14 L28.98 8.67 L29.27 9.12 L29.58 9.46 L29.93 9.68 L30.33 9.77 L30.80 9.75 L31.32 9.64 L31.89 9.47 L32.50 9.28 L33.12 9.11 L33.74 9.00 L34.32 8.99 L34.83 9.09 L35.26 9.32 L35.60 9.68 L35.83 10.15 L35.97 10.71 L36.02 11.33 L36.02 11.98 L36.00 12.62 L35.98 13.21 L36.00 13.75 L36.10 14.20 L36.30 14.56 L36.60 14.85 L37.01 15.06 L37.52 15.22 L38.10 15.36 L38.72 15.50 L39.35 15.67 L39.93 15.88 L40.44 16.16 L40.83 16.51 L41.09 16.92 L41.20 17.40 L41.17 17.92 L41.01 18.47 L40.74 19.04 L40.42 19.60 L40.08 20.14 L39.77 20.65 L39.52 21.12 L39.38 21.56 L39.37 21.98 L39.49 22.37 L39.74 22.76 L40.10 23.16 L40.53 23.57 L41.00 24.00 L41.46 24.46 L41.86 24.94 L42.16 25.43 L42.33 25.93 L42.34 26.41 L42.20 26.88 L41.91 27.32 L41.49 27.72 L40.98 28.08 L40.42 28.40 L39.86 28.70 L39.33 28.98 L38.88 29.27 L38.54 29.58 L38.32 29.93 L38.23 30.33 L38.25 30.80 L38.36 31.32 L38.53 31.89 L38.72 32.50 L38.89 33.12 L39.00 33.74 L39.01 34.32 L38.91 34.83 L38.68 35.26 L38.32 35.60 L37.85 35.83 L37.29 35.97 L36.67 36.02 L36.02 36.02 L35.38 36.00 L34.79 35.98 L34.25 36.00 L33.80 36.10 L33.44 36.30 L33.15 36.60 L32.94 37.01 L32.78 37.52 L32.64 38.10 L32.50 38.72 L32.33 39.35 L32.12 39.93 L31.84 40.44 L31.49 40.83 L31.08 41.09 L30.60 41.20 L30.08 41.17 L29.53 41.01 L28.96 40.74 L28.40 40.42 L27.86 40.08 L27.35 39.77 L26.88 39.52 L26.44 39.38 L26.02 39.37 L25.63 39.49 L25.24 39.74 L24.84 40.10 L24.43 40.53 L24.00 41.00 L23.54 41.46 L23.06 41.86 L22.57 42.16 L22.07 42.33 L21.59 42.34 L21.12 42.20 L20.68 41.91 L20.28 41.49 L19.92 40.98 L19.60 40.42 L19.30 39.86 L19.02 39.33 L18.73 38.88 L18.42 38.54 L18.07 38.32 L17.67 38.23 L17.20 38.25 L16.68 38.36 L16.11 38.53 L15.50 38.72 L14.88 38.89 L14.26 39.00 L13.68 39.01 L13.17 38.91 L12.74 38.68 L12.40 38.32 L12.17 37.85 L12.03 37.29 L11.98 36.67 L11.98 36.02 L12.00 35.38 L12.02 34.79 L12.00 34.25 L11.90 33.80 L11.70 33.44 L11.40 33.15 L10.99 32.94 L10.48 32.78 L9.90 32.64 L9.28 32.50 L8.65 32.33 L8.07 32.12 L7.56 31.84 L7.17 31.49 L6.91 31.08 L6.80 30.60 L6.83 30.08 L6.99 29.53 L7.26 28.96 L7.58 28.40 L7.92 27.86 L8.23 27.35 L8.48 26.88 L8.62 26.44 L8.63 26.02 L8.51 25.63 L8.26 25.24 L7.90 24.84 L7.47 24.43 L7.00 24.00 L6.54 23.54 L6.14 23.06 L5.84 22.57 L5.67 22.07 L5.66 21.59 L5.80 21.12 L6.09 20.68 L6.51 20.28 L7.02 19.92 L7.58 19.60 L8.14 19.30 L8.67 19.02 L9.12 18.73 L9.46 18.42 L9.68 18.07 L9.77 17.67 L9.75 17.20 L9.64 16.68 L9.47 16.11 L9.28 15.50 L9.11 14.88 L9.00 14.26 L8.99 13.68 L9.09 13.17 L9.32 12.74 L9.68 12.40 L10.15 12.17 L10.71 12.03 L11.33 11.98 L11.98 11.98 L12.62 12.00 L13.21 12.02 L13.75 12.00 L14.20 11.90 L14.56 11.70 L14.85 11.40 L15.06 10.99 L15.22 10.48 L15.36 9.90 L15.50 9.28 L15.67 8.65 L15.88 8.07 L16.16 7.56 L16.51 7.17 L16.92 6.91 L17.40 6.80 L17.92 6.83 L18.47 6.99 L19.04 7.26 L19.60 7.58 L20.14 7.92 L20.65 8.23 L21.12 8.48 L21.56 8.62 L21.98 8.63 L22.37 8.51 L22.76 8.26 L23.16 7.90 L23.57 7.47Z");
+  stroke-dasharray: 10 100;
+  animation: pa-loader-trace 1500ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.pa-loading.is-inline .pa-loader { width: 32px; height: 32px; }
+@keyframes pa-loader-turn {
+  to { transform: rotate(1turn); }
+}
+/* The arc stretches along the wave, then its tail catches up — the classic
+   indeterminate rhythm, one full lap per cycle. */
+@keyframes pa-loader-trace {
+  0%   { stroke-dasharray: 6 100;  stroke-dashoffset: 0; }
+  50%  { stroke-dasharray: 42 100; stroke-dashoffset: -18; }
+  100% { stroke-dasharray: 6 100;  stroke-dashoffset: -100; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pa-loader      { animation-duration: 6000ms; }
+  .pa-loader-wave { animation: none; stroke-dasharray: 30 100; }
+}
+
+
 /* ══════════════════════════════════════════════════════════════════════════════
    MOLECULES
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -214,7 +451,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-family: var(--pa-font-mono);
+  font-family: var(--pa-font-sans);
 }
 .pa-transcript-row {
   display: flex;
@@ -222,11 +459,12 @@
   gap: 10px;
 }
 .pa-transcript-label {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
+  font-family: var(--pa-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: capitalize;
+  color: var(--vk-fg-2);
   width: 56px;
   flex-shrink: 0;
   padding-top: 5px;
@@ -263,7 +501,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-family: var(--pa-font-mono);
+  font-family: var(--pa-font-sans);
 }
 .pa-score-head {
   display: flex;
@@ -280,26 +518,18 @@
   animation: pa-score-land var(--pa-dur-land) var(--pa-ease-spring) both;
 }
 .pa-score-word {
-  font-family: var(--pa-font-mono);
-  font-size: 13px;
-  letter-spacing: 0.04em;
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
   color: var(--vk-fg-2);
 }
 
-.pa-bar {
-  position: relative;
-  height: 10px;
+.pa-bar {                                /* use with .pa-lp — thick variant */
+  --pa-lp-h: 8px;
   width: 100%;
-  background: var(--pa-scale-track);
-  border-radius: 999px;
-  overflow: hidden;
 }
-.pa-bar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  height: 100%;
-  border-radius: 999px;
-  width: 0;
+.pa-bar-fill {                           /* use with .pa-lp-fill */
   transition: width var(--pa-dur-land) var(--pa-ease-spring);
 }
 .pa-bar-thresh {
@@ -315,10 +545,10 @@
 
 .pa-bar-scale {
   position: relative;
-  height: 12px;
+  height: 13px;
   font-family: var(--pa-font-mono);
-  font-size: 9px;
-  color: var(--vk-fg-4);
+  font-size: 11px;
+  color: var(--vk-fg-2);
 }
 .pa-bar-scale span      { position: absolute; transform: translateX(-50%); }
 .pa-bar-scale .at-40    { left: 40%; }
@@ -336,52 +566,10 @@
 
 .pa-score.is-fail     .pa-score-num { color: var(--pa-fail); }
 .pa-score.is-fail     .pa-bar-fill  { background: var(--pa-fail); }
-
-
-/* ── Score ring ──────────────────────────────────────────────────────────────
-   Ring form — SVG donut for paragraph / multi-phrase overall results.
-   Apply classes to SVG circle elements; CSS wins over presentation attributes.
-   Geometry: r=38, circumference=238.76. stroke-dashoffset = 238.76 × (1 − pct).
-   Uses: — (self-contained SVG) */
-
-.pa-score-ring-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-}
-.pa-score-ring__track {
-  fill: none;
-  stroke: var(--pa-scale-track);
-}
-.pa-score-ring__fill {
-  fill: none;
-  stroke-linecap: round;
-  transition: stroke var(--pa-dur-land) ease;
-}
-.pa-score-ring__fill.is-pass     { stroke: var(--pa-pass); }
-.pa-score-ring__fill.is-progress { stroke: var(--pa-progress); }
-.pa-score-ring__fill.is-almost   { stroke: var(--pa-almost); }
-.pa-score-ring__fill.is-fail     { stroke: var(--pa-fail); }
-
-/* Score-grade colours for the vk-ring-seg inside pv-viz */
-.vk-ring-seg.is-pass   { stroke: var(--pa-pass); }
-.vk-ring-seg.is-almost { stroke: var(--pa-almost); }
-.vk-ring-seg.is-fail   { stroke: var(--pa-fail); }
-.pa-score-ring__text {
-  font-family: var(--pa-font-mono);
-  font-weight: 600;
-  fill: var(--vk-fg-1);
-  dominant-baseline: central;
-}
-.pa-score-ring-label {
-  font-family: var(--pa-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
-}
+.pa-score.is-pass     { --pa-lp-stop: var(--pa-pass); }
+.pa-score.is-progress { --pa-lp-stop: var(--pa-progress); }
+.pa-score.is-almost   { --pa-lp-stop: var(--pa-almost); }
+.pa-score.is-fail     { --pa-lp-stop: var(--pa-fail); }
 
 
 /* ── Bubble ──────────────────────────────────────────────────────────────────
@@ -481,29 +669,150 @@
 .pa-drill-pips { display: inline-flex; gap: 4px; }
 
 
+/* ── Celebration  (pa-cheer) ─────────────────────────────────────────────────
+   Shown on a 100% phrase. French line (display) + English gloss + optional
+   "words you beat" chips. The room celebrating, not the instrument: honey is
+   used only for the decorative burst (never text), scores stay green.
+     <div class="pa-cheer"><span class="pa-cheer-burst"><i>×8</i></span>
+       <span class="pa-cheer-score">100%</span>
+       <p class="pa-cheer-fr">Chapeau !</p><p class="pa-cheer-en">…</p></div> */
+
+.pa-cheer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px 24px 24px;
+  border-radius: var(--vk-card-radius);
+  background: var(--vk-surface);
+  animation: pa-cheer-in 520ms var(--pa-ease-spring) both;
+}
+.pa-cheer-score {
+  font-family: var(--pa-font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--pa-pass);
+}
+.pa-cheer-score.is-progress { color: var(--pa-progress); }
+.pa-cheer-score.is-almost   { color: var(--pa-almost); }
+.pa-cheer-score.is-fail     { color: var(--pa-fail); }
+.pa-cheer-fr {
+  margin: 2px 0 0;
+  font-family: var(--pa-font-display);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--vk-fg-1);
+  text-wrap: balance;
+  animation: pa-score-land 420ms var(--pa-ease-spring) 120ms both;
+}
+.pa-cheer-en {
+  margin: 0;
+  font-family: var(--pa-font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--vk-fg-2);
+  text-wrap: pretty;
+}
+.pa-cheer-beaten {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.pa-cheer-beaten-label {
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vk-fg-2);
+  margin-right: 4px;
+}
+.pa-cheer-word {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--vk-tag-radius, 8px);
+  background: var(--pa-pass-bg);
+  color: var(--pa-pass);
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+}
+.pa-cheer-word small {
+  font-family: var(--pa-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+/* Honey burst — eight dots radiating from the top-left, once */
+.pa-cheer-burst {
+  position: absolute;
+  top: 30px;
+  left: 44px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.pa-cheer-burst i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: -3px;
+  border-radius: 50%;
+  background: var(--pa-honey);
+  opacity: 0;
+  animation: pa-cheer-burst 1100ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
+}
+.pa-cheer-burst i:nth-child(1) { --dx: -30px; --dy: -22px; }
+.pa-cheer-burst i:nth-child(2) { --dx:   6px; --dy: -34px; }
+.pa-cheer-burst i:nth-child(3) { --dx:  38px; --dy: -20px; }
+.pa-cheer-burst i:nth-child(4) { --dx:  46px; --dy:   8px; }
+.pa-cheer-burst i:nth-child(5) { --dx:  26px; --dy:  30px; }
+.pa-cheer-burst i:nth-child(6) { --dx:  -8px; --dy:  36px; }
+.pa-cheer-burst i:nth-child(7) { --dx: -36px; --dy:  18px; }
+.pa-cheer-burst i:nth-child(8) { --dx: -42px; --dy:  -4px; }
+@keyframes pa-cheer-burst {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+}
+@keyframes pa-cheer-in {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.97); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pa-cheer, .pa-cheer-fr { animation: none; }
+  .pa-cheer-burst { display: none; }
+}
+
+
 /* ── Word list  (pa-word-list) ───────────────────────────────────────────────
    Container for pa-word-item rows — appears below the controls row after a
-   phrase result or per-sentence drill result. Bordered card with a small header. */
+   phrase result or per-sentence drill result. Filled tonal card, items split
+   by outline-variant dividers. */
 
 .pa-word-list {
-  border: 1px solid var(--vk-border);
+  border: none;
   border-radius: var(--vk-card-radius);
   overflow: hidden;
   background: var(--vk-surface);
   margin-top: 12px;
 }
 .pa-word-list-header {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--vk-border);
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-fg-1);
+  padding: 18px 20px 4px;
+  border-bottom: none;
 }
 .pa-word-list .pa-word-item {
-  padding-left: 16px;
-  padding-right: 16px;
+  padding: 14px 20px 16px;
 }
 
 
@@ -516,10 +825,10 @@
 
 .pa-word-item {
   padding: 12px 0;
-  border-bottom: 1px solid var(--vk-border);
+  border-bottom: 1px solid var(--vk-outline-variant, var(--vk-border));
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 .pa-word-item:last-child { border-bottom: none; }
 
@@ -527,48 +836,50 @@
 .pa-wi-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .pa-wi-target {
-  font-family: var(--pa-font-mono);
-  font-size: 13px;
-  font-weight: 600;
+  font-family: var(--pa-font-sans);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--pa-pass);
 }
 .pa-wi-arrow {
-  font-family: var(--pa-font-mono);
-  font-size: 12px;
-  color: var(--vk-fg-4);
+  font-family: var(--pa-font-sans);
+  font-size: 15px;
+  color: var(--vk-fg-2);
 }
 .pa-wi-said {
-  font-family: var(--pa-font-mono);
-  font-size: 12px;
+  font-family: var(--pa-font-sans);
+  font-size: 15px;
+  font-weight: 500;
   color: var(--pa-fail);
   flex: 1;
 }
 .pa-wi-play {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: 1px solid var(--vk-border-mid);
-  color: var(--vk-fg-3);
+  background: var(--vk-surface-lowest, #fff);
+  border: none;
+  color: var(--vk-fg-1);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
-  border-radius: var(--vk-radius-ui);
-  transition: color var(--vk-dur-quick) var(--vk-ease),
-              border-color var(--vk-dur-quick) var(--vk-ease);
+  border-radius: 50%;
+  transition: background var(--vk-dur-quick) var(--vk-ease),
+              color var(--vk-dur-quick) var(--vk-ease);
 }
-.pa-wi-play:hover    { color: var(--vk-accent-text); border-color: var(--vk-accent-border-strong); }
-.pa-wi-play:disabled { opacity: 0.35; pointer-events: none; }
+.pa-wi-play:hover    { background: color-mix(in srgb, var(--vk-fg-1) 8%, var(--vk-surface-lowest, #fff)); }
+.pa-wi-play:disabled { opacity: 0.38; pointer-events: none; }
 
 /* Pronunciation tip */
 .pa-wi-tip {
   font-family: var(--pa-font-sans);
-  font-size: 14px;
+  font-size: 14.5px;
   line-height: 1.55;
   color: var(--vk-fg-2);
 }
@@ -579,27 +890,29 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--vk-fg-2);
-  background: var(--vk-surface-tint);
-  border-left: 2px solid var(--vk-border-mid);
-  padding: 6px 10px;
+  background: var(--vk-surface-lowest, #fff);
+  border: none;
+  border-radius: 12px;
+  padding: 8px 12px;
 }
 
 /* Action row: [🎤 Practice] [Drill] [+ Save] */
 .pa-wi-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* Inline drill panel */
+/* Inline drill panel — nested panel on the lowest tone */
 .pa-wi-drill {
   display: none;
   flex-direction: column;
   gap: 8px;
-  background: var(--vk-accent-bg);
-  border: 1px solid var(--vk-accent-border);
-  padding: 12px 14px;
-  border-radius: var(--vk-radius-ui);
+  background: var(--vk-surface-lowest, #fff);
+  border: none;
+  padding: 14px 16px;
+  border-radius: 16px;
 }
 .pa-wi-drill.is-open { display: flex; }
 
@@ -614,9 +927,9 @@
 /* Per-attempt history line */
 .pa-wd-meta {
   font-family: var(--pa-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--vk-fg-3);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--vk-fg-2);
 }
 
 
@@ -630,23 +943,24 @@
    Uses: pa-badge (A3), pa-run (A2), pv-ss-drill-btn */
 
 .pv-sentence-scores {
-  border: 1px solid var(--vk-border);
+  border: none;
   border-radius: var(--vk-card-radius);
   overflow: hidden;
   background: var(--vk-surface);
 }
 .pv-ss-header {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
-  padding: 10px 16px 8px;
-  border-bottom: 1px solid var(--vk-border);
+  font-family: var(--pa-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-fg-1);
+  padding: 18px 20px 6px;
+  border-bottom: none;
 }
 .pv-ss-row {
-  padding: 12px 16px 10px;
-  border-bottom: 1px solid var(--vk-border);
+  padding: 12px 20px 12px;
+  border-bottom: 1px solid var(--vk-outline-variant, var(--vk-border));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -670,31 +984,40 @@
   flex-shrink: 0;
   align-items: center;
 }
+/* M3 assist chip — 32 px, 8 px corners, outline-variant border */
 .pv-ss-drill-btn {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   background: transparent;
-  border: 1px solid var(--vk-accent-border-strong);
-  color: var(--vk-accent-text);
-  padding: 4px 10px;
+  border: 1px solid var(--vk-outline-variant, var(--vk-accent-border-strong));
+  color: var(--vk-fg-1);
+  padding: 0 14px;
   cursor: pointer;
-  border-radius: var(--vk-radius-ui);
-  transition: background var(--vk-dur-quick) var(--vk-ease);
+  border-radius: 8px;
+  transition: background var(--vk-dur-quick) var(--vk-ease),
+              border-color var(--vk-dur-quick) var(--vk-ease);
   white-space: nowrap;
 }
-.pv-ss-drill-btn:hover { background: var(--vk-accent-bg); }
-
-.pv-ss-bar {
-  height: 3px;
-  background: var(--pa-scale-track);
-  border-radius: 999px;
-  overflow: hidden;
+.pv-ss-drill-btn:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+.pv-ss-drill-btn svg   { color: var(--vk-accent); }
+/* In progress (drill running / word being practised) — tonal fill */
+.pv-ss-drill-btn.recording,
+.pv-ss-drill-btn.listening {
+  background: var(--vk-tonal);
+  color: var(--vk-on-tonal);
+  border-color: transparent;
 }
-.pv-ss-bar-fill {
-  height: 100%;
-  border-radius: 999px;
+.pv-ss-drill-btn.recording svg,
+.pv-ss-drill-btn.listening svg { color: inherit; }
+
+.pv-ss-bar-fill {                       /* track: .pa-lp · fill: .pa-lp-fill */
   transition: width 400ms var(--pa-ease-spring);
   @starting-style { width: 0; }
 }
@@ -751,10 +1074,10 @@
 
 .pv-card {
   background: var(--vk-surface);
-  border: 1px solid var(--vk-border);
+  border: none;
   border-radius: var(--vk-card-radius);
-  box-shadow: var(--vk-elev-1);
-  padding: 20px 24px 16px;
+  box-shadow: none;
+  padding: 18px 24px 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -782,21 +1105,23 @@
 .pv-action-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  height: 36px;
   background: transparent;
-  border: 1px solid var(--vk-border-mid);
-  color: var(--vk-fg-3);
-  font-family: var(--pa-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  padding: 6px 11px;
+  border: none;
+  color: var(--vk-fg-2);
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 0 12px;
   cursor: pointer;
-  border-radius: var(--vk-radius-ui);
-  transition: all 120ms;
+  border-radius: 999px;
+  transition: background 120ms, color 120ms;
   white-space: nowrap;
   flex-shrink: 0;
 }
-.pv-action-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
+.pv-action-btn:hover { background: color-mix(in srgb, var(--vk-fg-2) 8%, transparent); color: var(--vk-fg-1); }
 
 /* Chunk highlight within utterance */
 .pv-chunk-current { font-weight: 700; color: var(--vk-fg-1); }
@@ -811,43 +1136,62 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 0 8px;
 }
 .pv-live-label {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
+  font-family: var(--pa-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-fg-2);
 }
 .pv-live-text {
   font-family: var(--pa-font-sans);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--vk-fg-2);
   font-style: italic;
 }
 
 
 /* ── Controls row  (pv-func) ────────────────────────────────────────────────
-   Centred row: play · record · skip or continue.
+   Centred row: play · record · skip or continue. The phrase view uses the
+   .is-split variant (play lives in the card toolbar instead).
    Uses: pa-ctrl, vk-btn */
 
 .pv-func {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 18px;
 }
+/* Split row — record dead centre, a secondary control pinned to each edge
+   (e.g. Auto-advance left, Skip/Next right). Explicit columns keep the record
+   button centred even when a side is hidden. */
+.pv-func.is-split {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+}
+.pv-func.is-split > .pv-func-start  { grid-column: 1; justify-self: start; }
+.pv-func.is-split > .pa-ctrl-record { grid-column: 2; }
+.pv-func.is-split > .pv-func-end    { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 8px; }
+/* M3 text button */
 .pv-func-skip {
   font-family: var(--pa-font-sans);
   font-size: 14px;
-  color: var(--vk-fg-3);
+  font-weight: 600;
+  color: var(--vk-accent-text);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
-  transition: color 120ms;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  text-transform: capitalize;
+  transition: background 120ms;
 }
-.pv-func-skip:hover { color: var(--vk-fg-1); }
+.pv-func-skip:hover { background: color-mix(in srgb, var(--vk-accent-text) 8%, transparent); }
 .pv-pass-label {
   font-family: var(--pa-font-sans);
   font-size: 14px;
@@ -856,7 +1200,8 @@
 
 
 /* ── Score visualisation  (pv-viz) ──────────────────────────────────────────
-   Ring (pa-score-ring) + optional phrase mini-bars for multi-chunk attempts.
+   Circular progress (pa-cp) + optional per-phrase linear progress (pa-lp)
+   for multi-chunk attempts.
    Single-chunk: ring centred. Multi-chunk: ring left, bars right (.is-multi). */
 
 .pv-viz {
@@ -875,18 +1220,34 @@
   gap: 5px;
   flex-shrink: 0;
 }
-.pv-viz-ring-label {
+.pv-viz-ring-chart {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+.pv-viz-ring-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--pa-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--vk-fg-1);
+}
+.pv-viz-ring-label {
+  font-family: var(--pa-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vk-fg-2);
 }
 .pv-viz-phrases {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 .pv-viz-p-row {
   display: flex;
@@ -895,22 +1256,14 @@
 }
 .pv-viz-p-label {
   font-family: var(--pa-font-mono);
-  font-size: 10px;
-  color: var(--vk-fg-3);
-  width: 18px;
+  font-size: 11px;
+  color: var(--vk-fg-2);
+  width: 20px;
   flex-shrink: 0;
   text-align: right;
 }
-.pv-viz-p-track {
-  flex: 1;
-  height: 4px;
-  background: var(--pa-scale-track);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.pv-viz-p-fill {
-  height: 100%;
-  border-radius: 999px;
+.pv-viz-p-track { flex: 1; }             /* with .pa-lp */
+.pv-viz-p-fill {                         /* with .pa-lp-fill */
   transition: width 400ms var(--pa-ease-spring);
 }
 .pv-viz-p-fill.is-pass    { background: var(--pa-pass); }
@@ -918,7 +1271,7 @@
 .pv-viz-p-fill.is-fail    { background: var(--pa-fail); }
 .pv-viz-p-pct {
   font-family: var(--pa-font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--vk-fg-2);
   width: 30px;
@@ -949,24 +1302,16 @@
 .pv-card-score-inline.is-pass    .pv-card-score-num { color: var(--pa-pass); }
 .pv-card-score-inline.is-almost  .pv-card-score-num { color: var(--pa-almost); }
 .pv-card-score-inline.is-fail    .pv-card-score-num { color: var(--pa-fail); }
-.pv-card-score-bar {
-  flex: 1;
-  height: 6px;
-  background: var(--pa-scale-track);
-  border-radius: 999px;
-  overflow: hidden;
-  position: relative;
-}
-.pv-card-score-bar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  height: 100%;
-  border-radius: 999px;
+.pv-card-score-bar { flex: 1; }           /* with .pa-lp */
+.pv-card-score-bar-fill {                /* with .pa-lp-fill */
   transition: width 400ms var(--pa-ease-spring);
 }
 .pv-card-score-inline.is-pass    .pv-card-score-bar-fill { background: var(--pa-pass); }
 .pv-card-score-inline.is-almost  .pv-card-score-bar-fill { background: var(--pa-almost); }
 .pv-card-score-inline.is-fail    .pv-card-score-bar-fill { background: var(--pa-fail); }
+.pv-card-score-inline.is-pass    { --pa-lp-stop: var(--pa-pass); }
+.pv-card-score-inline.is-almost  { --pa-lp-stop: var(--pa-almost); }
+.pv-card-score-inline.is-fail    { --pa-lp-stop: var(--pa-fail); }
 
 /* Accent-outline button variant (Continue →) */
 .vk-btn-outline-accent {
@@ -978,6 +1323,25 @@
   background: var(--vk-accent-bg);
   border-color: var(--vk-accent-border-strong);
 }
+
+/* Pass-green filled button — the "go forward" action that appears only after
+   a pass (e.g. phrase Next). The one sanctioned use of a performance colour on
+   a control: it carries the pass verdict into the reward. White on --pa-pass
+   is AA (5.3 : 1). Pops in when shown so the eye finds it. */
+.vk-btn-pass {
+  background: var(--pa-pass);
+  color: #FFFFFF;
+  border-color: var(--pa-pass);
+  animation: pa-btn-pass-in 480ms var(--pa-ease-spring) both;
+}
+.vk-btn-pass:hover  { background: color-mix(in srgb, #FFFFFF 10%, var(--pa-pass)); border-color: transparent; color: #FFFFFF; }
+.vk-btn-pass:active { background: color-mix(in srgb, #FFFFFF 14%, var(--pa-pass)); }
+.vk-btn-pass:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--vk-bg), 0 0 0 4px var(--pa-pass); }
+@keyframes pa-btn-pass-in {
+  0%   { opacity: 0; transform: scale(0.85); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .vk-btn-pass { animation: none; } }
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -994,12 +1358,14 @@
 
 
 /* ── Header bar ─────────────────────────────────────────────────────────────
-   Sticky top strip: title left, level + speed controls right. */
+   Sticky top strip: title left, level + speed controls right.
+   M3 top app bar — same tone as the page, no rule. */
 
 .pv-header {
-  background: var(--vk-surface);
-  border-bottom: 1px solid var(--vk-border);
-  padding: 12px 28px;
+  background: var(--vk-bg);
+  border-bottom: none;
+  padding: 14px 28px;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1011,7 +1377,9 @@
 }
 .pv-title {
   font-family: var(--pa-font-sans);
-  font-size: 14px;
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   font-weight: 600;
   color: var(--vk-fg-1);
   white-space: nowrap;
@@ -1020,11 +1388,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 .pv-header-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -1032,27 +1401,32 @@
    Inline step strip that walks a first-time user through one attempt
    (mic → listen → speak → read). Driven by pvGuide* in index.html. */
 
+/* M3 text button */
 .pv-guide-link {
-  font-family: var(--pa-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--pa-font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--vk-border-mid);
-  color: var(--vk-fg-2);
-  padding: 2px 0;
+  color: var(--vk-accent-text);
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 120ms cubic-bezier(0.4,0,0.2,1), border-color 120ms cubic-bezier(0.4,0,0.2,1);
+  transition: background 120ms cubic-bezier(0.4,0,0.2,1);
 }
-.pv-guide-link:hover { color: var(--vk-accent-text); border-color: var(--vk-accent); }
+.pv-guide-link:hover { background: color-mix(in srgb, var(--vk-accent-text) 8%, transparent); }
 
+/* Tonal container — no rules */
 .pv-guide {
-  background: var(--vk-accent-bg);
-  border: 1px solid var(--vk-accent-border);
-  border-left: 3px solid var(--vk-accent);
-  padding: 14px 16px;
+  background: var(--vk-tonal);
+  color: var(--vk-on-tonal);
+  border: none;
+  border-radius: 20px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1064,37 +1438,40 @@
   gap: 12px;
 }
 .pv-guide-step {
-  font-family: var(--pa-font-mono);
-  font-size: 11px;
+  font-family: var(--pa-font-sans);
+  font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--vk-accent-text);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-on-tonal);
 }
 .pv-guide-skip {
-  font-family: var(--pa-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   background: transparent;
   border: none;
-  color: var(--vk-fg-2);
-  padding: 2px 0;
+  color: var(--vk-on-tonal);
+  padding: 8px 10px;
+  margin: -8px -8px -8px 0;
+  border-radius: 999px;
   cursor: pointer;
-  transition: color 120ms cubic-bezier(0.4,0,0.2,1);
+  transition: background 120ms cubic-bezier(0.4,0,0.2,1);
 }
-.pv-guide-skip:hover { color: var(--vk-fg-1); }
+.pv-guide-skip:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, transparent); }
 .pv-guide-title {
   font-family: var(--pa-font-sans);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: var(--vk-fg-1);
+  color: var(--vk-on-tonal);
 }
 .pv-guide-body {
   font-family: var(--pa-font-sans);
-  font-size: 14px;
+  font-size: 14.5px;
   line-height: 1.55;
-  color: var(--vk-fg-2);
+  color: var(--vk-on-tonal);
   margin: 0;
 }
 .pv-guide-actions { display: flex; gap: 8px; margin-top: 6px; }
@@ -1102,54 +1479,56 @@
 
 /* The control the current step is asking the user to press */
 .pv-guide-target {
-  outline: 2px solid var(--vk-accent);
-  outline-offset: 4px;
+  outline: 3px solid var(--vk-accent);
+  outline-offset: 5px;
 }
 
 @media (max-width: 480px) {
-  .pv-header-left { gap: 10px; }
-  .pv-guide-link  { font-size: 10px; letter-spacing: 0.04em; }
+  .pv-header-left { gap: 4px; }
+  .pv-title       { font-size: 20px; }
 }
 
-/* Level tabs */
-.pv-levels { display: flex; gap: 3px; }
-.pv-level-btn {
-  font-family: var(--pa-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
+/* Level + speed — M3 connected segmented buttons */
+.pv-levels,
+.pv-speed-btns {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--vk-outline);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pv-level-btn,
+.pv-speed-btn {
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
   background: transparent;
-  border: 1px solid var(--vk-border-mid);
-  color: var(--vk-fg-3);
-  padding: 5px 10px;
+  border: none;
+  border-right: 1px solid var(--vk-outline);
+  color: var(--vk-fg-1);
+  height: 36px;
+  padding: 0 12px;
   cursor: pointer;
-  border-radius: var(--vk-radius-ui);
-  transition: all 120ms;
+  border-radius: 0;
+  transition: background 120ms, color 120ms;
 }
-.pv-level-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-fg-2); }
-.pv-level-btn.is-active {
-  border-color: var(--vk-accent);
-  background: var(--vk-accent);
-  color: var(--vk-accent-fg);
-}
-
-/* Speed buttons */
-.pv-speed-btns { display: flex; gap: 2px; }
 .pv-speed-btn {
   font-family: var(--pa-font-mono);
-  font-size: 11px;
-  background: transparent;
-  border: 1px solid var(--vk-border-mid);
-  color: var(--vk-fg-3);
-  padding: 5px 9px;
-  cursor: pointer;
-  border-radius: var(--vk-radius-ui);
-  transition: all 120ms;
+  font-weight: 500;
+  font-size: 12.5px;
+  padding: 0 10px;
 }
-.pv-speed-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-fg-2); }
-.pv-speed-btn.is-active {
-  background: var(--vk-accent-bg);
-  border-color: var(--vk-accent-border);
-  color: var(--vk-accent-text);
+.pv-level-btn:last-child,
+.pv-speed-btn:last-child { border-right: none; }
+.pv-level-btn:hover,
+.pv-speed-btn:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+.pv-level-btn.is-active,
+.pv-speed-btn.is-active,
+.pv-speed-btn.active {                                 /* JS toggles .active */
+  background: var(--vk-tonal);
+  color: var(--vk-on-tonal);
 }
 
 
@@ -1159,7 +1538,7 @@
 .pv-body {
   flex: 1;
   overflow-y: auto;
-  padding: 40px 28px 100px;
+  padding: 20px 28px 100px;
   display: flex;
   justify-content: center;
 }
@@ -1327,28 +1706,29 @@
 
 
 /* ── Insight card ───────────────────────────────────────────────────────────
-   Mistral coach suggestion — warm honey left border, subtle amber tint. */
+   Mistral coach suggestion — warm honey (tertiary) container, no rules.
+   Honey marks encouragement; it is never a score colour. */
 
 .pv-insight {
-  background: rgba(201, 136, 62, 0.06);
-  border: 1px solid rgba(201, 136, 62, 0.28);
-  border-left: 3px solid var(--pa-honey);
-  border-radius: var(--vk-card-radius);
-  padding: 14px 18px;
+  background: #FCEBD6;
+  border: none;
+  border-radius: 20px;
+  padding: 16px 20px;
   margin-bottom: 4px;
 }
 .pv-insight-label {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--pa-honey);
-  margin-bottom: 6px;
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #7A4A12;            /* honey-dark — AA on the honey container */
+  margin-bottom: 4px;
 }
 .pv-insight-text {
   font-family: var(--pa-font-sans);
-  font-size: 14px;
-  color: var(--vk-fg-1);
+  font-size: 15px;
+  color: #3A2303;
   line-height: 1.55;
 }
 
@@ -1365,52 +1745,60 @@
 .phv-toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--vk-border);
-  margin-bottom: 14px;
+  gap: 4px;
+  padding-bottom: 0;
+  border-bottom: none;
+  margin: -8px -12px 0;
 }
 .phv-toolbar-spacer { flex: 1; }
+/* M3 standard icon buttons; selected toggle = tonal fill */
 .phv-toolbar-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   background: transparent;
-  border: 1px solid var(--vk-border);
-  border-radius: var(--vk-radius-ui);
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  border: none;
+  border-radius: 999px;
+  font-family: var(--pa-font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--vk-fg-2);
-  padding: 4px 9px;
-  height: 28px;
+  min-width: 40px;
+  padding: 0 10px;
+  height: 40px;
   cursor: pointer;
-  transition: border-color 100ms, color 100ms, background 100ms;
+  transition: color 100ms, background 100ms;
 }
-.phv-toolbar-btn svg { flex-shrink: 0; }
-.phv-toolbar-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
-.phv-toolbar-btn.is-active {
-  border-color: var(--vk-accent-border);
-  color: var(--vk-accent-text);
-  background: var(--vk-accent-bg);
+.phv-toolbar-btn svg { flex-shrink: 0; width: 18px; height: 18px; }
+.phv-toolbar-btn:hover { background: color-mix(in srgb, var(--vk-fg-2) 8%, transparent); }
+/* JS toggles .active (SYL, rhythm) and .blurred (blur); .is-active kept for parity */
+.phv-toolbar-btn.is-active,
+.phv-toolbar-btn.active,
+.phv-toolbar-btn.blurred {
+  color: var(--vk-on-tonal);
+  background: var(--vk-tonal);
 }
 
 .phv-save-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   background: transparent;
-  border: 1px solid var(--vk-border);
-  border-radius: var(--vk-radius-ui);
+  border: none;
+  border-radius: 999px;
   color: var(--vk-fg-2);
   cursor: pointer;
-  transition: border-color 100ms, color 100ms;
+  transition: color 100ms, background 100ms;
 }
-.phv-save-btn:hover { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
-.phv-save-btn.is-saved { border-color: var(--pa-pass); color: var(--pa-pass); }
+.phv-save-btn svg { width: 16px; height: 16px; }
+.phv-save-btn:hover { background: color-mix(in srgb, var(--vk-fg-2) 8%, transparent); }
+.phv-save-btn.is-saved { color: var(--pa-pass); }
+.pa-wi-actions .phv-save-btn { width: 32px; height: 32px; }
 
 
 /* ── Attempt tracker ────────────────────────────────────────────────────────
@@ -1420,68 +1808,195 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 10px;
+  gap: 12px;
+  padding-top: 4px;
 }
 .phv-attempt-left {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 .phv-attempt-label {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
+  font-family: var(--pa-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-fg-2);
 }
-.phv-attempt-pips { display: flex; gap: 4px; }
+.phv-attempt-pips { display: flex; gap: 5px; }
 .phv-attempt-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 4px;
 }
 .phv-attempt-best-label {
-  font-family: var(--pa-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
+  font-family: var(--pa-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-fg-2);
 }
 .phv-attempt-best {
   font-family: var(--pa-font-mono);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 }
 .phv-attempt-best.is-pass     { color: var(--pa-pass); }
+.phv-attempt-best.is-progress { color: var(--pa-progress); }
 .phv-attempt-best.is-almost   { color: var(--pa-almost); }
 .phv-attempt-best.is-fail     { color: var(--pa-fail); }
 
 .phv-attempt-pip {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   background: var(--vk-fill-2);
-  border: 1px solid var(--vk-border);
+  border: none;
 }
-.phv-attempt-pip.is-done    { background: var(--pa-almost); border-color: var(--pa-almost); }
-.phv-attempt-pip.is-pass    { background: var(--pa-pass);   border-color: var(--pa-pass); }
-.phv-attempt-pip.is-current { background: var(--vk-fg-3);  border-color: var(--vk-fg-2); }
+.phv-attempt-pip.is-done    { background: var(--pa-almost); }
+.phv-attempt-pip.is-pass    { background: var(--pa-pass); }
+.phv-attempt-pip.is-current { background: transparent; box-shadow: inset 0 0 0 2px var(--vk-accent); }
+
+
+/* ── Attempt tiles (phv-tiles) ───────────────────────────────────────────────
+   Attempt count + highest accuracy as two tonal tiles in the phrase view's
+   side column. Hidden until the first attempt (.is-visible). */
+
+.phv-tiles { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.phv-tiles.is-visible { display: grid; }
+/* Both tiles rise together, staggered 60ms, starting as the card's glide
+   settles — never one now and one later. */
+.phv-tiles.is-visible .phv-tile { animation: pa-rise-tile 420ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+.phv-tiles.is-visible .phv-tile:nth-child(1) { animation-delay: 180ms; }
+.phv-tiles.is-visible .phv-tile:nth-child(2) { animation-delay: 240ms; }
+.phv-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: var(--vk-card-radius);
+  background: var(--vk-surface);
+  min-width: 0;
+}
+.phv-tile-label {
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vk-fg-2);
+}
+.phv-tile-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--pa-font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--vk-fg-1);
+}
+.phv-tile-value small {
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--vk-fg-2);
+}
+.phv-tile-value .phv-attempt-best { font-size: inherit; }
+.phv-attempt-best.is-empty { color: var(--vk-fg-2); }
+/* A value that just changed (new best, next attempt) settles in */
+.phv-tile-value .is-landing { display: inline-block; animation: pa-score-land var(--pa-dur-land) var(--pa-ease-spring) both; }
+.phv-tile .phv-attempt-pips { flex-wrap: wrap; gap: 4px; }
+@keyframes pa-rise-tile {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+
+/* ── Speech block (pv-speech) ────────────────────────────────────────────────
+   One tonal block per attempt, three states on the same words:
+     .is-visible            live — STT text streams in
+     .is-visible.is-analysing  a sweep reads the words back (≥700ms)
+     .is-visible.is-heard   the words recolour into the Heard diff
+   Collapsed (no .is-visible) via max-height/opacity in index.html. */
+
+.pv-speech {
+  position: relative;
+  gap: 8px;
+  padding: 16px 20px;
+  border-radius: var(--vk-card-radius);
+  background: var(--vk-surface);
+}
+.pv-speech .pv-live-label { font-size: 13px; }
+.pv-speech .pv-live-text { font-size: 16px; line-height: 1.55; }
+.pv-speech .pv-speech-heard { display: none; }
+.pv-speech.is-heard .pv-speech-heard { display: flex; flex-direction: column; }
+.pv-speech.is-heard .pv-live-text { display: none; }
+.pv-speech .pa-transcript-label { display: none; }
+.pv-speech:not(.is-heard) .conf-low-note { display: none; }
+
+/* Analysing — a highlight passes over the learner's own words, and a thin
+   accent line scans the block's foot. Text stays ≥ fg-2 throughout. */
+.pv-speech.is-analysing .pv-live-text {
+  font-style: normal;
+  background: linear-gradient(90deg, var(--vk-fg-2) 0%, var(--vk-fg-2) 35%, var(--vk-fg-1) 50%, var(--vk-fg-2) 65%, var(--vk-fg-2) 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: phv-read-back 1100ms linear infinite;
+}
+.pv-speech.is-analysing::after {
+  content: '';
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--vk-accent), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: phv-scan 1100ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes phv-read-back { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+@keyframes phv-scan      { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+
+/* Heard — each run settles into its verdict colour, left to right */
+.pv-speech.is-heard .pa-run {
+  animation: phv-heard-in 420ms var(--pa-ease-soft) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes phv-heard-in {
+  from { color: var(--vk-fg-2); background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phv-tiles.is-visible .phv-tile, .phv-tile-value .is-landing, .pv-speech.is-heard .pa-run { animation: none; }
+  .pv-speech.is-analysing .pv-live-text { animation: none; color: var(--vk-fg-2); background: none; }
+  .pv-speech.is-analysing::after { animation: none; background: var(--vk-accent); opacity: 0.4; }
+}
 
 
 /* ── Syllable breakdown ─────────────────────────────────────────────────────
    Phonetic breakdown line shown when SYL is active. */
 
 .phv-syllable-line {
-  font-family: var(--pa-font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
+  font-family: var(--pa-font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--vk-fg-2);
-  padding: 10px 0 2px;
+  padding: 10px 14px;
   line-height: 1.6;
-  border-top: 1px solid var(--vk-border);
-  margin-top: 8px;
+  background: var(--vk-surface-lowest, #fff);
+  border: none;
+  border-radius: 12px;
+  margin-top: 0;
 }
 .phv-syllable-line .syl-stress {
   color: var(--vk-accent-text);
@@ -1497,7 +2012,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px 0 4px;
+  padding: 6px 0 0;
 }
 .phv-score-block .pa-score { width: 100%; }
 
@@ -1515,34 +2030,36 @@
   cursor: pointer;
 }
 .phv-auto-label {
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--vk-fg-3);
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-fg-2);
   transition: color 80ms;
 }
 .phv-auto-row:hover .phv-auto-label { color: var(--vk-fg-1); }
+/* M3 switch, compact (40×24) — thumb grows when on */
 .phv-auto-track {
   display: inline-flex;
-  width: 28px;
-  height: 15px;
+  width: 40px;
+  height: 24px;
   background: var(--vk-fill-2);
-  border: 1px solid var(--vk-border);
+  border: 2px solid var(--vk-outline);
   align-items: center;
-  padding: 0 2px;
+  padding: 0 3px;
   border-radius: 999px;
-  transition: background 80ms, border-color 80ms;
+  transition: background 150ms, border-color 150ms;
 }
 .phv-auto-row.is-on .phv-auto-track { background: var(--vk-accent); border-color: var(--vk-accent); }
 .phv-auto-thumb {
-  width: 10px;
-  height: 10px;
-  background: var(--vk-fg-3);
+  width: 12px;
+  height: 12px;
+  background: var(--vk-outline);
   border-radius: 999px;
-  transition: transform 80ms, background 80ms;
+  transition: transform 250ms var(--pa-ease-spring), width 200ms, height 200ms, background 150ms;
 }
-.phv-auto-row.is-on .phv-auto-thumb { transform: translateX(12px); background: #fff; }
+.phv-auto-row.is-on .phv-auto-thumb { width: 16px; height: 16px; transform: translateX(14px); background: #fff; }
 
 
 /* ── Attempts-exhausted note ────────────────────────────────────────────────
@@ -1550,10 +2067,12 @@
 
 .phv-limit-msg {
   font-family: var(--pa-font-sans);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--vk-fg-2);
   text-align: center;
-  padding: 10px 0 4px;
+  background: var(--vk-surface-lowest, #fff);
+  border-radius: 16px;
+  padding: 10px 16px;
   margin: 0;
 }
 
@@ -1566,62 +2085,68 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
-  padding: 8px 14px;
-  border-left: 3px solid var(--vk-accent);
-  background: var(--vk-accent-bg);
-  margin-bottom: 12px;
+  padding: 8px 8px 8px 16px;
+  border: none;
+  border-radius: 16px;
+  background: var(--vk-tonal);
+  color: var(--vk-on-tonal);
+  margin-bottom: 0;
 }
-.phv-coach-left { display: flex; align-items: baseline; gap: 8px; }
+.phv-coach-left { display: flex; align-items: baseline; gap: 10px; }
 .phv-coach-chip {
-  font-family: var(--pa-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--vk-accent-text);
+  font-family: var(--pa-font-sans);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  font-weight: 600;
+  text-transform: none;
+  color: var(--vk-on-tonal);
 }
 .phv-coach-word {
-  font-family: var(--pa-font-mono);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--vk-fg-1);
+  font-family: var(--pa-font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--vk-on-tonal);
 }
-.phv-coach-right { display: flex; align-items: center; gap: 10px; }
+.phv-coach-right { display: flex; align-items: center; gap: 8px; }
 .phv-coach-progress {
   font-family: var(--pa-font-mono);
-  font-size: 10px;
-  color: var(--vk-fg-3);
-  letter-spacing: 0.04em;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vk-on-tonal);
+  letter-spacing: 0;
 }
 .phv-coach-skip {
-  padding: 3px 10px;
+  height: 36px;
+  padding: 0 12px;
   background: transparent;
-  border: 1px solid var(--vk-border);
-  font-family: var(--pa-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--vk-fg-2);
+  border: none;
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--vk-on-tonal);
   cursor: pointer;
-  border-radius: var(--vk-radius-ui);
-  transition: all 100ms;
+  border-radius: 999px;
+  transition: background 100ms;
 }
-.phv-coach-skip:hover { border-color: var(--vk-fg-2); color: var(--vk-fg-1); }
+.phv-coach-skip:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, transparent); }
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
    HUB INTRO  (hub-intro)
-   Exercise description block at the top of each hub page.
-   Four levels: eyebrow → heading → body → feature list. The eyebrow is in
-   accent-text with a short rule after it — a horizontal anchor that reads as
-   "section opened." The heading is the primary visual anchor: large + heavy.
-   Feature items are a borderless dot-list — scannable metadata, not controls.
+   Exercise description block at the top of each hub page (and Home).
+   Four levels: eyebrow → heading → body → feature list. Tonal: sits on the
+   page tone with no rule under it; the eyebrow is a sentence-case accent
+   label; feature items are a dot-list — scannable metadata, not controls
+   (so deliberately NOT chip-shaped, which would read as tappable).
    ══════════════════════════════════════════════════════════════════════════════ */
 
 .hub-intro {
-  padding: 26px 48px 22px;
-  border-bottom: 1px solid var(--vk-border);
+  padding: 28px 48px 8px;
+  border-bottom: none;
   flex-shrink: 0;
 }
 
@@ -1629,40 +2154,32 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--pa-font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--vk-accent-text);
-  margin-bottom: 10px;
-}
-
-.hub-intro-eyebrow::after {
-  content: '';
-  display: block;
-  width: 40px;
-  height: 1px;
-  background: var(--vk-accent-border);
-  flex-shrink: 0;
+  margin-bottom: 6px;
 }
 
 .hub-intro-heading {
   font-family: var(--pa-font-sans);
-  font-size: 23px;
-  font-weight: 800;
+  font-size: clamp(24px, 2.6vw, 30px);
+  font-weight: 700;
   color: var(--vk-fg-1);
   line-height: 1.15;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
   margin: 0 0 8px;
 }
 
 .hub-intro-text {
   font-family: var(--pa-font-sans);
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--vk-fg-2);
-  max-width: 520px;
+  max-width: 62ch;
   margin: 0;
 }
 
@@ -1670,32 +2187,36 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0;
-  margin-top: 16px;
+  gap: 4px 20px;
+  margin-top: 14px;
 }
 
 .hub-intro-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--pa-font-mono);
-  font-size: 9.5px;
+  gap: 8px;
+  font-family: var(--pa-font-sans);
+  font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--vk-fg-2);
-  padding-right: 20px;
+  padding-right: 0;
 }
 
 .hub-intro-chip::before {
   content: '';
   display: block;
-  width: 3px;
-  height: 3px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--vk-accent);
   flex-shrink: 0;
-  opacity: 0.75;
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .hub-intro { padding: 20px 16px 4px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
