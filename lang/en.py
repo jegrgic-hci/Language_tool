@@ -213,6 +213,43 @@ def normalize_homophones(words: list) -> list:
     return [_HOMOPHONES.get(w, w) for w in words]
 
 
+# ── Sound categories (coach) ──────────────────────────────────────────────────
+# The English counterpart of phonetic_lookup's French categories: which of the
+# sounds French speakers find hard a word contains, judged from its spelling. Keys
+# match the Speaking sound focuses (SOUND_FOCUS_EN) so the coach and the hub agree.
+PHONETIC_CATEGORIES = ("th", "h_sound", "vowel_length", "ed_endings", "ough")
+
+_SILENT_H = {"hour", "hours", "honest", "honestly", "honor", "honour", "honors", "honours",
+             "honorable", "honourable", "heir", "heirs", "herb", "herbs"}
+# -ed words that aren't past tenses / participles.
+_NOT_ED_VERBS = {"bed", "red", "fed", "led", "wed", "shed", "sled", "bred", "fled", "sped",
+                 "need", "seed", "feed", "speed", "weed", "breed", "greed", "deed", "reed", "steed",
+                 "hundred", "sacred", "naked", "wicked", "rugged", "ragged", "jagged", "crooked",
+                 "beloved", "learned", "aged", "blessed", "bred", "embed", "infrared", "biased"}
+# Members of short/long vowel minimal pairs (ship/sheep, live/leave, full/fool, …).
+_VOWEL_PAIRS = {"ship", "sheep", "live", "leave", "full", "fool", "sit", "seat", "fill", "feel",
+                "bit", "beat", "hit", "heat", "pull", "pool", "it", "eat", "still", "steal",
+                "slip", "sleep", "chip", "cheap", "fit", "feet", "hill", "heel", "lip", "leap",
+                "mill", "meal", "rich", "reach", "sick", "seek", "will", "wheel", "grin", "green",
+                "dip", "deep", "list", "least", "look", "luke", "soot", "suit", "wood", "wooed"}
+
+
+def phonetic_categories(word: str) -> list:
+    w = (word or "").lower().strip(".,!?;:\"'")
+    cats = []
+    if "th" in w:
+        cats.append("th")
+    if w.startswith("h") and w not in _SILENT_H:
+        cats.append("h_sound")
+    if w in _VOWEL_PAIRS:
+        cats.append("vowel_length")
+    if w.endswith("ed") and len(w) > 4 and w not in _NOT_ED_VERBS:
+        cats.append("ed_endings")
+    if "ough" in w:
+        cats.append("ough")
+    return cats
+
+
 # ── Profile surface ───────────────────────────────────────────────────────────
 def normalize_text(t: str) -> str:
     """Text-level English normalization, applied after lowercasing/apostrophe

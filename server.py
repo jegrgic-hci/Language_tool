@@ -1261,9 +1261,14 @@ async def reset_analytics(access_code: str = "", auth: dict = Depends(_require_a
 
 
 @app.get("/coach")
-async def coach_data(access_code: str = ""):
+async def coach_data(access_code: str = "", lang: str = "fr"):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
+    if lang not in _lang.SUPPORTED:
+        raise HTTPException(status_code=400, detail="Unsupported language")
+    if lang != "fr":
+        # English is computed fresh: the coach cache holds one (French) payload per student.
+        return _analytics.get_coach_data(access_code, lang=lang)
     cached = _analytics.get_cached_coach(access_code)
     if cached:
         return cached

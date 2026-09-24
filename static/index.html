@@ -10289,8 +10289,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     try {
       const [progRes, coachRes, meRes] = await Promise.allSettled([
         fetch(`/analytics/progress?access_code=${encodeURIComponent(code)}&lang=${studyLang()}`),
-        // The coach is French-only for now; English Home shows progress without it.
-        studyLang() === 'en' ? Promise.resolve(null) : fetch(`/coach?access_code=${encodeURIComponent(code)}`),
+        fetch(`/coach?access_code=${encodeURIComponent(code)}&lang=${studyLang()}`),
         apiFetch('/auth/me'),
       ]);
       if (progRes.status !== 'fulfilled' || !progRes.value.ok) throw new Error('progress fetch failed');
@@ -10420,13 +10419,22 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const struggleKeys = Object.keys(struggles);
     let insight = null;
 
+    const english = studyLang() === 'en';
     if (inconsistent.length >= 3) {
       const n = inconsistent.length;
-      insight = `${n} words you've practiced are still inconsistent — a few focused reps in your Practice List will help.`;
+      insight = english
+        ? `${n} words you've practiced are still inconsistent — a few more Speaking phrases will help.`
+        : `${n} words you've practiced are still inconsistent — a few focused reps in your Practice List will help.`;
     } else if (struggleKeys.length > 0) {
       const cat   = struggleKeys[0];
-      const label = cat === 'nasal' ? 'nasal sounds' : cat === 'u_sound' ? '[u] sounds' : '[eu] sounds';
-      insight = `Your ${label} are showing up as misses — worth a focused run through some phrases.`;
+      const EN_SOUND_LABELS = { th: '"th" sounds', h_sound: '"h" sounds', vowel_length: 'short/long vowels',
+                                ed_endings: '-ed endings', ough: '"ough" words' };
+      const label = english
+        ? (EN_SOUND_LABELS[cat] || 'sounds')
+        : (cat === 'nasal' ? 'nasal sounds' : cat === 'u_sound' ? '[u] sounds' : '[eu] sounds');
+      insight = english
+        ? `Your ${label} are showing up as misses — try Speaking with that Sound Focus.`
+        : `Your ${label} are showing up as misses — worth a focused run through some phrases.`;
     }
 
     if (!insight) { el.style.display = 'none'; return; }

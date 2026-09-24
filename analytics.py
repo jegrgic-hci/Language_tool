@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 from elision import FRENCH_ELISION_RULES, FRENCH_HOMOPHONES, normalize_french
 from phonetic_lookup import get_phonetic_categories
+import lang as _lang
 
 _DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent / "data"))
 DB_PATH        = _DATA_DIR / "analytics.db"
@@ -1187,7 +1188,7 @@ def _classify_substitution(target_word: str, said: str) -> str:
 
 # ── Word accuracy + substitution clusters ─────────────────────────────────────
 
-def get_word_accuracy(access_code: str, min_attempts: int = 5) -> list:
+def get_word_accuracy(access_code: str, min_attempts: int = 5, lang: str = "fr") -> list:
     """Return per-word accuracy stats with substitution clustering.
 
     word_results rows may be 2-item [word, matched] (legacy) or
@@ -1201,6 +1202,8 @@ def get_word_accuracy(access_code: str, min_attempts: int = 5) -> list:
     word_stats: dict = defaultdict(lambda: {"attempts": 0, "misses": 0, "substitutions": defaultdict(int), "types": defaultdict(int)})
     for row in rows:
         p = json.loads(row["payload"])
+        if _event_lang(p) != lang:
+            continue
         for entry in p.get("word_results", []):
             word = entry[0].lower()
             matched = entry[1]
@@ -1210,7 +1213,8 @@ def get_word_accuracy(access_code: str, min_attempts: int = 5) -> list:
                 word_stats[word]["misses"] += 1
                 if said:
                     word_stats[word]["substitutions"][said.lower()] += 1
-                    sub_type = _classify_substitution(word, said)
+                    # The elision/homophone classifier is French; English misses are plain substitutions.
+                    sub_type = _classify_substitution(word, said) if lang == "fr" else "substitution"
                     word_stats[word]["types"][sub_type] += 1
                 else:
                     word_stats[word]["types"]["acoustic_miss"] += 1
@@ -1226,14 +1230,15 @@ def get_word_accuracy(access_code: str, min_attempts: int = 5) -> list:
                 "accuracy": accuracy,
                 "top_substitutions": [{"said": s, "count": c} for s, c in top_subs],
                 "error_type": dominant_type,
-                "phonetic_categories": get_phonetic_categories(word),
+                "phonetic_categories": (get_phonetic_categories(word) if lang == "fr"
+                                        else _lang.get("en").phonetic_categories(word)),
             })
     return sorted(results, key=lambda x: x["accuracy"])
 
 
 # ── Score trajectories ─────────────────────────────────────────────────────────
 
-def get_score_trajectories(access_code: str) -> dict:
+def get_score_trajectories(access_code: str, lang: str = "fr") -> dict:
     """Classify each practiced item's learning trajectory.
 
     Returns counts of mastered / improving / plateaued / stuck items,
@@ -1251,6 +1256,8 @@ def get_score_trajectories(access_code: str) -> dict:
     item_text: dict = {}   # key → sentence text reconstructed from word_results
     for row in rows:
         p = json.loads(row["payload"])
+        if _event_lang(p) != lang:
+            continue
         key = (p.get("paragraph_id", ""), p.get("chunk_index", 0), p.get("sentence_index", -1))
         attempt = p.get("attempt_number", 1)
         score = p.get("score")
@@ -1308,7 +1315,7 @@ def get_score_trajectories(access_code: str) -> dict:
 
 # ── Sentence drill breakdown ───────────────────────────────────────────────────
 
-def get_sentence_drill_breakdown(access_code: str) -> list:
+def get_sentence_drill_breakdown(access_code: str, lang: str = "fr") -> list:
     with _conn() as conn:
         rows = conn.execute(
             "SELECT payload FROM events WHERE access_code=? AND event_type='paragraph_drilled'",
@@ -1319,6 +1326,8 @@ def get_sentence_drill_breakdown(access_code: str) -> list:
     sentence_level: dict = {}
     for row in rows:
         p = json.loads(row["payload"])
+        if _event_lang(p) != lang:
+            continue
         key = (p.get("paragraph_id", ""), p.get("chunk_index", 0), p.get("sentence_index", 0))
         attempt = p.get("attempt_number", 1)
         score = p.get("score")
@@ -1349,11 +1358,13 @@ def get_sentence_drill_breakdown(access_code: str) -> list:
 
 # ── Coach data ─────────────────────────────────────────────────────────────────
 
-def get_coach_data(access_code: str) -> dict:
-    """Structured coaching summary — all deterministic, no LLM."""
-    word_acc = get_word_accuracy(access_code, min_attempts=3)
-    trajectories = get_score_trajectories(access_code)
-    drill_breakdown = get_sentence_drill_breakdown(access_code)
+def get_coach_data(access_code: str, lang: str = "fr") -> dict:
+    """Structured coaching summary — all deterministic, no LLM. ``lang`` picks the
+    study language: its events only, and its sound categories."""
+    word_acc = get_word_accuracy(access_code, min_attempts=3, lang=lang)
+    trajectories = get_score_trajectories(access_code, lang=lang)
+    drill_breakdown = get_sentence_drill_breakdown(access_code, lang=lang)
+    sound_cats = ("nasal", "u_sound", "eu_sound") if lang == "fr" else _lang.get("en").PHONETIC_CATEGORIES
 
     # acoustic_miss: mic never picks up the word — strictly 0% accuracy, sorted by most attempts
     acoustic     = sorted([w for w in word_acc if w["error_type"] == "acoustic_miss"    and w["accuracy"] == 0.0], key=lambda w: -w["attempts"])
@@ -1388,7 +1399,7 @@ def get_coach_data(access_code: str) -> dict:
 
     # Phonetic category struggles — categories with ≥2 words below 65% accuracy
     phonetic_struggles = {}
-    for cat in ("nasal", "u_sound", "eu_sound"):
+    for cat in sound_cats:
         cat_words = [
             w for w in word_acc
             if cat in w.get("phonetic_categories", [])
@@ -1405,7 +1416,7 @@ def get_coach_data(access_code: str) -> dict:
 
     # Phonetic category strengths — categories with ≥2 words at ≥75% accuracy
     phonetic_strengths = {}
-    for cat in ("nasal", "u_sound", "eu_sound"):
+    for cat in sound_cats:
         cat_words = [
             w for w in word_acc
             if cat in w.get("phonetic_categories", [])
