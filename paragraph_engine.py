@@ -60,7 +60,8 @@ def _split_sentences(paragraph: str) -> list[str]:
     return result
 
 
-def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_set=None) -> dict:
+def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_set=None,
+                lang: str = "fr") -> dict:
     """
     Score a transcription against a target chunk (one or more sentences).
     Uses word-level matching with a threshold that scales with chunk_size.
@@ -68,8 +69,8 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
     chunk_size: number of sentences in the chunk (used to determine pass threshold)
     Returns dict with score (float 0-1), passed (bool), word_results, display_results.
     """
-    target_words = _normalize(target, noun_adj_set, phonetic=True)
-    said_words = _normalize(transcription, noun_adj_set, phonetic=True)
+    target_words = _normalize(target, noun_adj_set, phonetic=True, lang=lang)
+    said_words = _normalize(transcription, noun_adj_set, phonetic=True, lang=lang)
 
     if not target_words:
         return {"score": 1.0, "passed": True, "word_results": [], "display_results": []}
@@ -88,7 +89,7 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
     else:  # 4+ sentences
         threshold = 0.50
 
-    display_results = build_display_results(target, word_results, noun_adj_set)
+    display_results = build_display_results(target, word_results, noun_adj_set, lang=lang)
     mismatches = [
         {"target_word": dr["word"], "said": dr["said"]}
         for dr in display_results if not dr["matched"]
@@ -99,7 +100,7 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
     sentence_scores = []
     si = 0
     for sent in sents:
-        sent_words = _normalize(sent, noun_adj_set, phonetic=True)
+        sent_words = _normalize(sent, noun_adj_set, phonetic=True, lang=lang)
         n = len(sent_words)
         sent_matched = sum(1 for wr in word_results[si:si + n] if wr["matched"])
         sentence_scores.append(round(sent_matched / n, 3) if n > 0 else 1.0)
@@ -177,9 +178,9 @@ def generate_paragraph(level: str, topic: str, style: str = "story") -> dict:
             raise
 
 
-def analyze_mismatches(target: str, transcription: str, mismatches: list) -> list:
+def analyze_mismatches(target: str, transcription: str, mismatches: list, lang: str = "fr") -> list:
     """Call Mistral to get pronunciation tips for each mismatch."""
-    return _analyze_mismatches(target, transcription, mismatches, _client)
+    return _analyze_mismatches(target, transcription, mismatches, _client, lang=lang)
 
 
 _PATTERN_ANALYSIS_SYSTEM = """You are analyzing a French learner's pronunciation patterns across multiple shadowing attempts.
@@ -413,3 +414,138 @@ def analyze_patterns(all_mismatches: list[dict]) -> dict:
         "rule_based": rule_based,
         "ai_patterns": ai_patterns,
     }
+
+
+# ── English (private beta) ──────────────────────────────────────────────────────
+_LEVEL_CONSTRAINTS_EN = {
+    "A1": "3 sentences, present simple only, very common vocabulary (greetings, objects, simple actions), each sentence 5-7 words",
+    "A2": "3–4 sentences, present and simple past, 'going to' future, everyday vocabulary, each sentence 7-10 words",
+    "B1": "4 sentences, varied tenses (present perfect, past continuous, future), everyday phrasal verbs, natural conversational flow",
+    "B2": "4–5 sentences, all tenses, conditionals and passive voice, rich vocabulary, complex sentence structures",
+    "C1": "4–5 sentences, sophisticated language, idiomatic expressions, nuanced vocabulary, advanced structures",
+    "C2": "5 sentences, mastery-level English, formal or literary register where appropriate, complex subordinate clauses, rare vocabulary",
+}
+
+_PARAGRAPH_SYSTEM_EN = """You are generating English paragraphs for a shadowing exercise. The learners are French speakers learning English.
+
+Rules:
+- Generate a natural English paragraph at the specified CEFR level.
+- Each sentence should be distinct, grammatically correct, and naturally spoken — use contractions where a native speaker would.
+- Write numbers as words (three, not 3). No abbreviations. Plain spelling without accents, even for loanwords (cafe, naive).
+- The subject may be given in French; write about it in English.
+- STYLE "story": a short narrative about the subject — characters, scenes, opinions, or lived experience. Conversational tone.
+- STYLE "educational": informative prose that teaches real, true facts about the subject. Natural to read aloud.
+- STYLE "howto": practical step-by-step instructions (First… Then… Finally…) for doing or using something related to the subject.
+- STYLE "opinion": a persuasive monologue with a clear point of view, using argumentative connectors (admittedly, however, on the other hand, that's why). The speaker takes a position, gives reasons, and concludes.
+
+Return ONLY valid JSON in this exact shape (no markdown, no extra text):
+{"paragraph": "..."}"""
+
+_ACCENT_CLAUSES_EN = {
+    "en-US": "Use American English spelling and vocabulary (color, apartment, vacation, fall).",
+    "en-GB": "Use British English spelling and vocabulary (colour, flat, holiday, autumn).",
+}
+
+
+def generate_paragraph_en(level: str, topic: str, style: str = "story", locale: str = "en-US") -> dict:
+    """English counterpart of generate_paragraph (styles: story, educational, howto,
+    opinion). Returns the same shape, with no noun/adj tags."""
+    level = level.upper() if level else "A1"
+    if level not in _LEVEL_CONSTRAINTS_EN:
+        level = "A1"
+    if style not in ("story", "educational", "howto", "opinion"):
+        style = "story"
+    if locale not in _ACCENT_CLAUSES_EN:
+        raise ValueError("Unsupported English locale: {!r}".format(locale))
+    user = "Generate a CEFR {} English paragraph about {}. {}. Style: {}. {}".format(
+        level, topic, _LEVEL_CONSTRAINTS_EN[level], style.upper(), _ACCENT_CLAUSES_EN[locale])
+    for attempt in range(3):
+        try:
+            resp = _client.chat.complete(
+                model="mistral-large-latest",
+                messages=[
+                    {"role": "system", "content": _PARAGRAPH_SYSTEM_EN},
+                    {"role": "user", "content": user},
+                ],
+                temperature=0.9,
+                max_tokens=900,
+            )
+            raw = resp.choices[0].message.content.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json\n"):
+                    raw = raw[5:]
+                raw = raw.rstrip()
+            paragraph = json.loads(raw)["paragraph"]
+            return {
+                "paragraph": paragraph,
+                "sentences": _split_sentences(paragraph),
+                "topic": topic,
+                "level": level,
+                "noun_adj_tokens": [],
+            }
+        except Exception as e:
+            if attempt < 2 and "429" in str(e):
+                time.sleep(2 ** attempt)
+                continue
+            raise
+
+
+_PATTERN_ANALYSIS_SYSTEM_EN = """You are analyzing an English learner's pronunciation patterns across multiple shadowing attempts. The learner is a French speaker.
+
+You are given a list of word-level mismatches (what they said vs. what they should have said), as captured by speech recognition.
+
+Identify 2–3 KEY PATTERNS that show up consistently. Look for the classic difficulties of French speakers:
+- "th" /θ/ /ð/ replaced by /s/ /z/ /t/ /d/ (think → sink, this → dis)
+- dropped or added "h" (hold → old, eat → heat)
+- short vs long vowels merged (ship/sheep, live/leave, full/fool)
+- "-ed" endings dropped or over-pronounced (walked → walk, walked as walk-ed)
+- dropped final consonants or plural/third-person "s"
+- word stress on the wrong syllable, reduced vowels (schwa) pronounced in full
+
+Use this format for each pattern:
+- pattern: a short name, e.g. "Son /θ/ → /s/" or "« h » muet"
+- explanation: one or two sentences IN FRENCH with IPA symbols and a brief body-mechanics cue, max 25 words
+- examples: word pairs from the mismatches showing the problem ("think → sink", "hold → old")
+
+Avoid one-off errors. Only surface patterns with 2+ occurrences.
+
+Return ONLY valid JSON in this exact shape:
+{
+  "patterns": [
+    {
+      "pattern": "Short name",
+      "explanation": "Explanation in French",
+      "examples": ["example 1", "example 2"]
+    }
+  ]
+}
+
+If you cannot identify clear patterns, return: {"patterns": []}"""
+
+
+def analyze_patterns_en(all_mismatches: list) -> dict:
+    """English counterpart of analyze_patterns. The rule-based detector is French
+    (elision pairs), so English returns AI patterns only."""
+    if not all_mismatches:
+        return {"rule_based": [], "ai_patterns": []}
+    ai_patterns = []
+    try:
+        raw = _client.chat.complete(
+            model="mistral-small-latest",
+            messages=[
+                {"role": "system", "content": _PATTERN_ANALYSIS_SYSTEM_EN},
+                {"role": "user", "content": "Mismatches from learner's attempts:\n" + json.dumps(all_mismatches[:50])},
+            ],
+            temperature=0.3,
+            max_tokens=400,
+        ).choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json\n"):
+                raw = raw[5:]
+            raw = raw.rstrip()
+        ai_patterns = json.loads(raw).get("patterns", [])
+    except Exception:
+        pass
+    return {"rule_based": [], "ai_patterns": ai_patterns}

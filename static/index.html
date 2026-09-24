@@ -3731,8 +3731,8 @@
               <button class="hub-subject-chip" data-style="howto" onclick="selectStyleChip(this)">How-to</button>
               <button class="hub-subject-chip fr-only" data-style="vocabulary" onclick="selectStyleChip(this)">Vocabulary</button>
               <button class="hub-subject-chip fr-only" data-style="proverbs" onclick="selectStyleChip(this)">Proverbs</button>
-              <div class="hub-style-divider-label fr-only">Paragraphs only</div>
-              <button class="hub-subject-chip fr-only" data-style="opinion" data-paragraphs-only="true" onclick="selectStyleChip(this)">Opinion</button>
+              <div class="hub-style-divider-label">Paragraphs only</div>
+              <button class="hub-subject-chip" data-style="opinion" data-paragraphs-only="true" onclick="selectStyleChip(this)">Opinion</button>
             </div>
           </div>
         </div>
@@ -3794,7 +3794,7 @@
                 <div class="hub-mode-title">Phrases</div>
                 <div class="hub-mode-desc">Short individual sentences. Great for drilling pronunciation word by word.</div>
               </button>
-              <button class="hub-mode-card vk-card fr-only" data-mode="paragraph" onclick="selectHubMode(this)">
+              <button class="hub-mode-card vk-card" data-mode="paragraph" onclick="selectHubMode(this)">
                 <div class="hub-mode-icon">
                   <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 7h10M2 11h12M2 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 </div>
@@ -4032,10 +4032,10 @@
             <div class="pv-card-top">
               <span id="para-stage-label" class="pa-drill-prompt">—</span>
               <div class="pv-card-top-right">
-                <button id="para-save-btn" class="pv-action-btn" aria-label="Save paragraph to library">
+                <button id="para-save-btn" class="pv-action-btn fr-only" aria-label="Save paragraph to library">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
                 </button>
-                <button id="para-add-word-btn" class="pv-action-btn">+ word</button>
+                <button id="para-add-word-btn" class="pv-action-btn fr-only">+ word</button>
                 <button id="para-blur-btn" class="pa-bubble-eye" onclick="toggleParaBlur()" aria-label="Toggle blur">
                   <svg id="para-blur-icon-visible" width="15" height="15" viewBox="0 0 16 16" fill="none">
                     <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z" stroke="currentColor" stroke-width="1.3"/>
@@ -6027,7 +6027,7 @@
   const STUDY_LOCALE_KEY = 'vf_study_locale';
   const STUDY_LOCALES = ['fr-FR', 'en-US', 'en-GB'];
   // Views available while studying English (v1: Speaking phrases + Flashcards).
-  const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'phrase', 'vocab-hub', 'vocab']);
+  const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'phrase', 'paragraph', 'vocab-hub', 'vocab']);
   let studyLocale = 'fr-FR';
 
   function studyLang() { return studyLocale.slice(0, 2); }
@@ -6041,13 +6041,9 @@
     document.getElementById('app').classList.toggle('study-en', english);
     if (english) {
       // Don't leave a now-hidden French-only choice selected in the Speaking hub.
-      if (!['story', 'educational', 'howto'].includes(shadowingStyle)) {
+      if (!['story', 'educational', 'howto', 'opinion'].includes(shadowingStyle)) {
         const story = document.querySelector('#hub-styles [data-style="story"]');
         if (story) selectStyleChip(story);
-      }
-      if (selectedHubMode === 'paragraph') {
-        const phrases = document.getElementById('hub-mode-phrases');
-        if (phrases) selectHubMode(phrases);
       }
     }
     // Hide exercises English doesn't have yet, then any section left empty.
@@ -9022,10 +9018,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('para-full-text').textContent = 'Loading…';
 
     try {
-      const res = await fetch('/paragraph/start', {
+      const res = await apiFetch('/paragraph/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: paragraphLevel, topic: shadowingTopic || undefined, style: shadowingStyle, ...getAnalyticsFields() }),
+        body: JSON.stringify({ level: paragraphLevel, topic: shadowingTopic || undefined, style: shadowingStyle, locale: studyLocale, ...getAnalyticsFields() }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -9256,10 +9252,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function displayPatternSummary(mismatches, willLevelUp) {
     try {
-      const res = await fetch('/paragraph/analyze-patterns', {
+      const res = await apiFetch('/paragraph/analyze-patterns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mismatches }),
+        body: JSON.stringify({ mismatches, locale: studyLocale }),
       });
       const patterns = await res.json();
 
@@ -9364,10 +9360,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       container.appendChild(msg);
     } else {
       // Fetch patterns from level mismatches
-      fetch('/paragraph/analyze-patterns', {
+      apiFetch('/paragraph/analyze-patterns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mismatches: levelPatterns }),
+        body: JSON.stringify({ mismatches: levelPatterns, locale: studyLocale }),
       })
         .then(res => res.json())
         .then(patterns => {
@@ -9515,13 +9511,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     try {
       paraAnalysisPending = true;
       chunkAttemptNumber++;
-      const res = await fetch('/paragraph/analyze', {
+      const res = await apiFetch('/paragraph/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target: targetChunk, transcription: text, confidence, chunk_size: chunkSize, noun_adj_tokens: paragraphNounAdjTokens,
           ...getAnalyticsFields(), paragraph_id: paragraphId, chunk_index: paraChunkIndex,
-          attempt_number: chunkAttemptNumber, level: paragraphLevel, is_drill: false,
+          attempt_number: chunkAttemptNumber, level: paragraphLevel, is_drill: false, locale: studyLocale,
         }),
       });
       const data = await res.json();
@@ -9614,7 +9610,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           <span class="pv-ss-text">${sentHtml}</span>
           <div class="pv-ss-actions">
             <button class="pv-ss-drill-btn" data-idx="${globalIdx}" onclick="enterSentenceDrill(${globalIdx}, this)">Practice</button>
-            <button class="pv-ss-drill-btn pss-save-btn pss-save-icon-btn" data-sentence="${esc(sent)}" title="Save sentence to library"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
+            <button class="pv-ss-drill-btn pss-save-btn pss-save-icon-btn fr-only" data-sentence="${esc(sent)}" title="Save sentence to library"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
           </div>
         </div>
       `;
@@ -9903,14 +9899,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const chunkSize = paraStage;
         const sentenceChunkIndex = Math.floor(sentenceDrillIdx / chunkSize);
         const sentenceIndexInChunk = sentenceDrillIdx - (sentenceChunkIndex * chunkSize);
-        const res = await fetch('/paragraph/analyze', {
+        const res = await apiFetch('/paragraph/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             target, transcription: text, confidence, chunk_size: 1, noun_adj_tokens: paragraphNounAdjTokens,
             ...getAnalyticsFields(), paragraph_id: paragraphId, chunk_index: sentenceChunkIndex,
             sentence_index: sentenceIndexInChunk, attempt_number: sentenceAttemptNumbers[sentenceDrillIdx],
-            level: paragraphLevel, is_drill: true,
+            level: paragraphLevel, is_drill: true, locale: studyLocale,
           }),
         });
         const data = await res.json();
@@ -10030,7 +10026,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
       const { micBtn, practicePanel } = attachWordCheckToFeedbackItem(item, f.target_word, 'paragraph_drill');
       const actionsRow = document.createElement('div');
-      actionsRow.className = 'pa-wi-actions';
+      actionsRow.className = 'pa-wi-actions fr-only';  // word check + practice list are French-only for now
       actionsRow.appendChild(micBtn);
       item.appendChild(actionsRow);
       item.appendChild(practicePanel);
@@ -10100,7 +10096,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       playBtn.addEventListener('click', async () => {
         playBtn.disabled = true;
         try {
-          const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.target_word }) });
+          const ttsBody = studyLang() === 'en' ? { text: f.target_word, locale: studyLocale } : { text: f.target_word };
+          const r = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsBody) });
           playAudio((await r.json()).audio_url);
         } finally { playBtn.disabled = false; }
       });
@@ -10125,7 +10122,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
       const { micBtn, practicePanel } = attachWordCheckToFeedbackItem(item, f.target_word);
       const actionsRow = document.createElement('div');
-      actionsRow.className = 'pa-wi-actions';
+      actionsRow.className = 'pa-wi-actions fr-only';  // word check + practice list are French-only for now
       actionsRow.appendChild(micBtn);
       actionsRow.appendChild(addBtn);
       item.appendChild(actionsRow);
@@ -12677,7 +12674,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       playBtn.addEventListener('click', async () => {
         playBtn.disabled = true;
         try {
-          const r = await fetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.target_word }) });
+          const ttsBody = studyLang() === 'en' ? { text: f.target_word, locale: studyLocale } : { text: f.target_word };
+          const r = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsBody) });
           playAudio((await r.json()).audio_url);
         } finally { playBtn.disabled = false; }
       });

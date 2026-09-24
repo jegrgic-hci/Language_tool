@@ -36,6 +36,7 @@ from shadow_engine import generate_phrase, score_attempt, analyze_mismatches as 
 from shadow_engine import generate_phrase_en, SOUND_FOCUS_EN
 import paragraph_engine as _paragraph_module
 from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mismatches, analyze_patterns
+from paragraph_engine import generate_paragraph_en, analyze_patterns_en
 from score_utils import normalize, run_sequence_match, build_display_results, analyze_dictation_mismatches
 import practice_list as pl
 import analytics as _analytics
@@ -415,6 +416,7 @@ class ParagraphStartRequest(BaseModel):
     level: str = "A1"
     topic: Optional[str] = None
     style: Optional[str] = "story"
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 class ParagraphStartResponse(BaseModel):
@@ -443,6 +445,7 @@ class ParagraphAnalyzeRequest(BaseModel):
     level: Optional[str] = None
     is_drill: Optional[bool] = None
     sentence_index: Optional[int] = None
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 class ParagraphAnalyzeResponse(BaseModel):
@@ -463,6 +466,7 @@ class PatternItem(BaseModel):
 
 class ParagraphAnalyzePatternsRequest(BaseModel):
     mismatches: list[dict]  # list of { target_word, said }
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 class ParagraphAnalyzePatternsResponse(BaseModel):
@@ -1961,8 +1965,56 @@ class ParagraphStartRequestWithSession(ParagraphStartRequest):
     access_code: Optional[str] = None
     visit_id: Optional[str] = None
 
+async def _generate_and_bank_passage_en(level: str, topic: str, style: str, locale: str) -> dict:
+    """English counterpart of _generate_and_bank_passage: one narrator from the
+    locale's voices, each sentence banked as a phrase in that locale's bank."""
+    data = await asyncio.to_thread(lambda: generate_paragraph_en(level, topic, style, locale))
+    voice = random.choice(chirp_voices(locale))
+    phrase_ids = []
+    for sent in data["sentences"]:
+        rec = await _synth_and_bank_phrase(sent, "standard", level, topic, style, voice, locale)
+        phrase_ids.append(rec["id"])
+    return content_bank.add_passage("standard", level, topic, voice, phrase_ids,
+                                    style=style, locale=locale)
+
+
+async def _paragraph_start_en(req: "ParagraphStartRequestWithSession", locale: str) -> ParagraphStartResponse:
+    topic = req.topic or random.choice(TOPICS)
+    style = req.style if req.style in ("story", "educational", "howto", "opinion") else "story"
+    passage = _bank_pick("passage", "standard", req.level, topic, style, req.access_code, locale)
+    if passage is None:
+        passage = await _generate_and_bank_passage_en(req.level, topic, style, locale)
+    phrases = content_bank.passage_phrases(passage)
+    _mark_bank_seen_safe(req.access_code, passage["id"], "paragraph")
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "paragraph_started", {
+            "exercise_type": "paragraph",
+            "locale": locale,
+            "paragraph_id": passage["id"],
+            "level": req.level,
+            "topic": topic,
+            "sentence_count": len(phrases),
+        }, req.visit_id)
+    return ParagraphStartResponse(
+        sentences=[p["text"] for p in phrases],
+        sentence_audio_urls=[f"/audio/{p['audio_hash']}" for p in phrases],
+        level=passage.get("level", req.level),
+        topic=topic,
+        noun_adj_tokens=[],
+        paragraph_id=passage["id"],
+    )
+
+
 @app.post("/paragraph/start", response_model=ParagraphStartResponse)
-async def paragraph_start(req: ParagraphStartRequestWithSession):
+async def paragraph_start(req: ParagraphStartRequestWithSession, authorization: Optional[str] = Header(None)):
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
+        try:
+            return await _paragraph_start_en(req, locale)
+        except Exception as e:
+            logging.getLogger("paragraph").exception("/paragraph/start (%s) failed", locale)
+            raise HTTPException(status_code=500, detail=f"Paragraph generation failed: {e}")
     topic = req.topic or random.choice(TOPICS)
     style = req.style or 'story'
     try:
@@ -2042,12 +2094,18 @@ async def _generate_and_bank_passage(level: str, topic: str, style: str) -> dict
 
 
 @app.post("/paragraph/analyze", response_model=ParagraphAnalyzeResponse)
-async def paragraph_analyze(req: ParagraphAnalyzeRequest):
-    noun_adj_set = _build_noun_adj_set(req.noun_adj_tokens)
-    result = score_chunk(req.target, req.transcription, req.chunk_size, noun_adj_set)
+async def paragraph_analyze(req: ParagraphAnalyzeRequest, authorization: Optional[str] = Header(None)):
+    locale = _resolve_locale(req.locale)
+    lang = _lang.lang_of(locale)
+    if lang == "en":
+        await _check_english_access(authorization)
+    noun_adj_set = _build_noun_adj_set(req.noun_adj_tokens) if lang == "fr" else None
+    result = score_chunk(req.target, req.transcription, req.chunk_size, noun_adj_set, lang=lang)
+    loc = {"locale": locale} if lang == "en" else {}
     if req.session_id and req.access_code:
         if req.is_drill:
             _analytics.track(req.session_id, req.access_code, "paragraph_drilled", {
+                **loc,
                 "exercise_type": "paragraph",
                 "paragraph_id": req.paragraph_id,
                 "chunk_index": req.chunk_index,
@@ -2060,6 +2118,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
             }, req.visit_id)
         else:
             _analytics.track(req.session_id, req.access_code, "paragraph_attempted", {
+                **loc,
                 "exercise_type": "paragraph",
                 "paragraph_id": req.paragraph_id,
                 "chunk_index": req.chunk_index,
@@ -2071,7 +2130,7 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
                 "word_results": [[wr["word"], wr["matched"], wr.get("said", "")] for wr in result["word_results"]],
             }, req.visit_id)
     feedback_raw = await asyncio.to_thread(
-        lambda: analyze_mismatches(req.target, req.transcription, result.get("mismatches", []))
+        lambda: analyze_mismatches(req.target, req.transcription, result.get("mismatches", []), lang=lang)
     )
     feedback = [
         ShadowFeedbackItem(
@@ -2102,8 +2161,14 @@ async def paragraph_analyze(req: ParagraphAnalyzeRequest):
 
 
 @app.post("/paragraph/analyze-patterns", response_model=ParagraphAnalyzePatternsResponse)
-async def paragraph_analyze_patterns(req: ParagraphAnalyzePatternsRequest):
-    result = await asyncio.to_thread(lambda: analyze_patterns(req.mismatches))
+async def paragraph_analyze_patterns(req: ParagraphAnalyzePatternsRequest,
+                                     authorization: Optional[str] = Header(None)):
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
+        result = await asyncio.to_thread(lambda: analyze_patterns_en(req.mismatches))
+    else:
+        result = await asyncio.to_thread(lambda: analyze_patterns(req.mismatches))
     rule_based = [
         PatternItem(
             pattern=p["pattern"],
