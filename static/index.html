@@ -5868,6 +5868,13 @@
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     if (activeBubbleStop) { activeBubbleStop.classList.remove('playing'); activeBubbleStop = null; }
 
+    // An Azure-graded English attempt can't pause; cancel it rather than grade the speaker.
+    if (_enAzRecognizer) {
+      try { _enAzRecognizer.close(); } catch (_) {}
+      _enAzRecognizer = null;
+      document.getElementById('phrase-mic-btn')?.classList.remove('listening');
+    }
+
     // Stop speech recognition while audio is playing (prevents picking up speaker audio)
     const wasListening = recognition && document.getElementById('phrase-mic-btn')?.classList.contains('listening');
     const wasParaListening = recognition && document.getElementById('para-mic-btn')?.classList.contains('listening');
@@ -6063,6 +6070,99 @@
     if (wrap) wrap.hidden = false;
     applyStudyLocale();
     if (studyLang() === 'en' && !EN_VIEWS.has(currentView)) switchView('home');
+  }
+
+  // ── English pronunciation grading (Azure) ──────────────────────────────────
+  // English Speaking grades the sounds actually produced via Azure Pronunciation
+  // Assessment against the known phrase (Chrome's recognizer autocorrects "tink" to
+  // "think"). Any failure — no token, SDK blocked, quota used up — drops to the Web
+  // Speech path for the rest of the session, so the exercise never breaks.
+  let _enAzOk = null, _enAzToken = null, _enAzRegion = null, _enAzTokenAt = 0;
+  let _enAzSDK = null, _enAzRecognizer = null;
+
+  function _enLoadAzureSDK() {
+    if (window.SpeechSDK) return Promise.resolve(true);
+    if (!_enAzSDK) {
+      _enAzSDK = new Promise(resolve => {
+        const s = document.createElement('script');
+        s.src = 'https://aka.ms/csspeech/jsbrowserpackageraw';
+        s.onload = () => resolve(true);
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+      });
+    }
+    return _enAzSDK;
+  }
+
+  async function _enAzureReady() {
+    if (_enAzOk === false) return false;
+    if (!(_enAzToken && (Date.now() - _enAzTokenAt) < 9 * 60 * 1000)) {
+      try {
+        const r = await apiFetch('/speaking/azure-token');
+        if (!r.ok) { _enAzOk = false; return false; }
+        const d = await r.json();
+        _enAzToken = d.token; _enAzRegion = d.region; _enAzTokenAt = Date.now();
+      } catch (_) { _enAzOk = false; return false; }
+    }
+    const sdkOk = await _enLoadAzureSDK();
+    _enAzOk = !!(sdkOk && window.SpeechSDK);
+    return _enAzOk;
+  }
+
+  // Starts one Azure-graded attempt on the phrase screen. Returns false (nothing
+  // started) when Azure isn't usable, so the caller runs Web Speech instead.
+  async function _startPhraseAzureMic(btn) {
+    if (!currentPhrase || !(await _enAzureReady())) return false;
+    const SDK = window.SpeechSDK;
+    let recognizer;
+    try {
+      const speechConfig = SDK.SpeechConfig.fromAuthorizationToken(_enAzToken, _enAzRegion);
+      speechConfig.speechRecognitionLanguage = studyLocale;
+      const paConfig = new SDK.PronunciationAssessmentConfig(
+        currentPhrase,
+        SDK.PronunciationAssessmentGradingSystem.HundredMark,
+        SDK.PronunciationAssessmentGranularity.Phoneme,
+        true
+      );
+      paConfig.phonemeAlphabet = 'IPA';
+      recognizer = new SDK.SpeechRecognizer(speechConfig, SDK.AudioConfig.fromDefaultMicrophoneInput());
+      paConfig.applyTo(recognizer);
+    } catch (e) { _enAzOk = false; return false; }
+
+    _enAzRecognizer = recognizer;
+    btn.classList.add('listening');
+    _showPhraseTranscript('…');
+    const done = () => {
+      btn.classList.remove('listening');
+      _enAzRecognizer = null;
+      try { recognizer.close(); } catch (_) {}
+    };
+    recognizer.recognizeOnceAsync(async result => {
+      done();
+      if (!result || result.reason !== SDK.ResultReason.RecognizedSpeech) {
+        if (result && result.reason === SDK.ResultReason.Canceled) {
+          try {
+            const cd = SDK.CancellationDetails.fromResult(result);
+            console.warn('[phrase] azure canceled:', cd.reason, cd.errorCode, cd.errorDetails);
+          } catch (_) {}
+          _enAzOk = false;  // quota/token/network: standard recognition from now on
+          _showPhraseTranscript('Switched to standard recognition — tap the mic again');
+        } else {
+          _showPhraseTranscript('Nothing heard — tap the mic again');
+        }
+        return;
+      }
+      const text = result.text || '';
+      _showPhraseTranscript(text);
+      const raw = result.properties.getProperty(SDK.PropertyId.SpeechServiceResponse_JsonResult);
+      await handleShadowResult(text, undefined, raw);
+    }, err => {
+      done();
+      console.warn('[phrase] azure recognizer error:', err);
+      _enAzOk = false;
+      _showPhraseTranscript('Switched to standard recognition — tap the mic again');
+    });
+    return true;
   }
 
   // ── Speech Recognition ─────────────────────────────────────────────────────
@@ -7587,8 +7687,20 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   async function toggleShadowMic() {
-    if (!recognition) { return; }
     const btn = document.getElementById('phrase-mic-btn');
+    if (_enAzRecognizer) {
+      // Azure attempts end on their own at the pause; a second tap cancels.
+      try { _enAzRecognizer.close(); } catch (_) {}
+      _enAzRecognizer = null;
+      btn.classList.remove('listening');
+      return;
+    }
+    if (studyLang() === 'en' && _enAzOk !== false && !btn.classList.contains('listening')) {
+      const ok = await ensureMicPermission();
+      if (!ok) return;
+      if (await _startPhraseAzureMic(btn)) return;
+    }
+    if (!recognition) { return; }
 
     if (btn.classList.contains('listening')) {
       if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
@@ -7650,7 +7762,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     return t;
   }
 
-  async function handleShadowResult(text, confidence) {
+  async function handleShadowResult(text, confidence, azureJson) {
     _hidePhraseStatus();
     document.getElementById('phv-score-block').style.display = 'none'; document.getElementById('phv-word-list').style.display = 'none';
 
@@ -7662,7 +7774,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         body: JSON.stringify({
           target: currentPhrase, transcription: text, confidence, noun_adj_tokens: currentNounAdjTokens,
           ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId, listen_count: phraseListenCount, sound_focus: shadowingSoundFocus || null,
-          locale: studyLocale,
+          locale: studyLocale, azure_json: azureJson || undefined,
         }),
       });
       const data = await res.json();

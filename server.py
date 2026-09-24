@@ -41,6 +41,7 @@ import practice_list as pl
 import analytics as _analytics
 import library_store
 import content_bank
+import azure_pa
 import lang as _lang
 from pos_tagger import tag_nouns_adjs
 from prosody_engine import annotate_phrase_rhythm
@@ -381,6 +382,9 @@ class ShadowAnalyzeRequest(BaseModel):
     listen_count: Optional[int] = None
     sound_focus: Optional[str] = None
     locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
+    # English only: raw Azure Pronunciation Assessment JSON. When present it replaces
+    # transcription-based scoring with phoneme-level grading.
+    azure_json: Optional[str] = None
 
 
 class ShadowFeedbackItem(BaseModel):
@@ -1670,8 +1674,83 @@ async def _phrase_generate_en(req: ShadowPhraseRequest, locale: str) -> ShadowPh
     )
 
 
+def _azure_display(target: str, words: list) -> list:
+    """Azure's graded words (insertions dropped) as display rows. Azure echoes the
+    reference text word by word, so when counts line up the learner sees the target's
+    own spelling and punctuation; otherwise Azure's normalized words are shown."""
+    graded = [w for w in words if w["error"] != "Insertion"]
+    surface = target.split()
+    rows = []
+    for i, w in enumerate(graded):
+        shown = surface[i] if len(surface) == len(graded) else w["word"]
+        ok = w["tier"] in ("green", "amber")
+        rows.append({"word": shown, "matched": ok, "said": "" if w["tier"] == "omitted" else shown})
+    return rows
+
+
+async def _phrase_analyze_en_azure(req: ShadowAnalyzeRequest, locale: str,
+                                   exercise_type: str) -> ShadowAnalyzeResponse:
+    """English, graded by Azure on the sounds actually produced. Amber words count as
+    said (minor polish); red/omitted words get a French tip naming the weakest sound."""
+    parsed = azure_pa.parse(req.azure_json)
+    display = _azure_display(req.target, parsed["words"])
+    mismatches = []
+    for w in parsed["words"]:
+        if w["tier"] == "omitted":
+            mismatches.append({"target_word": w["word"], "said": ""})
+        elif w["tier"] == "red" and w["error"] != "Insertion":
+            ph = w["weakest"]
+            hint = " (weakest sound /{}/ scored {}/100)".format(ph[0], int(ph[1])) if ph and ph[0] else ""
+            mismatches.append({"target_word": w["word"], "said": w["word"] + hint})
+    if req.session_id and req.access_code:
+        _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
+            "exercise_type": exercise_type,
+            "locale": locale,
+            "engine": "azure",
+            "level": req.level,
+            "topic": req.topic,
+            "score": parsed["score"],
+            "passed": parsed["passed"],
+            "attempt_number": req.attempt_number,
+            "phrase_id": req.phrase_id,
+            "listen_count": req.listen_count,
+            "sound_focus": req.sound_focus,
+            "word_results": [[w["word"], w["tier"] in ("green", "amber"), w["word"]] for w in parsed["words"]],
+        }, req.visit_id)
+    feedback_raw = []
+    if mismatches:
+        feedback_raw = await asyncio.to_thread(
+            lambda: analyze_shadow_mismatches(req.target, parsed["text"] or req.transcription,
+                                              mismatches, lang="en")
+        )
+    rows = [WordResult(word=r["word"], matched=r["matched"], said=r["said"]) for r in display]
+    return ShadowAnalyzeResponse(
+        score=parsed["score"],
+        passed=parsed["passed"],
+        feedback=[
+            ShadowFeedbackItem(
+                target_word=f.get("target_word", ""),
+                said=f.get("said", "").split(" (weakest sound")[0],
+                tip=f.get("tip", ""),
+                is_grammar=f.get("is_grammar", False),
+                grammar_note=f.get("grammar_note", ""),
+            )
+            for f in feedback_raw
+        ],
+        word_results=rows,
+        display_results=list(rows),
+    )
+
+
 async def _phrase_analyze_en(req: ShadowAnalyzeRequest, locale: str,
                              exercise_type: str) -> ShadowAnalyzeResponse:
+    if req.azure_json:
+        try:
+            return await _phrase_analyze_en_azure(req, locale, exercise_type)
+        except Exception as e:
+            # Malformed/empty Azure payload: score the transcription the normal way.
+            logging.getLogger("phrase").warning("Azure parse failed (%s: %s) — using transcription",
+                                                type(e).__name__, e)
     result = score_attempt(req.target, req.transcription, None, lang="en")
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
@@ -1708,6 +1787,20 @@ async def _phrase_analyze_en(req: ShadowAnalyzeRequest, locale: str,
         display_results=[WordResult(word=dr["word"], matched=dr["matched"], said=dr["said"])
                          for dr in result["display_results"]],
     )
+
+
+@app.get("/speaking/azure-token")
+async def speaking_azure_token(request: Request, authorization: Optional[str] = Header(None)):
+    """Browser token for Azure pronunciation grading in English Speaking. Allowed from
+    this machine (development) and for English beta accounts; everyone else is
+    refused. 503 when Azure isn't configured, so the browser uses Web Speech."""
+    client_host = (request.client.host if request.client else "") or ""
+    if client_host not in ("127.0.0.1", "::1", "localhost"):
+        await _check_english_access(authorization)
+    tok = await azure_pa.mint_token()
+    if tok is None:
+        raise HTTPException(status_code=503, detail="Azure Speech not available")
+    return tok
 
 
 @app.post("/speaking/phrase", response_model=ShadowPhraseResponse)
