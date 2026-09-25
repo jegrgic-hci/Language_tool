@@ -10,9 +10,10 @@ and never imports a language module directly.
 The language is always passed in explicitly (default "fr"), never read from a
 global, so one process can serve learners of different languages side by side.
 
-A *locale* is what the learner picks (Français / English (US) / English (UK)): it
-selects the voices, the speech-recognition locale and the content bank, while its
-*language* selects the scoring profile — en-US and en-GB share the "en" rules.
+A *locale* is resolved per item from the learner's choice (Français, or English
+with an accent setting of US / UK / Both — Both picks one per item): it selects the
+voices, the speech-recognition locale and the content bank, while its *language*
+selects the scoring profile — en-US and en-GB share the "en" rules.
 """
 
 import importlib

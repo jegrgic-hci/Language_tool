@@ -714,7 +714,7 @@
       line-height: 1.45;
       color: var(--vk-fg-2);
     }
-    #hub-levels, #hub-styles, #hub-sound-chips, #hub-subjects {
+    #hub-levels, #hub-styles, #hub-sound-chips, #hub-subjects, .hub-accent-chips {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
@@ -3441,14 +3441,71 @@
     <style>
       /* Landing layout — Tonal: tinted cards on the page tone, no borders */
       #home-view .home-wrap { max-width: 920px; width: 100%; margin: 0 auto; padding: 8px 28px 64px; }
-      #home-view .hub-intro-eyebrow { margin-top: 20px; }
+      #home-view .home-header { margin-top: 24px; }
+      /* Greeting in the study language, above the heading */
+      .home-greeting { font-family: var(--pa-font-sans); font-size: 18px; font-weight: 600; color: var(--vk-accent-text); margin: 0 0 6px; }
 
       .home-header { margin-bottom: 4px; }
+      /* Expanded KPI card — breakdown in a nested panel (surface-lowest): one
+         thick M3 linear bar per level (Performance / Precision) or stage (Words). */
+      .home-kpi-detail { display: none; }
+      .home-kpi-card.is-expanded .home-kpi-detail {
+        display: block; margin-top: 8px; padding: 18px 20px 20px;
+        border-radius: var(--vk-radius-card); background: var(--vk-surface-lowest); cursor: default;
+      }
+      .home-kpi-detail-sub { font-family: var(--pa-font-sans); font-size: 13.5px; color: var(--vk-fg-2); margin: 0 0 16px; }
+      .home-kpi-detail-empty { font-family: var(--pa-font-sans); font-size: 14px; color: var(--vk-fg-2); margin: 0; }
+      .home-detail-bars { display: flex; flex-direction: column; gap: 20px; }
+      .home-detail-bar { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: baseline; }
+      .home-detail-bar .pa-lp { --pa-lp-h: 8px; grid-column: 1 / -1; }
+      .home-detail-bar-name { font-family: var(--pa-font-sans); font-size: 15px; font-weight: 600; color: var(--vk-fg-1); }
+      .home-detail-bar-desc { display: block; font-size: 13px; font-weight: 400; color: var(--vk-fg-2); margin-top: 2px; }
+      .home-detail-bar-num { font-family: var(--pa-font-mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--vk-fg-1); }
 
-      /* Primary KPI cards — .vk-kpi-card on the tonal surface; selectable, drive the chart.
-         Selected = tonal fill + 2px accent ring (same as the hub format cards). */
+      /* A skill not tried yet: an invitation, not a selectable score card */
+      #home-view .home-kpis .vk-kpi-card.home-kpi-prompt,
+      #home-view .home-kpis .vk-kpi-card.home-kpi-prompt:hover {
+        cursor: default; display: flex; flex-direction: column; background: var(--vk-surface);
+      }
+      /* The single most effective suggestion on Home (a prompt card or the advice
+         tile) is the salient one: accent tint + filled button. Others: outline. */
+      #home-view .home-kpis .vk-kpi-card.home-kpi-prompt.is-primary,
+      .home-tiles .home-tile-advice.is-primary,
+      .home-tiles .home-tile-level.is-primary { background: color-mix(in srgb, var(--vk-accent) 6%, var(--vk-surface)); }
+      .home-kpi-prompt .home-kpi-tests { color: var(--vk-fg-1); }
+      .home-kpi-prompt .vk-kpi-footer { margin-top: auto; padding-top: 12px; }
+
+      /* At-a-glance tiles — the phrase view's .phv-tile, one step smaller so
+         they read as secondary to the KPI cards. */
+      .home-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 28px; }
+      @media (max-width: 680px) { .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      .home-tiles .phv-tile { padding: 14px 16px; animation: pa-rise-tile 420ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+      .home-tiles .phv-tile-value { font-size: 22px; }
+      .home-tile-week { display: flex; gap: 4px; }
+      .home-tile-week span { width: 8px; height: 8px; border-radius: 50%; background: var(--vk-outline-variant); }
+      .home-tile-week span.is-on { background: var(--vk-accent); }
+      .home-tile-week span.is-today:not(.is-on) { box-shadow: inset 0 0 0 1.5px var(--vk-accent); background: transparent; }
+      @media (prefers-reduced-motion: reduce) { .home-tiles .phv-tile { animation: none; } }
+      /* Advice tile — leads the grid, two tiles wide, accent tint like the "Try…" prompt cards */
+      .home-tiles .home-tile-advice, .home-tiles .home-tile-level { grid-column: span 2; }
+      .home-tile-level .vk-btn { align-self: flex-start; margin-top: 4px; }
+      .home-tile-advice-title { font-family: var(--pa-font-sans); font-size: 17px; font-weight: 600; color: var(--vk-fg-1); line-height: 1.3; }
+      .home-tile-advice-text { font-family: var(--pa-font-sans); font-size: 13.5px; color: var(--vk-fg-1); line-height: 1.45; }
+      .home-tile-advice .vk-btn { align-self: flex-start; margin-top: 4px; }
+
+
+      /* Primary KPI cards — .vk-kpi-card on the tonal surface. Tapping one expands
+         it in place: it takes the full first row and the others share the row
+         below (toggleHomeKPI morphs between the layouts with a view transition). */
       .home-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
-      @media (max-width: 680px) { .home-kpis { grid-template-columns: 1fr; } }
+      .home-kpis.has-expanded { grid-template-columns: repeat(2, 1fr); }
+      .home-kpis .home-kpi-card.is-expanded { grid-column: 1 / -1; order: -1; }
+      @media (max-width: 680px) { .home-kpis, .home-kpis.has-expanded { grid-template-columns: 1fr; } }
+      .home-kpi-chevron { width: 20px; height: 20px; flex-shrink: 0; margin-left: auto; color: var(--vk-fg-2);
+        transition: transform 250ms var(--pa-ease-spring); }
+      .home-kpi-card.is-expanded .home-kpi-chevron { transform: rotate(180deg); }
+      .home-kpi-card .home-kpi-head { justify-content: flex-start; }
+      ::view-transition-group(*) { animation-duration: 350ms; animation-timing-function: cubic-bezier(0.2, 0, 0, 1); }
       #home-view .vk-kpi-card {
         background: var(--vk-surface); border: none; border-radius: 24px; box-shadow: none;
         padding: 20px 22px; gap: 10px; transition: background 150ms var(--vk-ease), box-shadow 150ms var(--vk-ease);
@@ -3456,11 +3513,9 @@
       #home-view .vk-kpi-card::before { display: none; }          /* drop the core left accent bar */
       .home-kpis .vk-kpi-card { cursor: pointer; }
       #home-view .home-kpis .vk-kpi-card:hover { background: color-mix(in srgb, var(--vk-fg-1) 6%, var(--vk-surface)); box-shadow: none; }
-      #home-view .home-kpis .vk-kpi-card.is-active,
-      #home-view .home-kpis .vk-kpi-card.is-active:hover { background: var(--vk-tonal); box-shadow: inset 0 0 0 2px var(--vk-accent); }
+      #home-view .home-kpis .vk-kpi-card.is-expanded:hover { background: var(--vk-surface); }
       #home-view .home-kpis .vk-kpi-card:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
       #home-view .vk-kpi-label { font-family: var(--pa-font-sans); font-size: 13.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--vk-fg-2); }
-      #home-view .vk-kpi-card.is-active .vk-kpi-label { color: var(--vk-on-tonal); }
       #home-view .vk-kpi-value { font-family: var(--pa-font-mono); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
       #home-view .vk-kpi-context { color: var(--vk-fg-2); }
       .home-kpi-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -3468,18 +3523,6 @@
       .home-kpi-tests { font-family: var(--pa-font-sans); font-size: 13.5px; color: var(--vk-fg-2); margin: 0; line-height: 1.45; }
       .home-kpis .vk-kpi-value .unit { font-size: var(--vk-text-lg); font-weight: 500; color: var(--vk-fg-2); margin-left: 2px; }
 
-      /* Chart — detail view of the highlighted KPI */
-      #home-view .vk-chart {
-        --vk-chart-bg: var(--vk-surface);   /* re-resolve here: on :root it froze to white, ringing the points */
-        background: var(--vk-surface); border: none; border-radius: 24px; padding: 20px 22px;
-      }
-      /* Axis + level labels: legible (fg-2, 11px) — vk-chart.css is shared with the teacher dashboard, so scoped here */
-      #home-view .atl-chart .atl-axis-label,
-      #home-view .atl-chart .atl-levellabel { fill: var(--vk-fg-2); font-family: var(--pa-font-mono); font-size: 11px; letter-spacing: 0; }
-      #home-view .vk-chart-title { font-family: var(--pa-font-sans); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; text-transform: none; color: var(--vk-fg-1); }
-      #home-view .vk-chart-subtitle { font-size: 13.5px; color: var(--vk-fg-2); }
-      .home-trend-chart .empty { font-family: var(--pa-font-sans); color: var(--vk-fg-2); font-size: 14px; text-align: center; padding: 40px 0; }
-      .home-chart-hint { font-family: var(--pa-font-sans); font-size: 13px; color: var(--vk-fg-2); margin: 10px 4px 0; }
 
       /* Secondary KPIs — compact .vk-kpi tiles, hidden until instrumented */
       .home-secondary { margin-top: 32px; padding-top: 0; border-top: none; }
@@ -3514,14 +3557,14 @@
 
       @media (max-width: 768px) {
         #home-view .home-wrap { padding: 0 16px 48px; }
-        #home-view .hub-intro-eyebrow { margin-top: 16px; }
+        #home-view .home-header { margin-top: 16px; }
       }
     </style>
     <div id="home-view" style="display:none; flex:1; flex-direction:column; overflow-y:auto;">
       <div class="home-wrap">
 
         <div class="home-header">
-          <span class="hub-intro-eyebrow" id="home-eyebrow">Your progress</span>
+          <p class="home-greeting" id="home-greeting"></p>
           <h2 class="hub-intro-heading" id="home-heading">Your spoken French</h2>
           <p class="hub-intro-text" id="home-greeting-sub">Here's where things stand.</p>
         </div>
@@ -3558,31 +3601,8 @@
         <!-- States B/C: data section (hidden for new users) -->
         <div id="home-data-section">
 
-          <!-- State C: returning user banner -->
-          <div id="home-returning-banner" class="phv-coach-banner" style="display:none; margin-top:20px;">
-            <div class="phv-coach-left">
-              <span class="phv-coach-chip">Welcome back</span>
-              <span id="home-returning-text" class="phv-coach-word">Pick up where you left off</span>
-            </div>
-            <div class="phv-coach-right">
-              <button class="vk-btn vk-btn-outline sm" onclick="switchView('phrase-hub')">Start warmup</button>
-            </div>
-          </div>
-
           <!-- Three primary speaking KPIs -->
           <div class="home-kpis" id="home-kpis"></div>
-
-          <!-- Chart — detail view of the highlighted KPI -->
-          <div class="vk-chart is-visible" style="margin-top:16px">
-            <div class="vk-chart-header">
-              <div>
-                <p class="vk-chart-title home-chart-title">Performance over time</p>
-                <p class="vk-chart-subtitle home-chart-sub">Paragraph accuracy by level, weekly</p>
-              </div>
-            </div>
-            <div class="home-trend-chart"><div class="empty">No practice data yet</div></div>
-          </div>
-          <p class="home-chart-hint">Showing the highlighted skill. The biggest recent gain is highlighted automatically.</p>
 
           <!-- Secondary KPIs — vocabulary + listening (hidden until instrumented) -->
           <div class="home-secondary" id="home-secondary" style="display:none">
@@ -3592,11 +3612,9 @@
 
         </div><!-- /#home-data-section -->
 
-        <!-- Coach insight — shown for active/returning users when there's something to focus on -->
-        <div id="home-coach-insight" class="pv-insight" style="display:none; margin-top:28px;">
-          <p class="pv-insight-label">Focus</p>
-          <p class="pv-insight-text" id="home-coach-insight-text"></p>
-        </div>
+
+        <!-- At a glance — small all-time tiles; each appears once it has a value -->
+        <div class="home-tiles" id="home-tiles" style="display:none"></div>
 
         <!-- What's next -->
         <section class="home-section">
@@ -3811,6 +3829,21 @@
         </div>
       </div>
       <div id="hub-content">
+
+        <!-- Accent (English) — one shared setting with the Flashcards hub -->
+        <div class="hub-row en-only">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Accent</span>
+            <span class="hub-row-desc">Both mixes American and British, one per phrase</span>
+          </div>
+          <div class="hub-row-controls">
+            <div class="hub-accent-chips">
+              <button class="hub-subject-chip" data-accent="us" onclick="selectEnAccent(this)">US</button>
+              <button class="hub-subject-chip" data-accent="uk" onclick="selectEnAccent(this)">UK</button>
+              <button class="hub-subject-chip active" data-accent="both" onclick="selectEnAccent(this)">Both</button>
+            </div>
+          </div>
+        </div>
 
         <!-- Level -->
         <div class="hub-row">
@@ -4899,6 +4932,21 @@
         </div>
       </div>
       <div id="vocab-hub-content">
+
+        <!-- Accent (English) — one shared setting with the Speaking hub -->
+        <div class="hub-row en-only">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Accent</span>
+            <span class="hub-row-desc">Both mixes American and British, one per set</span>
+          </div>
+          <div class="hub-row-controls">
+            <div class="hub-accent-chips">
+              <button class="hub-subject-chip" data-accent="us" onclick="selectEnAccent(this)">US</button>
+              <button class="hub-subject-chip" data-accent="uk" onclick="selectEnAccent(this)">UK</button>
+              <button class="hub-subject-chip active" data-accent="both" onclick="selectEnAccent(this)">Both</button>
+            </div>
+          </div>
+        </div>
 
         <!-- Resume (cumulative, account-tied) -->
         <div id="vocab-resume-row" class="hub-row" style="display:none;">
@@ -6062,8 +6110,7 @@
       </button>
       <div class="fab-opts">
         <button type="button" class="lang-opt" role="menuitemradio" data-locale="fr-FR" aria-checked="true"><span class="bd">FR</span>Français<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z" fill="currentColor"/></svg></button>
-        <button type="button" class="lang-opt" role="menuitemradio" data-locale="en-US" aria-checked="false"><span class="bd">US</span>English <span class="sub">(US)</span><svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z" fill="currentColor"/></svg></button>
-        <button type="button" class="lang-opt" role="menuitemradio" data-locale="en-GB" aria-checked="false"><span class="bd">UK</span>English <span class="sub">(UK)</span><svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z" fill="currentColor"/></svg></button>
+        <button type="button" class="lang-opt" role="menuitemradio" data-locale="en" aria-checked="false"><span class="bd">EN</span>English<svg class="ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z" fill="currentColor"/></svg></button>
       </div>
     </div>
   </div>
@@ -6267,7 +6314,7 @@
     menu.style.top   = (cy - 28) + 'px';
     menu.style.left  = right ? '' : (cx - 28) + 'px';
     menu.style.right = right ? (window.innerWidth - cx - 28) + 'px' : '';
-    menu.querySelectorAll('[data-locale]').forEach(o => o.setAttribute('aria-checked', o.dataset.locale === studyLocale ? 'true' : 'false'));
+    menu.querySelectorAll('[data-locale]').forEach(o => o.setAttribute('aria-checked', o.dataset.locale === studyMenuValue() ? 'true' : 'false'));
     _navOpenLayer('lang-layer', trigger);
     (menu.querySelector('[aria-checked="true"]') || menu.querySelector('[data-locale]')).focus();
   }
@@ -6294,7 +6341,7 @@
     }
     if ((t = e.target.closest('#lang-menu [data-locale]'))) {
       closeNavMenus(false);
-      if (t.dataset.locale === studyLocale) switchView('home');   // same language: just go Home
+      if (t.dataset.locale === studyMenuValue()) switchView('home');   // same language: just go Home
       else setStudyLocale(t.dataset.locale);                        // saves it + opens that language's Home
       return;
     }
@@ -6423,6 +6470,12 @@
     }
   }
 
+  // Settles once /auth/me has answered (or failed) — i.e. the access code is
+  // synced and the study language restored. Home waits on it so a page refresh
+  // doesn't load French stats, or none at all, before those are known.
+  let _meReadyResolve;
+  const _meReady = new Promise(r => { _meReadyResolve = r; });
+
   // Auth gate — redirect to login if no valid token
   (async () => {
     const token = localStorage.getItem('ft_jwt');
@@ -6467,6 +6520,7 @@
         }
       } catch (_) {}
     }
+    _meReadyResolve();
   })();
 
   function _endVisit(reason) {
@@ -6790,20 +6844,45 @@
   }
 
   // ── Study locale (English private beta) ────────────────────────────────────
-  // Français / English (US) / English (UK). Only accounts with english_beta see
-  // the switch; everyone else stays on fr-FR and nothing here changes for them.
-  // The locale drives speech recognition, voices and the content bank; its
-  // language ("fr" / "en") drives scoring. Declared before the recognizer is
-  // built below, which reads sttLang() at load.
-  const STUDY_LOCALE_KEY = 'vf_study_locale';
-  const STUDY_LOCALES = ['fr-FR', 'en-US', 'en-GB'];
-  const STUDY_LOCALE_BADGE = { 'fr-FR': 'FR', 'en-US': 'US', 'en-GB': 'UK' };
-  const STUDY_LOCALE_NAME  = { 'fr-FR': 'Français', 'en-US': 'English (US)', 'en-GB': 'English (UK)' };
+  // Français / English. Only accounts with english_beta see the switch; everyone
+  // else stays on fr-FR and nothing here changes for them. English has a shared
+  // accent setting (US / UK / Both) chosen in the English hubs; each new item
+  // (phrase, paragraph, flashcard set) resolves it to en-US or en-GB via
+  // rollStudyLocale(), and that locale then drives the item's speech recognition,
+  // voices and content bank. The language ("fr" / "en") drives scoring. Declared
+  // before the recognizer is built below, which reads sttLang() at load.
+  const STUDY_LOCALE_KEY = 'vf_study_locale';          // 'fr-FR' | 'en' (older 'en-US' / 'en-GB' read as 'en')
+  const EN_ACCENT_KEY = 'vf_en_accent';                // 'us' | 'uk' | 'both'
+  const EN_ACCENT_LOCALE = { us: 'en-US', uk: 'en-GB' };
+  const STUDY_LANG_BADGE = { fr: 'FR', en: 'EN' };
+  const STUDY_LANG_NAME  = { fr: 'Français', en: 'English' };
   // Views available while studying English (v1: Speaking phrases + Flashcards).
   const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'phrase', 'paragraph', 'vocab-hub', 'vocab']);
-  let studyLocale = 'fr-FR';
+  let studyLocale = 'fr-FR';   // locale of the current item (en-US / en-GB while studying English)
+  let enAccent = 'both';
 
   function studyLang() { return studyLocale.slice(0, 2); }
+  // The language menu's value for the current study language.
+  function studyMenuValue() { return studyLang() === 'en' ? 'en' : 'fr-FR'; }
+  // Resolve the English accent setting to a concrete locale for the next item.
+  function rollStudyLocale() {
+    if (studyLang() !== 'en') return;
+    const accent = enAccent === 'both' ? (Math.random() < 0.5 ? 'us' : 'uk') : enAccent;
+    studyLocale = EN_ACCENT_LOCALE[accent] || 'en-US';
+    if (recognition) recognition.lang = sttLang();
+  }
+  function applyEnAccent() {
+    document.querySelectorAll('.hub-accent-chips .hub-subject-chip').forEach(b =>
+      b.classList.toggle('active', b.dataset.accent === enAccent));
+  }
+  function selectEnAccent(btn) {
+    const accent = btn && btn.dataset.accent;
+    if (!['us', 'uk', 'both'].includes(accent)) return;
+    enAccent = accent;
+    try { localStorage.setItem(EN_ACCENT_KEY, accent); } catch (_) {}
+    applyEnAccent();
+    rollStudyLocale();
+  }
   function sttLang() { return studyLocale; }
   // /tts request body in the study language (French requests stay exactly as before).
   function ttsRequestBody(text) { return studyLang() === 'en' ? { text, locale: studyLocale } : { text }; }
@@ -6813,9 +6892,9 @@
 
   function applyStudyLocale() {
     // Language buttons (rail FAB + phone top bar) show the current badge
-    const curName = STUDY_LOCALE_NAME[studyLocale] || 'Français';
+    const curName = STUDY_LANG_NAME[studyLang()] || 'Français';
     document.querySelectorAll('[data-open-lang]').forEach(b => {
-      b.textContent = STUDY_LOCALE_BADGE[studyLocale] || 'FR';
+      b.textContent = STUDY_LANG_BADGE[studyLang()] || 'FR';
       b.setAttribute('aria-label', 'Study language: ' + curName);
     });
     if (recognition) recognition.lang = sttLang();
@@ -6842,10 +6921,12 @@
     });
   }
 
-  function setStudyLocale(locale) {
-    if (!STUDY_LOCALES.includes(locale) || locale === studyLocale) return;
-    studyLocale = locale;
-    try { localStorage.setItem(STUDY_LOCALE_KEY, locale); } catch (_) {}
+  // value: 'fr-FR' or 'en' (the language menu's values).
+  function setStudyLocale(value) {
+    if (!['fr-FR', 'en'].includes(value) || value === studyMenuValue()) return;
+    studyLocale = value === 'en' ? 'en-US' : 'fr-FR';
+    rollStudyLocale();
+    try { localStorage.setItem(STUDY_LOCALE_KEY, value); } catch (_) {}
     applyStudyLocale();
     // Home caches its stats; drop them so it reloads for the new language.
     _homeLoaded = false; _homeData = null; _homeCoachData = null;
@@ -6869,9 +6950,12 @@
       applyStudyLocale();
       return;
     }
-    let stored = null;
-    try { stored = localStorage.getItem(STUDY_LOCALE_KEY); } catch (_) {}
-    studyLocale = STUDY_LOCALES.includes(stored) ? stored : 'fr-FR';
+    let stored = null, accent = null;
+    try { stored = localStorage.getItem(STUDY_LOCALE_KEY); accent = localStorage.getItem(EN_ACCENT_KEY); } catch (_) {}
+    enAccent = ['us', 'uk', 'both'].includes(accent) ? accent : 'both';
+    applyEnAccent();
+    studyLocale = (stored || '').startsWith('en') ? 'en-US' : 'fr-FR';
+    rollStudyLocale();
     applyStudyLocale();
     if (studyLang() === 'en' && !EN_VIEWS.has(currentView)) switchView('home');
   }
@@ -8698,6 +8782,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       } else {
         const activeFocusWord = coachFocusWords.length && coachFocusIndex < coachFocusWords.length
           ? coachFocusWords[coachFocusIndex] : undefined;
+        rollStudyLocale();   // English: this phrase's accent (US / UK) for its bank, voice and recognizer
         const phraseBody = studyLang() === 'en'
           ? { level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: enSoundFocus || undefined, locale: studyLocale, ...getAnalyticsFields() }
           : { level: shadowLevel, topic: shadowingTopic || undefined, style: shadowingStyle, sound_focus: shadowingSoundFocus || undefined, focus_word: activeFocusWord, ...getAnalyticsFields() };
@@ -10210,6 +10295,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('para-full-text').innerHTML = loadingHtml('Generating paragraph…');
     document.getElementById('para-full-text').classList.remove('is-blurred');
 
+    rollStudyLocale();   // English: this paragraph's accent, kept for all its blocks and drills
     try {
       const res = await apiFetch('/paragraph/start', {
         method: 'POST',
@@ -11514,33 +11600,36 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const _homePct = v => Math.round(v * 100) + '%';
   const _homeCnt = v => String(Math.round(v));
   const _homeLevelColor = lvl => 'var(--vk-chart-' + (_HOME_LEVEL_RANK[lvl] || 1) + ')';
+  // Open the Speaking hub with Phrases or Paragraphs already chosen.
+  function openSpeakingHubMode(mode) {
+    switchView('phrase-hub');
+    const card = document.querySelector(`#hub-modes .hub-mode-card[data-mode="${mode}"]`);
+    if (card) selectHubMode(card);
+  }
+
+  // Shown in place of a skill card the student hasn't tried yet; mode preselects the Speaking hub.
+  const HOME_SKILL_PROMPT = {
+    performance: { text: 'Read a whole paragraph aloud to push your speaking further and get your Performance score.',
+      cta: 'Try a paragraph', mode: 'paragraph' },
+    precision:   { text: 'Say a single phrase to get your Precision score.',
+      cta: 'Try a phrase', mode: 'phrase' },
+  };
+
   const HOME_SKILL_META = {
-    performance: { label: 'Performance', tests: 'Speaking a whole passage — all of it together.',
-      chartTitle: 'Performance over time', chartSub: 'Paragraph accuracy by level, weekly' },
-    precision:   { label: 'Precision', tests: 'Nailing a single sentence — the sounds and the links.',
-      chartTitle: 'Precision over time', chartSub: 'Phrase & sentence-drill accuracy by level, weekly' },
-    words:       { label: 'Words mastered', tests: 'Words you can pronounce reliably.',
-      chartTitle: 'Words mastered', chartSub: 'Cumulative — it only goes up' },
+    performance: { label: 'Performance', tests: 'Speaking a whole passage — all of it together.', pass: 70 },
+    precision:   { label: 'Precision', tests: 'Nailing a single sentence — the sounds and the links.', pass: 90 },
+    words:       { label: 'Words mastered', tests: 'Words you say right at least 80% of the time.' },
   };
 
   let _homeData = null;
   let _homeCoachData = null;
   let _homeKpis = [];
-  let _homeActiveKey = null;
   let _homeLoaded = false;
-  let _homeResizeBound = false;
 
   async function loadHomeView() {
+    await _meReady;
     const code = _activeAccessCode();
     if (!code) return;
-    if (!_homeResizeBound) {
-      let rt;
-      window.addEventListener('resize', () => {
-        clearTimeout(rt);
-        rt = setTimeout(() => { if (currentView === 'home' && _homeActiveKey) selectHomeKPI(_homeActiveKey); }, 150);
-      });
-      _homeResizeBound = true;
-    }
     if (_homeLoaded && _homeData) { renderHome(); return; }
     try {
       const [progRes, coachRes, meRes] = await Promise.allSettled([
@@ -11560,8 +11649,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       renderHome();
       _renderHomeNextLesson(meData);
     } catch (e) {
-      const chart = document.querySelector('.home-trend-chart');
-      if (chart) chart.innerHTML = '<div class="empty">Could not load your progress right now.</div>';
+      const kpis = document.getElementById('home-kpis');
+      if (kpis) kpis.innerHTML = '<p class="home-kpi-detail-empty">Could not load your progress right now.</p>';
     }
   }
 
@@ -11590,22 +11679,20 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       _renderHomeNewUser();
     } else {
       _renderHomeActiveUser(s);
-      _renderCoachInsight(_homeCoachData);
     }
   }
 
   function _renderHomeNewUser() {
     const emptyEl = document.getElementById('home-empty-state');
     const dataEl  = document.getElementById('home-data-section');
-    const insightEl = document.getElementById('home-coach-insight');
     if (emptyEl)   emptyEl.style.display   = '';
     if (dataEl)    dataEl.style.display    = 'none';
-    if (insightEl) insightEl.style.display = 'none';
-    const eyebrow = document.querySelector('#home-view .hub-intro-eyebrow');
-    const heading = document.querySelector('#home-view .hub-intro-heading');
+    const tilesEl = document.getElementById('home-tiles');
+    if (tilesEl) tilesEl.style.display = 'none';
+    renderHomeGreeting(false);
+    const heading = document.getElementById('home-heading');
     const sub     = document.getElementById('home-greeting-sub');
-    if (eyebrow) eyebrow.textContent = 'Getting started';
-    if (heading) heading.textContent = 'No data yet';
+    if (heading) heading.textContent = "Let's get you started";
     if (sub) sub.textContent = 'Complete your first exercise and your scores will appear here.';
   }
 
@@ -11615,113 +11702,34 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (emptyEl) emptyEl.style.display = 'none';
     if (dataEl)  dataEl.style.display  = '';
 
-    const banner  = document.getElementById('home-returning-banner');
-    const retText = document.getElementById('home-returning-text');
-    const eyebrow = document.querySelector('#home-view .hub-intro-eyebrow');
-    if (s.returning && s.gap_days) {
-      const d = s.gap_days;
-      if (retText) retText.textContent = `${d} day${d !== 1 ? 's' : ''} since your last session — start with a warmup phrase`;
-      if (banner)  banner.style.display = '';
-      if (eyebrow) eyebrow.textContent  = 'Welcome back';
-    } else {
-      if (banner)  banner.style.display = 'none';
-      if (eyebrow) eyebrow.textContent  = 'Your progress';
-    }
-
     _homeKpis = buildHomeKpis(_homeData);
-    renderHomeTip(s);
-    renderHomeKPIs();
+    const plan = planHomeSuggestions(s, _homeData.coach || {}, _homeCoachData);
+    renderHomeWelcome(s, _homeData.coach || {});
+    renderHomeKPIs(plan.primaryKey);
     renderHomeSecondary(_homeData.secondary);
-    const def = (_homeData.default_key && _homeKpis.some(k => k.key === _homeData.default_key))
-      ? _homeData.default_key : (_homeKpis[0] && _homeKpis[0].key);
-    if (def) selectHomeKPI(def);
-    _rankActionCards(s);
-  }
-
-  function _rankActionCards(s) {
-    const actions = document.querySelector('.home-actions');
-    if (!actions) return;
-    actions.querySelectorAll('.vk-tag.is-accent').forEach(t => t.remove());
-
-    let rec = null;
-    if (s.returning || s.dip) {
-      rec = 'phrase-hub';
-    } else if (s.ready_to_level_up) {
-      rec = 'phrase-hub';
-    } else {
-      const w = (_homeData && _homeData.kpis && _homeData.kpis.words) || {};
-      if ((w.total || 0) > 0 && (w.recent_gain || 0) === 0) rec = 'vocab-hub';
-    }
-    if (!rec) return;
-
-    const target = actions.querySelector(`[data-action-key="${rec}"]`);
-    if (!target) return;
-    const badge = document.createElement('span');
-    badge.className = 'vk-tag is-accent';
-    badge.style.cssText = 'position:absolute; top:8px; right:8px; font-size:0.6rem; pointer-events:none;';
-    badge.textContent = 'Recommended';
-    target.appendChild(badge);
-    actions.insertBefore(target, actions.firstChild);
-  }
-
-  function _renderCoachInsight(coachData) {
-    const el  = document.getElementById('home-coach-insight');
-    const txt = document.getElementById('home-coach-insight-text');
-    if (!el || !txt) return;
-    if (!coachData) { el.style.display = 'none'; return; }
-
-    const inconsistent = coachData.inconsistent_words || [];
-    const struggles    = coachData.phonetic_struggles  || {};
-    const struggleKeys = Object.keys(struggles);
-    let insight = null;
-
-    const english = studyLang() === 'en';
-    if (inconsistent.length >= 3) {
-      const n = inconsistent.length;
-      insight = english
-        ? `${n} words you've practiced are still inconsistent — a few more Speaking phrases will help.`
-        : `${n} words you've practiced are still inconsistent — a few focused reps in your Practice List will help.`;
-    } else if (struggleKeys.length > 0) {
-      const cat   = struggleKeys[0];
-      const EN_SOUND_LABELS = { th: '"th" sounds', h_sound: '"h" sounds', vowel_length: 'short/long vowels',
-                                ed_endings: '-ed endings', ough: '"ough" words' };
-      const label = english
-        ? (EN_SOUND_LABELS[cat] || 'sounds')
-        : (cat === 'nasal' ? 'nasal sounds' : cat === 'u_sound' ? '[u] sounds' : '[eu] sounds');
-      insight = english
-        ? `Your ${label} are showing up as misses — try Speaking with that Sound Focus.`
-        : `Your ${label} are showing up as misses — worth a focused run through some phrases.`;
-    }
-
-    if (!insight) { el.style.display = 'none'; return; }
-    txt.textContent = insight;
-    el.style.display = '';
+    renderHomeTiles(_homeData.tiles, plan, _homeData.level_fit);
   }
 
   function buildHomeKpis(d) {
-    const wk = (d && (d.labels || d.week_labels)) || [];
-    const axisWord = (d && d.axis === 'session') ? 'per session'
-      : (d && d.axis === 'day') ? 'by day' : null;
     const k = (d && d.kpis) || {};
     const out = [];
     ['performance', 'precision'].forEach(key => {
       const x = k[key]; if (!x) return;
       const m = HOME_SKILL_META[key];
+      // Never practised this skill: the card invites a first try instead of showing an empty score.
+      if (x.value == null && !x.has_data) {
+        out.push({ key, label: m.label, prompt: HOME_SKILL_PROMPT[key] });
+        return;
+      }
       const value = x.value != null ? `${Math.round(x.value * 100)}<span class="unit">%</span>` : '—';
       let context;
       if (x.new_level || (x.trend && x.trend.dir === 'up')) context = 'improving within each level';
       else if (x.trend && x.trend.dir === 'down') context = "a dip — learning isn't linear";
       else context = 'practise to see your trend';
-      const series = (x.levels || []).map(l => ({
-        label: l.level, mark: l.level, color: _homeLevelColor(l.level), width: 2.5,
-        points: (l.points || []).map(v => ({ v })),
-      }));
       out.push({
         key, label: m.label, tests: m.tests, value, trend: x.trend, context,
         newLevel: x.new_level, increaseScore: x.momentum || 0,
-        chart: { title: m.chartTitle, sub: axisWord ? m.chartSub.replace('weekly', axisWord) : m.chartSub, series,
-          opts: { yMax: 1, ticks: [0, 0.5, 1], fmt: _homePct, tickFmt: v => Math.round(v * 100),
-            area: true, areaOpacity: 0.12, weekLabels: wk } },
+        detail: _homeLevelDetailHtml(x.by_level || [], x.by_level_window, m.pass),
       });
     });
     const w = k.words;
@@ -11732,70 +11740,299 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       out.push({
         key: 'words', label: m.label, tests: m.tests, value: String(w.total || 0), trend: w.trend, context,
         newLevel: null, increaseScore: w.momentum || 0,
-        chart: { title: m.chartTitle, sub: m.chartSub,
-          series: [{ label: 'Words mastered', color: 'var(--vk-chart-1)', width: 3, points: (w.cumulative || []).map(v => ({ v })) }],
-          opts: { yMax: null, fmt: _homeCnt, tickFmt: v => Math.round(v), area: true, weekLabels: wk } },
+        detail: _homeWordStagesHtml(w.stages || { mastered: w.total || 0, almost: 0, learning: 0 }),
       });
     }
     return out;
   }
 
-  function renderHomeKPIs() {
+  // Expressive KPI cards: tapping one expands it in place (full width, first row)
+  // to show its breakdown; tapping again collapses it. One open at a time.
+  // primaryKey: the suggestion (see planHomeSuggestions) that is the top pick —
+  // an empty-skill card carrying it gets the filled button; the others are outline.
+  function renderHomeKPIs(primaryKey) {
     const host = document.getElementById('home-kpis');
     if (!host) return;
+    host.classList.remove('has-expanded');
     host.innerHTML = _homeKpis.map(k => {
+      if (k.prompt) {
+        const primary = _homeSuggestionKey({ mode: k.prompt.mode }) === primaryKey;
+        return `<div class="vk-kpi-card home-kpi-prompt${primary ? ' is-primary' : ''}" data-prompt-mode="${k.prompt.mode}">
+          <div class="home-kpi-head"><p class="vk-kpi-label">${k.label}</p></div>
+          <p class="home-kpi-tests">${k.prompt.text}</p>
+          <div class="vk-kpi-footer"><button class="vk-btn ${primary ? 'vk-btn-primary' : 'vk-btn-outline'} sm">${k.prompt.cta}</button></div>
+        </div>`;
+      }
       const trend = k.trend ? `<span class="vk-trend ${k.trend.dir}">${k.trend.text}</span>` : '';
       const badge = k.newLevel ? `<span class="vk-tag is-success home-kpi-badge" title="You've reached a new level">New level · ${k.newLevel}</span>` : '';
-      return `<div class="vk-kpi-card" role="button" tabindex="0" data-key="${k.key}">
-        <div class="home-kpi-head"><p class="vk-kpi-label">${k.label}</p>${badge}</div>
+      return `<div class="vk-kpi-card home-kpi-card" role="button" tabindex="0" aria-expanded="false" data-key="${k.key}" style="view-transition-name:home-kpi-${k.key}">
+        <div class="home-kpi-head"><p class="vk-kpi-label">${k.label}</p>${badge}
+          <svg class="home-kpi-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z" fill="currentColor"/></svg></div>
         <p class="vk-kpi-value">${k.value}</p>
         <p class="home-kpi-tests">${k.tests}</p>
         <div class="vk-kpi-footer">${trend}<span class="vk-kpi-context">${k.context}</span></div>
+        <div class="home-kpi-detail">${k.detail || ''}</div>
       </div>`;
     }).join('');
-    host.querySelectorAll('.vk-kpi-card').forEach(card => {
-      const sel = () => selectHomeKPI(card.dataset.key);
-      card.addEventListener('click', sel);
-      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sel(); } });
+    host.querySelectorAll('.home-kpi-prompt').forEach(card => {
+      card.querySelector('button').addEventListener('click', () => openSpeakingHubMode(card.dataset.promptMode));
+    });
+    host.querySelectorAll('.home-kpi-card').forEach(card => {
+      const toggle = () => toggleHomeKPI(card.dataset.key);
+      card.addEventListener('click', toggle);
+      card.addEventListener('keydown', e => {
+        if (e.target !== card) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+      // Reading the breakdown shouldn't collapse it; the rest of the card toggles.
+      card.querySelector('.home-kpi-detail').addEventListener('click', e => e.stopPropagation());
     });
   }
 
-  function selectHomeKPI(key) {
-    _homeActiveKey = key;
-    document.querySelectorAll('#home-kpis .vk-kpi-card').forEach(c => c.classList.toggle('is-active', c.dataset.key === key));
-    const k = _homeKpis.find(x => x.key === key); if (!k) return;
-    const t = document.querySelector('.home-chart-title'); if (t) t.textContent = k.chart.title;
-    const s = document.querySelector('.home-chart-sub'); if (s) s.textContent = k.chart.sub;
-    const host = document.querySelector('.home-trend-chart'); if (!host) return;
-    const hasData = (k.chart.series || []).some(se => se.points.some(p => p.v != null));
-    if (!hasData) host.innerHTML = '<div class="empty">No practice data yet — start an exercise and your progress will show here.</div>';
-    else _homeBuildChart(host, k.chart.series, k.chart.opts);
+  function toggleHomeKPI(key) {
+    const host = document.getElementById('home-kpis');
+    if (!host) return;
+    const apply = () => {
+      let opened = false;
+      host.querySelectorAll('.home-kpi-card').forEach(c => {
+        const open = c.dataset.key === key && !c.classList.contains('is-expanded');
+        c.classList.toggle('is-expanded', open);
+        c.setAttribute('aria-expanded', open ? 'true' : 'false');
+        opened = opened || open;
+      });
+      host.classList.toggle('has-expanded', opened);
+    };
+    // Container transform: the browser morphs each card from its old box to its new one.
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (document.startViewTransition && !reduce) document.startViewTransition(apply);
+    else apply();
+  }
+
+  // Performance / Precision, expanded: one bar per level, coloured by the skill's pass mark.
+  const HOME_LEVEL_NAME = { '?': 'No level' };
+  function _homeLevelDetailHtml(levels, window_, pass) {
+    if (!levels.length) return '<p class="home-kpi-detail-empty">No scores yet.</p>';
+    const sub = window_ === 'all' ? 'Your accuracy at each level, all time' : 'Your accuracy at each level, last 30 days';
+    return `<p class="home-kpi-detail-sub">${sub}</p><div class="home-detail-bars">${levels.map(l => {
+      const pct = Math.round((l.value || 0) * 100);
+      const tier = pct >= pass ? 'is-pass' : pct >= 60 ? 'is-progress' : pct >= 40 ? 'is-almost' : 'is-fail';
+      const tries = `${l.attempts} ${l.attempts === 1 ? 'try' : 'tries'}`;
+      return `<div class="home-detail-bar">
+        <span class="home-detail-bar-name">${HOME_LEVEL_NAME[l.level] || l.level}<span class="home-detail-bar-desc">${tries}</span></span>
+        <span class="home-detail-bar-num">${pct}%</span>
+        <div class="pa-lp"><div class="pa-lp-fill ${tier}" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  // Words mastered, expanded: one bar per stage, each out of every word practised.
+  const HOME_WORD_STAGES = [
+    { key: 'mastered', name: 'Mastered',       desc: 'Said right at least 80% of the time, over 3 or more tries', fill: 'is-pass' },
+    { key: 'almost',   name: 'Almost there',   desc: 'Not mastered yet, but said right at least half the time',   fill: 'is-almost' },
+    { key: 'learning', name: 'Still learning', desc: 'Said right less than half the time so far',                 fill: 'is-progress' },
+  ];
+  function _homeWordStagesHtml(st) {
+    const total = HOME_WORD_STAGES.reduce((a, s) => a + (st[s.key] || 0), 0);
+    if (!total) return '<p class="home-kpi-detail-empty">No words practised yet.</p>';
+    return `<p class="home-kpi-detail-sub">Every word you’ve practised, by stage</p><div class="home-detail-bars">${HOME_WORD_STAGES.map(s => {
+      const n = st[s.key] || 0;
+      return `<div class="home-detail-bar">
+        <span class="home-detail-bar-name">${s.name}<span class="home-detail-bar-desc">${s.desc}</span></span>
+        <span class="home-detail-bar-num">${n.toLocaleString('en-US')}</span>
+        <div class="pa-lp"><div class="pa-lp-fill ${s.fill}" style="width:${(n / total * 100).toFixed(1)}%"></div></div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  // ── Coaching: welcome block (top) + advice tile (in the tiles grid) ─────────
+  // The server sends signals (signals + coach: stage, streak, milestones, days
+  // since each area); the message is picked and worded here.
+  const HOME_AREAS = {
+    phrase:    { label: 'phrases',    title: 'Phrases',    target: { mode: 'phrase' } },
+    paragraph: { label: 'paragraphs', title: 'Paragraphs', target: { mode: 'paragraph' } },
+    vocab:     { label: 'flashcards', title: 'Flashcards', target: { view: 'vocab-hub' } },
+    listening: { label: 'listening',  title: 'Listening',  target: { view: 'comprehension-hub' } },
+    dictation: { label: 'dictation',  title: 'Dictation',  target: { view: 'dictation-hub' } },
+  };
+  // Why each area is worth doing — used when suggesting one the student hasn't tried or has let slip.
+  const HOME_AREA_WHY = {
+    phrase:    'Short phrases sharpen individual sounds and the links between words.',
+    paragraph: 'Paragraphs train the flow of a whole passage. That is what your Performance score measures.',
+    vocab:     'Flashcards grow the words you can recognise by ear and say with confidence.',
+    listening: 'Listening to natural speech trains your ear for the speed of real conversation.',
+    dictation: 'Dictation connects what you hear to how it is written.',
+  };
+  function _homeAreaAvailable(area) {
+    return studyLang() === 'en' ? ['phrase', 'paragraph', 'vocab'].includes(area) : !!HOME_AREAS[area];
+  }
+
+  // Go to an exercise: Speaking hub with mode (and optional level / sound focus) chosen, or a hub view.
+  function openHomeTarget(t) {
+    if (!t) return;
+    if (!t.mode) { switchView(t.view); return; }
+    openSpeakingHubMode(t.mode);
+    if (t.level) {
+      const lvl = document.querySelector(`#hub-levels .hub-subject-chip[data-level="${t.level}"]`);
+      if (lvl) selectHubLevel(lvl);
+    }
+    if (t.focus) {
+      const chips = studyLang() === 'en' ? '#hub-en-sound-chips' : '#hub-sound-chips';
+      const chip = document.querySelector(`${chips} .hub-subject-chip[data-focus="${t.focus}"]`);
+      if (chip) (studyLang() === 'en' ? selectHubEnSoundChip : selectHubSoundChip)(chip);
+    }
   }
 
   function _homeTopGainer() {
     return _homeKpis.reduce((a, b) => ((b.increaseScore || 0) > (a.increaseScore || 0) ? b : a), _homeKpis[0] || {});
   }
 
-  // Data-driven subtitle — confirmation style, not motivational copy.
-  function pickHomeTip(s) {
-    s = s || {};
-    if (s.new) return `Complete your first exercise and your scores will appear here.`;
+  // One line on how things are going — confirmation style, not motivational copy.
+  function _homeProgressLine(s) {
     const leveled = _homeKpis.find(k => k.newLevel);
-    if (leveled) return `Level updated to ${leveled.newLevel}${s.first_level ? ` (from ${s.first_level})` : ''} — accuracy is holding at the new level.`;
-    if (s.ready_to_level_up && s.current_level && s.next_level) return `${s.current_level} accuracy is consistent. Ready to move up to ${s.next_level}.`;
-    if (s.returning && s.last_level) return `Last session was at ${s.last_level}.`;
+    if (leveled) return `You've moved up to ${leveled.newLevel}${s.first_level ? ` from ${s.first_level}` : ''}, and your accuracy is holding.`;
     const top = _homeTopGainer();
     if (top && top.trend && top.trend.dir === 'up' && (top.increaseScore || 0) >= 0.5)
-      return `${top.label} is up ${top.trend.text} since last week.`;
-    if (s.new_words > 0) return `${s.new_words} new words confirmed this month.`;
-    if (s.dip) return `${s.dip} dipped this week — worth a few reps before next session.`;
-    if (top && top.trend) return `${top.label} trend: ${top.trend.text}.`;
-    return `Here's where things stand.`;
+      return `Your ${top.label} is up ${top.trend.text} this month.`;
+    if (s.new_words > 0) return `You've mastered ${s.new_words} new word${s.new_words === 1 ? '' : 's'} this month.`;
+    if (top && top.trend) return `Your ${top.label} trend: ${top.trend.text}.`;
+    return `Your scores are below. Keep practising and your trends will show up here.`;
   }
 
-  function renderHomeTip(signals) {
-    const el = document.getElementById('home-greeting-sub');
-    if (el) el.textContent = pickHomeTip(signals);
+  const HOME_MILESTONE_HEADING = {
+    words:         n => `You've mastered ${n.toLocaleString('en-US')} words`,
+    days:          n => `You've practised on ${n} days`,
+    first_perfect: () => 'You said your first perfect phrase',
+  };
+
+  // Welcome block: talks to the student — welcome back, a celebration
+  // (milestone / streak), or how things are going. Suggestions live in Next up.
+  function pickHomeWelcome(s, c) {
+    const streakLine = c.streak >= 2 ? ` That's ${c.streak} days in a row.` : '';
+    if (s.returning && s.gap_days) {
+      return { heading: 'Good to see you again',
+        sub: `It's been ${s.gap_days} days since your last session.` };
+    }
+    const m = (c.milestones || [])[0];
+    if (m && HOME_MILESTONE_HEADING[m.kind]) {
+      const ago = m.days_ago || 0;
+      const when = ago <= 0 ? 'That was today.' : ago === 1 ? 'That was yesterday.' : `That was ${ago} days ago.`;
+      return { heading: HOME_MILESTONE_HEADING[m.kind](m.value), sub: when + streakLine };
+    }
+    if (c.streak >= 2) {
+      return { heading: `You've practised ${c.streak} days in a row`, sub: _homeProgressLine(s) };
+    }
+    return { heading: `Here's how your ${studyLang() === 'en' ? 'English' : 'French'} is going`, sub: _homeProgressLine(s) };
+  }
+
+  // "Welcome" in the language being studied (welcome back after a break).
+  function renderHomeGreeting(returning) {
+    const el = document.getElementById('home-greeting');
+    if (!el) return;
+    const en = studyLang() === 'en';
+    el.textContent = returning ? (en ? 'Welcome back' : 'Bon retour') : (en ? 'Welcome' : 'Bienvenue');
+    el.lang = en ? 'en' : 'fr';
+  }
+
+  function renderHomeWelcome(s, c) {
+    renderHomeGreeting(!!(s.returning && s.gap_days));
+    const w = pickHomeWelcome(s, c);
+    const heading = document.getElementById('home-heading');
+    const sub     = document.getElementById('home-greeting-sub');
+    if (heading) heading.textContent = w.heading;
+    if (sub)     sub.textContent     = w.sub;
+  }
+
+  const HOME_SOUND_FOCUS = {
+    en: { th: ['TH sounds', 'th'], h_sound: ['H sounds', 'h_sound'], vowel_length: ['short and long vowels', 'vowel_length'],
+          ed_endings: ['-ED endings', 'ed_endings'], ough: ['OUGH words', 'ough'] },
+    fr: { nasal: ['nasal vowels', 'nasal'], u_sound: ['the French /y/', 'u_vowel'], eu_sound: ['[eu] sounds', null] },
+  };
+
+  // Every suggestion worth making, most effective first. New learners get variety
+  // first; established learners get focus, then anything they've let slip.
+  function rankHomeSuggestions(s, c, coach) {
+    const stage = c.stage || 'new';
+    const since = c.days_since || {};
+    const out = [];
+    if (s.returning && s.gap_days) {
+      const lvl = s.last_level && s.last_level !== '?' ? s.last_level : null;
+      out.push({ title: 'Ease back in', text: `A warm-up phrase${lvl ? ` at ${lvl}` : ''} is an easy way back into practice.`,
+        cta: 'Start a warm-up phrase', target: { mode: 'phrase', level: lvl } });
+    }
+    const levelMove = _homeLevelMove(_homeData && _homeData.level_fit);
+    if (levelMove) out.push(levelMove);
+    const variety = () => {
+      ['paragraph', 'phrase', 'vocab', 'listening', 'dictation']
+        .filter(a => _homeAreaAvailable(a) && since[a] == null)
+        .forEach(a => out.push({ title: `Try ${HOME_AREAS[a].label}`, text: HOME_AREA_WHY[a],
+          cta: `Try ${HOME_AREAS[a].label}`, target: HOME_AREAS[a].target }));
+    };
+    if (stage === 'new') variety();
+    if (s.dip === 'performance' || s.dip === 'precision') {
+      const para = s.dip === 'performance';
+      out.push({ title: `${para ? 'Performance' : 'Precision'} dipped`,
+        text: `Dips are a normal part of learning. A few ${para ? 'paragraphs' : 'phrases'} at your level will steady it.`,
+        cta: `Practise ${para ? 'paragraphs' : 'phrases'}`, target: { mode: para ? 'paragraph' : 'phrase' } });
+    }
+    const almost = ((coach && coach.almost_there_words) || []).map(w => w.word).filter(w => w && w.length >= 4).slice(0, 3);
+    if (almost.length) {
+      out.push({ title: 'Almost mastered',
+        text: `${almost.join(', ')} ${almost.length === 1 ? 'is' : 'are'} nearly there. A few more tries will lock ${almost.length === 1 ? 'it' : 'them'} in.`,
+        cta: 'Practise phrases', target: { mode: 'phrase' } });
+    }
+    const soundMap = HOME_SOUND_FOCUS[studyLang()] || {};
+    const sound = Object.keys((coach && coach.phonetic_struggles) || {}).find(k => Array.isArray(soundMap[k]));
+    if (sound) {
+      const [label, focus] = soundMap[sound];
+      out.push({ title: `Work on ${label}`,
+        text: `${label.charAt(0).toUpperCase() + label.slice(1)} are your most common miss right now.`,
+        cta: focus ? 'Try a sound focus' : 'Practise phrases', target: { mode: 'phrase', focus } });
+    }
+    Object.keys(since)
+      .filter(a => _homeAreaAvailable(a) && since[a] >= 14)
+      .sort((a, b) => since[b] - since[a])
+      .forEach(a => out.push({ title: `${HOME_AREAS[a].title}: ${since[a]} days ago`, text: HOME_AREA_WHY[a],
+        cta: `Open ${HOME_AREAS[a].label}`, target: HOME_AREAS[a].target }));
+    if (stage !== 'new') variety();
+    return out;
+  }
+
+  // Current level tile: a harder / easier level to try, when the fit says so.
+  function _homeLevelMove(fit) {
+    if (!fit) return null;
+    if (fit.verdict === 'harder' && fit.next) {
+      return { title: `Ready for ${fit.next}`, text: `Your ${fit.level} accuracy is high. ${fit.next} will stretch you.`,
+        cta: `Try ${fit.next}`, target: { mode: 'phrase', level: fit.next } };
+    }
+    if (fit.verdict === 'easier' && fit.prev) {
+      return { title: `Try ${fit.prev}`, text: `${fit.prev} will help you build a steadier base.`,
+        cta: `Try ${fit.prev}`, target: { mode: 'phrase', level: fit.prev } };
+    }
+    return null;
+  }
+
+  const _homeSuggestionKey = t => [t.mode || t.view, t.level || '', t.focus || ''].join('|');
+
+  // Where each suggestion lands so none is repeated and only the most effective
+  // one is salient (filled button + tint); the others are secondary (outline).
+  // Cards that carry their own suggestion (an empty skill card's "Try a paragraph",
+  // the level tile's "Try C1") keep it; Next up never repeats one. If a card's
+  // suggestion is the top pick, that card is the primary and Next up takes the
+  // best suggestion that isn't on a card.
+  function planHomeSuggestions(s, c, coach) {
+    const key = _homeSuggestionKey;
+    const cardKeys = _homeKpis.filter(k => k.prompt).map(k => key({ mode: k.prompt.mode }));
+    const levelMove = _homeLevelMove(_homeData && _homeData.level_fit);
+    if (levelMove) cardKeys.push(key(levelMove.target));
+    const onCard = new Set(cardKeys);
+    const seen = new Set();
+    const unique = rankHomeSuggestions(s, c, coach).filter(x => !seen.has(key(x.target)) && seen.add(key(x.target)));
+    const top = unique[0];
+    if (top && onCard.has(key(top.target))) {
+      return { primaryKey: key(top.target), advice: unique.find(x => !onCard.has(key(x.target))) || null, advicePrimary: false };
+    }
+    if (top) return { primaryKey: null, advice: top, advicePrimary: true };
+    return { primaryKey: cardKeys[0] || null, advice: null, advicePrimary: false };
   }
 
   // Secondary KPIs (vocabulary + listening) — hidden until those are instrumented.
@@ -11810,6 +12047,64 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const delta = s.delta ? `<span class="vk-kpi-delta ${s.delta.dir}">${s.delta.text}</span>` : '';
       return `<div class="vk-kpi"><p class="vk-kpi-label">${s.label}</p><p class="vk-kpi-num">${s.num}${delta}</p><p class="vk-kpi-meta">${s.meta || ''}</p></div>`;
     }).join('');
+  }
+
+  // At-a-glance tiles: all-time counts, each shown only once it has a value,
+  // led by one advice tile (what to work on next) when there is advice to give.
+  function renderHomeTiles(t, plan, levelFit) {
+    const advice = plan && plan.advice, advicePrimary = plan && plan.advicePrimary;
+    const host = document.getElementById('home-tiles');
+    if (!host) return;
+    t = t || {};
+    const num = n => Number(n || 0).toLocaleString('en-US');
+    const dur = m => m < 60 ? `${m}<small>min</small>` : `${Math.floor(m / 60)}<small>h</small> ${m % 60}<small>min</small>`;
+    const week = (t.week || []).map((on, i) =>
+      `<span class="${on ? 'is-on' : ''}${i === t.today_index ? ' is-today' : ''}"></span>`).join('');
+    const tiles = [
+      t.days         && { label: 'Days practised', value: num(t.days), extra: `<div class="home-tile-week" aria-label="Days practised this week">${week}</div>` },
+      t.minutes      && { label: 'Practice time',  value: dur(t.minutes) },
+      t.phrases      && { label: 'Phrases',        value: num(t.phrases) },
+      t.paragraphs   && { label: 'Paragraphs',     value: num(t.paragraphs) },
+      t.words_spoken && { label: 'Words spoken',   value: num(t.words_spoken) },
+      t.perfect      && { label: 'Perfect phrases', value: num(t.perfect), extra: '<span class="phv-tile-label">at 100%</span>' },
+    ].filter(Boolean);
+    const adviceHtml = advice ? `<div class="phv-tile home-tile-advice${advicePrimary ? ' is-primary' : ''}">
+        <span class="phv-tile-label">${advicePrimary ? 'Next up' : 'Also worth trying'}</span>
+        <span class="home-tile-advice-title">${esc(advice.title)}</span>
+        <span class="home-tile-advice-text">${esc(advice.text)}</span>
+        <button class="vk-btn ${advicePrimary ? 'vk-btn-primary' : 'vk-btn-outline'} sm">${esc(advice.cta)}</button>
+      </div>` : '';
+    // Current level + whether it's the right difficulty (and a harder / easier level to try).
+    let levelHtml = '', levelMove = null;
+    if (levelFit) {
+      const pct = levelFit.accuracy != null ? Math.round(levelFit.accuracy * 100) : null;
+      const L = levelFit.level;
+      const text = {
+        unknown: `A few more tries at ${L} and we can tell you whether it's the right difficulty.`,
+        right:   `${pct}% accuracy. ${L} is the right difficulty for you: challenging, but within reach.`,
+        harder:  `${pct}% accuracy. ${L} is getting comfortable, so ${levelFit.next} will stretch you.`,
+        easier:  `${pct}% accuracy. ${L} is a big stretch right now; ${levelFit.prev} will help you build a steadier base.`,
+      }[levelFit.verdict] || '';
+      levelMove = _homeLevelMove(levelFit);
+      const primary = levelMove && _homeSuggestionKey(levelMove.target) === (plan && plan.primaryKey);
+      levelHtml = `<div class="phv-tile home-tile-level${primary ? ' is-primary' : ''}">
+        <span class="phv-tile-label">Current level</span>
+        <span class="phv-tile-value">${esc(L)}</span>
+        <span class="home-tile-advice-text">${esc(text)}</span>
+        ${levelMove ? `<button class="vk-btn ${primary ? 'vk-btn-primary' : 'vk-btn-outline'} sm">${esc(levelMove.cta)}</button>` : ''}
+      </div>`;
+    }
+    const lead = (advice ? 1 : 0) + (levelFit ? 1 : 0);
+    host.style.display = (tiles.length || advice || levelFit) ? '' : 'none';
+    host.innerHTML = adviceHtml + levelHtml + tiles.map((x, i) =>
+      `<div class="phv-tile" style="animation-delay:${(i + lead) * 50}ms">
+        <span class="phv-tile-label">${x.label}</span>
+        <span class="phv-tile-value">${x.value}</span>${x.extra || ''}
+      </div>`).join('');
+    const adviceBtn = host.querySelector('.home-tile-advice button');
+    if (adviceBtn) adviceBtn.addEventListener('click', () => openHomeTarget(advice.target));
+    const levelBtn = host.querySelector('.home-tile-level button');
+    if (levelBtn) levelBtn.addEventListener('click', () => openHomeTarget(levelMove.target));
   }
 
   // ── Multi-series trend renderer (ported from the atelier-design data-viz) ──
@@ -15515,6 +15810,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     try {
       _vocabIsCumulative = (_vocabCount === 'cumulative');
       const apiCount = _vocabIsCumulative ? 20 : _vocabCount;
+      rollStudyLocale();   // English: one accent for the whole flashcard set
       const res = await apiFetch('/vocab/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -15722,7 +16018,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       if (!data || !Array.isArray(data.allGenerated) || !data.allGenerated.length) return;
       const total = data.totalBatches || Math.ceil(data.allGenerated.length / 5);
       if ((data.batchIdx || 0) >= total) return;  // already complete
-      if ((data.locale || 'fr-FR') !== studyLocale) return;  // saved in the other study language
+      if ((data.locale || 'fr-FR').slice(0, 2) !== studyLang()) return;  // saved in the other study language
       _vocabResumeData = data;
       document.getElementById('vocab-resume-title').textContent = `${data.subject} · ${data.level}`;
       document.getElementById('vocab-resume-meta').textContent =
@@ -15734,6 +16030,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function resumeVocabSession() {
     const data = _vocabResumeData;
     if (!data) return;
+    // Continue in the accent the set was saved in (older sets carry no English locale).
+    if (studyLang() === 'en' && /^en-(US|GB)$/.test(data.locale || '')) {
+      studyLocale = data.locale;
+      if (recognition) recognition.lang = sttLang();
+    }
     _vocabIsCumulative   = true;
     _vocabAllGenerated   = data.allGenerated;
     _vocabBatchIdx       = data.batchIdx || 0;

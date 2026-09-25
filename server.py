@@ -1204,6 +1204,10 @@ async def auth_me(current_user: dict = Depends(_auth.get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     next_lesson = None
     access_code = user.get("access_code")
+    if not access_code and user["role"] == "super_admin":
+        # Admins are created without a code, but the admin account doubles as the
+        # test learner — without one, none of its practice is tracked or charted.
+        access_code = _analytics.ensure_user_access_code(user["id"], _auth.generate_access_code())
     if access_code:
         import sqlite3 as _sqlite3
         with _sqlite3.connect(str(_analytics.DB_PATH)) as _c:

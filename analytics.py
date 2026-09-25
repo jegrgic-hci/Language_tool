@@ -538,6 +538,18 @@ def create_user(role: str, email: str, password_hash: str,
     return get_user_by_id(user_id)
 
 
+def ensure_user_access_code(user_id: int, code: str) -> Optional[str]:
+    """Give an account without an access code the one passed in; return whichever
+    code the account ends up with. Only fills an empty slot — never replaces a code."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET access_code=? WHERE id=? AND (access_code IS NULL OR access_code='')",
+            (code, user_id),
+        )
+        row = conn.execute("SELECT access_code FROM users WHERE id=?", (user_id,)).fetchone()
+    return row["access_code"] if row else None
+
+
 def update_user_password(user_id: int, password_hash: str) -> None:
     with _conn() as conn:
         conn.execute(
@@ -2621,12 +2633,197 @@ _HOME_SKILL = {
     # word_attempted contributes only to word mastery (via word_results), not an accuracy skill
 }
 _NEXT_LEVEL = {"A1": "A2", "A2": "B1", "B1": "B2", "B2": "C1", "C1": "C2", "C2": None}
+_PREV_LEVEL = {v: k for k, v in _NEXT_LEVEL.items() if v}
+
+# Level fit: recent speaking accuracy at the current level decides whether it's the
+# right difficulty. Above the high bar → try the next level; below the low bar →
+# the previous one; too few attempts → not enough to judge yet.
+_LEVEL_FIT_HIGH = 0.85      # same bar as "ready to level up"
+_LEVEL_FIT_LOW = 0.60
+_LEVEL_FIT_MIN_ATTEMPTS = 10
+
+
+def _level_fit(level: Optional[str], scores: list) -> Optional[dict]:
+    if not level or level == "?":
+        return None
+    acc = _avg(scores)
+    if len(scores) < _LEVEL_FIT_MIN_ATTEMPTS or acc is None:
+        verdict = "unknown"
+    elif acc >= _LEVEL_FIT_HIGH and _NEXT_LEVEL.get(level):
+        verdict = "harder"
+    elif acc < _LEVEL_FIT_LOW and _PREV_LEVEL.get(level):
+        verdict = "easier"
+    else:
+        verdict = "right"
+    return {
+        "level":    level,
+        "accuracy": acc,
+        "attempts": len(scores),
+        "verdict":  verdict,
+        "next":     _NEXT_LEVEL.get(level),
+        "prev":     _PREV_LEVEL.get(level),
+    }
 
 
 def _event_lang(payload: dict) -> str:
     """Study language of an event: English events carry a "locale" (en-US/en-GB);
     everything else — including all history from before English existed — is French."""
     return "en" if str(payload.get("locale") or "").startswith("en") else "fr"
+
+
+# Exercise area of each event — for the coach's "last used" (neglect / variety) signals.
+_COACH_AREA = {
+    "phrase_attempted": "phrase",
+    "paragraph_started": "paragraph", "paragraph_attempted": "paragraph",
+    "paragraph_drilled": "paragraph", "paragraph_completed": "paragraph",
+    "vocab_session_started": "vocab", "vocab_session_completed": "vocab",
+    "listen_answer_started": "listening", "comprehension_answered": "listening",
+    "dictation_attempted": "dictation",
+    "writing_attempted": "writing",
+    "transform_attempted": "transform",
+}
+_COACH_WORD_MILESTONES = (10, 25, 50, 100, 250, 500, 1000)
+_COACH_DAY_MILESTONES = (7, 30, 50, 100, 200, 365)
+_COACH_RECENT_DAYS = 7          # celebrate a milestone for this long after reaching it
+
+
+def _home_coach(access_code: str, lang: str, mastered: dict) -> dict:
+    """Signals for the Home welcome block and advice tile — data only; the frontend
+    picks and words the message.
+
+    - ``stage``: new (<3 sessions) / building (3-10) / established (>10)
+    - ``streak``: consecutive practice days ending today or yesterday
+    - ``milestones``: milestones reached in the last few days (words mastered,
+      days practised, first perfect phrase), most recent first
+    - ``days_since``: days since each exercise area was last used (None = never)
+    - ``last_area``: the area practised most recently
+    """
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT event_type, payload, ts FROM events WHERE access_code=? AND ts IS NOT NULL "
+            "AND event_type IN ({}) ORDER BY ts ASC".format(",".join("?" * len(_SESSION_EVENTS))),
+            (access_code, *_SESSION_EVENTS),
+        ).fetchall()
+
+    today = date.today()
+    events: list = []
+    active_days: set = set()
+    last_used: dict = {}
+    last_area = None
+    first_perfect = None
+    for r in rows:
+        p = json.loads(r["payload"]); et = r["event_type"]; ts = r["ts"] or ""
+        if _event_lang(p) != lang:
+            continue
+        try:
+            d = date.fromisoformat(ts[:10])
+        except Exception:
+            continue
+        events.append((ts, et, p))
+        if et in _SCORED_EVENTS:
+            active_days.add(d)
+        area = _COACH_AREA.get(et)
+        if area:
+            last_used[area] = d
+            last_area = area
+        if et == "phrase_attempted" and first_perfect is None and (p.get("score") or 0) >= 0.999:
+            first_perfect = d
+
+    sessions = len(_filter_active_sessions(_group_events_into_sessions(events)))
+    stage = "new" if sessions < 3 else ("building" if sessions <= 10 else "established")
+
+    streak = 0
+    day = today if today in active_days else today - timedelta(days=1)
+    while day in active_days:
+        streak += 1
+        day -= timedelta(days=1)
+
+    recent_cutoff = today - timedelta(days=_COACH_RECENT_DAYS)
+    milestones: list = []
+    word_dates = sorted(md.date() if isinstance(md, datetime) else md for md in mastered.values())
+    for n in _COACH_WORD_MILESTONES:
+        if len(word_dates) >= n and word_dates[n - 1] >= recent_cutoff:
+            milestones.append({"kind": "words", "value": n, "date": word_dates[n - 1].isoformat()})
+    day_list = sorted(active_days)
+    for n in _COACH_DAY_MILESTONES:
+        if len(day_list) >= n and day_list[n - 1] >= recent_cutoff:
+            milestones.append({"kind": "days", "value": n, "date": day_list[n - 1].isoformat()})
+    if first_perfect and first_perfect >= recent_cutoff:
+        milestones.append({"kind": "first_perfect", "value": 1, "date": first_perfect.isoformat()})
+    # Most recent first; on the same day the bigger milestone wins.
+    milestones.sort(key=lambda m: (m["date"], m["value"]), reverse=True)
+    for m in milestones:
+        m["days_ago"] = (today - date.fromisoformat(m["date"])).days
+
+    return {
+        "stage":      stage,
+        "sessions":   sessions,
+        "streak":     streak,
+        "milestones": milestones,
+        "days_since": {a: (today - d).days for a, d in last_used.items()},
+        "last_area":  last_area,
+    }
+
+
+def _home_tiles(access_code: str, lang: str) -> dict:
+    """All-time counts for the Home "at a glance" tiles — interesting, not scored.
+
+    Phrases are counted as distinct phrases (by phrase_id, or by the phrase's words
+    for older events that predate phrase_id); a phrase is perfect once any attempt
+    at it hit 100%.
+    """
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT event_type, payload, ts FROM events WHERE access_code=? AND ts IS NOT NULL "
+            "AND event_type IN ({}) ORDER BY ts ASC".format(",".join("?" * len(_SESSION_EVENTS))),
+            (access_code, *_SESSION_EVENTS),
+        ).fetchall()
+
+    events: list = []
+    phrases: set = set()
+    perfect: set = set()
+    paragraphs = 0
+    words_spoken = 0
+    active_days: set = set()
+    for r in rows:
+        p = json.loads(r["payload"]); et = r["event_type"]; ts = r["ts"] or ""
+        if _event_lang(p) != lang:
+            continue
+        events.append((ts, et, p))
+        if et in _SCORED_EVENTS:
+            active_days.add(ts[:10])
+        words_spoken += len(p.get("word_results") or [])
+        if et == "phrase_attempted":
+            key = p.get("phrase_id") or " ".join(str(w[0]).lower() for w in p.get("word_results") or [])
+            if key:
+                phrases.add(key)
+                if (p.get("score") or 0) >= 0.999:
+                    perfect.add(key)
+        elif et == "paragraph_completed":
+            paragraphs += 1
+
+    minutes = 0.0
+    for g in _filter_active_sessions(_group_events_into_sessions(events)):
+        try:
+            minutes += (datetime.fromisoformat(g[-1][0].replace(" ", "T")) -
+                        datetime.fromisoformat(g[0][0].replace(" ", "T"))).total_seconds() / 60
+        except Exception:
+            continue
+
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    week = [(week_start + timedelta(days=i)).isoformat() in active_days for i in range(7)]
+
+    return {
+        "days":           len(active_days),
+        "week":           week,
+        "today_index":    today.weekday(),
+        "minutes":        round(minutes),
+        "phrases":        len(phrases),
+        "paragraphs":     paragraphs,
+        "words_spoken":   words_spoken,
+        "perfect":        len(perfect),
+    }
 
 
 def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: str = "fr") -> dict:
@@ -2661,6 +2858,7 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: 
     acc: dict = defaultdict(lambda: defaultdict(_new_weeks))     # skill -> level -> [week lists]
     lvl_recent: dict = defaultdict(lambda: defaultdict(list))    # skill -> level -> recent scores
     lvl_prior: dict = defaultdict(lambda: defaultdict(list))     # skill -> level -> prior scores
+    lvl_all: dict = defaultdict(lambda: defaultdict(list))       # skill -> level -> every score
     recent_all: dict = defaultdict(list)                         # skill -> recent scores (all levels)
     recent_lvl_attempts: dict = defaultdict(Counter)            # skill -> Counter(level)
 
@@ -2712,6 +2910,7 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: 
         wi = week_index.get(d - timedelta(days=d.weekday()))
         if wi is not None:
             acc[skill][level][wi].append(score)
+        lvl_all[skill][level].append(score)
         if d >= cutoff_recent:
             lvl_recent[skill][level].append(score)
             recent_all[skill].append(score)
@@ -2785,7 +2984,17 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: 
         recent = recent_all[skill]
         value = _avg(recent)
         delta = _weighted_delta(skill)
+        # Per-level accuracy for the expanded card: the same recent window as the
+        # headline value, or all time when nothing was practised in the window.
+        by_level_src = lvl_recent[skill] if recent else lvl_all[skill]
+        by_level = [
+            {"level": lvl, "value": _avg(scores), "attempts": len(scores)}
+            for lvl, scores in sorted(by_level_src.items(), key=lambda kv: _LEVEL_RANK.get(kv[0], 99))
+            if scores
+        ]
         kpis[skill] = {
+            "by_level": by_level,
+            "by_level_window": "recent" if recent else "all",
             "value": value,
             "trend": _trend(delta),
             "momentum": _clamp01((delta or 0) / 0.10) if delta and delta > 0 else 0.0,
@@ -2805,6 +3014,16 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: 
         "momentum": _clamp01(gain_recent / 20.0),
         "cumulative": cumulative,
         "has_data": len(mastered) > 0,
+        # Every practised word by stage: mastered (latched, >=3 tries at >=80%),
+        # almost there (not yet mastered, said right at least half the time),
+        # still learning (the rest).
+        "stages": {
+            "mastered": len(mastered),
+            "almost":   sum(1 for w, s in word_stats.items()
+                            if w not in mastered and s["hits"] / s["attempts"] >= 0.5),
+            "learning": sum(1 for w, s in word_stats.items()
+                            if w not in mastered and s["hits"] / s["attempts"] < 0.5),
+        },
     }
 
     # ── Adaptive chart axis ──────────────────────────────────────────────
@@ -3009,6 +3228,13 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: 
         "signals": signals,
         "period_days": since_days,
         "secondary": secondary,
+        "tiles": _home_tiles(access_code, lang),
+        "coach": _home_coach(access_code, lang, mastered),
+        # Speaking accuracy at the current level in the recent window (all time if none).
+        "level_fit": _level_fit(current_level, (
+            (lvl_recent["performance"].get(current_level, []) + lvl_recent["precision"].get(current_level, []))
+            or (lvl_all["performance"].get(current_level, []) + lvl_all["precision"].get(current_level, []))
+        ) if current_level else []),
     }
 
 
