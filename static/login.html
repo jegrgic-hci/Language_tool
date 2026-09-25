@@ -3,150 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VraiFrench — Sign In</title>
+  <title>VraiFrench — Sign in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/vk-tokens.css">
   <link rel="stylesheet" href="/static/vk-components.css">
   <link rel="stylesheet" href="/static/vk-theme-light.css">
   <link rel="stylesheet" href="/static/vk-theme-atelier.css">
   <style>
+    /* Tonal (M3) sign-in — one surface card on the page tone, no borders.
+       Card --vk-surface → nested panels --vk-surface-lowest. Sentence case,
+       pill buttons, outlined 12px fields, segmented tabs. */
     body {
-      font-family: var(--vk-font-ui);
+      font-family: var(--pa-font-sans);
       background: var(--vk-bg);
       color: var(--vk-fg-1);
       min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 24px 16px;
+      margin: 0;
     }
 
     .card {
       background: var(--vk-surface);
-      border: 1px solid var(--vk-border-mid);
+      border-radius: 28px;
       width: 100%;
-      max-width: 420px;
-      padding: 40px 36px 36px;
+      max-width: 440px;
+      padding: 36px 32px 32px;
+      box-sizing: border-box;
     }
 
     .wordmark {
-      font-size: 1.1rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      display: inline-block;
+      font-size: var(--vk-text-lg);
+      font-weight: 800;
+      letter-spacing: -0.01em;
       color: var(--vk-fg-1);
-      margin-bottom: 4px;
+      text-decoration: none;
+      margin-bottom: 2px;
     }
 
     .byline {
-      font-size: 0.7rem;
+      font-size: var(--vk-text-sm);
       color: var(--vk-fg-2);
-      letter-spacing: 0.05em;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
     }
 
+    /* Segmented button (M3) — Sign in / Register */
     .tab-row {
       display: flex;
-      border-bottom: 1px solid var(--vk-border-mid);
+      border: 1px solid var(--vk-outline);
+      border-radius: 999px;
+      overflow: hidden;
       margin-bottom: 28px;
     }
 
     .tab {
+      flex: 1;
+      height: 40px;
       font-family: inherit;
-      font-size: 0.75rem;
+      font-size: var(--vk-text-sm);
       font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--vk-fg-2);
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      padding: 0 0 10px;
-      margin-bottom: -1px;
-      margin-right: 24px;
-      cursor: pointer;
-      transition: color 120ms, border-color 120ms;
-    }
-
-    .tab.active {
       color: var(--vk-fg-1);
-      border-bottom-color: var(--vk-accent);
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--vk-outline);
+      cursor: pointer;
+      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
     }
+    .tab:last-child { border-right: none; }
+    .tab:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
+    .tab.active { background: var(--vk-tonal); color: var(--vk-on-tonal); }
+    .tab.active:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+    .tab:focus-visible { outline: 2px solid var(--vk-accent); outline-offset: -2px; }
 
     .field { margin-bottom: 16px; }
 
     label {
       display: block;
-      font-size: 0.65rem;
+      font-size: 13px;
       font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
       color: var(--vk-fg-2);
       margin-bottom: 6px;
     }
 
+    /* Outlined text field */
     input[type="email"],
     input[type="password"],
     input[type="text"] {
       width: 100%;
+      height: 48px;
       font-family: inherit;
-      font-size: 0.875rem;
-      background: var(--vk-bg);
-      border: 1px solid var(--vk-border-mid);
+      font-size: var(--vk-text-body);
+      background: var(--vk-surface-lowest);
+      border: 1px solid var(--vk-outline);
+      border-radius: var(--vk-radius-ui);
       color: var(--vk-fg-1);
-      padding: 10px 12px;
+      padding: 0 14px;
       outline: none;
-      transition: border-color 120ms;
+      transition: border-color 150ms, box-shadow 150ms;
       box-sizing: border-box;
     }
+    input::placeholder { color: var(--vk-fg-2); opacity: 0.7; }
+    input:hover { border-color: var(--vk-fg-1); }
+    input:focus { border-color: var(--vk-accent); box-shadow: inset 0 0 0 1px var(--vk-accent); }
+    input[readonly] { background: var(--vk-surface-2); border-color: transparent; }
 
-    input:focus { border-color: var(--vk-accent); }
-
+    /* Filled pill button */
     .btn {
       width: 100%;
+      height: 48px;
       font-family: inherit;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      font-size: var(--vk-text-body);
+      font-weight: 600;
       background: var(--vk-accent);
       color: var(--vk-accent-fg);
       border: none;
-      padding: 12px;
+      border-radius: 999px;
       cursor: pointer;
       margin-top: 8px;
-      transition: background 120ms;
+      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
     }
-
     .btn:hover:not(:disabled) { background: var(--vk-accent-dim); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .btn-ghost {
-      width: 100%;
-      font-family: inherit;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      background: none;
-      color: var(--vk-fg-2);
-      border: 1px solid var(--vk-border-mid);
-      padding: 10px;
-      cursor: pointer;
-      margin-top: 8px;
-      transition: background 120ms, color 120ms;
+    .btn:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    .btn:disabled {
+      cursor: not-allowed;
+      background: color-mix(in srgb, var(--vk-fg-1) 12%, transparent);
+      color: color-mix(in srgb, var(--vk-fg-1) 38%, transparent);
     }
-
-    .btn-ghost:hover { background: var(--vk-border-mid); color: var(--vk-fg-1); }
 
     .error {
-      font-size: 0.75rem;
-      color: var(--vk-error);
+      font-size: var(--vk-text-sm);
+      color: var(--vk-error-text);
       margin-top: 12px;
       min-height: 1em;
     }
+    .error:empty { margin-top: 0; }
 
     .hint {
-      font-size: 0.7rem;
+      font-size: var(--vk-text-sm);
       color: var(--vk-fg-2);
       margin-top: 20px;
       line-height: 1.5;
@@ -155,109 +153,117 @@
     .panel { display: none; }
     .panel.active { display: block; }
 
+    /* Account type — M3 choice chips */
+    .type-row { display: flex; gap: 8px; }
     .type-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       flex: 1;
-      text-align: center;
-      padding: 8px 12px;
-      border: 1px solid var(--vk-border);
-      font-family: var(--vkg-font-mono);
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--vk-fg-2);
+      height: 40px;
+      margin: 0;
+      border: 1px solid var(--vk-outline-variant);
+      border-radius: 8px;
+      font-size: var(--vk-text-sm);
+      font-weight: 600;
+      color: var(--vk-fg-1);
       cursor: pointer;
-      transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
     }
+    .type-pill:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
     .type-pill.active {
-      border-color: var(--vk-accent);
-      background: var(--vk-accent-bg);
-      color: var(--vk-accent-text);
+      border-color: transparent;
+      background: var(--vk-tonal);
+      color: var(--vk-on-tonal);
     }
-    .type-pill:hover:not(.active) { border-color: var(--vk-fg-2); color: var(--vk-fg-1); }
+    .type-pill.active::before {        /* check mark on the selected chip */
+      content: '';
+      width: 10px;
+      height: 5px;
+      border-left: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: translateY(-2px) rotate(-45deg);
+    }
+    .type-pill.active:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+    #reg-hint { margin-top: 8px; }
+
+    /* Invite banner — tonal */
+    .banner {
+      font-size: var(--vk-text-sm);
+      line-height: 1.5;
+      color: var(--vk-on-tonal);
+      background: var(--vk-tonal);
+      border-radius: var(--vk-radius-ui);
+      padding: 12px 14px;
+      margin-bottom: 20px;
+    }
 
     /* ── Change password sub-form ── */
     #change-pw-section {
       display: none;
-      border-top: 1px solid var(--vk-border-mid);
+      border-top: 1px solid var(--vk-outline-variant);
       margin-top: 24px;
       padding-top: 24px;
     }
 
-    .section-label {
-      font-size: 0.65rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--vk-fg-2);
-      margin-bottom: 16px;
-    }
-
-    /* ── Forgot password panel ── */
-    .forgot-link {
-      display: inline-block;
-      font-size: 0.68rem;
-      color: var(--vk-accent-text);
-      background: none;
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      font-family: inherit;
-      letter-spacing: 0.02em;
-      margin-top: 10px;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .forgot-link:hover { color: var(--vk-fg-1); }
-
-    .forgot-box {
-      background: var(--vk-bg);
-      border: 1px solid var(--vk-border-mid);
-      padding: 20px;
-      margin-top: 20px;
-    }
-
+    .section-label,
     .forgot-title {
-      font-size: 0.68rem;
+      font-size: var(--vk-text-body);
       font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--vk-fg-2);
-      margin-bottom: 10px;
-    }
-
-    .forgot-body {
-      font-size: 0.78rem;
       color: var(--vk-fg-1);
-      line-height: 1.6;
       margin-bottom: 14px;
     }
 
-    .forgot-body a {
-      color: var(--vk-accent-text);
-    }
-
+    /* Text buttons — forgot / back */
+    .forgot-link,
     .back-link {
-      font-size: 0.68rem;
-      color: var(--vk-fg-2);
+      display: inline-flex;
+      align-items: center;
+      height: 40px;
+      padding: 0 12px;
+      margin: 8px 0 0 -12px;           /* align the text, not the state layer */
+      font-family: inherit;
+      font-size: var(--vk-text-sm);
+      font-weight: 600;
+      color: var(--vk-accent-text);
       background: none;
       border: none;
-      padding: 0;
+      border-radius: 999px;
       cursor: pointer;
-      font-family: inherit;
-      letter-spacing: 0.04em;
+      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .forgot-link:hover,
+    .back-link:hover { background: color-mix(in srgb, var(--vk-accent) 8%, transparent); }
+    .forgot-link:focus-visible,
+    .back-link:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+
+    /* Forgot password — nested panel inside the card */
+    .forgot-box {
+      background: var(--vk-surface-lowest);
+      border-radius: var(--vk-radius-card);
+      padding: 20px 20px 12px;
     }
 
-    .back-link:hover { color: var(--vk-fg-1); }
+    .note {
+      font-size: var(--vk-text-body);
+      color: var(--vk-fg-1);
+      line-height: 1.6;
+    }
+    .note a { color: var(--vk-accent-text); font-weight: 600; }
+
+    @media (max-width: 480px) {
+      .card { padding: 28px 20px 24px; border-radius: 24px; }
+    }
   </style>
 </head>
 <body data-theme="atelier">
 <div class="card">
-  <div class="wordmark">VraiFrench</div>
+  <a class="wordmark" href="/">VraiFrench</a>
   <div class="byline">French pronunciation training</div>
 
   <div class="tab-row">
-    <button class="tab active" onclick="showPanel('login', this)">Sign In</button>
+    <button class="tab active" onclick="showPanel('login', this)">Sign in</button>
     <button class="tab" onclick="showPanel('register', this)">Register</button>
   </div>
 
@@ -272,7 +278,7 @@
         <label for="login-password">Password</label>
         <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••">
       </div>
-      <button class="btn" id="login-btn" onclick="doLogin()">Sign In</button>
+      <button class="btn" id="login-btn" onclick="doLogin()">Sign in</button>
       <div class="error" id="login-error"></div>
       <button class="forgot-link" onclick="showForgot()">Forgot your password?</button>
     </div>
@@ -280,11 +286,11 @@
     <!-- Forgot password box (shown inline) -->
     <div id="forgot-box" class="forgot-box" style="display:none">
       <div class="forgot-title">Reset your password</div>
-      <div id="forgot-sent" style="display:none; font-size:0.78rem; color:var(--vk-fg-1); line-height:1.6;">
+      <div id="forgot-sent" class="note" style="display:none">
         Check your inbox — if that email is registered you'll receive a reset link shortly.
       </div>
       <div id="forgot-form">
-        <div class="field" style="margin-bottom:12px;">
+        <div class="field">
           <label for="forgot-email">Email address</label>
           <input type="email" id="forgot-email" autocomplete="email" placeholder="you@example.com">
         </div>
@@ -297,19 +303,19 @@
     <!-- Reset password box (shown when ?reset=<token> in URL) -->
     <div id="reset-box" style="display:none">
       <div class="forgot-title">Set a new password</div>
-      <div id="reset-done" style="display:none; font-size:0.78rem; color:var(--vk-fg-1); line-height:1.6;">
-        Password updated. <a href="/login" style="color:var(--vk-accent-text);">Sign in</a>
+      <div id="reset-done" class="note" style="display:none">
+        Password updated. <a href="/login">Sign in</a>
       </div>
       <div id="reset-form">
         <div class="field">
-          <label for="reset-pw">New Password</label>
+          <label for="reset-pw">New password</label>
           <input type="password" id="reset-pw" autocomplete="new-password" placeholder="Min. 8 characters">
         </div>
         <div class="field">
-          <label for="reset-pw-confirm">Confirm Password</label>
+          <label for="reset-pw-confirm">Confirm password</label>
           <input type="password" id="reset-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
         </div>
-        <button class="btn" id="reset-btn" onclick="doReset()">Set New Password</button>
+        <button class="btn" id="reset-btn" onclick="doReset()">Set new password</button>
         <div class="error" id="reset-error"></div>
       </div>
     </div>
@@ -318,21 +324,21 @@
     <div id="change-pw-section">
       <div class="section-label">Set a new password</div>
       <div class="field">
-        <label for="new-pw">New Password</label>
+        <label for="new-pw">New password</label>
         <input type="password" id="new-pw" autocomplete="new-password" placeholder="Choose a strong password">
       </div>
       <div class="field">
-        <label for="new-pw-confirm">Confirm Password</label>
+        <label for="new-pw-confirm">Confirm password</label>
         <input type="password" id="new-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
       </div>
-      <button class="btn" id="change-pw-btn" onclick="doChangePw()">Set Password &amp; Continue</button>
+      <button class="btn" id="change-pw-btn" onclick="doChangePw()">Set password &amp; continue</button>
       <div class="error" id="change-pw-error"></div>
     </div>
   </div>
 
   <!-- Register panel -->
   <div id="panel-register" class="panel">
-    <div id="invite-banner" style="display:none; font-size:0.72rem; color:var(--vk-accent-text); background:var(--vk-accent-bg); border:1px solid var(--vk-accent); padding:10px 12px; margin-bottom:16px; line-height:1.5;"></div>
+    <div id="invite-banner" class="banner" style="display:none"></div>
     <div class="field">
       <label for="reg-email">Email</label>
       <input type="email" id="reg-email" autocomplete="email" placeholder="you@example.com">
@@ -342,22 +348,22 @@
       <input type="password" id="reg-password" autocomplete="new-password" placeholder="Min. 8 characters">
     </div>
     <div class="field">
-      <label for="reg-password-confirm">Confirm Password</label>
+      <label for="reg-password-confirm">Confirm password</label>
       <input type="password" id="reg-password-confirm" autocomplete="new-password" placeholder="Repeat password">
     </div>
     <div class="field" id="reg-type-field">
       <label>I am a</label>
-      <div style="display:flex; gap:8px; margin-top:6px;">
+      <div class="type-row">
         <label id="type-student" class="type-pill active" onclick="setAccountType('student')">Student</label>
         <label id="type-teacher" class="type-pill" onclick="setAccountType('teacher')">Teacher</label>
       </div>
-      <p class="hint" id="reg-hint" style="margin-top:8px;">Solo learner account — practice at your own pace.</p>
+      <p class="hint" id="reg-hint">Solo learner account — practice at your own pace.</p>
     </div>
     <div class="field" id="reg-code-field">
-      <label for="reg-code">Registration Code</label>
+      <label for="reg-code">Registration code</label>
       <input type="text" id="reg-code" autocomplete="off" placeholder="Enter the code you were given">
     </div>
-    <button class="btn" id="reg-btn" onclick="doRegister()">Create Account</button>
+    <button class="btn" id="reg-btn" onclick="doRegister()">Create account</button>
     <div class="error" id="reg-error"></div>
   </div>
 </div>
