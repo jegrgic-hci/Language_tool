@@ -1,3 +1,4 @@
+import hashlib
 import os
 import secrets
 import string
@@ -38,10 +39,16 @@ def create_access_token(payload: dict) -> str:
     return jwt.encode(data, _SECRET, algorithm=_ALGORITHM)
 
 
+def hash_refresh_token(token: str) -> str:
+    # Refresh tokens are 384 random bits, so a fast deterministic hash is safe
+    # and lets us look the row up by index instead of bcrypt-scanning every row.
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def create_refresh_token(user_id: int) -> tuple:
     """Returns (token_str, token_hash, expires_at_str)."""
     token = secrets.token_hex(48)
-    token_hash = pwd_context.hash(token)
+    token_hash = hash_refresh_token(token)
     expires_at = datetime.utcnow() + timedelta(days=_REFRESH_EXPIRE_DAYS)
     return token, token_hash, expires_at.isoformat()
 

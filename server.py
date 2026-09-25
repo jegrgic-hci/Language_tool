@@ -6,7 +6,7 @@ import random
 import tempfile
 from pathlib import Path
 from typing import Optional
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import Depends, FastAPI, Header, Request, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -706,23 +706,26 @@ async def auth_register(req: RegisterRequest):
     return _make_token_response(user)
 
 
-@app.post("/auth/refresh")
-async def auth_refresh(req: RefreshRequest):
-    from passlib.context import CryptContext
-    _ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    with __import__("sqlite3").connect(str(_analytics.DB_PATH)) as conn:
-        conn.row_factory = __import__("sqlite3").Row
-        rows = conn.execute(
-            "SELECT * FROM refresh_tokens WHERE expires_at > datetime('now') ORDER BY created_at DESC"
-        ).fetchall()
-    matched_row = None
-    for row in rows:
+def _find_refresh_token_row(token: str) -> Optional[dict]:
+    """Look up a refresh token by its SHA-256 hash (one indexed query). Falls back
+    to bcrypt-checking the few unexpired legacy rows issued before the switch."""
+    row = _analytics.get_refresh_token_row(_auth.hash_refresh_token(token))
+    if row:
+        return row
+    for legacy in _analytics.get_legacy_refresh_token_rows():
         try:
-            if _ctx.verify(req.refresh_token, row["token_hash"]):
-                matched_row = dict(row)
-                break
+            if _auth.pwd_context.verify(token, legacy["token_hash"]):
+                return legacy
         except Exception:
             continue
+    return None
+
+
+@app.post("/auth/refresh")
+def auth_refresh(req: RefreshRequest):
+    matched_row = _find_refresh_token_row(req.refresh_token)
+    if matched_row and matched_row["expires_at"] <= datetime.utcnow().isoformat():
+        matched_row = None
     if not matched_row:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
     user = _analytics.get_user_by_id(matched_row["user_id"])
@@ -737,19 +740,10 @@ async def auth_refresh(req: RefreshRequest):
 
 
 @app.post("/auth/logout")
-async def auth_logout(req: RefreshRequest):
-    from passlib.context import CryptContext
-    _ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    with __import__("sqlite3").connect(str(_analytics.DB_PATH)) as conn:
-        conn.row_factory = __import__("sqlite3").Row
-        rows = conn.execute("SELECT * FROM refresh_tokens").fetchall()
-    for row in rows:
-        try:
-            if _ctx.verify(req.refresh_token, row["token_hash"]):
-                _analytics.delete_refresh_token(row["token_hash"])
-                break
-        except Exception:
-            continue
+def auth_logout(req: RefreshRequest):
+    row = _find_refresh_token_row(req.refresh_token)
+    if row:
+        _analytics.delete_refresh_token(row["token_hash"])
     return {"ok": True}
 
 

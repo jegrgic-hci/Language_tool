@@ -6113,16 +6113,17 @@
     document.getElementById('onboarding-modal').style.display = 'none';
   }
 
-  async function signOut() {
+  function signOut() {
     const rt = localStorage.getItem('ft_refresh_token');
     if (rt) {
-      try {
-        await fetch('/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: rt }),
-        });
-      } catch (_) {}
+      // Fire-and-forget: keepalive lets the revoke finish after we navigate away,
+      // so signing out is instant regardless of server latency.
+      fetch('/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt }),
+        keepalive: true,
+      }).catch(() => {});
     }
     localStorage.removeItem('ft_access_code');
     localStorage.removeItem('ft_jwt');

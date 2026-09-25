@@ -731,6 +731,7 @@ def reset_user_password(user_id: int, new_hash: str) -> None:
 
 def store_refresh_token(user_id: int, token_hash: str, expires_at: str) -> None:
     with _conn() as conn:
+        conn.execute("DELETE FROM refresh_tokens WHERE expires_at <= datetime('now')")
         conn.execute(
             "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?,?,?)",
             (user_id, token_hash, expires_at),
@@ -743,6 +744,16 @@ def get_refresh_token_row(token_hash: str) -> Optional[dict]:
             "SELECT * FROM refresh_tokens WHERE token_hash=?", (token_hash,)
         ).fetchone()
     return dict(row) if row else None
+
+
+def get_legacy_refresh_token_rows() -> list:
+    """Unexpired refresh tokens still stored as bcrypt hashes (pre-SHA-256)."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM refresh_tokens WHERE token_hash LIKE '$2%' "
+            "AND expires_at > datetime('now') ORDER BY created_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def delete_refresh_token(token_hash: str) -> None:
