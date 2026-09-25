@@ -120,6 +120,55 @@
   --vk-card-radius:  24px;   /* practice cards */
   --vk-tag-radius:   8px;
 
+  /* ── Type scale (M3) — the ONLY font sizes. Never write px/rem sizes. ──
+     Pick by role; roles that share a size are still named for what the text is.
+       display    hero numbers / marketing headlines
+       headline   page titles, big score numbers
+       title      card + section titles, app-bar title, large button labels
+       body       running text, French sentences, descriptions
+       label      buttons, chips, tabs, nav items, captions, table heads
+     Line-height stays with the rule (1 for single-line controls, 1.3–1.6 text). */
+  --vk-type-display-lg:  57px;
+  --vk-type-display-md:  45px;
+  --vk-type-display-sm:  36px;
+  --vk-type-headline-lg: 32px;
+  --vk-type-headline-md: 28px;
+  --vk-type-headline-sm: 24px;
+  --vk-type-title-lg:    22px;
+  --vk-type-title-md:    16px;
+  --vk-type-title-sm:    14px;
+  --vk-type-body-lg:     16px;
+  --vk-type-body-md:     14px;
+  --vk-type-body-sm:     12px;
+  --vk-type-label-lg:    14px;
+  --vk-type-label-md:    12px;
+  --vk-type-label-sm:    11px;   /* floor — nothing smaller */
+  /* Fluid roles — scale with the viewport between two M3 steps (phone → desktop).
+     Use only for hero text: the French target sentence and big headings.   */
+  --vk-type-utterance:       clamp(var(--vk-type-title-md), 2.8vw, var(--vk-type-title-lg));          /* 16 → 22 target sentence */
+  --vk-type-utterance-hero:  clamp(var(--vk-type-title-lg), 2.6vw, var(--vk-type-headline-md));       /* 22 → 28 hero sentence */
+  --vk-type-fluid-title:     clamp(var(--vk-type-title-md), 0.88rem + 1.09vw, var(--vk-type-headline-md));  /* 16 → 28 */
+  --vk-type-fluid-headline:  clamp(var(--vk-type-title-lg), 1.03rem + 1.52vw, var(--vk-type-headline-lg));  /* 22 → 32 */
+  --vk-type-fluid-display:   clamp(var(--vk-type-display-sm), 1.57rem + 3.04vw, var(--vk-type-display-lg)); /* 36 → 57 */
+
+  /* ── Elevation + scrims (floating UI only — cards never cast shadows) ── */
+  --vk-elev-fab:     0 1px 3px rgba(0, 0, 0, 0.16), 0 3px 8px rgba(0, 0, 0, 0.08);    /* FABs, FAB-menu items */
+  --vk-elev-menu:    0 4px 12px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.12); /* menus, popovers */
+  --vk-scrim:        rgba(25, 28, 33, 0.32);   /* M3 scrim — sheets, trays, drawers */
+  --vk-scrim-strong: rgba(0, 0, 0, 0.55);      /* blocking modals */
+
+  /* ── Category tags — labels that sort content, NOT scores or state.
+     Never use the performance quad for these. Text colours are AA on the
+     page and card tones.                                                   */
+  --vk-tag-blue:          #2D6CB3;
+  --vk-tag-green:         #1F5A40;
+  --vk-tag-olive:         #7A6A00;
+  --vk-tag-rust:          #7A3A00;
+  --vk-tag-gold:          #7A5A00;
+  --vk-tag-gold-border:   #C08A20;
+  --vk-tag-purple:        #5A3A8A;
+  --vk-tag-purple-border: #8A5ABF;
+
   /* ══════════════════════════════════════════════════════════════════════
      THE INSTRUMENT — performance tokens (design doc §4, §7)
      Measurements, not decoration. Identical every time. green/amber/clay are
@@ -186,17 +235,92 @@
 }
 
 
-/* ── Atelier buttons — sentence-case Hanken, no all-caps mono (doc §6) ─────
-   Override the core vk-btn engineering-tool signal inside the room only.     */
+/* ── Atelier buttons — M3 Tonal set, shared by every page ──────────────────
+   Re-voices the core vk-btn (all-caps mono, lift on hover) as M3 buttons:
+   sentence-case Hanken pills, no lift, 8% hover overlays.
+     .vk-btn-primary      filled — the one main action (sizes: .sm · default · .lg)
+     .vk-btn-tonal        secondary emphasis
+     .vk-btn-outline      outlined — accent text on an outline border
+     .vk-btn-text         lowest emphasis
+     .vk-btn-ghost        quiet neutral (secondary text colour)
+     .vk-btn-destructive  outlined in error; .is-filled for the final confirm
+   Student-only extras (outline-accent, pass) live in vk-atelier-components.css. */
 [data-theme="atelier"] .vk-btn {
   font-family: var(--pa-font-sans);
+  font-size: var(--vk-type-label-lg);
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
   border-radius: var(--vk-btn-radius);
 }
+[data-theme="atelier"] .vk-btn.sm { font-size: var(--vk-type-label-lg); }
+[data-theme="atelier"] .vk-btn.lg { font-size: var(--vk-type-title-md); }
+[data-theme="atelier"] .vk-btn:hover  { transform: none; }
+[data-theme="atelier"] .vk-btn:active { transform: none; }
+
 [data-theme="atelier"] .vk-btn-primary:hover {
   background: var(--vk-accent-dim);
+}
+[data-theme="atelier"] .vk-btn-outline {
+  border-color: var(--vk-outline);
+  color: var(--vk-accent-text);
+  background: transparent;
+}
+[data-theme="atelier"] .vk-btn-outline:hover {
+  border-color: var(--vk-outline);
+  background: color-mix(in srgb, var(--vk-accent) 8%, transparent);
+  color: var(--vk-accent-text);
+}
+[data-theme="atelier"] .vk-btn-tonal {
+  background: var(--vk-tonal);
+  color: var(--vk-on-tonal);
+  border-color: transparent;
+}
+[data-theme="atelier"] .vk-btn-tonal:hover {
+  background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal));
+}
+[data-theme="atelier"] .vk-btn-text {
+  background: transparent;
+  border-color: transparent;
+  color: var(--vk-accent-text);
+  padding-left: 12px;
+  padding-right: 12px;
+}
+[data-theme="atelier"] .vk-btn-text:hover {
+  background: color-mix(in srgb, var(--vk-accent) 8%, transparent);
+}
+/* Core ghost hovers with a white overlay (dark-theme only) — use the M3 overlay */
+[data-theme="atelier"] .vk-btn-ghost:hover {
+  background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent);
+}
+[data-theme="atelier"] .vk-btn-destructive {
+  background: transparent;
+  color: var(--vk-error);
+  border-color: color-mix(in srgb, var(--vk-error) 45%, transparent);
+}
+[data-theme="atelier"] .vk-btn-destructive:hover {
+  background: color-mix(in srgb, var(--vk-error) 8%, transparent);
+  border-color: var(--vk-error);
+}
+[data-theme="atelier"] .vk-btn-destructive.is-filled {
+  background: var(--vk-error);
+  border-color: var(--vk-error);
+  color: #FFFFFF;
+}
+[data-theme="atelier"] .vk-btn-destructive.is-filled:hover {
+  background: color-mix(in srgb, #000 12%, var(--vk-error));
+}
+[data-theme="atelier"] .vk-btn:disabled,
+[data-theme="atelier"] .vk-btn[aria-disabled="true"] {
+  color: color-mix(in srgb, var(--vk-fg-1) 38%, transparent) !important;
+  background: color-mix(in srgb, var(--vk-fg-1) 10%, transparent) !important;
+  border-color: transparent !important;
+  cursor: not-allowed;
+}
+[data-theme="atelier"] .vk-btn-outline:disabled,
+[data-theme="atelier"] .vk-btn-destructive:disabled {
+  background: transparent !important;
+  border-color: color-mix(in srgb, var(--vk-fg-1) 12%, transparent) !important;
 }
 
 

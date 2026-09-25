@@ -17,8 +17,8 @@
 
     /* Overview quick links */
     .adm-link-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .adm-link-label { font: 500 13.5px/1.3 var(--pa-font-sans); color: var(--vk-fg-2); margin: 0 0 4px; }
-    .adm-link-value { font: 600 16px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin: 0; }
+    .adm-link-label { font: 500 var(--vk-type-label-lg)/1.3 var(--pa-font-sans); color: var(--vk-fg-2); margin: 0 0 4px; }
+    .adm-link-value { font: 600 var(--vk-type-body-lg)/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin: 0; }
 
     /* Users — teacher accordion cards */
     .adm-teachers { display: flex; flex-direction: column; gap: 8px; }
@@ -35,8 +35,8 @@
     .adm-teacher-toggle:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
     .adm-chevron { width: 20px; height: 20px; flex-shrink: 0; color: var(--vk-fg-2); transition: transform 200ms var(--pa-ease-spring); }
     .adm-teacher-toggle[aria-expanded="true"] .adm-chevron { transform: rotate(90deg); }
-    .adm-teacher-name { display: block; font: 600 15px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); }
-    .adm-teacher-email { display: block; font: 400 13px/1.3 var(--pa-font-sans); color: var(--vk-fg-2); word-break: break-all; }
+    .adm-teacher-name { display: block; font: 600 var(--vk-type-title-md)/1.3 var(--pa-font-sans); color: var(--vk-fg-1); }
+    .adm-teacher-email { display: block; font: 400 var(--vk-type-body-md)/1.3 var(--pa-font-sans); color: var(--vk-fg-2); word-break: break-all; }
     .adm-teacher-students { border-top: 1px solid var(--vk-outline-variant); overflow-x: auto; }
     .adm-teacher-students .vk-table { min-width: 640px; }
     .adm-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 8px; }
@@ -44,25 +44,25 @@
     /* Usage cards */
     .adm-usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
     .adm-usage-card { display: flex; flex-direction: column; gap: 4px; }
-    .adm-usage-name { font: 600 14px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin: 0 0 6px; }
-    .adm-usage-count { font: 600 30px/1.1 var(--pa-font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; color: var(--vk-fg-1); }
-    .adm-usage-sub { font: 400 13px/1.4 var(--pa-font-sans); color: var(--vk-fg-2); }
-    .adm-usage-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; font: 500 13px/1 var(--pa-font-sans); color: var(--vk-fg-2); }
+    .adm-usage-name { font: 600 var(--vk-type-title-sm)/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin: 0 0 6px; }
+    .adm-usage-count { font: 600 var(--vk-type-headline-lg)/1.1 var(--pa-font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; color: var(--vk-fg-1); }
+    .adm-usage-sub { font: 400 var(--vk-type-label-lg)/1.4 var(--pa-font-sans); color: var(--vk-fg-2); }
+    .adm-usage-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; font: 500 var(--vk-type-label-lg)/1 var(--pa-font-sans); color: var(--vk-fg-2); }
     .adm-usage-card .pa-lp { margin-top: 12px; }
 
     /* Legacy dataset notice */
     .adm-notice {
       margin: 0 0 16px; padding: 12px 16px; border-radius: 16px;
       background: var(--vk-tonal); color: var(--vk-on-tonal);
-      font: 500 14px/1.45 var(--pa-font-sans);
+      font: 500 var(--vk-type-body-md)/1.45 var(--pa-font-sans);
     }
 
     /* Content pool — Chirp budget */
     .adm-budget-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 14px; }
-    .adm-budget-text { font: 500 13.5px/1.3 var(--pa-font-mono); font-variant-numeric: tabular-nums; color: var(--vk-fg-1); }
-    .adm-budget-note { font: 400 13.5px/1.45 var(--pa-font-sans); color: var(--vk-fg-2); margin: 12px 0 0; }
+    .adm-budget-text { font: 500 var(--vk-type-body-md)/1.3 var(--pa-font-mono); font-variant-numeric: tabular-nums; color: var(--vk-fg-1); }
+    .adm-budget-note { font: 400 var(--vk-type-label-lg)/1.45 var(--pa-font-sans); color: var(--vk-fg-2); margin: 12px 0 0; }
 
-    .adm-kpi-text { font: 600 18px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin-top: 6px; }
+    .adm-kpi-text { font: 600 var(--vk-type-body-lg)/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin-top: 6px; }
   </style>
 </head>
 <body data-theme="atelier">
@@ -267,7 +267,7 @@
             <h1 class="st-title">Performance</h1>
             <p class="st-sub">Platform-wide usage and scoring metrics</p>
           </div>
-          <div class="st-seg" role="group" aria-label="Dataset">
+          <div class="vk-seg" role="group" aria-label="Dataset">
             <button id="ds-current" class="is-active" onclick="switchDataset('current')">Current</button>
             <button id="ds-legacy" onclick="switchDataset('legacy')">Legacy</button>
           </div>

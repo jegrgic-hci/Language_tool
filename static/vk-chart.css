@@ -51,8 +51,7 @@
 .atl-chart .atl-axis-label {
   fill: var(--vk-fg-3);
   font-family: var(--vk-font-ui);
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font-size: var(--vk-type-label-sm, 11px);
 }
 
 /* Vertical gradient under the line (stops styled here so they pick up the
@@ -123,7 +122,7 @@
 .atl-chart-tip-score {
   display: block;
   font-family: var(--vk-font-body);
-  font-size: var(--vk-text-sm);
+  font-size: var(--vk-type-title-sm, 14px);
   font-weight: 700;
   line-height: 1;
   color: var(--vk-accent-fg);
@@ -131,9 +130,7 @@
 .atl-chart-tip-meta {
   display: block;
   font-family: var(--vk-font-ui);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--vk-type-label-sm, 11px);
   color: var(--vk-accent-fg);
   opacity: 0.78;
   margin-top: 3px;
@@ -150,8 +147,7 @@
 .atl-chart .atl-levellabel {
   fill: var(--vk-fg-3);
   font-family: var(--vk-font-ui);
-  font-size: 9px;
-  letter-spacing: 0.04em;
+  font-size: var(--vk-type-label-sm, 11px);
   font-weight: 600;
 }
 
@@ -159,9 +155,8 @@
    to the line colour). Used by the level-split chart. */
 .atl-chart .atl-startlabel {
   font-family: var(--vk-font-ui);
-  font-size: 10px;
+  font-size: var(--vk-type-label-sm, 11px);
   font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
 @media (prefers-reduced-motion: reduce) {
