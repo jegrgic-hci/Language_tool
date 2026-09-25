@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/static/vk-components.css">
   <link rel="stylesheet" href="/static/vk-theme-light.css">
   <link rel="stylesheet" href="/static/vk-theme-atelier.css">
+  <link rel="stylesheet" href="/static/vk-atelier-components.css">
   <style>
     /* Tonal (M3) sign-in — one surface card on the page tone, no borders.
        Card --vk-surface → nested panels --vk-surface-lowest. Sentence case,
@@ -38,7 +39,7 @@
 
     .wordmark {
       display: inline-block;
-      font-size: var(--vk-text-lg);
+      font-size: var(--vk-type-body-lg);
       font-weight: 800;
       letter-spacing: -0.01em;
       color: var(--vk-fg-1);
@@ -47,96 +48,33 @@
     }
 
     .byline {
-      font-size: var(--vk-text-sm);
+      font-size: var(--vk-type-body-md);
       color: var(--vk-fg-2);
       margin-bottom: 28px;
     }
 
-    /* Segmented button (M3) — Sign in / Register */
-    .tab-row {
-      display: flex;
-      border: 1px solid var(--vk-outline);
-      border-radius: 999px;
-      overflow: hidden;
-      margin-bottom: 28px;
-    }
-
-    .tab {
-      flex: 1;
-      height: 40px;
-      font-family: inherit;
-      font-size: var(--vk-text-sm);
-      font-weight: 600;
-      color: var(--vk-fg-1);
-      background: transparent;
-      border: none;
-      border-right: 1px solid var(--vk-outline);
-      cursor: pointer;
-      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .tab:last-child { border-right: none; }
-    .tab:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
-    .tab.active { background: var(--vk-tonal); color: var(--vk-on-tonal); }
-    .tab.active:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
-    .tab:focus-visible { outline: 2px solid var(--vk-accent); outline-offset: -2px; }
+    /* Sign in / Register — .vk-seg.is-block (JS toggles .active on .tab) */
+    .tab-row { margin-bottom: 28px; }
+    .tab-row > .tab { height: 40px; }
 
     .field { margin-bottom: 16px; }
 
     label {
       display: block;
-      font-size: 13px;
-      font-weight: 600;
+      font: 500 var(--vk-type-label-md)/1.3 var(--pa-font-sans);
       color: var(--vk-fg-2);
       margin-bottom: 6px;
     }
 
-    /* Outlined text field */
-    input[type="email"],
-    input[type="password"],
-    input[type="text"] {
-      width: 100%;
-      height: 48px;
-      font-family: inherit;
-      font-size: var(--vk-text-body);
-      background: var(--vk-surface-lowest);
-      border: 1px solid var(--vk-outline);
-      border-radius: var(--vk-radius-ui);
-      color: var(--vk-fg-1);
-      padding: 0 14px;
-      outline: none;
-      transition: border-color 150ms, box-shadow 150ms;
-      box-sizing: border-box;
-    }
-    input::placeholder { color: var(--vk-fg-2); opacity: 0.7; }
-    input:hover { border-color: var(--vk-fg-1); }
-    input:focus { border-color: var(--vk-accent); box-shadow: inset 0 0 0 1px var(--vk-accent); }
-    input[readonly] { background: var(--vk-surface-2); border-color: transparent; }
+    /* Fields are .vk-input — 48px, on the nested-panel tone */
+    .field .vk-input { height: 48px; background: var(--vk-surface-lowest); font-size: var(--vk-type-body-lg); }
+    .field .vk-input[readonly] { background: var(--vk-surface-2); border-color: transparent; }
 
-    /* Filled pill button */
-    .btn {
-      width: 100%;
-      height: 48px;
-      font-family: inherit;
-      font-size: var(--vk-text-body);
-      font-weight: 600;
-      background: var(--vk-accent);
-      color: var(--vk-accent-fg);
-      border: none;
-      border-radius: 999px;
-      cursor: pointer;
-      margin-top: 8px;
-      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .btn:hover:not(:disabled) { background: var(--vk-accent-dim); }
-    .btn:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
-    .btn:disabled {
-      cursor: not-allowed;
-      background: color-mix(in srgb, var(--vk-fg-1) 12%, transparent);
-      color: color-mix(in srgb, var(--vk-fg-1) 38%, transparent);
-    }
+    /* Submit buttons are .vk-btn.vk-btn-primary.lg; .btn is the layout hook */
+    .btn { width: 100%; margin-top: 8px; }
 
     .error {
-      font-size: var(--vk-text-sm);
+      font-size: var(--vk-type-body-md);
       color: var(--vk-error-text);
       margin-top: 12px;
       min-height: 1em;
@@ -144,7 +82,7 @@
     .error:empty { margin-top: 0; }
 
     .hint {
-      font-size: var(--vk-text-sm);
+      font-size: var(--vk-type-label-lg);
       color: var(--vk-fg-2);
       margin-top: 20px;
       line-height: 1.5;
@@ -153,44 +91,14 @@
     .panel { display: none; }
     .panel.active { display: block; }
 
-    /* Account type — M3 choice chips */
+    /* Account type — .vk-filter-chip (JS toggles .active) */
     .type-row { display: flex; gap: 8px; }
-    .type-pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      flex: 1;
-      height: 40px;
-      margin: 0;
-      border: 1px solid var(--vk-outline-variant);
-      border-radius: 8px;
-      font-size: var(--vk-text-sm);
-      font-weight: 600;
-      color: var(--vk-fg-1);
-      cursor: pointer;
-      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .type-pill:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent); }
-    .type-pill.active {
-      border-color: transparent;
-      background: var(--vk-tonal);
-      color: var(--vk-on-tonal);
-    }
-    .type-pill.active::before {        /* check mark on the selected chip */
-      content: '';
-      width: 10px;
-      height: 5px;
-      border-left: 2px solid currentColor;
-      border-bottom: 2px solid currentColor;
-      transform: translateY(-2px) rotate(-45deg);
-    }
-    .type-pill.active:hover { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+    .type-row > .vk-filter-chip { flex: 1; justify-content: center; height: 40px; }
     #reg-hint { margin-top: 8px; }
 
     /* Invite banner — tonal */
     .banner {
-      font-size: var(--vk-text-sm);
+      font-size: var(--vk-type-body-md);
       line-height: 1.5;
       color: var(--vk-on-tonal);
       background: var(--vk-tonal);
@@ -209,34 +117,15 @@
 
     .section-label,
     .forgot-title {
-      font-size: var(--vk-text-body);
+      font-size: var(--vk-type-title-md);
       font-weight: 700;
       color: var(--vk-fg-1);
       margin-bottom: 14px;
     }
 
-    /* Text buttons — forgot / back */
+    /* Forgot / back — .vk-btn.vk-btn-text, nudged so the text (not the state layer) aligns */
     .forgot-link,
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      height: 40px;
-      padding: 0 12px;
-      margin: 8px 0 0 -12px;           /* align the text, not the state layer */
-      font-family: inherit;
-      font-size: var(--vk-text-sm);
-      font-weight: 600;
-      color: var(--vk-accent-text);
-      background: none;
-      border: none;
-      border-radius: 999px;
-      cursor: pointer;
-      transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .forgot-link:hover,
-    .back-link:hover { background: color-mix(in srgb, var(--vk-accent) 8%, transparent); }
-    .forgot-link:focus-visible,
-    .back-link:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    .back-link { margin: 8px 0 0 -12px; }
 
     /* Forgot password — nested panel inside the card */
     .forgot-box {
@@ -246,7 +135,7 @@
     }
 
     .note {
-      font-size: var(--vk-text-body);
+      font-size: var(--vk-type-body-lg);
       color: var(--vk-fg-1);
       line-height: 1.6;
     }
@@ -262,7 +151,7 @@
   <a class="wordmark" href="/">VraiFrench</a>
   <div class="byline">French pronunciation training</div>
 
-  <div class="tab-row">
+  <div class="tab-row vk-seg is-block">
     <button class="tab active" onclick="showPanel('login', this)">Sign in</button>
     <button class="tab" onclick="showPanel('register', this)">Register</button>
   </div>
@@ -272,15 +161,15 @@
     <div id="login-form-body">
       <div class="field">
         <label for="login-email">Email or username</label>
-        <input type="text" id="login-email" autocomplete="username" placeholder="you@example.com or username">
+        <input class="vk-input" type="text" id="login-email" autocomplete="username" placeholder="you@example.com or username">
       </div>
       <div class="field">
         <label for="login-password">Password</label>
-        <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••">
+        <input class="vk-input" type="password" id="login-password" autocomplete="current-password" placeholder="••••••••">
       </div>
-      <button class="btn" id="login-btn" onclick="doLogin()">Sign in</button>
+      <button class="vk-btn vk-btn-primary lg btn" id="login-btn" onclick="doLogin()">Sign in</button>
       <div class="error" id="login-error"></div>
-      <button class="forgot-link" onclick="showForgot()">Forgot your password?</button>
+      <button class="vk-btn vk-btn-text forgot-link" onclick="showForgot()">Forgot your password?</button>
     </div>
 
     <!-- Forgot password box (shown inline) -->
@@ -292,12 +181,12 @@
       <div id="forgot-form">
         <div class="field">
           <label for="forgot-email">Email address</label>
-          <input type="email" id="forgot-email" autocomplete="email" placeholder="you@example.com">
+          <input class="vk-input" type="email" id="forgot-email" autocomplete="email" placeholder="you@example.com">
         </div>
-        <button class="btn" id="forgot-btn" onclick="doForgot()">Send reset link</button>
+        <button class="vk-btn vk-btn-primary lg btn" id="forgot-btn" onclick="doForgot()">Send reset link</button>
         <div class="error" id="forgot-error"></div>
       </div>
-      <button class="back-link" onclick="hideForgot()">&larr; Back to sign in</button>
+      <button class="vk-btn vk-btn-text back-link" onclick="hideForgot()">&larr; Back to sign in</button>
     </div>
 
     <!-- Reset password box (shown when ?reset=<token> in URL) -->
@@ -309,13 +198,13 @@
       <div id="reset-form">
         <div class="field">
           <label for="reset-pw">New password</label>
-          <input type="password" id="reset-pw" autocomplete="new-password" placeholder="Min. 8 characters">
+          <input class="vk-input" type="password" id="reset-pw" autocomplete="new-password" placeholder="Min. 8 characters">
         </div>
         <div class="field">
           <label for="reset-pw-confirm">Confirm password</label>
-          <input type="password" id="reset-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
+          <input class="vk-input" type="password" id="reset-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
         </div>
-        <button class="btn" id="reset-btn" onclick="doReset()">Set new password</button>
+        <button class="vk-btn vk-btn-primary lg btn" id="reset-btn" onclick="doReset()">Set new password</button>
         <div class="error" id="reset-error"></div>
       </div>
     </div>
@@ -325,13 +214,13 @@
       <div class="section-label">Set a new password</div>
       <div class="field">
         <label for="new-pw">New password</label>
-        <input type="password" id="new-pw" autocomplete="new-password" placeholder="Choose a strong password">
+        <input class="vk-input" type="password" id="new-pw" autocomplete="new-password" placeholder="Choose a strong password">
       </div>
       <div class="field">
         <label for="new-pw-confirm">Confirm password</label>
-        <input type="password" id="new-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
+        <input class="vk-input" type="password" id="new-pw-confirm" autocomplete="new-password" placeholder="Repeat password">
       </div>
-      <button class="btn" id="change-pw-btn" onclick="doChangePw()">Set password &amp; continue</button>
+      <button class="vk-btn vk-btn-primary lg btn" id="change-pw-btn" onclick="doChangePw()">Set password &amp; continue</button>
       <div class="error" id="change-pw-error"></div>
     </div>
   </div>
@@ -341,29 +230,29 @@
     <div id="invite-banner" class="banner" style="display:none"></div>
     <div class="field">
       <label for="reg-email">Email</label>
-      <input type="email" id="reg-email" autocomplete="email" placeholder="you@example.com">
+      <input class="vk-input" type="email" id="reg-email" autocomplete="email" placeholder="you@example.com">
     </div>
     <div class="field">
       <label for="reg-password">Password</label>
-      <input type="password" id="reg-password" autocomplete="new-password" placeholder="Min. 8 characters">
+      <input class="vk-input" type="password" id="reg-password" autocomplete="new-password" placeholder="Min. 8 characters">
     </div>
     <div class="field">
       <label for="reg-password-confirm">Confirm password</label>
-      <input type="password" id="reg-password-confirm" autocomplete="new-password" placeholder="Repeat password">
+      <input class="vk-input" type="password" id="reg-password-confirm" autocomplete="new-password" placeholder="Repeat password">
     </div>
     <div class="field" id="reg-type-field">
       <label>I am a</label>
       <div class="type-row">
-        <label id="type-student" class="type-pill active" onclick="setAccountType('student')">Student</label>
-        <label id="type-teacher" class="type-pill" onclick="setAccountType('teacher')">Teacher</label>
+        <button type="button" id="type-student" class="vk-filter-chip type-pill active" onclick="setAccountType('student')">Student</button>
+        <button type="button" id="type-teacher" class="vk-filter-chip type-pill" onclick="setAccountType('teacher')">Teacher</button>
       </div>
       <p class="hint" id="reg-hint">Solo learner account — practice at your own pace.</p>
     </div>
     <div class="field" id="reg-code-field">
       <label for="reg-code">Registration code</label>
-      <input type="text" id="reg-code" autocomplete="off" placeholder="Enter the code you were given">
+      <input class="vk-input" type="text" id="reg-code" autocomplete="off" placeholder="Enter the code you were given">
     </div>
-    <button class="btn" id="reg-btn" onclick="doRegister()">Create account</button>
+    <button class="vk-btn vk-btn-primary lg btn" id="reg-btn" onclick="doRegister()">Create account</button>
     <div class="error" id="reg-error"></div>
   </div>
 </div>
