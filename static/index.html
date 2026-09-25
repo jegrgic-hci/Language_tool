@@ -15339,6 +15339,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   // ── Resumable cumulative session (account-tied, cross-device) ────────────────
+  // Off in teach mode: /vocab/session is keyed to the JWT, which is the
+  // teacher's there — a set saved in one student's lesson would resume in the
+  // next student's, and overwrite the teacher's own.
 
   function _vocabResumeSnapshot() {
     return {
@@ -15352,7 +15355,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   async function _saveVocabResume() {
-    if (!_vocabIsCumulative || !localStorage.getItem('ft_jwt')) return;
+    if (!_vocabIsCumulative || _teachAccessCode || !localStorage.getItem('ft_jwt')) return;
     try {
       await apiFetch('/vocab/session', {
         method: 'PUT',
@@ -15363,7 +15366,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   async function _clearVocabResume() {
-    if (!localStorage.getItem('ft_jwt')) return;
+    if (_teachAccessCode || !localStorage.getItem('ft_jwt')) return;
     try { await apiFetch('/vocab/session', { method: 'DELETE' }); } catch (_) {}
   }
 
@@ -15374,7 +15377,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (!row) return;
     _vocabResumeData = null;
     row.style.display = 'none';
-    if (!localStorage.getItem('ft_jwt')) return;
+    if (_teachAccessCode || !localStorage.getItem('ft_jwt')) return;
     try {
       const res = await apiFetch('/vocab/session');
       if (!res.ok) return;
