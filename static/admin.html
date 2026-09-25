@@ -8,650 +8,353 @@
   <link rel="stylesheet" href="/static/vk-components.css">
   <link rel="stylesheet" href="/static/vk-theme-light.css">
   <link rel="stylesheet" href="/static/vk-theme-atelier.css">
+  <link rel="stylesheet" href="/static/vk-atelier-components.css">
+  <link rel="stylesheet" href="/static/vk-atelier-staff.css">
   <style>
-    /* ── Shell ──────────────────────────────────────────────────────────── */
-    body { margin: 0; font-family: var(--vk-font-ui); background: var(--vk-bg); color: var(--vk-fg-1); }
-    .shell { display: flex; height: 100dvh; overflow: hidden; }
+    /* Page-specific layout only — components come from vk-atelier-staff.css */
+    .page { display: none; }
+    .page.is-active { display: block; }
 
-    /* ── Sidebar ────────────────────────────────────────────────────────── */
-    .sidebar {
-      width: 220px; flex-shrink: 0;
-      background: var(--vk-surface);
-      border-right: 1px solid var(--vk-border-mid);
-      display: flex; flex-direction: column;
-      overflow-y: auto;
-    }
-    .sb-wordmark {
-      padding: 24px 20px 8px;
-      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; color: var(--vk-fg-1);
-    }
-    .sb-badge {
-      display: inline-block; margin-left: 6px;
-      font-size: 0.55rem; letter-spacing: 0.08em;
-      background: var(--vk-accent); color: var(--vk-accent-fg);
-      padding: 2px 5px; vertical-align: middle;
-    }
-    .sb-byline { padding: 0 20px 20px; font-size: 0.65rem; color: var(--vk-fg-2); }
+    /* Overview quick links */
+    .adm-link-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .adm-link-label { font: 500 13.5px/1.3 var(--pa-font-sans); color: var(--vk-fg-2); margin: 0 0 4px; }
+    .adm-link-value { font: 600 16px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin: 0; }
 
-    .sb-nav { padding: 4px 0; flex: 1; }
-    .sb-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 20px; cursor: pointer;
-      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-      color: var(--vk-fg-2); transition: background 80ms, color 80ms;
-      border-left: 2px solid transparent;
+    /* Users — teacher accordion cards */
+    .adm-teachers { display: flex; flex-direction: column; gap: 8px; }
+    .adm-teacher-row {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+      padding: 10px 16px 10px 8px;
     }
-    .sb-item:hover { background: var(--vk-accent-bg); color: var(--vk-fg-1); }
-    .sb-item.active {
-      border-left-color: var(--vk-accent); background: var(--vk-accent-bg);
-      color: var(--vk-accent-text);
+    .adm-teacher-toggle {
+      display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px;
+      padding: 6px 8px; border: none; background: none; border-radius: 12px;
+      text-align: left; cursor: pointer; color: inherit; font: inherit;
     }
-    .sb-icon { font-size: 0.9rem; width: 18px; text-align: center; }
+    .adm-teacher-toggle:hover { background: color-mix(in srgb, var(--vk-fg-1) 6%, transparent); }
+    .adm-teacher-toggle:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+    .adm-chevron { width: 20px; height: 20px; flex-shrink: 0; color: var(--vk-fg-2); transition: transform 200ms var(--pa-ease-spring); }
+    .adm-teacher-toggle[aria-expanded="true"] .adm-chevron { transform: rotate(90deg); }
+    .adm-teacher-name { display: block; font: 600 15px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); }
+    .adm-teacher-email { display: block; font: 400 13px/1.3 var(--pa-font-sans); color: var(--vk-fg-2); word-break: break-all; }
+    .adm-teacher-students { border-top: 1px solid var(--vk-outline-variant); overflow-x: auto; }
+    .adm-teacher-students .vk-table { min-width: 640px; }
+    .adm-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 8px; }
 
-    .sb-footer {
-      padding: 16px 20px;
-      border-top: 1px solid var(--vk-border);
-      font-size: 0.65rem; color: var(--vk-fg-3);
-    }
-    .sb-email { font-size: 0.68rem; color: var(--vk-fg-2); margin-bottom: 8px; word-break: break-all; }
-    .sb-signout {
-      font-family: var(--vk-font-ui); font-size: 0.65rem; font-weight: 600;
-      letter-spacing: 0.08em; text-transform: uppercase;
-      background: none; border: 1px solid var(--vk-border-mid);
-      color: var(--vk-fg-2); padding: 6px 12px; cursor: pointer;
-      transition: background 80ms, color 80ms;
-    }
-    .sb-signout:hover { background: var(--vk-border-mid); color: var(--vk-fg-1); }
+    /* Usage cards */
+    .adm-usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+    .adm-usage-card { display: flex; flex-direction: column; gap: 4px; }
+    .adm-usage-name { font: 600 14px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin: 0 0 6px; }
+    .adm-usage-count { font: 600 30px/1.1 var(--pa-font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; color: var(--vk-fg-1); }
+    .adm-usage-sub { font: 400 13px/1.4 var(--pa-font-sans); color: var(--vk-fg-2); }
+    .adm-usage-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; font: 500 13px/1 var(--pa-font-sans); color: var(--vk-fg-2); }
+    .adm-usage-card .pa-lp { margin-top: 12px; }
 
-    /* ── Main ───────────────────────────────────────────────────────────── */
-    .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-    .page { display: none; flex-direction: column; min-height: 100%; }
-    .page.active { display: flex; }
-
-    .page-header {
-      position: sticky; top: 0; z-index: 50;
-      background: var(--vk-surface);
-      border-bottom: 1px solid var(--vk-border);
-      padding: 20px 32px 16px;
-      display: flex; align-items: flex-start; justify-content: space-between;
-      flex-wrap: wrap; gap: 12px;
-    }
-    .page-header-text {}
-    .page-title { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; color: var(--vk-fg-1); margin: 0 0 4px; }
-    .page-sub { font-size: 0.72rem; color: var(--vk-fg-2); }
-    .page-body { padding: 28px 32px; flex: 1; }
-
-    /* ── KPI strip ──────────────────────────────────────────────────────── */
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 12px; margin-bottom: 32px;
-    }
-    .kpi-card {
-      background: var(--vk-surface);
-      border: 1px solid var(--vk-border-mid);
-      padding: 18px 20px;
-    }
-    .kpi-label {
-      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--vk-fg-2); margin-bottom: 8px;
-    }
-    .kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--vk-fg-1); line-height: 1; }
-    .kpi-delta {
-      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em;
-      margin-top: 6px; display: flex; align-items: center; gap: 3px;
-    }
-    .kpi-delta.up   { color: #1F5A40; }
-    .kpi-delta.down { color: #B42318; }
-    .kpi-delta.flat { color: var(--vk-fg-3); }
-    .kpi-sub { font-size: 0.68rem; color: var(--vk-fg-2); margin-top: 4px; }
-
-    /* ── Section heading ────────────────────────────────────────────────── */
-    .section-head {
-      display: flex; align-items: center; justify-content: space-between;
-      margin: 0 0 14px;
-    }
-    .section-title {
-      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--vk-fg-2);
+    /* Legacy dataset notice */
+    .adm-notice {
+      margin: 0 0 16px; padding: 12px 16px; border-radius: 16px;
+      background: var(--vk-tonal); color: var(--vk-on-tonal);
+      font: 500 14px/1.45 var(--pa-font-sans);
     }
 
-    /* ── Teacher accordion ──────────────────────────────────────────────── */
-    .teacher-block { margin-bottom: 16px; border: 1px solid var(--vk-border-mid); }
-    .teacher-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 18px; background: var(--vk-surface);
-      cursor: pointer; transition: background 80ms;
-    }
-    .teacher-row:hover { background: var(--vk-accent-bg); }
-    .teacher-row.open { border-bottom: 1px solid var(--vk-border); }
-    .tr-chevron { font-size: 0.65rem; color: var(--vk-fg-3); transition: transform 150ms; flex-shrink: 0; }
-    .teacher-row.open .tr-chevron { transform: rotate(90deg); }
-    .tr-name { font-size: 0.82rem; font-weight: 600; color: var(--vk-fg-1); flex: 1; }
-    .tr-email { font-size: 0.7rem; color: var(--vk-fg-3); }
-    .tr-count {
-      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
-      color: var(--vk-fg-3); background: var(--vk-border-mid);
-      padding: 3px 8px; flex-shrink: 0;
-    }
-    .teacher-students { display: none; background: var(--vk-bg); }
-    .teacher-students.open { display: block; }
+    /* Content pool — Chirp budget */
+    .adm-budget-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 14px; }
+    .adm-budget-text { font: 500 13.5px/1.3 var(--pa-font-mono); font-variant-numeric: tabular-nums; color: var(--vk-fg-1); }
+    .adm-budget-note { font: 400 13.5px/1.45 var(--pa-font-sans); color: var(--vk-fg-2); margin: 12px 0 0; }
 
-    /* ── Search bar ─────────────────────────────────────────────────────── */
-    .search-wrap { margin-bottom: 16px; }
-    .search-input {
-      width: 100%; max-width: 360px;
-      font-family: var(--vk-font-ui); font-size: 0.8rem;
-      background: var(--vk-surface); border: 1px solid var(--vk-border-mid);
-      color: var(--vk-fg-1); padding: 8px 12px; outline: none;
-      box-sizing: border-box; transition: border-color 80ms;
-    }
-    .search-input:focus { border-color: var(--vk-accent); }
-    .search-input::placeholder { color: var(--vk-fg-3); }
-
-    .inactive-toggle {
-      display: flex; align-items: center; gap: 8px;
-      margin-bottom: 20px; cursor: pointer; user-select: none;
-      font-family: var(--vk-font-ui); font-size: 0.68rem;
-      font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--vk-fg-2);
-    }
-    .inactive-toggle input { accent-color: var(--vk-accent); cursor: pointer; margin: 0; }
-
-    /* ── User table ─────────────────────────────────────────────────────── */
-    .user-table { width: 100%; border-collapse: collapse; }
-    .user-table th {
-      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--vk-fg-3);
-      text-align: left; padding: 8px 18px;
-      border-bottom: 1px solid var(--vk-border);
-    }
-    .user-table td {
-      padding: 10px 18px; font-size: 0.75rem; color: var(--vk-fg-2);
-      border-bottom: 1px solid var(--vk-border);
-    }
-    .user-table tr:last-child td { border-bottom: none; }
-    .user-table tr:hover td { background: var(--vk-accent-bg); }
-    .td-name { font-weight: 600; color: var(--vk-fg-1); }
-    .td-code { font-family: var(--vk-font-ui); font-size: 0.7rem; color: var(--vk-accent-text); letter-spacing: 0.05em; }
-
-    /* ── Badges ─────────────────────────────────────────────────────────── */
-    .badge {
-      display: inline-block; font-size: 0.58rem; font-weight: 700;
-      letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px;
-    }
-    .badge-active   { background: rgba(31,90,64,0.15); color: #1F5A40; }
-    .badge-inactive { background: rgba(180,35,24,0.1);  color: #B42318; }
-    .badge-solo     { background: var(--vk-accent-bg);  color: var(--vk-accent-text); }
-
-    .score-badge {
-      display: inline-block; font-size: 0.65rem; font-weight: 700;
-      letter-spacing: 0.04em; padding: 2px 8px;
-    }
-    .score-green { background: rgba(31,90,64,0.15); color: #1F5A40; }
-    .score-amber { background: rgba(138,90,0,0.12); color: #8A5A00; }
-    .score-red   { background: rgba(180,35,24,0.1);  color: #B42318; }
-    .score-none  { background: var(--vk-border-mid); color: var(--vk-fg-3); }
-
-    /* ── Action buttons ─────────────────────────────────────────────────── */
-    .action-btn {
-      font-family: var(--vk-font-ui); font-size: 0.6rem; font-weight: 700;
-      letter-spacing: 0.08em; text-transform: uppercase;
-      border: 1px solid var(--vk-border-mid); background: none;
-      color: var(--vk-fg-2); padding: 4px 10px; cursor: pointer;
-      transition: background 80ms, color 80ms; text-decoration: none;
-      display: inline-block;
-    }
-    .action-btn:hover { background: var(--vk-border-mid); color: var(--vk-fg-1); }
-    .action-btn + .action-btn { margin-left: 4px; }
-    .action-btn-accent { border-color: var(--vk-accent-border); color: var(--vk-accent-text); }
-    .action-btn-accent:hover { background: var(--vk-accent-bg); }
-    .action-btn-danger { border-color: rgba(180,35,24,0.4); color: #B42318; }
-    .action-btn-danger:hover { background: rgba(180,35,24,0.08); }
-
-    /* ── Dataset toggle ─────────────────────────────────────────────────── */
-    .ds-toggle { display: flex; gap: 0; border: 1px solid var(--vk-border); align-self: center; }
-    .ds-btn {
-      padding: 6px 14px; font-family: var(--vk-font-ui); font-size: 0.68rem;
-      text-transform: uppercase; letter-spacing: 0.08em;
-      border: none; cursor: pointer;
-      background: var(--vk-surface); color: var(--vk-fg-2);
-      transition: background 80ms, color 80ms;
-    }
-    .ds-btn.active { background: var(--vk-accent); color: var(--vk-accent-fg); }
-
-    /* ── Sparkline ──────────────────────────────────────────────────────── */
-    .sparkline-wrap { margin-bottom: 32px; position: relative; }
-    .sparkline-label {
-      font-size: 0.62rem; color: var(--vk-fg-2); margin-bottom: 12px;
-      letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
-    }
-    .sparkline-container { position: relative; }
-    #sparkline-svg, #overview-sparkline-svg { width: 100%; display: block; }
-    .sparkline-tooltip {
-      position: absolute; pointer-events: none;
-      background: var(--vk-fg-1); color: var(--vk-bg);
-      font-size: 0.68rem; font-family: var(--vk-font-ui);
-      padding: 4px 8px; white-space: nowrap; display: none;
-      z-index: 100;
-    }
-
-    /* ── Exercise breakdown bar chart ───────────────────────────────────── */
-    .chart-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
-    .chart-row { display: flex; align-items: center; gap: 12px; }
-    .chart-label { font-size: 0.68rem; color: var(--vk-fg-2); width: 160px; flex-shrink: 0; }
-    .chart-bar-bg { flex: 1; height: 10px; background: var(--vk-border-mid); position: relative; }
-    .chart-bar-fill { height: 100%; background: var(--vk-accent); transition: width 400ms; }
-    .chart-val { font-size: 0.68rem; color: var(--vk-fg-3); width: 50px; text-align: right; flex-shrink: 0; }
-
-    /* ── Two-column layout ──────────────────────────────────────────────── */
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
-    .col-card { border: 1px solid var(--vk-border-mid); padding: 20px; }
-
-    /* ── Top users table ────────────────────────────────────────────────── */
-    .top-table { width: 100%; border-collapse: collapse; }
-    .top-table th {
-      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--vk-fg-3);
-      text-align: left; padding: 6px 12px;
-      border-bottom: 1px solid var(--vk-border);
-    }
-    .top-table td {
-      padding: 9px 12px; font-size: 0.74rem; color: var(--vk-fg-2);
-      border-bottom: 1px solid var(--vk-border);
-    }
-    .top-table tr:last-child td { border-bottom: none; }
-    .rank { color: var(--vk-fg-3); }
-
-    /* ── Feature usage cards ────────────────────────────────────────────── */
-    .usage-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px; margin-bottom: 32px;
-    }
-    .usage-card {
-      border: 1px solid var(--vk-border-mid); padding: 20px;
-      background: var(--vk-surface);
-    }
-    .usage-card-name {
-      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--vk-fg-2); margin-bottom: 12px;
-    }
-    .usage-card-count {
-      font-size: 1.8rem; font-weight: 700; color: var(--vk-fg-1); line-height: 1; margin-bottom: 2px;
-    }
-    .usage-card-sub { font-size: 0.65rem; color: var(--vk-fg-2); margin-bottom: 12px; }
-    .usage-card-meta {
-      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-    }
-    .usage-bar-wrap { margin-top: 12px; }
-    .usage-bar-bg { height: 4px; background: var(--vk-border-mid); }
-    .usage-bar-fill { height: 100%; background: var(--vk-accent); transition: width 400ms; }
-
-    /* ── Usage full table ───────────────────────────────────────────────── */
-    .usage-table { width: 100%; border-collapse: collapse; }
-    .usage-table th {
-      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--vk-fg-3);
-      text-align: left; padding: 8px 16px;
-      border-bottom: 1px solid var(--vk-border);
-    }
-    .usage-table td {
-      padding: 11px 16px; font-size: 0.75rem; color: var(--vk-fg-2);
-      border-bottom: 1px solid var(--vk-border); vertical-align: middle;
-    }
-    .usage-table tr:last-child td { border-bottom: none; }
-    .usage-table tr:hover td { background: var(--vk-accent-bg); }
-    .ut-name { font-weight: 600; color: var(--vk-fg-1); }
-
-    /* ── Legacy banner ──────────────────────────────────────────────────── */
-    .legacy-banner {
-      display: none; background: var(--vk-accent-bg);
-      border: 1px solid var(--vk-accent); color: var(--vk-accent-text);
-      font-size: 0.72rem; font-family: var(--vk-font-ui);
-      padding: 8px 32px; letter-spacing: 0.04em;
-    }
-
-    /* ── Overview summary links ─────────────────────────────────────────── */
-    .summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
-    @media (max-width: 700px) { .summary-row { grid-template-columns: 1fr; } }
-    .summary-card {
-      border: 1px solid var(--vk-border-mid); padding: 16px 20px;
-      display: flex; justify-content: space-between; align-items: center;
-      background: var(--vk-surface);
-    }
-    .summary-card-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--vk-fg-2); margin-bottom: 4px; }
-    .summary-card-value { font-size: 0.95rem; font-weight: 600; color: var(--vk-fg-1); }
-
-    /* ── Empty state ────────────────────────────────────────────────────── */
-    .empty { color: var(--vk-fg-3); font-size: 0.75rem; padding: 24px; text-align: center; }
-
-    /* ── Loading skeleton ───────────────────────────────────────────────── */
-    .skeleton {
-      background: linear-gradient(90deg, var(--vk-border) 25%, var(--vk-border-mid) 50%, var(--vk-border) 75%);
-      background-size: 200% 100%; animation: shimmer 1.2s infinite;
-      height: 14px; margin-bottom: 8px;
-    }
-    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-    /* ── Toast ──────────────────────────────────────────────────────────── */
-    #toast {
-      position: fixed; bottom: 24px; right: 24px; z-index: 500;
-      background: var(--vk-fg-1); color: var(--vk-bg);
-      font-size: 0.75rem; font-family: var(--vk-font-ui); font-weight: 600;
-      padding: 10px 18px; display: none; letter-spacing: 0.04em;
-    }
-    #toast.show { display: block; animation: fadeInUp 150ms ease; }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .adm-kpi-text { font: 600 18px/1.3 var(--pa-font-sans); color: var(--vk-fg-1); margin-top: 6px; }
   </style>
 </head>
-<body>
-<div class="shell">
+<body data-theme="atelier">
+<div class="vk-app">
 
-  <!-- Sidebar -->
-  <nav class="sidebar">
-    <div class="sb-wordmark">VraiFrench <span class="sb-badge">ADMIN</span></div>
-    <div class="sb-byline">Super Admin Hub</div>
-
-    <div class="sb-nav">
-      <div class="sb-item active" data-page="overview" onclick="showPage('overview', this)">
-        <span class="sb-icon">&#9632;</span> Overview
-      </div>
-      <div class="sb-item" data-page="users" onclick="showPage('users', this)">
-        <span class="sb-icon">&#9776;</span> Users
-      </div>
-      <div class="sb-item" data-page="usage" onclick="showPage('usage', this)">
-        <span class="sb-icon">&#9674;</span> Usage
-      </div>
-      <div class="sb-item" data-page="performance" onclick="showPage('performance', this)">
-        <span class="sb-icon">&#9650;</span> Performance
-      </div>
-      <div class="sb-item" data-page="content" onclick="showPage('content', this)">
-        <span class="sb-icon">&#9679;</span> Content Pool
+  <!-- ── Navigation drawer ─────────────────────────────────────────────── -->
+  <nav class="vk-sidebar" id="drawer" aria-label="Admin">
+    <div class="vk-sb-brand">
+      <span class="st-logo" aria-hidden="true"></span>
+      <div>
+        <span class="mark">VraiFrench</span>
+        <span class="version">Admin hub</span>
       </div>
     </div>
 
-    <div class="sb-footer">
-      <a href="/app" target="_blank" style="display:block; font-family:var(--vk-font-ui); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--vk-fg-2); text-decoration:none; padding:8px 0; border-top:1px solid var(--vk-border); margin-bottom:10px;" onmouseover="this.style.color='var(--vk-fg-1)'" onmouseout="this.style.color='var(--vk-fg-2)'">&#8599; Open Tool</a>
-      <div class="sb-email" id="sb-email">—</div>
-      <button class="sb-signout" onclick="signOut()">Sign Out</button>
+    <button class="vk-sb-item is-active" data-page="overview" onclick="showPage('overview')">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+      <span class="st-sb-label">Overview</span>
+    </button>
+    <button class="vk-sb-item" data-page="users" onclick="showPage('users')">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 19.5c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17.5 14c2.3.4 4 2.3 4 4.5"/></svg>
+      <span class="st-sb-label">Users</span>
+    </button>
+    <button class="vk-sb-item" data-page="usage" onclick="showPage('usage')">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>
+      <span class="st-sb-label">Usage</span>
+    </button>
+    <button class="vk-sb-item" data-page="performance" onclick="showPage('performance')">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 17 9 11.5l4 4 7.5-8"/><path d="M15 7.5h5.5V13"/></svg>
+      <span class="st-sb-label">Performance</span>
+    </button>
+    <button class="vk-sb-item" data-page="content" onclick="showPage('content')">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>
+      <span class="st-sb-label">Content pool</span>
+    </button>
+
+    <div class="st-sb-foot">
+      <a class="vk-sb-item" href="/app" target="_blank" rel="noopener">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4.5h5.5V10M19.5 4.5 11 13"/><path d="M18 14v4.5a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1H10"/></svg>
+        <span class="st-sb-label">Open the student tool</span>
+      </a>
+      <div class="vk-sb-profile">
+        <div class="vk-sb-avatar" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.25"/><path d="M2 12c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>
+        </div>
+        <div class="vk-sb-profile-info">
+          <div class="vk-sb-profile-name" id="sb-email">—</div>
+          <div class="vk-sb-profile-role">Super admin</div>
+        </div>
+        <button class="vk-sb-signout" onclick="signOut()">Sign out</button>
+      </div>
     </div>
   </nav>
+  <div class="vk-scrim" id="scrim" onclick="setDrawer(false)"></div>
 
-  <!-- Main -->
-  <main class="main">
+  <!-- ── Main ──────────────────────────────────────────────────────────── -->
+  <main class="vk-main">
+    <header class="st-topbar">
+      <button class="vk-menu-toggle" id="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="drawer" onclick="setDrawer(!document.getElementById('drawer').classList.contains('is-open'))">
+        <span class="vk-menu-toggle-bars"></span>
+      </button>
+      <span class="st-topbar-title" id="topbar-title">Overview</span>
+    </header>
 
-    <!-- ── Overview page ─────────────────────────────────────────────────── -->
-    <div class="page active" id="page-overview">
-      <div class="page-header">
-        <div class="page-header-text">
-          <div class="page-title">Overview</div>
-          <div class="page-sub">Platform health at a glance</div>
-        </div>
+    <!-- ── Overview ──────────────────────────────────────────────────── -->
+    <section class="page is-active" id="page-overview">
+      <div class="st-head">
+        <h1 class="st-title">Overview</h1>
+        <p class="st-sub">Platform health at a glance</p>
       </div>
-      <div class="page-body">
-
-        <!-- Hero KPIs -->
-        <div class="kpi-row" id="overview-kpis">
-          <div class="kpi-card"><div class="kpi-label">Active Users (7d)</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Events (7d)</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Avg Score</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value">—</div></div>
+      <div class="st-body">
+        <div class="st-kpis" id="overview-kpis">
+          <div class="vk-kpi is-accent"><p class="vk-kpi-label">Active users (7d)</p><p class="vk-kpi-num">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Events (7d)</p><p class="vk-kpi-num">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Average score</p><p class="vk-kpi-num">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Total users</p><p class="vk-kpi-num">—</p></div>
         </div>
 
-        <!-- Daily sparkline -->
-        <div class="sparkline-wrap">
-          <div class="sparkline-label">Daily Events — Last 30 Days</div>
-          <div class="sparkline-container">
-            <svg id="overview-sparkline-svg" viewBox="0 0 800 100" preserveAspectRatio="none" style="height:100px">
-              <text x="400" y="54" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.5)">Loading…</text>
-            </svg>
-            <div class="sparkline-tooltip" id="overview-sparkline-tooltip"></div>
+        <div class="st-section">
+          <h2 class="st-section-title">Daily events</h2>
+          <span class="st-section-note" id="overview-spark-note">Last 30 days</span>
+        </div>
+        <div class="st-card" id="overview-spark"><div class="st-empty">Loading…</div></div>
+
+        <div class="st-section">
+          <h2 class="st-section-title">Quick links</h2>
+        </div>
+        <div class="st-grid-2">
+          <div class="st-card adm-link-card">
+            <div><p class="adm-link-label">Users</p><p class="adm-link-value" id="ov-users-text">—</p></div>
+            <button class="vk-btn vk-btn-tonal sm" onclick="showPage('users')">Manage users</button>
+          </div>
+          <div class="st-card adm-link-card">
+            <div><p class="adm-link-label">Top exercise (all time)</p><p class="adm-link-value" id="ov-top-feature">—</p></div>
+            <button class="vk-btn vk-btn-tonal sm" onclick="showPage('usage')">View usage</button>
           </div>
         </div>
-
-        <!-- Quick summary cards -->
-        <div class="section-title" style="margin-bottom:14px">Quick Links</div>
-        <div class="summary-row" id="overview-summary">
-          <div class="summary-card">
-            <div><div class="summary-card-label">Users</div><div class="summary-card-value" id="ov-users-text">—</div></div>
-            <button class="action-btn action-btn-accent" onclick="showPage('users', document.querySelector('[data-page=users]'))">Manage →</button>
-          </div>
-          <div class="summary-card">
-            <div><div class="summary-card-label">Top Exercise (30d)</div><div class="summary-card-value" id="ov-top-feature">—</div></div>
-            <button class="action-btn action-btn-accent" onclick="showPage('usage', document.querySelector('[data-page=usage]'))">View Usage →</button>
-          </div>
-        </div>
-
       </div>
-    </div>
+    </section>
 
-    <!-- ── Users page ─────────────────────────────────────────────────────── -->
-    <div class="page" id="page-users">
-      <div class="page-header">
-        <div class="page-header-text">
-          <div class="page-title">Users</div>
-          <div class="page-sub">All teachers, their students, and solo learners</div>
+    <!-- ── Users ─────────────────────────────────────────────────────── -->
+    <section class="page" id="page-users">
+      <div class="st-head">
+        <div class="st-head-row">
+          <div>
+            <h1 class="st-title">Users</h1>
+            <p class="st-sub">All teachers, their students, and solo learners</p>
+          </div>
+          <button class="vk-btn vk-btn-primary" onclick="openCreateTeacher()">Add teacher</button>
         </div>
-        <button class="action-btn action-btn-accent" onclick="openCreateTeacher()" style="align-self:center">+ Add Teacher</button>
       </div>
-      <div class="page-body">
-
-        <div class="search-wrap">
+      <div class="st-body">
+        <div class="adm-filters">
           <!-- name/autocomplete/readonly-on-load: without them Chrome's password
                manager treats this as the username field for the Add Teacher
                modal's password input and autofills the signed-in admin's email,
                which silently filters the list down to one user. -->
-          <input class="search-input" type="search" id="user-search"
+          <input class="vk-input is-search" type="search" id="user-search"
                  name="admin-user-search" autocomplete="off" autocorrect="off"
                  spellcheck="false" data-lpignore="true" data-form-type="other"
-                 placeholder="Search by name, email, or access code…"
+                 placeholder="Search by name, email, or access code"
+                 aria-label="Search users"
                  oninput="filterUsers(this.value)">
+          <label class="st-check">
+            <input type="checkbox" id="show-inactive" autocomplete="off" onchange="applyUserFilter()">
+            Show deactivated students
+          </label>
         </div>
 
-        <label class="inactive-toggle">
-          <input type="checkbox" id="show-inactive" autocomplete="off" onchange="applyUserFilter()">
-          Show deactivated students
-        </label>
-
-        <!-- Teachers -->
-        <div class="section-head">
-          <span class="section-title">Teachers</span>
+        <div class="st-section">
+          <h2 class="st-section-title">Teachers</h2>
         </div>
-        <div id="teachers-list">
-          <div class="skeleton" style="width:60%;height:48px"></div>
-          <div class="skeleton" style="width:45%;height:48px;margin-top:8px"></div>
+        <div class="adm-teachers" id="teachers-list">
+          <div class="st-card"><div class="st-empty">Loading…</div></div>
         </div>
 
-        <!-- Solo students -->
-        <div class="section-head" style="margin-top:32px">
-          <span class="section-title">Solo Learners</span>
+        <div class="st-section">
+          <h2 class="st-section-title">Solo learners</h2>
         </div>
-        <div id="solo-wrap" style="border:1px solid var(--vk-border-mid)">
-          <table class="user-table">
+        <div class="st-table-card">
+          <table class="vk-table">
             <thead>
               <tr>
-                <th>Name / Email</th>
-                <th>Access Code</th>
+                <th>Name / email</th>
+                <th>Access code</th>
                 <th>Status</th>
-                <th>Last Active</th>
+                <th>Last active</th>
                 <th>Events</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="solo-body">
-              <tr><td colspan="6" class="empty">Loading…</td></tr>
+              <tr><td colspan="6"><div class="st-empty">Loading…</div></td></tr>
             </tbody>
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- ── Usage page ─────────────────────────────────────────────────────── -->
-    <div class="page" id="page-usage">
-      <div class="page-header">
-        <div class="page-header-text">
-          <div class="page-title">Usage</div>
-          <div class="page-sub">Feature adoption and engagement — last 30 days</div>
-        </div>
+    <!-- ── Usage ─────────────────────────────────────────────────────── -->
+    <section class="page" id="page-usage">
+      <div class="st-head">
+        <h1 class="st-title">Usage</h1>
+        <p class="st-sub">Feature adoption and engagement over the last 30 days</p>
       </div>
-      <div class="page-body">
-
-        <!-- Feature cards -->
-        <div class="section-head">
-          <span class="section-title">Exercise Breakdown</span>
-          <span style="font-size:0.65rem;color:var(--vk-fg-3)">30-day window</span>
+      <div class="st-body">
+        <div class="st-section">
+          <h2 class="st-section-title">Exercise breakdown</h2>
+          <span class="st-section-note">30-day window</span>
         </div>
-        <div class="usage-grid" id="usage-cards">
-          <div class="empty">Loading…</div>
+        <div class="adm-usage-grid" id="usage-cards">
+          <div class="st-card"><div class="st-empty">Loading…</div></div>
         </div>
 
-        <!-- Full breakdown table -->
-        <div class="section-head" style="margin-top:8px">
-          <span class="section-title">All-Time Totals</span>
+        <div class="st-section">
+          <h2 class="st-section-title">All exercises</h2>
         </div>
-        <div style="border:1px solid var(--vk-border-mid)">
-          <table class="usage-table">
+        <div class="st-table-card">
+          <table class="vk-table">
             <thead>
               <tr>
                 <th>Exercise</th>
                 <th>Attempts (30d)</th>
-                <th>Unique Users (30d)</th>
-                <th>Avg Score (30d)</th>
-                <th>All-Time Attempts</th>
+                <th>Unique users (30d)</th>
+                <th>Avg score (30d)</th>
+                <th>All-time attempts</th>
               </tr>
             </thead>
             <tbody id="usage-table-body">
-              <tr><td colspan="5" class="empty">Loading…</td></tr>
+              <tr><td colspan="5"><div class="st-empty">Loading…</div></td></tr>
             </tbody>
           </table>
         </div>
-
       </div>
-    </div>
+    </section>
 
-    <!-- ── Performance page ───────────────────────────────────────────────── -->
-    <div class="page" id="page-performance">
-      <div class="page-header">
-        <div class="page-header-text">
-          <div class="page-title">Performance</div>
-          <div class="page-sub">Platform-wide usage and scoring metrics</div>
-        </div>
-        <div class="ds-toggle">
-          <button id="ds-current" class="ds-btn active" onclick="switchDataset('current')">Current</button>
-          <button id="ds-legacy" class="ds-btn" onclick="switchDataset('legacy')">Legacy</button>
-        </div>
-      </div>
-      <div id="legacy-banner" class="legacy-banner">VIEWING LEGACY DATA — collected before current deployment</div>
-      <div class="page-body">
-
-        <!-- All KPIs -->
-        <div class="kpi-row" id="kpi-row">
-          <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Teachers</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Students</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Total Events</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Events (7d)</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Active Users (7d)</div><div class="kpi-value">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Avg Score</div><div class="kpi-value">—</div></div>
-        </div>
-
-        <!-- Daily sparkline -->
-        <div class="sparkline-wrap">
-          <div class="sparkline-label">Daily Events — Last 30 Days</div>
-          <div class="sparkline-container">
-            <svg id="sparkline-svg" viewBox="0 0 800 100" preserveAspectRatio="none" style="height:100px">
-              <text x="400" y="54" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.5)">Loading…</text>
-            </svg>
-            <div class="sparkline-tooltip" id="sparkline-tooltip"></div>
+    <!-- ── Performance ───────────────────────────────────────────────── -->
+    <section class="page" id="page-performance">
+      <div class="st-head">
+        <div class="st-head-row">
+          <div>
+            <h1 class="st-title">Performance</h1>
+            <p class="st-sub">Platform-wide usage and scoring metrics</p>
+          </div>
+          <div class="st-seg" role="group" aria-label="Dataset">
+            <button id="ds-current" class="is-active" onclick="switchDataset('current')">Current</button>
+            <button id="ds-legacy" onclick="switchDataset('legacy')">Legacy</button>
           </div>
         </div>
+      </div>
+      <div class="st-body">
+        <p id="legacy-banner" class="adm-notice" hidden>You're viewing legacy data, collected before the current deployment.</p>
 
-        <!-- Two columns -->
-        <div class="two-col">
-          <div class="col-card">
-            <div class="section-title" style="margin-bottom:16px">Exercise Breakdown (All Time)</div>
-            <div class="chart-wrap" id="exercise-chart">
-              <div class="empty">Loading…</div>
+        <div class="st-kpis" id="kpi-row">
+          <div class="vk-kpi"><p class="vk-kpi-label">Total users</p><p class="vk-kpi-num">—</p></div>
+        </div>
+
+        <div class="st-section">
+          <h2 class="st-section-title">Daily events</h2>
+          <span class="st-section-note" id="perf-spark-note">Last 30 days</span>
+        </div>
+        <div class="st-card" id="perf-spark"><div class="st-empty">Loading…</div></div>
+
+        <div class="st-grid-2" style="margin-top:12px">
+          <div class="st-card">
+            <h3 class="st-card-title">Exercise breakdown (all time)</h3>
+            <div class="st-bars" id="exercise-chart"><div class="st-empty">Loading…</div></div>
+          </div>
+          <div class="st-card is-flush">
+            <h3 class="st-card-title" style="padding:20px 24px 0">Most active users (30d)</h3>
+            <div style="overflow-x:auto">
+              <table class="vk-table">
+                <thead>
+                  <tr><th>#</th><th>User</th><th>Code</th><th>Events</th><th></th></tr>
+                </thead>
+                <tbody id="top-users-body">
+                  <tr><td colspan="5"><div class="st-empty">Loading…</div></td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
-          <div class="col-card">
-            <div class="section-title" style="margin-bottom:16px">Top Active Users (30d)</div>
-            <table class="top-table">
-              <thead>
-                <tr><th>#</th><th>User</th><th>Code</th><th>Events</th><th></th></tr>
-              </thead>
-              <tbody id="top-users-body">
-                <tr><td colspan="5" class="empty">Loading…</td></tr>
-              </tbody>
-            </table>
-          </div>
         </div>
-
       </div>
-    </div>
+    </section>
 
-    <!-- ── Content Pool page ──────────────────────────────────────────────── -->
-    <div class="page" id="page-content">
-      <div class="page-header">
-        <div class="page-header-text">
-          <div class="page-title">Content Pool</div>
-          <div class="page-sub">Reusable Chirp3-HD content bank — each unit's audio is synthesized once and cached forever</div>
+    <!-- ── Content pool ──────────────────────────────────────────────── -->
+    <section class="page" id="page-content">
+      <div class="st-head">
+        <div class="st-head-row">
+          <div>
+            <h1 class="st-title">Content pool</h1>
+            <p class="st-sub">Reusable Chirp3-HD content bank — each unit's audio is synthesized once and cached</p>
+          </div>
+          <button class="vk-btn vk-btn-outline" onclick="loadContentPool()">Refresh</button>
         </div>
-        <button class="action-btn action-btn-accent" onclick="loadContentPool()" style="align-self:center">Refresh</button>
       </div>
-      <div class="page-body">
-
-        <!-- Pool KPIs -->
-        <div class="kpi-row" id="content-kpis">
-          <div class="kpi-card"><div class="kpi-label">Phrases</div><div class="kpi-value" id="cp-phrases">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Paragraphs</div><div class="kpi-value" id="cp-paragraphs">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Listen &amp; Answer</div><div class="kpi-value" id="cp-listen">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Dialogues</div><div class="kpi-value" id="cp-dialogue">—</div></div>
+      <div class="st-body">
+        <div class="st-kpis">
+          <div class="vk-kpi is-accent"><p class="vk-kpi-label">Total banked units</p><p class="vk-kpi-num" id="cp-total">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Phrases</p><p class="vk-kpi-num" id="cp-phrases">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Paragraphs</p><p class="vk-kpi-num" id="cp-paragraphs">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Listen &amp; answer</p><p class="vk-kpi-num" id="cp-listen">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Dialogues</p><p class="vk-kpi-num" id="cp-dialogue">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Storage</p><p class="adm-kpi-text" id="cp-meta">—</p></div>
         </div>
 
-        <div class="summary-row" id="content-summary" style="margin-bottom:24px">
-          <div class="summary-card">
-            <div><div class="summary-card-label">Total Banked Units</div><div class="summary-card-value" id="cp-total">—</div></div>
+        <div class="st-section">
+          <h2 class="st-section-title">Efficiency</h2>
+          <span class="st-section-note">This calendar month — resets on the 1st</span>
+        </div>
+        <div class="st-kpis">
+          <div class="vk-kpi"><p class="vk-kpi-label">Reuse rate</p><p class="vk-kpi-num" id="cp-reuse-rate">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Served from bank</p><p class="vk-kpi-num" id="cp-hits">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Generated fresh</p><p class="vk-kpi-num" id="cp-misses">—</p></div>
+          <div class="vk-kpi"><p class="vk-kpi-label">Edge-TTS fallbacks</p><p class="vk-kpi-num" id="cp-fallbacks">—</p><p class="vk-kpi-meta" id="cp-fallbacks-meta"></p></div>
+        </div>
+
+        <div class="st-card" style="margin-top:12px">
+          <div class="adm-budget-head">
+            <h3 class="st-card-title" style="margin:0">Chirp3-HD budget</h3>
+            <span class="adm-budget-text" id="cp-budget-text">—</span>
           </div>
-          <div class="summary-card">
-            <div><div class="summary-card-label">Storage Backend</div><div class="summary-card-value" id="cp-meta">—</div></div>
-          </div>
+          <div class="pa-lp" style="--pa-lp-h:8px"><div class="pa-lp-fill" id="cp-budget-fill" style="width:0%"></div></div>
+          <p class="adm-budget-note" id="cp-budget-note">—</p>
         </div>
 
-        <!-- Efficiency (this month) -->
-        <div class="section-head">
-          <span class="section-title">Efficiency</span>
-          <span style="font-size:0.65rem;color:var(--vk-fg-3)">this calendar month — reset on the 1st</span>
+        <div class="st-section">
+          <h2 class="st-section-title">Buckets</h2>
+          <span class="st-section-note">One row per level × topic × style pool</span>
         </div>
-        <div class="kpi-row" id="content-eff-kpis">
-          <div class="kpi-card"><div class="kpi-label">Reuse Rate</div><div class="kpi-value" id="cp-reuse-rate">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Served from Bank</div><div class="kpi-value" id="cp-hits">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Generated Fresh</div><div class="kpi-value" id="cp-misses">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Edge-TTS Fallbacks</div><div class="kpi-value" id="cp-fallbacks">—</div></div>
-        </div>
-
-        <!-- Chirp budget bar -->
-        <div style="border:1px solid var(--vk-border-mid);padding:16px 18px;margin:4px 0 24px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-            <span style="font-family:var(--vk-font-ui);font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--vk-fg-2)">Chirp3-HD Budget</span>
-            <span id="cp-budget-text" style="font-size:0.72rem;color:var(--vk-fg-2)">—</span>
-          </div>
-          <div class="usage-bar-bg" style="height:10px">
-            <div class="usage-bar-fill" id="cp-budget-fill" style="width:0%"></div>
-          </div>
-          <div id="cp-budget-note" style="font-size:0.64rem;color:var(--vk-fg-3);margin-top:8px">—</div>
-        </div>
-
-        <!-- Per-bucket breakdown -->
-        <div class="section-head">
-          <span class="section-title">Buckets</span>
-          <span style="font-size:0.65rem;color:var(--vk-fg-3)">one row per level × topic × style pool</span>
-        </div>
-        <div style="border:1px solid var(--vk-border-mid)">
-          <table class="usage-table">
+        <div class="st-table-card">
+          <table class="vk-table">
             <thead>
               <tr>
                 <th>Type</th>
@@ -662,75 +365,84 @@
               </tr>
             </thead>
             <tbody id="content-table-body">
-              <tr><td colspan="5" class="empty">Loading…</td></tr>
+              <tr><td colspan="5"><div class="st-empty">Loading…</div></td></tr>
             </tbody>
           </table>
         </div>
-
       </div>
-    </div>
+    </section>
 
   </main>
 </div>
 
-<!-- ── Create teacher modal ───────────────────────────────────────────────── -->
-<div id="modal-backdrop" onclick="handleBackdropClick(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
-  <div id="modal-box" style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;width:380px;max-width:90vw;">
-    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:20px;">Add Teacher</div>
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-3);margin-bottom:6px;">Email</label>
-      <input id="modal-email" type="email" autocomplete="off" data-lpignore="true" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="teacher@example.com">
+<!-- ── Add teacher dialog ────────────────────────────────────────────────── -->
+<div class="vk-overlay" id="modal-backdrop" hidden onclick="if(event.target===this)closeModal()">
+  <div class="vk-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="vk-modal-head"><h3 id="modal-title">Add teacher</h3></div>
+    <div class="vk-modal-body">
+      <div class="vk-field">
+        <label class="vk-field-label" for="modal-email">Email</label>
+        <input class="vk-input" id="modal-email" type="email" autocomplete="off" data-lpignore="true" placeholder="teacher@example.com">
+      </div>
+      <div class="vk-field">
+        <label class="vk-field-label" for="modal-pw">Temporary password</label>
+        <input class="vk-input" id="modal-pw" type="password" autocomplete="new-password" data-lpignore="true" placeholder="They can change it after signing in">
+      </div>
+      <p class="st-form-error" id="modal-err" role="alert"></p>
     </div>
-    <div style="margin-bottom:20px;">
-      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-3);margin-bottom:6px;">Password</label>
-      <input id="modal-pw" type="password" autocomplete="new-password" data-lpignore="true" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;" placeholder="Temporary password">
-    </div>
-    <div style="color:#B42318;font-size:0.72rem;min-height:1.2em;margin-bottom:14px;" id="modal-err"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="action-btn" onclick="closeModal()">Cancel</button>
-      <button class="action-btn action-btn-accent" onclick="doCreateTeacher()">Create</button>
-    </div>
-  </div>
-</div>
-
-<!-- Delete user (type-to-confirm) -->
-<div id="del-backdrop" onclick="if(event.target===this)closeDeleteUser()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:var(--vk-surface);border:1px solid var(--vk-error);padding:32px;width:440px;max-width:90vw;">
-    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;color:var(--vk-error);">Delete User</div>
-    <div id="del-msg" style="font-size:0.82rem;color:var(--vk-fg-1);line-height:1.5;margin-bottom:20px;"></div>
-    <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Type DELETE to confirm</label>
-    <input id="del-input" type="text" autocomplete="off" oninput="syncDeleteBtn()" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;margin-bottom:14px;">
-    <div style="color:#B42318;font-size:0.72rem;min-height:1.2em;margin-bottom:14px;" id="del-err"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="action-btn" onclick="closeDeleteUser()">Cancel</button>
-      <button class="action-btn action-btn-danger" id="del-ok" disabled style="opacity:.5;pointer-events:none;" onclick="doDeleteUser()">Delete</button>
+    <div class="vk-modal-foot">
+      <button class="vk-btn vk-btn-text" onclick="closeModal()">Cancel</button>
+      <button class="vk-btn vk-btn-primary" onclick="doCreateTeacher()">Create</button>
     </div>
   </div>
 </div>
 
-<!-- Email a user -->
-<div id="email-backdrop" onclick="if(event.target===this)closeEmailModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:var(--vk-surface);border:1px solid var(--vk-border-mid);padding:32px;width:520px;max-width:90vw;">
-    <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Email <span id="email-to-name"></span></div>
-    <div style="font-size:0.72rem;color:var(--vk-fg-2);margin-bottom:18px;" id="email-to-addr"></div>
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Subject</label>
-      <input id="email-subject" type="text" autocomplete="off" style="width:100%;font-family:var(--vk-font-ui);font-size:0.8rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:9px 12px;outline:none;box-sizing:border-box;">
+<!-- ── Delete user (type-to-confirm) ─────────────────────────────────────── -->
+<div class="vk-overlay" id="del-backdrop" hidden onclick="if(event.target===this)closeDeleteUser()">
+  <div class="vk-modal" role="dialog" aria-modal="true" aria-labelledby="del-title">
+    <div class="vk-modal-head is-danger"><h3 id="del-title">Delete user</h3></div>
+    <div class="vk-modal-body">
+      <div id="del-msg" style="margin-bottom:16px"></div>
+      <div class="vk-field">
+        <label class="vk-field-label" for="del-input">Type DELETE to confirm</label>
+        <input class="vk-input" id="del-input" type="text" autocomplete="off" oninput="syncDeleteBtn()">
+      </div>
+      <p class="st-form-error" id="del-err" role="alert"></p>
     </div>
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--vk-fg-2);margin-bottom:6px;">Message</label>
-      <textarea id="email-body" rows="8" style="width:100%;font-family:var(--vk-font-body);font-size:0.85rem;background:var(--vk-bg);border:1px solid var(--vk-border-mid);color:var(--vk-fg-1);padding:10px 12px;outline:none;box-sizing:border-box;resize:vertical;line-height:1.5;"></textarea>
-    </div>
-    <div style="color:#B42318;font-size:0.72rem;min-height:1.2em;margin-bottom:14px;" id="email-err"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="action-btn" onclick="closeEmailModal()">Cancel</button>
-      <button class="action-btn action-btn-accent" id="email-send" onclick="doEmailUser()">Send</button>
+    <div class="vk-modal-foot">
+      <button class="vk-btn vk-btn-text" onclick="closeDeleteUser()">Cancel</button>
+      <button class="vk-btn vk-btn-destructive is-filled" id="del-ok" disabled onclick="doDeleteUser()">Delete</button>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
-<div id="toast"></div>
+<!-- ── Email a user ──────────────────────────────────────────────────────── -->
+<div class="vk-overlay" id="email-backdrop" hidden onclick="if(event.target===this)closeEmailModal()">
+  <div class="vk-modal is-wide" role="dialog" aria-modal="true" aria-labelledby="email-title">
+    <div class="vk-modal-head">
+      <h3 id="email-title">Email <span id="email-to-name"></span></h3>
+      <p id="email-to-addr"></p>
+    </div>
+    <div class="vk-modal-body">
+      <div class="vk-field">
+        <label class="vk-field-label" for="email-subject">Subject</label>
+        <input class="vk-input" id="email-subject" type="text" autocomplete="off">
+      </div>
+      <div class="vk-field">
+        <label class="vk-field-label" for="email-body">Message</label>
+        <textarea class="vk-input" id="email-body" rows="8"></textarea>
+      </div>
+      <p class="st-form-error" id="email-err" role="alert"></p>
+    </div>
+    <div class="vk-modal-foot">
+      <button class="vk-btn vk-btn-text" onclick="closeEmailModal()">Cancel</button>
+      <button class="vk-btn vk-btn-primary" id="email-send" onclick="doEmailUser()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Snackbar -->
+<div class="st-snackbar" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
   const API = '';
@@ -759,11 +471,26 @@
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
-  function showPage(name, el) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
-    document.getElementById('page-' + name).classList.add('active');
-    if (el) el.classList.add('active');
+  const PAGE_TITLES = { overview: 'Overview', users: 'Users', usage: 'Usage', performance: 'Performance', content: 'Content pool' };
+
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('is-active', p.id === 'page-' + name));
+    document.querySelectorAll('.vk-sb-item[data-page]').forEach(i => {
+      const on = i.dataset.page === name;
+      i.classList.toggle('is-active', on);
+      if (on) i.setAttribute('aria-current', 'page'); else i.removeAttribute('aria-current');
+    });
+    document.getElementById('topbar-title').textContent = PAGE_TITLES[name] || '';
+    setDrawer(false);
+    window.scrollTo(0, 0);
+  }
+
+  // Phone: the drawer slides in over the page with a scrim
+  function setDrawer(open) {
+    document.getElementById('drawer').classList.toggle('is-open', open);
+    document.getElementById('scrim').classList.toggle('is-open', open);
+    document.getElementById('menu-btn').setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('vk-scroll-lock', open);
   }
 
   // ── Format helpers ────────────────────────────────────────────────────────
@@ -776,9 +503,9 @@
   function fmtLabel(s) {
     const m = {
       phrase_attempted:    'Shadowing',
-      paragraph_attempted: 'Speaking — Passage',
-      paragraph_drilled:   'Speaking — Sentence Drill',
-      word_attempted:      'Practice List',
+      paragraph_attempted: 'Speaking — passage',
+      paragraph_drilled:   'Speaking — sentence drill',
+      word_attempted:      'Practice list',
     };
     return m[s] || s;
   }
@@ -794,29 +521,39 @@
 
   function userDisplayName(u) { return u.username || u.email || `User #${u.id}`; }
 
+  // Account state is system state — tonal when on, neutral outline when off
   function statusBadge(u) {
     return u.is_active
-      ? '<span class="badge badge-active">Active</span>'
-      : '<span class="badge badge-inactive">Inactive</span>';
+      ? '<span class="vk-tag is-tonal">Active</span>'
+      : '<span class="vk-tag">Inactive</span>';
   }
 
   function scoreBadge(score) {
-    if (score == null) return '<span class="score-badge score-none">No data</span>';
+    if (score == null) return '<span class="vk-tag">No data</span>';
     const pct = Math.round(score * 100);
-    const cls = pct >= 70 ? 'score-green' : pct >= 40 ? 'score-amber' : 'score-red';
-    return `<span class="score-badge ${cls}">${pct}%</span>`;
+    // Same four bands the student sees: pass ≥90 · progress 60–90 · almost 40–60 · fail <40
+    const cls = pct >= 90 ? 'is-pass' : pct >= 60 ? 'is-progress' : pct >= 40 ? 'is-almost' : 'is-fail';
+    return `<span class="vk-tag is-score ${cls}">${pct}%</span>`;
   }
 
   function delta(current, prev) {
     if (prev == null || current == null) return '';
     if (prev === 0) {
-      if (current === 0) return '<span class="kpi-delta flat">— vs prior week</span>';
-      return `<span class="kpi-delta up">▲ New this week</span>`;
+      if (current === 0) return '<p class="vk-kpi-delta">No change vs prior week</p>';
+      return '<p class="vk-kpi-delta up">New this week</p>';
     }
     const pct = Math.round(((current - prev) / prev) * 100);
-    if (pct > 0)  return `<span class="kpi-delta up">▲ ${pct}% vs prior week</span>`;
-    if (pct < 0)  return `<span class="kpi-delta down">▼ ${Math.abs(pct)}% vs prior week</span>`;
-    return '<span class="kpi-delta flat">— no change</span>';
+    if (pct > 0) return `<p class="vk-kpi-delta up">↑ ${pct}% vs prior week</p>`;
+    if (pct < 0) return `<p class="vk-kpi-delta down">↓ ${Math.abs(pct)}% vs prior week</p>`;
+    return '<p class="vk-kpi-delta">No change vs prior week</p>';
+  }
+
+  function kpiTile(k, accent) {
+    return `<div class="vk-kpi${accent ? ' is-accent' : ''}">
+      <p class="vk-kpi-label">${k.label}</p>
+      <p class="vk-kpi-num">${k.value}</p>
+      ${k.prev !== undefined ? delta(k.cur, k.prev) : ''}
+    </div>`;
   }
 
   function fmtNum(n) {
@@ -829,64 +566,57 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Sparkline ─────────────────────────────────────────────────────────────
-  function renderSparkline(daily, svgId, tooltipId) {
-    const svg = document.getElementById(svgId);
-    const tooltip = document.getElementById(tooltipId);
+  // ── Sparkline — area line of daily events with a hover readout ────────────
+  function renderSparkline(daily, hostId, noteId) {
+    const host = document.getElementById(hostId);
     if (!daily.length) {
-      svg.innerHTML = '<text x="400" y="54" text-anchor="middle" font-size="12" fill="rgba(100,100,100,0.4)">No data</text>';
+      host.innerHTML = '<div class="st-empty">No events in the last 30 days</div>';
       return;
     }
-
-    const W = 800; const H = 100;
-    const PAD_T = 20; const PAD_B = 24; const PAD_X = 8;
-    const chartH = H - PAD_T - PAD_B;
+    const W = 600, H = 120, n = daily.length;
     const max = Math.max(...daily.map(d => d.count), 1);
+    const xAt = i => n === 1 ? W / 2 : (i / (n - 1)) * W;
+    const yAt = c => H - (c / max) * (H - 10);
+    const line = daily.map((d, i) => (i ? 'L' : 'M') + xAt(i).toFixed(1) + ' ' + yAt(d.count).toFixed(1)).join(' ');
+    const area = line + ` L${xAt(n - 1).toFixed(1)} ${H} L${xAt(0).toFixed(1)} ${H} Z`;
+    const gid = 'spk-' + hostId;
+    const mid = Math.floor((n - 1) / 2);
 
-    const pts = daily.map((d, i) => {
-      const x = PAD_X + (i / Math.max(daily.length - 1, 1)) * (W - PAD_X * 2);
-      const y = PAD_T + (1 - d.count / max) * chartH;
-      return { x, y, day: d.day, count: d.count };
+    if (noteId) document.getElementById(noteId).textContent = `Last 30 days · peak ${fmtNum(max)}`;
+    host.innerHTML = `
+      <div class="st-spark">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" style="stop-color:var(--vk-accent);stop-opacity:0.22"/>
+            <stop offset="100%" style="stop-color:var(--vk-accent);stop-opacity:0"/>
+          </linearGradient></defs>
+          <line class="st-spark-grid" x1="0" y1="${H}" x2="${W}" y2="${H}"/>
+          <path d="${area}" style="fill:url(#${gid})"/>
+          <path class="st-spark-line" d="${line}"/>
+        </svg>
+        <span class="st-spark-dot" hidden></span>
+        <span class="st-spark-tip" hidden></span>
+      </div>
+      <div class="st-spark-axis">
+        <span>${fmtShortDate(daily[0].day)}</span>
+        ${n > 2 ? `<span>${fmtShortDate(daily[mid].day)}</span>` : ''}
+        <span>${fmtShortDate(daily[n - 1].day)}</span>
+      </div>`;
+
+    const spark = host.querySelector('.st-spark');
+    const dot = spark.querySelector('.st-spark-dot');
+    const tip = spark.querySelector('.st-spark-tip');
+    spark.addEventListener('mousemove', e => {
+      const r = spark.getBoundingClientRect();
+      const i = n === 1 ? 0 : Math.max(0, Math.min(n - 1, Math.round((e.clientX - r.left) / r.width * (n - 1))));
+      const left = (xAt(i) / W * 100) + '%';
+      const top = (yAt(daily[i].count) / H * 100) + '%';
+      dot.style.left = tip.style.left = left;
+      dot.style.top = tip.style.top = top;
+      tip.innerHTML = `${fmtShortDate(daily[i].day)} · <b>${fmtNum(daily[i].count)}</b> events`;
+      dot.hidden = tip.hidden = false;
     });
-
-    const linePath = pts.map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ');
-    const areaPath = linePath + ` L${pts[pts.length-1].x},${H - PAD_B} L${pts[0].x},${H - PAD_B} Z`;
-
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--vk-accent').trim() || '#c9954a';
-
-    // Y-axis labels (max and midpoint)
-    const mid = Math.round(max / 2);
-    const yMax = PAD_T; const yMid = PAD_T + chartH / 2; const yZero = PAD_T + chartH;
-
-    // X-axis: show ~5 date labels
-    const step = Math.max(1, Math.floor(daily.length / 5));
-    const xLabels = pts.filter((_, i) => i % step === 0 || i === pts.length - 1);
-
-    // Hit areas for tooltip
-    const hitRects = pts.map((p, i) => {
-      const w = W / pts.length;
-      return `<rect x="${p.x - w/2}" y="${PAD_T}" width="${w}" height="${chartH}" fill="transparent"
-        data-day="${p.day}" data-count="${p.count}" data-x="${p.x}" data-y="${p.y}"
-        onmouseover="showSpkTooltip(event, '${p.day}', ${p.count}, ${p.x}, ${p.y}, '${tooltipId}')"
-        onmouseout="hideSpkTooltip('${tooltipId}')"/>`;
-    }).join('');
-
-    svg.innerHTML = `
-      <defs>
-        <linearGradient id="sg-${svgId}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${accent}" stop-opacity="0.2"/>
-          <stop offset="100%" stop-color="${accent}" stop-opacity="0.0"/>
-        </linearGradient>
-      </defs>
-      <text x="${PAD_X}" y="${yMax}" font-size="9" fill="rgba(100,100,100,0.6)" text-anchor="start">${max}</text>
-      <text x="${PAD_X}" y="${yMid + 4}" font-size="9" fill="rgba(100,100,100,0.45)" text-anchor="start">${mid}</text>
-      <text x="${PAD_X}" y="${yZero}" font-size="9" fill="rgba(100,100,100,0.45)" text-anchor="start">0</text>
-      ${xLabels.map(p => `<text x="${p.x}" y="${H}" font-size="9" fill="rgba(100,100,100,0.55)" text-anchor="middle">${fmtShortDate(p.day)}</text>`).join('')}
-      <path d="${areaPath}" fill="url(#sg-${svgId})" stroke="none"/>
-      <path d="${linePath}" fill="none" stroke="${accent}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-      ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="${accent}" opacity="0.7"/>`).join('')}
-      ${hitRects}
-    `;
+    spark.addEventListener('mouseleave', () => { dot.hidden = tip.hidden = true; });
   }
 
   function fmtShortDate(iso) {
@@ -895,29 +625,6 @@
       const d = new Date(iso + 'T00:00:00');
       return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     } catch { return iso.slice(5); }
-  }
-
-  function showSpkTooltip(event, day, count, svgX, svgY, tooltipId) {
-    const tooltip = document.getElementById(tooltipId);
-    const container = tooltip.parentElement;
-    const rect = container.getBoundingClientRect();
-    const svgEl = container.querySelector('svg');
-    const svgRect = svgEl.getBoundingClientRect();
-
-    const ratioX = svgX / 800;
-    const ratioY = svgY / 100;
-    const pixX = svgRect.left - rect.left + ratioX * svgRect.width;
-    const pixY = svgRect.top  - rect.top  + ratioY * svgRect.height;
-
-    tooltip.textContent = `${fmtShortDate(day)}: ${count} events`;
-    tooltip.style.display = 'block';
-    tooltip.style.left = (pixX - tooltip.offsetWidth / 2) + 'px';
-    tooltip.style.top  = (pixY - 32) + 'px';
-  }
-
-  function hideSpkTooltip(tooltipId) {
-    const t = document.getElementById(tooltipId);
-    if (t) t.style.display = 'none';
   }
 
   // ── Overview page ─────────────────────────────────────────────────────────
@@ -934,21 +641,14 @@
     const studentCount = (counts['student_teacher'] || 0) + (counts['student_solo'] || 0);
 
     const kpis = [
-      { label: 'Active Users (7d)', value: d.active_users_7d ?? '—', cur: d.active_users_7d, prev: d.active_users_prev_7d },
+      { label: 'Active users (7d)', value: d.active_users_7d ?? '—', cur: d.active_users_7d, prev: d.active_users_prev_7d },
       { label: 'Events (7d)',       value: fmtNum(d.events_7d),      cur: d.events_7d,       prev: d.events_prev_7d },
-      { label: 'Avg Score',         value: d.avg_score != null ? (d.avg_score * 100).toFixed(1) + '%' : '—', cur: d.avg_score, prev: d.avg_score_prev_7d, isPct: true },
-      { label: 'Total Users',       value: d.total_users ?? '—' },
+      { label: 'Average score',     value: d.avg_score != null ? (d.avg_score * 100).toFixed(1) + '<span class="unit">%</span>' : '—', cur: d.avg_score, prev: d.avg_score_prev_7d },
+      { label: 'Total users',       value: d.total_users ?? '—' },
     ];
+    document.getElementById('overview-kpis').innerHTML = kpis.map((k, i) => kpiTile(k, i === 0)).join('');
 
-    document.getElementById('overview-kpis').innerHTML = kpis.map(k => `
-      <div class="kpi-card">
-        <div class="kpi-label">${k.label}</div>
-        <div class="kpi-value">${k.value}</div>
-        ${k.prev !== undefined ? delta(k.cur, k.prev) : ''}
-      </div>
-    `).join('');
-
-    renderSparkline(d.daily_events || [], 'overview-sparkline-svg', 'overview-sparkline-tooltip');
+    renderSparkline(d.daily_events || [], 'overview-spark', 'overview-spark-note');
 
     document.getElementById('ov-users-text').textContent = `${teacherCount} teacher${teacherCount !== 1 ? 's' : ''}, ${studentCount} student${studentCount !== 1 ? 's' : ''}`;
 
@@ -960,13 +660,16 @@
 
   // ── Users page ────────────────────────────────────────────────────────────
   let _usersData = null;
+  const _openTeachers = new Set();   // teacher ids expanded — survives re-render on search/reload
 
   async function loadUsers() {
     const r = await fetch('/admin/user-hierarchy', { headers: authHeaders() });
-    if (!r.ok) { document.getElementById('teachers-list').innerHTML = '<div class="empty">Failed to load users.</div>'; return; }
+    if (!r.ok) { document.getElementById('teachers-list').innerHTML = '<div class="st-card"><div class="st-empty">Failed to load users.</div></div>'; return; }
     _usersData = await r.json();
     applyUserFilter();   // keep the active search/inactive state across reloads
   }
+
+  const CHEVRON = '<svg class="adm-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
 
   function renderUsers(data) {
     const { teachers, solo } = data;
@@ -974,49 +677,52 @@
     // Teachers
     const tList = document.getElementById('teachers-list');
     if (!teachers.length) {
-      tList.innerHTML = '<div class="empty">No teachers yet.</div>';
+      tList.innerHTML = '<div class="st-card"><div class="st-empty">No teachers yet.</div></div>';
     } else {
-      tList.innerHTML = teachers.map((t, i) => `
-        <div class="teacher-block">
-          <div class="teacher-row" id="tr-${i}" onclick="toggleTeacher(${i})">
-            <span class="tr-chevron">&#9658;</span>
-            <div style="flex:1">
-              <div class="tr-name">${escHtml(userDisplayName(t))}</div>
-              ${t.email ? `<div class="tr-email">${escHtml(t.email)}</div>` : ''}
-            </div>
-            <span class="tr-count">${t.students.length} student${t.students.length !== 1 ? 's' : ''}</span>
-            ${statusBadge(t)}
-            <button class="action-btn ${t.is_active ? 'action-btn-danger' : 'action-btn-accent'}"
-              onclick="event.stopPropagation(); toggleActive(${t.id}, ${t.is_active ? 0 : 1})"
-              title="${t.is_active ? 'Deactivate' : 'Activate'} teacher">
-              ${t.is_active ? 'Deactivate' : 'Activate'}
+      tList.innerHTML = teachers.map(t => {
+        const open = _openTeachers.has(t.id);
+        const n = t.students.length;
+        return `
+        <div class="st-card is-flush">
+          <div class="adm-teacher-row">
+            <button class="adm-teacher-toggle" aria-expanded="${open}" aria-controls="ts-${t.id}" onclick="toggleTeacher(${t.id}, this)">
+              ${CHEVRON}
+              <span>
+                <span class="adm-teacher-name">${escHtml(userDisplayName(t))}</span>
+                ${t.email ? `<span class="adm-teacher-email">${escHtml(t.email)}</span>` : ''}
+              </span>
             </button>
-            <a class="action-btn action-btn-accent" href="${teacherDashLink(t.id)}" target="_blank" onclick="event.stopPropagation()">Dashboard</a>
-            <button class="action-btn" onclick="event.stopPropagation(); openEmailUser(${t.id})" title="Email this teacher"${t.email ? '' : ' disabled'}>Email</button>
-            <button class="action-btn action-btn-danger" onclick="event.stopPropagation(); openDeleteUser(${t.id})" title="Permanently delete teacher">Delete</button>
+            <span class="vk-tag">${n} student${n !== 1 ? 's' : ''}</span>
+            ${statusBadge(t)}
+            <div class="st-actions">
+              <a class="vk-btn vk-btn-tonal sm" href="${teacherDashLink(t.id)}" target="_blank" rel="noopener">Dashboard</a>
+              <button class="vk-btn vk-btn-outline sm" onclick="openEmailUser(${t.id})"${t.email ? '' : ' disabled'}>Email</button>
+              <button class="vk-btn vk-btn-outline sm" onclick="toggleActive(${t.id}, ${t.is_active ? 0 : 1})">${t.is_active ? 'Deactivate' : 'Activate'}</button>
+              <button class="vk-btn vk-btn-destructive sm" onclick="openDeleteUser(${t.id})">Delete</button>
+            </div>
           </div>
-          <div class="teacher-students" id="ts-${i}">
+          <div class="adm-teacher-students" id="ts-${t.id}"${open ? '' : ' hidden'}>
             ${renderStudentTable(t.students)}
           </div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     }
 
     // Solo
     const soloBody = document.getElementById('solo-body');
     if (!solo.length) {
-      soloBody.innerHTML = '<tr><td colspan="6" class="empty">No solo learners yet.</td></tr>';
+      soloBody.innerHTML = '<tr><td colspan="6"><div class="st-empty">No solo learners yet.</div></td></tr>';
     } else {
       soloBody.innerHTML = solo.map(u => renderUserRow(u)).join('');
     }
   }
 
   function renderStudentTable(students) {
-    if (!students.length) return '<div class="empty">No students assigned.</div>';
-    return `<table class="user-table">
+    if (!students.length) return '<div class="st-empty">No students assigned.</div>';
+    return `<table class="vk-table">
       <thead><tr>
-        <th>Name / Email</th><th>Access Code</th><th>Status</th>
-        <th>Last Active</th><th>Events</th><th>Actions</th>
+        <th>Name / email</th><th>Access code</th><th>Status</th>
+        <th>Last active</th><th>Events</th><th>Actions</th>
       </tr></thead>
       <tbody>${students.map(u => renderUserRow(u)).join('')}</tbody>
     </table>`;
@@ -1025,29 +731,27 @@
   function renderUserRow(u) {
     const code = u.access_code || '';
     const name = escHtml(userDisplayName(u));
-    const email = u.email ? `<div style="color:var(--vk-fg-3);font-size:0.68rem;">${escHtml(u.email)}</div>` : '';
+    const email = u.email && u.email !== u.username ? `<span class="is-sub">${escHtml(u.email)}</span>` : '';
     const analyticsBtn = code
-      ? `<a class="action-btn action-btn-accent" href="${studentDashLink(code)}" target="_blank">Analytics</a>`
+      ? `<a class="vk-btn vk-btn-tonal sm" href="${studentDashLink(code)}" target="_blank" rel="noopener">Analytics</a>`
       : '';
-    const toggleBtn = `<button class="action-btn ${u.is_active ? 'action-btn-danger' : 'action-btn-accent'}"
-      onclick="toggleActive(${u.id}, ${u.is_active ? 0 : 1})"
-      title="${u.is_active ? 'Deactivate' : 'Activate'} user">
-      ${u.is_active ? 'Deactivate' : 'Activate'}
-    </button>`;
-    const deleteBtn = `<button class="action-btn action-btn-danger" onclick="openDeleteUser(${u.id})" title="Permanently delete user">Delete</button>`;
+    const toggleBtn = `<button class="vk-btn vk-btn-outline sm" onclick="toggleActive(${u.id}, ${u.is_active ? 0 : 1})">${u.is_active ? 'Deactivate' : 'Activate'}</button>`;
+    const deleteBtn = `<button class="vk-btn vk-btn-destructive sm" onclick="openDeleteUser(${u.id})">Delete</button>`;
     return `<tr>
-      <td><div class="td-name">${name}</div>${email}</td>
-      <td><span class="td-code">${escHtml(code) || '—'}</span></td>
+      <td><span class="is-strong">${name}</span>${email}</td>
+      <td><span class="st-code">${escHtml(code) || '—'}</span></td>
       <td>${statusBadge(u)}</td>
       <td>${fmtDate(u.last_active)}</td>
-      <td>${u.event_count || 0}</td>
-      <td>${toggleBtn}${analyticsBtn}${deleteBtn}</td>
+      <td class="is-num">${fmtNum(u.event_count || 0)}</td>
+      <td class="is-actions"><div class="st-actions">${analyticsBtn}${toggleBtn}${deleteBtn}</div></td>
     </tr>`;
   }
 
-  function toggleTeacher(i) {
-    document.getElementById('tr-' + i).classList.toggle('open');
-    document.getElementById('ts-' + i).classList.toggle('open');
+  function toggleTeacher(id, btn) {
+    const open = !_openTeachers.has(id);
+    if (open) _openTeachers.add(id); else _openTeachers.delete(id);
+    btn.setAttribute('aria-expanded', String(open));
+    document.getElementById('ts-' + id).hidden = !open;
   }
 
   async function toggleActive(userId, newState) {
@@ -1056,7 +760,7 @@
       headers: authHeaders(),
       body: JSON.stringify({ is_active: newState }),
     });
-    if (!r.ok) { showToast('Failed to update user.'); return; }
+    if (!r.ok) { showToast('Failed to update user.', true); return; }
     showToast(newState ? 'User activated.' : 'User deactivated.');
     loadUsers();
   }
@@ -1071,7 +775,7 @@
     syncDeleteBtn();
     const msgEl = document.getElementById('del-msg');
     msgEl.textContent = 'Loading…';
-    document.getElementById('del-backdrop').style.display = 'flex';
+    document.getElementById('del-backdrop').hidden = false;
     setTimeout(() => input.focus(), 50);
 
     const r = await fetch(`/admin/users/${userId}/delete-impact`, { headers: authHeaders() });
@@ -1089,19 +793,15 @@
       if (d.solo) {
         parts.push(`<li><strong>${d.solo}</strong> independent student${d.solo !== 1 ? 's' : ''} will be <strong>detached</strong> and keep their account${d.solo !== 1 ? 's' : ''}</li>`);
       }
-      if (parts.length) body += `<ul style="margin:14px 0 0;padding-left:18px;line-height:1.6;">${parts.join('')}</ul>`;
+      if (parts.length) body += `<ul>${parts.join('')}</ul>`;
     }
     msgEl.innerHTML = body;
   }
   function syncDeleteBtn() {
-    const ok = document.getElementById('del-input').value.trim() === 'DELETE';
-    const btn = document.getElementById('del-ok');
-    btn.disabled = !ok;
-    btn.style.opacity = ok ? '1' : '.5';
-    btn.style.pointerEvents = ok ? 'auto' : 'none';
+    document.getElementById('del-ok').disabled = document.getElementById('del-input').value.trim() !== 'DELETE';
   }
   function closeDeleteUser() {
-    document.getElementById('del-backdrop').style.display = 'none';
+    document.getElementById('del-backdrop').hidden = true;
     _adminDeleteId = null;
   }
   async function doDeleteUser() {
@@ -1130,19 +830,19 @@
   let _emailUserId = null;
   function openEmailUser(userId) {
     const u = findUserById(userId);
-    if (!u) { showToast('User not found.'); return; }
-    if (!u.email || u.email.endsWith('@noemail.local')) { showToast('This user has no email address.'); return; }
+    if (!u) { showToast('User not found.', true); return; }
+    if (!u.email || u.email.endsWith('@noemail.local')) { showToast('This user has no email address.', true); return; }
     _emailUserId = userId;
     document.getElementById('email-to-name').textContent = userDisplayName(u);
     document.getElementById('email-to-addr').textContent = u.email;
     document.getElementById('email-subject').value = '';
     document.getElementById('email-body').value = '';
     document.getElementById('email-err').textContent = '';
-    document.getElementById('email-backdrop').style.display = 'flex';
+    document.getElementById('email-backdrop').hidden = false;
     setTimeout(() => document.getElementById('email-subject').focus(), 50);
   }
   function closeEmailModal() {
-    document.getElementById('email-backdrop').style.display = 'none';
+    document.getElementById('email-backdrop').hidden = true;
     _emailUserId = null;
   }
   async function doEmailUser() {
@@ -1202,43 +902,44 @@
   async function loadUsage() {
     const r = await fetch('/admin/feature-usage', { headers: authHeaders() });
     if (!r.ok) {
-      document.getElementById('usage-cards').innerHTML = '<div class="empty">Failed to load usage data.</div>';
+      document.getElementById('usage-cards').innerHTML = '<div class="st-card"><div class="st-empty">Failed to load usage data.</div></div>';
       return;
     }
     const features = await r.json();
     const max30d = Math.max(...features.map(f => f.total_30d), 1);
 
-    // Cards — all exercises, ordered by most used; untracked ones show dimmed
+    // Cards — all exercises, ordered by most used
     document.getElementById('usage-cards').innerHTML = features.map(f => {
-      const dimmed = !f.tracked ? 'opacity:0.55;' : '';
-      const countDisplay = f.tracked ? fmtNum(f.total_30d) : '—';
-      const subText = f.tracked ? 'attempts in 30 days' : 'not yet tracked';
-      const barWidth = f.tracked ? Math.round(f.total_30d / max30d * 100) : 0;
-      const metaHtml = f.tracked
-        ? `<span style="font-size:0.65rem;color:var(--vk-fg-2)">${f.unique_users_30d} user${f.unique_users_30d !== 1 ? 's' : ''}</span>${scoreBadge(f.avg_score)}`
-        : `<span style="font-size:0.65rem;color:var(--vk-fg-3)">—</span>`;
+      if (!f.tracked) {
+        return `
+          <div class="st-card adm-usage-card">
+            <p class="adm-usage-name">${escHtml(f.label)}</p>
+            <span class="adm-usage-count">—</span>
+            <span class="adm-usage-sub">Not tracked yet</span>
+          </div>`;
+      }
+      const barWidth = Math.round(f.total_30d / max30d * 100);
       return `
-        <div class="usage-card" style="${dimmed}">
-          <div class="usage-card-name">${escHtml(f.label)}</div>
-          <div class="usage-card-count">${countDisplay}</div>
-          <div class="usage-card-sub">${subText}</div>
-          <div class="usage-card-meta">${metaHtml}</div>
-          <div class="usage-bar-wrap">
-            <div class="usage-bar-bg">
-              <div class="usage-bar-fill" style="width:${barWidth}%"></div>
-            </div>
+        <div class="st-card adm-usage-card">
+          <p class="adm-usage-name">${escHtml(f.label)}</p>
+          <span class="adm-usage-count">${fmtNum(f.total_30d)}</span>
+          <span class="adm-usage-sub">attempts in 30 days</span>
+          <div class="adm-usage-meta">
+            <span>${f.unique_users_30d} user${f.unique_users_30d !== 1 ? 's' : ''}</span>
+            ${scoreBadge(f.avg_score)}
           </div>
+          <div class="pa-lp"><div class="pa-lp-fill" style="width:${barWidth}%"></div></div>
         </div>`;
     }).join('');
 
     // Table
     document.getElementById('usage-table-body').innerHTML = features.map(f => `
-      <tr style="${!f.tracked ? 'opacity:0.55;' : ''}">
-        <td class="ut-name">${escHtml(f.label)}${!f.tracked ? ' <span style="font-size:0.6rem;color:var(--vk-fg-3);font-weight:400;">(not tracked)</span>' : ''}</td>
-        <td>${f.tracked ? fmtNum(f.total_30d) : '—'}</td>
-        <td>${f.tracked ? f.unique_users_30d : '—'}</td>
+      <tr>
+        <td><span class="is-strong">${escHtml(f.label)}</span>${!f.tracked ? '<span class="is-sub">Not tracked yet</span>' : ''}</td>
+        <td class="is-num">${f.tracked ? fmtNum(f.total_30d) : '—'}</td>
+        <td class="is-num">${f.tracked ? f.unique_users_30d : '—'}</td>
         <td>${f.tracked ? scoreBadge(f.avg_score) : '—'}</td>
-        <td style="color:var(--vk-fg-3)">${f.tracked ? fmtNum(f.total_all_time) : '—'}</td>
+        <td class="is-num">${f.tracked ? fmtNum(f.total_all_time) : '—'}</td>
       </tr>
     `).join('');
   }
@@ -1247,7 +948,7 @@
   const CP_CAT_LABELS = {
     phrases: 'Phrase',
     paragraphs: 'Paragraph',
-    listen_answer: 'Listen & Answer',
+    listen_answer: 'Listen & answer',
     dialogue: 'Dialogue',
     other_passages: 'Passage',
   };
@@ -1256,7 +957,7 @@
     const body = document.getElementById('content-table-body');
     const r = await fetch('/admin/content-pool', { headers: authHeaders() });
     if (!r.ok) {
-      body.innerHTML = '<tr><td colspan="5" class="empty">Failed to load content pool.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5"><div class="st-empty">Failed to load content pool.</div></td></tr>';
       return;
     }
     const d = await r.json();
@@ -1267,18 +968,17 @@
     document.getElementById('cp-dialogue').textContent   = fmtNum(t.dialogue || 0);
     document.getElementById('cp-total').textContent      = fmtNum(d.total_units || 0);
     document.getElementById('cp-meta').textContent =
-      `${(d.storage || '—').toUpperCase()}${d.chirp_enabled ? ' · Chirp on' : ' · Chirp off'}`;
+      `${(d.storage || '—').toUpperCase()} · Chirp ${d.chirp_enabled ? 'on' : 'off'}`;
 
     // Efficiency — bank reuse vs fresh generation, and edge-tts fallbacks (this month)
     const ops = d.ops || {};
     const hits = ops.bank_hits || 0, misses = ops.bank_misses || 0, fb = ops.edge_fallbacks || 0;
     const decisions = hits + misses;
-    document.getElementById('cp-reuse-rate').textContent = decisions ? Math.round(hits / decisions * 100) + '%' : '—';
+    document.getElementById('cp-reuse-rate').innerHTML = decisions ? Math.round(hits / decisions * 100) + '<span class="unit">%</span>' : '—';
     document.getElementById('cp-hits').textContent = fmtNum(hits);
     document.getElementById('cp-misses').textContent = fmtNum(misses);
-    const fbEl = document.getElementById('cp-fallbacks');
-    fbEl.textContent = fmtNum(fb);
-    fbEl.style.color = fb > 0 ? '#8A5A00' : '';
+    document.getElementById('cp-fallbacks').textContent = fmtNum(fb);
+    document.getElementById('cp-fallbacks-meta').textContent = fb > 0 ? 'Some audio fell back to edge-tts' : '';
 
     // Chirp budget bar — used vs the 1M free tier, with the soft cap as the warning line
     const used = d.chirp_chars_used_month || 0;
@@ -1287,7 +987,8 @@
     const pct  = Math.min(Math.round(used / free * 100), 100);
     const fill = document.getElementById('cp-budget-fill');
     fill.style.width = pct + '%';
-    fill.style.background = used >= cap ? 'var(--vk-error)' : used >= cap * 0.8 ? '#8A5A00' : 'var(--vk-accent)';
+    fill.parentElement.style.setProperty('--pa-lp-stop',
+      used >= cap ? 'var(--vk-error)' : used >= cap * 0.8 ? 'var(--vk-warning)' : 'var(--vk-accent)');
     document.getElementById('cp-budget-text').textContent = `${fmtNum(used)} / ${fmtNum(free)} chars (${pct}%)`;
     document.getElementById('cp-budget-note').textContent = used >= cap
       ? `Soft cap of ${fmtNum(cap)} reached — new content is falling back to edge-tts until the monthly reset. Cached audio still serves.`
@@ -1297,13 +998,13 @@
     body.innerHTML = buckets.length
       ? buckets.map(b => `
         <tr>
-          <td class="ut-name">${escHtml(CP_CAT_LABELS[b.category] || b.category)}</td>
+          <td class="is-strong">${escHtml(CP_CAT_LABELS[b.category] || b.category)}</td>
           <td>${escHtml((b.level || '—').toUpperCase())}</td>
           <td>${escHtml(b.topic || '—')}</td>
-          <td style="color:var(--vk-fg-3)">${escHtml(b.style || '—')}</td>
-          <td>${fmtNum(b.count)}</td>
+          <td>${escHtml(b.style || '—')}</td>
+          <td class="is-num">${fmtNum(b.count)}</td>
         </tr>`).join('')
-      : '<tr><td colspan="5" class="empty">No banked content yet.</td></tr>';
+      : '<tr><td colspan="5"><div class="st-empty">No banked content yet.</div></td></tr>';
   }
 
   // ── Dataset toggle ────────────────────────────────────────────────────────
@@ -1311,9 +1012,9 @@
 
   function switchDataset(ds) {
     _dataset = ds;
-    document.getElementById('ds-current').classList.toggle('active', ds === 'current');
-    document.getElementById('ds-legacy').classList.toggle('active', ds === 'legacy');
-    document.getElementById('legacy-banner').style.display = ds === 'legacy' ? 'block' : 'none';
+    document.getElementById('ds-current').classList.toggle('is-active', ds === 'current');
+    document.getElementById('ds-legacy').classList.toggle('is-active', ds === 'legacy');
+    document.getElementById('legacy-banner').hidden = ds !== 'legacy';
     loadPerformance();
   }
 
@@ -1331,37 +1032,30 @@
     const studentCount = (counts['student_teacher'] || 0) + (counts['student_solo'] || 0);
 
     const kpis = [
-      { label: 'Total Users',        value: d.total_users ?? '—' },
-      { label: 'Teachers',           value: teacherCount },
-      { label: 'Students',           value: studentCount },
-      { label: 'Total Events',       value: fmtNum(d.total_events) },
-      { label: 'Events (7d)',         value: fmtNum(d.events_7d),    cur: d.events_7d,       prev: d.events_prev_7d },
-      { label: 'Active Users (7d)',   value: d.active_users_7d ?? '—', cur: d.active_users_7d, prev: d.active_users_prev_7d },
-      { label: 'Avg Score',          value: d.avg_score != null ? (d.avg_score * 100).toFixed(1) + '%' : '—' },
+      { label: 'Total users',       value: d.total_users ?? '—' },
+      { label: 'Teachers',          value: teacherCount },
+      { label: 'Students',          value: studentCount },
+      { label: 'Total events',      value: fmtNum(d.total_events) },
+      { label: 'Events (7d)',       value: fmtNum(d.events_7d),      cur: d.events_7d,       prev: d.events_prev_7d },
+      { label: 'Active users (7d)', value: d.active_users_7d ?? '—', cur: d.active_users_7d, prev: d.active_users_prev_7d },
+      { label: 'Average score',     value: d.avg_score != null ? (d.avg_score * 100).toFixed(1) + '<span class="unit">%</span>' : '—' },
     ];
+    document.getElementById('kpi-row').innerHTML = kpis.map(k => kpiTile(k, false)).join('');
 
-    document.getElementById('kpi-row').innerHTML = kpis.map(k => `
-      <div class="kpi-card">
-        <div class="kpi-label">${k.label}</div>
-        <div class="kpi-value">${k.value}</div>
-        ${k.prev !== undefined ? delta(k.cur, k.prev) : ''}
-      </div>
-    `).join('');
-
-    renderSparkline(d.daily_events || [], 'sparkline-svg', 'sparkline-tooltip');
+    renderSparkline(d.daily_events || [], 'perf-spark', 'perf-spark-note');
 
     // Exercise breakdown
     const breakdown = d.exercise_breakdown || [];
     const maxCount = breakdown.length ? Math.max(...breakdown.map(b => b.count)) : 1;
     const chartEl = document.getElementById('exercise-chart');
     if (!breakdown.length) {
-      chartEl.innerHTML = '<div class="empty">No exercise data yet.</div>';
+      chartEl.innerHTML = '<div class="st-empty">No exercise data yet.</div>';
     } else {
       chartEl.innerHTML = breakdown.map(b => `
-        <div class="chart-row">
-          <div class="chart-label">${fmtLabel(b.type)}</div>
-          <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(b.count / maxCount * 100)}%"></div></div>
-          <div class="chart-val">${fmtNum(b.count)}</div>
+        <div class="st-bar-row">
+          <span class="st-bar-label">${escHtml(fmtLabel(b.type))}</span>
+          <div class="pa-lp"><div class="pa-lp-fill" style="width:${Math.round(b.count / maxCount * 100)}%"></div></div>
+          <span class="st-bar-val">${fmtNum(b.count)}</span>
         </div>
       `).join('');
     }
@@ -1370,39 +1064,35 @@
     const topBody = document.getElementById('top-users-body');
     const topUsers = d.top_active_users || [];
     if (!topUsers.length) {
-      topBody.innerHTML = '<tr><td colspan="5" class="empty">No activity yet.</td></tr>';
+      topBody.innerHTML = '<tr><td colspan="5"><div class="st-empty">No activity yet.</div></td></tr>';
     } else {
       topBody.innerHTML = topUsers.map((u, i) => `
         <tr>
-          <td class="rank">${i + 1}</td>
-          <td style="font-weight:600;color:var(--vk-fg-1)">${escHtml(u.email || u.username || u.access_code)}</td>
-          <td><span class="td-code">${escHtml(u.access_code)}</span></td>
-          <td>${fmtNum(u.events_30d)}</td>
-          <td><a class="action-btn action-btn-accent" href="${studentDashLink(u.access_code)}" target="_blank">Analytics</a></td>
+          <td class="is-num">${i + 1}</td>
+          <td class="is-strong">${escHtml(u.email || u.username || u.access_code)}</td>
+          <td><span class="st-code">${escHtml(u.access_code)}</span></td>
+          <td class="is-num">${fmtNum(u.events_30d)}</td>
+          <td class="is-actions"><a class="vk-btn vk-btn-tonal sm" href="${studentDashLink(u.access_code)}" target="_blank" rel="noopener">Analytics</a></td>
         </tr>
       `).join('');
     }
   }
 
-  // ── Modal ─────────────────────────────────────────────────────────────────
+  // ── Add teacher dialog ────────────────────────────────────────────────────
   function openCreateTeacher() {
     document.getElementById('modal-email').value = '';
     document.getElementById('modal-pw').value = '';
     document.getElementById('modal-err').textContent = '';
-    document.getElementById('modal-backdrop').style.display = 'flex';
+    document.getElementById('modal-backdrop').hidden = false;
     setTimeout(() => document.getElementById('modal-email').focus(), 50);
   }
 
   function closeModal() {
-    document.getElementById('modal-backdrop').style.display = 'none';
-  }
-
-  function handleBackdropClick(e) {
-    if (e.target === document.getElementById('modal-backdrop')) closeModal();
+    document.getElementById('modal-backdrop').hidden = true;
   }
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeDeleteUser(); closeEmailModal(); }
+    if (e.key === 'Escape') { closeModal(); closeDeleteUser(); closeEmailModal(); setDrawer(false); }
   });
 
   async function doCreateTeacher() {
@@ -1422,14 +1112,15 @@
     loadUsers();
   }
 
-  // ── Toast ─────────────────────────────────────────────────────────────────
+  // ── Snackbar ──────────────────────────────────────────────────────────────
   let _toastTimer = null;
-  function showToast(msg) {
+  function showToast(msg, isErr = false) {
     const el = document.getElementById('toast');
     el.textContent = msg;
-    el.classList.add('show');
+    el.classList.toggle('is-error', isErr);
+    el.hidden = false;
     clearTimeout(_toastTimer);
-    _toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+    _toastTimer = setTimeout(() => { el.hidden = true; }, 3000);
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────────

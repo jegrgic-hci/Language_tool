@@ -6,6 +6,7 @@ The user tests all frontend and browser behaviour directly in Chrome. Do not att
 ## Active frontend file — index.html
 `static/index.html` is the live, active frontend (the vraiKronos rebuild). Do all frontend work there.
 Design system files (still the source of truth for tokens/components): `static/vk-tokens.css`, `static/vk-components.css`, `static/vk-atelier-components.css`, `static/vk-theme-light.css`, `static/vk-theme-atelier.css`.
+Staff pages (`static/admin.html` admin hub, `static/analytics.html` teacher dashboard) use the same Tonal style via `static/vk-atelier-staff.css`.
 
 ## Project purpose
 A French language learning webapp built for a user living in Marseille who wants to improve listening and speaking. The tool uses Mistral AI (chosen for native French capability) and runs locally via FastAPI, accessed in Chrome.
@@ -39,6 +40,8 @@ A French language learning webapp built for a user living in Marseille who wants
 | `data/Lexique383.tsv` | Lexique383 French lexical database (25 MB, 142k rows) — `ortho` + `phon` columns used; downloaded from lexique.fr |
 | `static/index.html` | Full single-file frontend (vraiKronos) — all student exercise views |
 | `static/analytics.html` | Teacher dashboard — standalone static file, fetches from `/analytics/*` endpoints |
+| `static/admin.html` | Super-admin hub (Overview, Users, Usage, Performance, Content pool) — standalone static file, fetches from `/admin/*` |
+| `static/vk-atelier-staff.css` | Tonal overrides of core vraiKronos components (drawer, tabs, tables, tags, fields, dialogs, KPI tiles) + `st-*` layout classes for the two staff pages; scoped to `[data-theme="atelier"]`, not linked by the student app |
 | `analytics.md` | Full analytics system reference — schema, event taxonomy, API endpoints, coach logic, known gaps |
 | `vocabulary.md` | Vocabulary feature spec — Exposure + Recall (+ cumulative Review), `/vocab/generate` |
 | `listening.md` | Listening feature reference & design log — the 2 modes (Listen & Answer, Dialogue French), Chirp3-HD + R2 cached library, random voices + French speaker names, shared `comprMode` runner, natural-pace-only decision, and why Real French/RFI was built then removed |
@@ -124,7 +127,7 @@ All elision rules live in **one place**: `elision.py` (`FRENCH_ELISION_RULES` li
 - The `tu + avoir/être` colloquial contractions (`tu as` → `t'as`) are in section 6b — these are spoken French only and not standard written elisions
 
 ## Design rules (vraiKronos — current system)
-Design system files live in `static/`. Token source of truth: `vk-tokens.css`. Components: `vk-components.css`. Themes: `vk-theme-light.css`, `vk-theme-atelier.css`. Exercise atoms: `vk-atelier-components.css`.
+Design system files live in `static/`. Token source of truth: `vk-tokens.css`. Components: `vk-components.css`. Themes: `vk-theme-light.css`, `vk-theme-atelier.css`. Exercise atoms: `vk-atelier-components.css`. Staff pages (admin + teacher): `vk-atelier-staff.css` — M3 navigation drawer (modal drawer + top bar on phone), `st-head`/`st-body` pages, `st-seg` segmented buttons, `.st-table-card` tables, `vk-overlay`/`vk-modal` dialogs, `.st-snackbar`. Account state (active / paused) uses tonal vs outline chips, never the performance colours.
 
 **Always use `--vk-*` tokens directly in new CSS. Never use `--k-*` or `--k35-*` bridge tokens — those exist only to support JS-injected styles and legacy code copied from `index.html`. Writing new CSS with bridge tokens hides the real token and breaks the contrast/colour rules below.**
 

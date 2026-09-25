@@ -89,6 +89,7 @@ Events are written by `_analytics.track()`, called from routes in `server.py`.
 | `listen_answer_started` | Listen & Answer passage generated | `exercise_type`, `level`, `topic`, `question_count` |
 | `comprehension_answered` | Listen & Answer quiz completed | `exercise_type`, `level`, `topic`, `question_count`, `correct_count`, `score` |
 | `text_revealed` | Student reveals blurred text (listening signal) | `context`, `paragraph_id`, `chunk_index`, `listens_before_reveal` |
+| `lesson_held` | Teacher opens the tool in teach mode (Start lesson) — once per tab | `plan_items` |
 
 **`word_results` format:** `[word, matched]` (legacy) or `[word, matched, said]` (current).
 
@@ -144,7 +145,19 @@ All teacher-facing endpoints require `?key=<ANALYTICS_KEY>`. Set `ANALYTICS_KEY`
 | `POST` | `/coach/refresh?access_code=` | Force-recompute and recache coaching data |
 | `GET` | `/dashboard` | Redirect → `/analytics/dashboard?key=<first key>` |
 
-**Note:** `/coach` is not key-protected — any caller with a valid `access_code` can read it.
+**Access:** `/coach`, `/coach/refresh` and `/analytics/progress` use `_require_student_data_access` — allowed for the student themself (JWT `access_code` matches, falling back to the user row for older tokens), the student's own teacher (`teacher_owns_access_code`), a super admin, or the legacy `?key=`. The student tool calls them through `apiFetch` so the JWT is sent.
+
+---
+
+## Teacher-led lessons (teach mode)
+
+"Start lesson" on the dashboard opens `/app?teach=<code>&name=…&plan=…`. In teach mode the student tool uses a one-off `teach-<uuid>` session id; `analytics.track()` stamps every event from a `teach-` session with `led_by: "teacher"`. On load it also logs one `lesson_held` event (guarded per tab in `sessionStorage`).
+
+- **Engagement counts independent practice only.** `get_roster()` (last practice, sessions, practice minutes, daily activity, accuracy windows) and `get_practice_since()` filter with `_INDEPENDENT_SQL`. Diagnosis data (word accuracy, coach, trajectories) still includes lesson attempts — they are the student's real speech.
+- **Real last-lesson date.** `effective_last_lesson()` = the later of the last scheduled lesson day and the last `lesson_held` day (a lesson run today counts). Used by the roster and by the dashboard's "Since last lesson" window. A lesson held today moves `next_lesson` to the next scheduled day.
+- **Roster fields added:** `last_lesson_held`, `lessons_30d`, `stuck_count` (from `get_score_trajectories`).
+- **Session history** marks sessions containing teacher-led events with `led_by_teacher` (shown as "Lesson" in History).
+- **Lesson plan:** `plan` is JSON `[{t:'s'|'w', x:text}]` (stuck sentences + recent struggle words the teacher left ticked). The tool shows it as chips in the teach banner; each opens the drill tray on that text.
 
 **Progress endpoint** (student Home + teacher Progress tab):
 
@@ -295,7 +308,11 @@ Each roster card shows: health dot + name + next lesson, an optional "No practic
 
 ### Per-student panel — secondary navigation
 
-The tab bar lives inside `.panel-header` and stays sticky as the user scrolls. **Tab order: Insights | Diagnosis | Progress | Activity.** Insights is the default on panel open (`ensureStudentLoaded` → `loadTab(panel, 'insights')`).
+> **2026-09-25 restructure — the sections below describe the pieces, now arranged in 3 tabs.** **Prepare** (default) = the Insights content + a Diagnosis section below it (recommendation links scroll to it instead of switching tabs). **Progress** unchanged. **History** = Activity strips + non-speaking exercise strips (one shared window toggle) + the session table with a Lesson/Practice column.
+>
+> Prepare also has: a **Lesson plan** card (tick items → "Start lesson with plan"), **Wins to mention** (new level / words gained / trend up / streak), an **evidence line** on every recommendation ("Based on N words · M attempts", flagged *Early signal* under 15 attempts), and a **Getting started** state that replaces the indicators until the student has ~3 independent sessions. Sound categories read "Words with nasal sounds" etc., since a missed word containing a sound doesn't prove the sound was the miss. The roster has a **Needs attention** list (`attentionReasons()`: days without practice, lesson today/tomorrow with no practice since the last one, ≥2 stuck sentences, 10-point accuracy drops, <45% this week, not started). Score bars use the student's four bands (90 / 60 / 40).
+
+The tab bar lives inside the sticky page header.
 
 ### Per-student panel — 4 tabs
 

@@ -243,30 +243,40 @@
       z-index: 200;
       background: var(--vk-accent);
       color: var(--vk-accent-fg);
-      padding: 7px 20px;
-      font-family: var(--vk-font-ui);
-      font-size: var(--vk-text-xs);
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      padding: 8px 12px 8px 20px;
+      font: 600 14px/1.3 var(--pa-font-sans, var(--vk-font-ui));
       align-items: center;
-      gap: 12px;
+      flex-wrap: wrap;
+      gap: 8px 12px;
     }
     #teach-banner.active { display: flex; }
-    #teach-banner-name { flex: 1; }
+    #teach-banner-name { flex: 1; min-width: 140px; }
     #teach-banner-end {
+      height: 36px;
+      padding: 0 16px;
+      border: 1px solid rgba(255,255,255,0.6);
+      border-radius: 999px;
       background: none;
-      border: 1px solid rgba(255,255,255,0.45);
       color: var(--vk-accent-fg);
-      font-family: var(--vk-font-ui);
-      font-size: var(--vk-text-2xs);
-      font-weight: 600;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      padding: 4px 12px;
+      font: 600 13px/1 var(--pa-font-sans, var(--vk-font-ui));
       cursor: pointer;
     }
     #teach-banner-end:hover { background: rgba(255,255,255,0.12); }
+    /* Lesson plan — items the teacher picked on the dashboard */
+    #teach-plan { display: none; width: 100%; align-items: center; flex-wrap: wrap; gap: 6px; padding-bottom: 2px; }
+    #teach-plan.active { display: flex; }
+    #teach-plan-label { font-weight: 500; font-size: 13px; opacity: 0.9; margin-right: 4px; }
+    .teach-plan-item {
+      max-width: 320px; height: 32px; padding: 0 12px;
+      border: none; border-radius: 8px;
+      background: rgba(255,255,255,0.16); color: var(--vk-accent-fg);
+      font: 500 13.5px/32px var(--pa-font-sans, var(--vk-font-ui));
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .teach-plan-item:hover { background: rgba(255,255,255,0.26); }
+    .teach-plan-item:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+    .teach-plan-item.is-done { background: rgba(255,255,255,0.08); text-decoration: line-through; opacity: 0.8; }
 
     /* ── Account view ── */
     #account-view {
@@ -3373,7 +3383,10 @@
   <!-- ── Teach mode banner (visible when teacher runs a lesson for a child student) ── -->
   <div id="teach-banner">
     <span id="teach-banner-name">Teaching —</span>
-    <button id="teach-banner-end" onclick="endTeachSession()">End Lesson</button>
+    <button id="teach-banner-end" onclick="endTeachSession()">End lesson</button>
+    <div id="teach-plan" aria-label="Lesson plan">
+      <span id="teach-plan-label">Lesson plan</span>
+    </div>
   </div>
 
   <!-- ── First-time onboarding modal ──────────────────────────────────────── -->
@@ -6435,8 +6448,11 @@
   }
 
   // ── Session ────────────────────────────────────────────────────────────────
-  // sessionId: persistent user identity (never rotates)
+  // sessionId: persistent user identity (never rotates). Teach mode uses a
+  // one-off "teach-" id instead — the server stamps every event from it
+  // led_by="teacher", so lessons don't count as the student's own practice.
   const sessionId = (() => {
+    if (new URLSearchParams(location.search).get('teach')) return 'teach-' + crypto.randomUUID();
     let id = localStorage.getItem('ft_session');
     if (!id) { id = crypto.randomUUID(); localStorage.setItem('ft_session', id); }
     return id;
@@ -6460,6 +6476,33 @@
     banner.classList.add('active');
     document.getElementById('teach-banner-name').textContent =
       'Teaching ' + (_teachStudentName ? decodeURIComponent(_teachStudentName) : _teachAccessCode);
+  }
+
+  // Lesson plan passed from the teacher dashboard: ?plan=[{t:'s'|'w', x:text}, …]
+  const _teachPlan = (() => {
+    if (!_teachAccessCode) return [];
+    try {
+      const items = JSON.parse(_teachParams.get('plan') || '[]');
+      return Array.isArray(items) ? items.filter(i => i && typeof i.x === 'string' && i.x.trim()).slice(0, 12) : [];
+    } catch (_) { return []; }
+  })();
+
+  function renderTeachPlan() {
+    const host = document.getElementById('teach-plan');
+    if (!_teachPlan.length) return;
+    _teachPlan.forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'teach-plan-item';
+      btn.textContent = item.x;
+      btn.title = (item.t === 'w' ? 'Word: ' : 'Sentence: ') + item.x;
+      btn.onclick = () => {
+        openDrillTray(item.x, 'paragraph');
+        document.getElementById('dt-title').textContent = item.t === 'w' ? 'Lesson plan — word' : 'Lesson plan — sentence';
+        btn.classList.add('is-done');
+      };
+      host.appendChild(btn);
+    });
+    host.classList.add('active');
   }
 
   function endTeachSession() {
@@ -6491,6 +6534,17 @@
     }
     // ft_access_code was populated by login.html — exercise calls continue unchanged
     trackEvent('session_start', { session_id: sessionId });
+    // Teach mode: log the lesson once per tab (a reload doesn't log a second one)
+    if (_teachAccessCode) {
+      const lessonKey = 'vf_lesson_logged_' + _teachAccessCode;
+      let logged = false;
+      try { logged = sessionStorage.getItem(lessonKey) === '1'; } catch (_) {}
+      if (!logged) {
+        trackEvent('lesson_held', { plan_items: _teachPlan.length });
+        try { sessionStorage.setItem(lessonKey, '1'); } catch (_) {}
+      }
+      renderTeachPlan();
+    }
     setTimeout(() => switchView('home'), 0);
     window.addEventListener('popstate', () => switchView(location.hash.slice(1) || 'home'));
     // Populate sidebar profile + check onboarding
@@ -11633,8 +11687,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (_homeLoaded && _homeData) { renderHome(); return; }
     try {
       const [progRes, coachRes, meRes] = await Promise.allSettled([
-        fetch(`/analytics/progress?access_code=${encodeURIComponent(code)}&lang=${studyLang()}`),
-        fetch(`/coach?access_code=${encodeURIComponent(code)}&lang=${studyLang()}`),
+        apiFetch(`/analytics/progress?access_code=${encodeURIComponent(code)}&lang=${studyLang()}`),
+        apiFetch(`/coach?access_code=${encodeURIComponent(code)}&lang=${studyLang()}`),
         apiFetch('/auth/me'),
       ]);
       if (progRes.status !== 'fulfilled' || !progRes.value.ok) throw new Error('progress fetch failed');

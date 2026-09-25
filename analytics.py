@@ -377,7 +377,20 @@ def delete_vocab_session(user_id: int) -> None:
         conn.execute("DELETE FROM vocab_sessions WHERE user_id=?", (user_id,))
 
 
+# Teach mode: the student tool sends a "teach-" session id while a teacher is
+# running a lesson under the student's access code. Every event from that tab
+# is stamped led_by="teacher" here, so engagement stats (sessions, practice
+# time, days since practice) can count independent practice only.
+TEACH_SESSION_PREFIX = "teach-"
+
+# SQL fragment: keep only events the student did on their own.
+_INDEPENDENT_SQL = "COALESCE(json_extract(payload,'$.led_by'),'') != 'teacher'"
+
+
 def track(session_id: str, access_code: str, event_type: str, payload: dict = None, visit_id: str = None):
+    payload = dict(payload or {})
+    if session_id and str(session_id).startswith(TEACH_SESSION_PREFIX):
+        payload["led_by"] = "teacher"
     with _conn() as conn:
         conn.execute(
             "INSERT INTO events (session_id, access_code, event_type, payload, visit_id) VALUES (?,?,?,?,?)",
@@ -665,6 +678,16 @@ def get_users_by_role(role: str) -> list:
     return [dict(r) for r in rows]
 
 
+def teacher_owns_access_code(teacher_user_id: int, access_code: str) -> bool:
+    """True if the student with this access code belongs to the teacher (active or paused)."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM users WHERE access_code=? AND teacher_id=?",
+            (access_code, teacher_user_id),
+        ).fetchone()
+    return row is not None
+
+
 def get_students_for_teacher_user(teacher_user_id: int) -> list:
     with _conn() as conn:
         rows = conn.execute(
@@ -822,8 +845,8 @@ def last_lesson_date(lesson_days_json: str) -> Optional[date]:
     return None
 
 
-def next_lesson_date(lesson_days_json: str) -> Optional[date]:
-    """Return the next upcoming lesson date (includes today if today is a lesson day)."""
+def next_lesson_date(lesson_days_json: str, start: Optional[date] = None) -> Optional[date]:
+    """Return the next upcoming lesson date on or after ``start`` (default today)."""
     try:
         days = json.loads(lesson_days_json) if lesson_days_json else []
     except Exception:
@@ -834,12 +857,33 @@ def next_lesson_date(lesson_days_json: str) -> Optional[date]:
     lesson_weekdays = {day_map[d] for d in days if d in day_map}
     if not lesson_weekdays:
         return None
-    today = date.today()
+    today = start or date.today()
     for i in range(0, 8):
         d = today + timedelta(days=i)
         if d.weekday() in lesson_weekdays:
             return d
     return None
+
+
+def get_lesson_dates(access_code: str) -> list:
+    """Days a teacher actually ran a lesson in the tool (``lesson_held`` events), newest first."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT date(ts) AS day FROM events "
+            "WHERE access_code=? AND event_type='lesson_held' ORDER BY day DESC",
+            (access_code,),
+        ).fetchall()
+    return [r["day"] for r in rows]
+
+
+def effective_last_lesson(access_code: str, lesson_days_json: str) -> Optional[date]:
+    """The later of the last scheduled lesson day and the last lesson actually run
+    in the tool. A lesson logged today counts (the schedule never includes today)."""
+    scheduled = last_lesson_date(lesson_days_json)
+    logged = get_lesson_dates(access_code)
+    held = date.fromisoformat(logged[0]) if logged else None
+    candidates = [d for d in (scheduled, held) if d]
+    return max(candidates) if candidates else None
 
 
 def get_roster(allowed_codes: Optional[set] = None) -> list:
@@ -877,7 +921,8 @@ def get_roster(allowed_codes: Optional[set] = None) -> list:
         # Last practice event per student (excludes pure session/listen events)
         last_rows = conn.execute(
             "SELECT access_code, MAX(date(ts)) AS last_date FROM events "
-            "WHERE event_type NOT IN ('session_start','session_end','shadowing_time') "
+            "WHERE event_type NOT IN ('session_start','session_end','shadowing_time','lesson_held') "
+            "AND " + _INDEPENDENT_SQL + " "
             "GROUP BY access_code"
         ).fetchall()
         last_practice = {r["access_code"]: r["last_date"] for r in last_rows}
@@ -888,6 +933,7 @@ def get_roster(allowed_codes: Optional[set] = None) -> list:
             "WHERE date(ts) >= ? AND ts IS NOT NULL "
             "AND event_type IN ('paragraph_started','chunk_listened',"
             "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "AND " + _INDEPENDENT_SQL + " "
             "ORDER BY access_code, ts ASC",
             (prev_30d_start,),
         ).fetchall()
@@ -941,7 +987,7 @@ def get_roster(allowed_codes: Optional[set] = None) -> list:
             "FROM events "
             "WHERE event_type IN "
             "  ('phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
-            "AND date(ts) >= ? "
+            "AND date(ts) >= ? AND " + _INDEPENDENT_SQL + " "
             "GROUP BY access_code, day",
             (since_7d,),
         ).fetchall()
@@ -981,13 +1027,23 @@ def get_roster(allowed_codes: Optional[set] = None) -> list:
         variety_map: dict = {r["access_code"]: {"variety_7d": r["v7"], "variety_30d": r["v30"]}
                              for r in variety_rows}
 
+        # Lessons actually run in the tool (teach mode) — last date + 30d count
+        lesson_rows = conn.execute(
+            "SELECT access_code, MAX(date(ts)) AS last_day, "
+            "COUNT(DISTINCT CASE WHEN date(ts) >= ? THEN date(ts) END) AS n30 "
+            "FROM events WHERE event_type='lesson_held' GROUP BY access_code",
+            (since_30d,),
+        ).fetchall()
+        lessons_map: dict = {r["access_code"]: (r["last_day"], r["n30"]) for r in lesson_rows}
+
         # Scoring events with timestamps — used for all-time, 7d, and since-lesson accuracy
         acc_rows = conn.execute(
             "SELECT access_code, event_type, date(ts) AS day, "
             "CAST(json_extract(payload,'$.score') AS REAL) AS score "
             "FROM events "
             "WHERE event_type IN ('phrase_attempted','paragraph_attempted') "
-            "AND json_extract(payload,'$.score') IS NOT NULL",
+            "AND json_extract(payload,'$.score') IS NOT NULL "
+            "AND " + _INDEPENDENT_SQL,
         ).fetchall()
         acc_events: dict = defaultdict(list)
         phrase_events: dict = defaultdict(list)
@@ -1034,8 +1090,16 @@ def get_roster(allowed_codes: Optional[set] = None) -> list:
         last             = last_practice.get(code)
         acc              = accuracy.get(code, {})
 
-        last_lesson  = last_lesson_date(lesson_days_json)
-        next_lesson  = next_lesson_date(lesson_days_json)
+        scheduled_last = last_lesson_date(lesson_days_json)
+        held_last_str, lessons_30d = lessons_map.get(code, (None, 0))
+        held_last = date.fromisoformat(held_last_str) if held_last_str else None
+        last_lesson = max([d for d in (scheduled_last, held_last) if d], default=None)
+        # A lesson already run today means the next one is on a later day
+        next_lesson = next_lesson_date(
+            lesson_days_json,
+            start=today + timedelta(days=1) if held_last == today else None,
+        )
+        stuck_count = get_score_trajectories(code)["counts"]["stuck"] if last else 0
 
         days_since = (today - date.fromisoformat(last)).days if last else None
         days_until = (next_lesson - today).days if next_lesson else None
@@ -1074,6 +1138,9 @@ def get_roster(allowed_codes: Optional[set] = None) -> list:
             "last_practice":           last,
             "days_since_practice":     days_since,
             "last_lesson":             last_lesson_str,
+            "last_lesson_held":        held_last_str,
+            "lessons_30d":             lessons_30d or 0,
+            "stuck_count":             stuck_count,
             "next_lesson":             next_lesson.isoformat() if next_lesson else None,
             "days_until_next":         days_until,
             "sessions_7d":              sessions_7d.get(code, 0),
@@ -1122,6 +1189,7 @@ def get_practice_since(access_code: str, since: date) -> dict:
             "WHERE access_code=? AND date(ts) > ? AND ts IS NOT NULL "
             "AND event_type IN ('paragraph_started','chunk_listened',"
             "'phrase_attempted','paragraph_attempted','paragraph_drilled','word_attempted') "
+            "AND " + _INDEPENDENT_SQL + " "
             "ORDER BY ts ASC",
             (access_code, since_str),
         ).fetchall()
@@ -1603,6 +1671,7 @@ def get_session_history(access_code: str, limit: int = 20) -> list:
         results.append({
             "started_at":                started_at,
             "ended_at":                  ended_at,
+            "led_by_teacher":            any(p.get("led_by") == "teacher" for _, _, p in group),
             "duration_seconds":          duration_seconds,
             "word_attempts":             word_attempts,
             "words_new":                 len(word_set - seen_words),

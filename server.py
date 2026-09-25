@@ -1279,6 +1279,35 @@ def _require_analytics_key(key: str = "", authorization: Optional[str] = Header(
     raise HTTPException(status_code=403, detail="Forbidden")
 
 
+def _require_student_data_access(
+    access_code: str = "", key: str = "", authorization: Optional[str] = Header(None),
+) -> dict:
+    """Guard for per-student coaching/progress data read by both the student tool
+    and the teacher dashboard. Allowed: the student themself (JWT access_code
+    matches), the student's own teacher, a super admin, or the legacy analytics key.
+    Teach mode runs on the teacher's JWT, so it passes as the owning teacher."""
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    if key and key in _ANALYTICS_KEYS:
+        return {"role": "teacher", "sub": None, "is_legacy": True}
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = _auth.decode_token(authorization[7:])
+    role = payload.get("role")
+    if role == "super_admin":
+        return payload
+    if role == "teacher" and _analytics.teacher_owns_access_code(int(payload["sub"]), access_code):
+        return payload
+    own_code = payload.get("access_code")
+    if not own_code and payload.get("sub"):
+        # Tokens minted before the account had an access code don't carry one
+        user = _analytics.get_user_by_id(int(payload["sub"]))
+        own_code = (user or {}).get("access_code")
+    if own_code and own_code == access_code:
+        return payload
+    raise HTTPException(status_code=403, detail="Forbidden")
+
+
 @app.get("/analytics")
 async def get_analytics(auth: dict = Depends(_require_analytics_key)):
     return _analytics.get_analytics()
@@ -1317,9 +1346,8 @@ async def reset_analytics(access_code: str = "", auth: dict = Depends(_require_a
 
 
 @app.get("/coach")
-async def coach_data(access_code: str = "", lang: str = "fr"):
-    if not access_code:
-        raise HTTPException(status_code=400, detail="access_code required")
+async def coach_data(access_code: str = "", lang: str = "fr",
+                     auth: dict = Depends(_require_student_data_access)):
     if lang not in _lang.SUPPORTED:
         raise HTTPException(status_code=400, detail="Unsupported language")
     if lang != "fr":
@@ -1334,24 +1362,20 @@ async def coach_data(access_code: str = "", lang: str = "fr"):
 
 
 @app.post("/coach/refresh")
-async def coach_refresh(access_code: str = ""):
-    if not access_code:
-        raise HTTPException(status_code=400, detail="access_code required")
+async def coach_refresh(access_code: str = "", auth: dict = Depends(_require_student_data_access)):
     data = _analytics.get_coach_data(access_code)
     _analytics.set_cached_coach(access_code, data)
     return data
 
 
 @app.get("/analytics/progress")
-async def analytics_progress(access_code: str = "", days: int = 30, lang: str = "fr"):
-    """Student-facing progress data for the landing page.
-
-    Access-code only (no teacher key), mirroring /coach — the student tool has
-    no analytics key. Returns the per-type/per-level score trend, the cumulative
-    words-mastered curve, and a small headline summary.
+async def analytics_progress(access_code: str = "", days: int = 30, lang: str = "fr",
+                             auth: dict = Depends(_require_student_data_access)):
+    """Student-facing progress data for the landing page (and the teacher's
+    Progress tab). Readable by the student, their teacher, or an admin — see
+    _require_student_data_access. Returns the per-type/per-level score trend,
+    the cumulative words-mastered curve, and a small headline summary.
     """
-    if not access_code:
-        raise HTTPException(status_code=400, detail="access_code required")
     since_days = max(1, min(days, 365))
     if lang not in _lang.SUPPORTED:
         raise HTTPException(status_code=400, detail="Unsupported language")
@@ -1364,11 +1388,10 @@ def _window_to_since_days(window: str, access_code: str) -> Optional[int]:
         return 30
     if window == "since":
         s = _analytics.get_student_by_code(access_code)
-        if s:
-            ll = _analytics.last_lesson_date(s.get("lesson_days") or "[]")
-            if ll:
-                return max((date.today() - ll).days, 1)
-        return 30  # no schedule → fall back to 30d
+        ll = _analytics.effective_last_lesson(access_code, (s or {}).get("lesson_days") or "[]")
+        if ll:
+            return max((date.today() - ll).days, 1)
+        return 30  # no schedule and no lesson run → fall back to 30d
     return None  # "all"
 
 
