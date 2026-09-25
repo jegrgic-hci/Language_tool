@@ -793,6 +793,11 @@
     #psdp-live-transcript-text::-webkit-scrollbar,
     #para-live-transcript-text::-webkit-scrollbar,
     #practice-psdp-live-transcript-text::-webkit-scrollbar { display: none; }
+    /* Paragraph: once scored, the per-sentence rows ARE the result — drop the
+       raw transcript and its "What I heard" label (the ID rule above would
+       otherwise beat the DS .pv-speech.is-heard .pv-live-text hide). */
+    #para-live-transcript.is-heard #para-live-transcript-text,
+    #para-live-transcript.is-heard #para-speech-label { display: none; }
     .psdp-score-row { display: flex; align-items: center; gap: 10px; }
     .psdp-score-pct {
       font-family: var(--vkg-font-mono);
