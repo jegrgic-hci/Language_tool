@@ -53,7 +53,7 @@
        + account menus, "More" sheet) live in vk-atelier-components.css →
        APP NAVIGATION. Only grid placement and app-specific bits stay here. */
     .m3-rail { grid-column: 1; grid-row: 1; }
-    .rail-logo { width: 32px; height: 32px; background: url('/static/Icon_language.png') center / contain no-repeat; }
+    .rail-logo { width: 32px; height: 32px; }
     #more-list { display: grid; gap: 2px; }
 
     /* ── First-time onboarding dialog (M3 dialog) — JS toggles display ── */
@@ -2740,7 +2740,7 @@
         <button type="button" class="nav-avatar" id="rail-avatar" data-open-acct aria-haspopup="menu" aria-expanded="false" aria-label="Account">·</button>
         <span>You</span>
       </div>
-      <span class="rail-logo" role="img" aria-label="vraiFrench"></span>
+      <span class="rail-logo pa-brand-mark" role="img" aria-label="vraiFrench"></span>
     </div>
   </nav>
 
@@ -2800,7 +2800,9 @@
 
       /* At-a-glance tiles — the phrase view's .phv-tile, one step smaller so
          they read as secondary to the KPI cards. */
-      .home-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 28px; }
+      .home-tiles { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 28px; }
+      .home-tiles .home-tile-brand { align-items: center; justify-content: center; }
+      .home-tile-brand .pa-brand-mark { width: 64px; height: 64px; }
       @media (max-width: 680px) { .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       .home-tiles .phv-tile { padding: 14px 16px; animation: pa-rise-tile 420ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
       .home-tiles .phv-tile-value { font-size: var(--vk-type-title-lg); }
@@ -4044,7 +4046,7 @@
         <div class="comp-inner">
 
           <!-- Loading -->
-          <div id="comp-loading" class="pa-loading" role="status" style="display:none;"><svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg><span class="pa-loading-label">Generating passage…</span></div>
+          <div id="comp-loading" class="pa-loading" role="status" style="display:none;"><span class="pa-loader" aria-hidden="true"></span><span class="pa-loading-label">Generating passage…</span></div>
 
           <!-- Persistent player (passage + quiz states) -->
           <div id="comp-player" style="display:none;">
@@ -4380,7 +4382,7 @@
 
         <!-- Loading -->
         <div id="vocab-loading" class="pa-loading" role="status" style="display:none;">
-          <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+          <span class="pa-loader" aria-hidden="true"></span>
           <span class="pa-loading-label">Generating cards…</span>
         </div>
 
@@ -4542,7 +4544,7 @@
 
           <!-- Loading -->
           <div id="dict-loading" class="pa-loading" role="status" style="display:none;">
-            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <span class="pa-loader" aria-hidden="true"></span>
             <div class="pa-loading-label">Generating sentence…</div>
           </div>
 
@@ -4671,7 +4673,7 @@
 
           <!-- Loading -->
           <div id="wr-loading" class="pa-loading" role="status" style="display:none;">
-            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <span class="pa-loader" aria-hidden="true"></span>
             <div class="pa-loading-label">Generating prompt…</div>
           </div>
 
@@ -4809,7 +4811,7 @@
 
           <!-- Loading -->
           <div id="sp-loading" class="pa-loading" role="status" style="display:none;">
-            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <span class="pa-loader" aria-hidden="true"></span>
             <div class="pa-loading-label">Generating prompt…</div>
           </div>
 
@@ -5018,7 +5020,7 @@
 
           <!-- Loading -->
           <div id="tr-loading" class="pa-loading" role="status" style="display:none;">
-            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <span class="pa-loader" aria-hidden="true"></span>
             <div class="pa-loading-label">Generating sentence…</div>
           </div>
 
@@ -5157,7 +5159,7 @@
 
           <!-- Loading -->
           <div id="ps-loading" class="pa-loading" role="status" style="display:none;">
-            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <span class="pa-loader" aria-hidden="true"></span>
             <div class="pa-loading-label">Generating prompt…</div>
           </div>
 
@@ -5241,7 +5243,7 @@
 
           <!-- Loading -->
           <div id="pl-loading" class="pa-loading" role="status" style="display:none;">
-            <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg>
+            <span class="pa-loader" aria-hidden="true"></span>
             <div class="pa-loading-label">Building your drill…</div>
           </div>
 
@@ -5997,6 +5999,18 @@
     fillEl.classList.add(passed ? 'pass' : 'fail');
   }
 
+  // Brand-mark loader SVG (.pa-loader, styled in vk-atelier-components.css).
+  // Each copy gets its own mask id so the orbit gaps travel with its electrons.
+  let _paLoaderSeq = 0;
+  function paLoaderSvg() {
+    const id = `pa-loader-cut-${++_paLoaderSeq}`;
+    return `<svg viewBox="0 0 100 100"><mask id="${id}"><rect width="100" height="100" fill="#fff"/>`
+      + `<circle class="pa-loader-a" cx="50" cy="17" r="15" fill="#000"/><circle class="pa-loader-b" cx="50" cy="17" r="15" fill="#000"/></mask>`
+      + `<circle class="pa-loader-orbit" cx="50" cy="50" r="33" mask="url(#${id})"/><circle class="pa-loader-core" cx="50" cy="50" r="10.5"/>`
+      + `<circle class="pa-loader-a" cx="50" cy="17" r="10.5"/><circle class="pa-loader-b" cx="50" cy="17" r="10.5"/></svg>`;
+  }
+  document.querySelectorAll('.pa-loader:empty').forEach(el => { el.innerHTML = paLoaderSvg(); });
+
   // M3 loading indicator (.pa-loading) — show/hide a view's loading block.
   // Showing it clears a previous error so a retry spins again with its label.
   function toggleLoading(id, on) {
@@ -6022,7 +6036,7 @@
 
   // Inline loader markup for text slots that are later overwritten (paragraph).
   function loadingHtml(label) {
-    return `<span class="pa-loading is-inline" role="status"><svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true"><circle class="pa-loader-track" cx="24" cy="24" r="17"/><path class="pa-loader-wave" pathLength="100"/></svg><span>${label}</span></span>`;
+    return `<span class="pa-loading is-inline" role="status"><span class="pa-loader" aria-hidden="true">${paLoaderSvg()}</span><span>${label}</span></span>`;
   }
 
   // Lightweight toast for system notifications (upload/mic feedback).
@@ -11464,6 +11478,32 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (adviceBtn) adviceBtn.addEventListener('click', () => openHomeTarget(advice.target));
     const levelBtn = host.querySelector('.home-tile-level button');
     if (levelBtn) levelBtn.addEventListener('click', () => openHomeTarget(levelMove.target));
+    _homeFillBrandTile(host);
+    if (!_homeBrandRO && window.ResizeObserver) {
+      _homeBrandRO = new ResizeObserver(() => _homeFillBrandTile(host));
+      _homeBrandRO.observe(host);
+    }
+  }
+
+  // The column count depends on the screen width, so the last row of tiles often
+  // leaves a gap. Measure it and fill it with the brand mark.
+  let _homeBrandRO = null;
+  function _homeFillBrandTile(host) {
+    const prev = host.querySelector('.home-tile-brand');
+    if (prev) prev.remove();
+    const tiles = [...host.children];
+    if (!tiles.length || !host.clientWidth) return;
+    const cs = getComputedStyle(host);
+    const cols = cs.gridTemplateColumns.split(' ').length;
+    const gap = parseFloat(cs.columnGap) || 0;
+    const colW = (host.clientWidth - gap * (cols - 1)) / cols;
+    const lastTop = Math.max(...tiles.map(el => el.offsetTop));
+    const lastRight = Math.max(...tiles.filter(el => el.offsetTop === lastTop).map(el => el.offsetLeft + el.offsetWidth));
+    const span = Math.round((host.clientWidth - lastRight) / (colW + gap));
+    if (span < 1) return;
+    host.insertAdjacentHTML('beforeend', `<div class="phv-tile home-tile-brand" style="grid-column: span ${span}; animation-delay:${tiles.length * 50}ms">
+        <span class="pa-brand-mark" role="img" aria-label="vraiFrench"></span>
+      </div>`);
   }
 
   // ── Multi-series trend renderer (ported from the atelier-design data-viz) ──

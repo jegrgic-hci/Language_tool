@@ -99,7 +99,6 @@ body[data-theme="atelier"] {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  background: url('/static/Icon_language.png') center / contain no-repeat;
 }
 [data-theme="atelier"] .vk-sb-brand .mark {
   display: block;

@@ -83,6 +83,12 @@
   /* Sentence case everywhere — M3 voice, not the all-caps tool signal */
   --vk-ui-case: none;
 
+  /* Brand mark — the helium atom (logo + loader), always one colour */
+  --vk-brand-mark: #2D6CB3;   /* brand blue */
+  /* Voice indicator waves (PaVoiceAtom): who is speaking. Not scoring colours. */
+  --vk-voice-audio: #2D6CB3;  /* the French audio */
+  --vk-voice-you:   #B37D12;  /* the learner — keep clear of --pa-almost (#8A5A00) */
+
   /* Honey — sparing warmth, celebration on wins only */
   --pa-honey: #C9883E;
 

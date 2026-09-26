@@ -13,7 +13,8 @@
                  pa-ctrl        pa-drill-pip
                  pa-lp          (M3 linear progress — gap + stop indicator)
                  pa-cp          (M3 circular progress — gap between arc and track)
-                 pa-loader      (waveform loader — wavy arc travelling round a circle)
+                 pa-brand-mark  (the helium-atom logo, tinted by --vk-brand-mark)
+                 pa-loader      (brand-mark loader — electrons knock each other round the orbit)
 
    MOLECULES   Atoms grouped into a functional unit.
                  pa-transcript   (token diff — target + heard rows)
@@ -381,71 +382,74 @@
 }
 
 
+/* ── Brand mark (pa-brand-mark) ──────────────────────────────────────────────
+   The vraiFrench helium atom, tinted with --vk-brand-mark through a CSS mask of
+   /static/brand-mark.svg so it follows the theme. Size it on the element.
+     <span class="pa-brand-mark" role="img" aria-label="vraiFrench"></span> */
+.pa-brand-mark {
+  display: inline-block;
+  flex-shrink: 0;
+  background: var(--vk-brand-mark);
+  -webkit-mask: url('/static/brand-mark.svg') center / contain no-repeat;
+          mask: url('/static/brand-mark.svg') center / contain no-repeat;
+}
+
+
 /* ── Loading indicator (pa-loader) ───────────────────────────────────────────
-   Waveform loader for short, indeterminate waits (content generation) — a
-   voice-shaped take on M3's wavy circular indicator. A 12-wave ring (defined
-   once here via the CSS `d` property) is traced by an accent arc that grows,
-   shrinks and travels around a faint flat track while the whole ring turns,
-   so the wave appears to flow along the circle. Pair with a short text label;
-   the SVG is aria-hidden.
+   The brand mark as the loader. The top electron falls round the orbit
+   (speeding up) and strikes the bottom one, which is knocked up and round to
+   the top (slowing down), then falls and strikes the other. The gap cut in the
+   orbit travels with each electron. Pair with a short text label.
      <span class="pa-loading" role="status">
-       <svg class="pa-loader" viewBox="0 0 48 48" aria-hidden="true">
-         <circle class="pa-loader-track" cx="24" cy="24" r="17"/>
-         <path class="pa-loader-wave" pathLength="100"/>
-       </svg>
+       <span class="pa-loader" aria-hidden="true"></span>
        <span>Generating passage…</span>
      </span>
-   Hidden inside an .is-error container. */
+   The empty .pa-loader is filled with its SVG by paLoaderSvg() in index.html —
+   each copy needs its own mask id. Hidden inside an .is-error container.
 
-.pa-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 32px 0;
-  font-family: var(--pa-font-sans);
-  font-size: var(--vk-type-body-md);
-  color: var(--vk-fg-2);
-}
-.pa-loading.is-inline { flex-direction: row; justify-content: flex-start; padding: 0; }
-.pa-loading.is-error .pa-loader { display: none; }
+   Timing (one 1680ms cycle = two strikes): fall 380ms · settle 220ms ·
+   rise 380ms · pause 80ms at the top. 143.5deg = 180deg minus the angle two
+   touching electrons take up, so the striker stops against the struck one. */
 .pa-loader {
+  display: block;
   width: 48px;
   height: 48px;
   flex-shrink: 0;
-  overflow: visible;
-  animation: pa-loader-turn 2400ms linear infinite;
 }
-.pa-loader-track {
-  fill: none;
-  stroke: var(--pa-scale-track);
-  stroke-width: 3px;
-}
-.pa-loader-wave {
-  fill: none;
-  stroke: var(--vk-accent);
-  stroke-width: 3.5px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  d: path("M24.00 7.00 L24.46 6.54 L24.94 6.14 L25.43 5.84 L25.93 5.67 L26.41 5.66 L26.88 5.80 L27.32 6.09 L27.72 6.51 L28.08 7.02 L28.40 7.58 L28.70 8.14 L28.98 8.67 L29.27 9.12 L29.58 9.46 L29.93 9.68 L30.33 9.77 L30.80 9.75 L31.32 9.64 L31.89 9.47 L32.50 9.28 L33.12 9.11 L33.74 9.00 L34.32 8.99 L34.83 9.09 L35.26 9.32 L35.60 9.68 L35.83 10.15 L35.97 10.71 L36.02 11.33 L36.02 11.98 L36.00 12.62 L35.98 13.21 L36.00 13.75 L36.10 14.20 L36.30 14.56 L36.60 14.85 L37.01 15.06 L37.52 15.22 L38.10 15.36 L38.72 15.50 L39.35 15.67 L39.93 15.88 L40.44 16.16 L40.83 16.51 L41.09 16.92 L41.20 17.40 L41.17 17.92 L41.01 18.47 L40.74 19.04 L40.42 19.60 L40.08 20.14 L39.77 20.65 L39.52 21.12 L39.38 21.56 L39.37 21.98 L39.49 22.37 L39.74 22.76 L40.10 23.16 L40.53 23.57 L41.00 24.00 L41.46 24.46 L41.86 24.94 L42.16 25.43 L42.33 25.93 L42.34 26.41 L42.20 26.88 L41.91 27.32 L41.49 27.72 L40.98 28.08 L40.42 28.40 L39.86 28.70 L39.33 28.98 L38.88 29.27 L38.54 29.58 L38.32 29.93 L38.23 30.33 L38.25 30.80 L38.36 31.32 L38.53 31.89 L38.72 32.50 L38.89 33.12 L39.00 33.74 L39.01 34.32 L38.91 34.83 L38.68 35.26 L38.32 35.60 L37.85 35.83 L37.29 35.97 L36.67 36.02 L36.02 36.02 L35.38 36.00 L34.79 35.98 L34.25 36.00 L33.80 36.10 L33.44 36.30 L33.15 36.60 L32.94 37.01 L32.78 37.52 L32.64 38.10 L32.50 38.72 L32.33 39.35 L32.12 39.93 L31.84 40.44 L31.49 40.83 L31.08 41.09 L30.60 41.20 L30.08 41.17 L29.53 41.01 L28.96 40.74 L28.40 40.42 L27.86 40.08 L27.35 39.77 L26.88 39.52 L26.44 39.38 L26.02 39.37 L25.63 39.49 L25.24 39.74 L24.84 40.10 L24.43 40.53 L24.00 41.00 L23.54 41.46 L23.06 41.86 L22.57 42.16 L22.07 42.33 L21.59 42.34 L21.12 42.20 L20.68 41.91 L20.28 41.49 L19.92 40.98 L19.60 40.42 L19.30 39.86 L19.02 39.33 L18.73 38.88 L18.42 38.54 L18.07 38.32 L17.67 38.23 L17.20 38.25 L16.68 38.36 L16.11 38.53 L15.50 38.72 L14.88 38.89 L14.26 39.00 L13.68 39.01 L13.17 38.91 L12.74 38.68 L12.40 38.32 L12.17 37.85 L12.03 37.29 L11.98 36.67 L11.98 36.02 L12.00 35.38 L12.02 34.79 L12.00 34.25 L11.90 33.80 L11.70 33.44 L11.40 33.15 L10.99 32.94 L10.48 32.78 L9.90 32.64 L9.28 32.50 L8.65 32.33 L8.07 32.12 L7.56 31.84 L7.17 31.49 L6.91 31.08 L6.80 30.60 L6.83 30.08 L6.99 29.53 L7.26 28.96 L7.58 28.40 L7.92 27.86 L8.23 27.35 L8.48 26.88 L8.62 26.44 L8.63 26.02 L8.51 25.63 L8.26 25.24 L7.90 24.84 L7.47 24.43 L7.00 24.00 L6.54 23.54 L6.14 23.06 L5.84 22.57 L5.67 22.07 L5.66 21.59 L5.80 21.12 L6.09 20.68 L6.51 20.28 L7.02 19.92 L7.58 19.60 L8.14 19.30 L8.67 19.02 L9.12 18.73 L9.46 18.42 L9.68 18.07 L9.77 17.67 L9.75 17.20 L9.64 16.68 L9.47 16.11 L9.28 15.50 L9.11 14.88 L9.00 14.26 L8.99 13.68 L9.09 13.17 L9.32 12.74 L9.68 12.40 L10.15 12.17 L10.71 12.03 L11.33 11.98 L11.98 11.98 L12.62 12.00 L13.21 12.02 L13.75 12.00 L14.20 11.90 L14.56 11.70 L14.85 11.40 L15.06 10.99 L15.22 10.48 L15.36 9.90 L15.50 9.28 L15.67 8.65 L15.88 8.07 L16.16 7.56 L16.51 7.17 L16.92 6.91 L17.40 6.80 L17.92 6.83 L18.47 6.99 L19.04 7.26 L19.60 7.58 L20.14 7.92 L20.65 8.23 L21.12 8.48 L21.56 8.62 L21.98 8.63 L22.37 8.51 L22.76 8.26 L23.16 7.90 L23.57 7.47Z");
-  stroke-dasharray: 10 100;
-  animation: pa-loader-trace 1500ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
+.pa-loader svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.pa-loader-orbit { fill: none; stroke: var(--vk-brand-mark); stroke-width: 9px; }
+.pa-loader-core,
+.pa-loader svg > .pa-loader-a,
+.pa-loader svg > .pa-loader-b { fill: var(--vk-brand-mark); }
+.pa-loader-a,
+.pa-loader-b { transform-origin: 50px 50px; animation: 1680ms infinite; }
+.pa-loader-a { animation-name: pa-loader-a; }
+.pa-loader-b { animation-name: pa-loader-b; transform: rotate(180deg); }
 .pa-loading.is-inline .pa-loader { width: 32px; height: 32px; }
-@keyframes pa-loader-turn {
-  to { transform: rotate(1turn); }
+@keyframes pa-loader-a {
+  0%            { transform: rotate(0deg);     animation-timing-function: cubic-bezier(0.11, 0, 0.5, 0); }
+  22.62%        { transform: rotate(143.5deg); animation-timing-function: cubic-bezier(0.5, 1, 0.89, 1); }
+  35.71%        { transform: rotate(180deg); }
+  72.62%        { transform: rotate(180deg);   animation-timing-function: cubic-bezier(0.5, 1, 0.89, 1); }
+  95.24%, 100%  { transform: rotate(360deg); }
 }
-/* The arc stretches along the wave, then its tail catches up — the classic
-   indeterminate rhythm, one full lap per cycle. */
-@keyframes pa-loader-trace {
-  0%   { stroke-dasharray: 6 100;  stroke-dashoffset: 0; }
-  50%  { stroke-dasharray: 42 100; stroke-dashoffset: -18; }
-  100% { stroke-dasharray: 6 100;  stroke-dashoffset: -100; }
+@keyframes pa-loader-b {
+  0%, 22.62%    { transform: rotate(180deg);   animation-timing-function: cubic-bezier(0.5, 1, 0.89, 1); }
+  45.24%        { transform: rotate(360deg); }
+  50%           { transform: rotate(360deg);   animation-timing-function: cubic-bezier(0.11, 0, 0.5, 0); }
+  72.62%        { transform: rotate(503.5deg); animation-timing-function: cubic-bezier(0.5, 1, 0.89, 1); }
+  85.71%, 100%  { transform: rotate(540deg); }
+}
+/* Reduced motion: nothing travels — the two electrons fade in turn. */
+@keyframes pa-loader-fade {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pa-loader      { animation-duration: 6000ms; }
-  .pa-loader-wave { animation: none; stroke-dasharray: 30 100; }
+  .pa-loader-a, .pa-loader-b { animation: none; }
+  .pa-loader svg > .pa-loader-a,
+  .pa-loader svg > .pa-loader-b { animation: pa-loader-fade 1300ms ease-in-out infinite; }
+  .pa-loader svg > .pa-loader-b { animation-delay: -650ms; }
 }
 
 
