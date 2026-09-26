@@ -48,6 +48,9 @@
     }
 
     .lp-wordmark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
       font-family: var(--pa-font-sans);
       font-size: var(--vk-type-body-lg);
       font-weight: 800;
@@ -55,6 +58,9 @@
       color: var(--vk-fg-1);
       text-decoration: none;
     }
+
+    .lp-wordmark .pa-brand-mark { width: 28px; height: 28px; }
+    .lp-footer-copy .pa-brand-mark { width: 20px; height: 20px; vertical-align: -4px; margin-right: 8px; }
 
     .lp-nav-actions {
       display: flex;
@@ -126,7 +132,7 @@
 
     /* ── Hero stage — the phrase view's grid, marketing cut ──────────────────
        Starts as one centred card. When the score lands, .is-split adds the side
-       column: the card glides left (FLIP in JS, M3 emphasized 560ms) and the
+       column: the card glides left (FLIP in JS, M3 emphasized 800ms) and the
        tiles + word cards rise in place, staggered — as in the app. Below 1024px
        the side column simply stacks under the card. */
     .lp-stage {
@@ -151,9 +157,12 @@
     .lp-stage .pa-run:nth-child(3) { --i: 2; }
     .lp-stage .pv-speech.is-heard .pa-run { animation-duration: 600ms; animation-delay: calc(var(--i, 0) * 260ms); }
     .lp-stage .demo-section { transition-duration: 450ms; }
-    .lp-stage .pa-bar-fill { transition: width 900ms cubic-bezier(0.2, 0, 0, 1); }
-    .lp-stage .phv-tiles.is-visible .phv-tile:nth-child(1) { animation-delay: 240ms; }
-    .lp-stage .phv-tiles.is-visible .phv-tile:nth-child(2) { animation-delay: 360ms; }
+    /* The split is one unhurried motion: glide, strip close and score open all
+       run 800ms on the emphasized curve; tiles and words rise over 600ms */
+    .lp-stage .pa-bar-fill { transition: width 1100ms cubic-bezier(0.2, 0, 0, 1); }
+    .lp-stage .phv-tiles.is-visible .phv-tile { animation-duration: 600ms; }
+    .lp-stage .phv-tiles.is-visible .phv-tile:nth-child(1) { animation-delay: 280ms; }
+    .lp-stage .phv-tiles.is-visible .phv-tile:nth-child(2) { animation-delay: 420ms; }
     .lp-stage-side {
       display: none;
       flex-direction: column;
@@ -177,10 +186,10 @@
       overflow: visible;
     }
     .lp-stage-words .pa-word-list-header { padding: 6px 4px 0; }
-    .lp-stage-words > * { animation: pa-rise-tile 420ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
-    .lp-stage-words > :nth-child(1) { animation-delay: 520ms; }
-    .lp-stage-words > :nth-child(2) { animation-delay: 660ms; }
-    .lp-stage-words > :nth-child(3) { animation-delay: 800ms; }
+    .lp-stage-words > * { animation: pa-rise-tile 600ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+    .lp-stage-words > :nth-child(1) { animation-delay: 580ms; }
+    .lp-stage-words > :nth-child(2) { animation-delay: 740ms; }
+    .lp-stage-words > :nth-child(3) { animation-delay: 900ms; }
     .lp-stage-words .pa-word-item {
       background: var(--vk-surface);
       border-radius: var(--vk-card-radius);
@@ -217,9 +226,66 @@
       font-weight: 600;
       letter-spacing: -0.01em;
       color: var(--vk-fg-1);
-      margin-bottom: var(--vk-sp-4);
-      padding-bottom: var(--vk-sp-4);
-      border-bottom: 1px solid var(--vk-border);
+    }
+
+    /* Student speech slot, under the card. The record button is pressed and
+       gives way to the brand mark (PaVoiceAtom), whose electrons become gold
+       waves while the attempt comes in; it loads while the speech is read
+       back, then the slot fades and closes (0fr row; the negative margin
+       cancels the column gap). Only opacity/transform/grid rows animate, and
+       the canvas keeps its size, so nothing re-lays-out mid-animation. */
+    .demo-voice-slot {
+      display: grid;
+      grid-template-rows: 1fr;
+      /* closes on the same 800ms emphasized curve as the card's glide (setSplit) */
+      transition: grid-template-rows 800ms cubic-bezier(0.2, 0, 0, 1),
+                  margin-top 800ms cubic-bezier(0.2, 0, 0, 1),
+                  opacity 250ms var(--vk-ease);
+    }
+    .demo-voice-slot.is-done { grid-template-rows: 0fr; margin-top: -16px; opacity: 0; }
+    .demo-voice-inner {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+    }
+    .demo-voice-slot.is-done .demo-voice-inner { overflow: hidden; }
+    .demo-voice-inner > * { grid-area: 1 / 1; }
+    /* Play / record button that gives way to the brand mark (hero + How it works) */
+    .lp-ctrl-morph {
+      pointer-events: none;
+      transition: opacity 150ms var(--vk-ease),
+                  transform 180ms var(--vk-ease),
+                  border-radius 300ms var(--pa-ease-spring);
+    }
+    .lp-ctrl-morph.pa-ctrl-record { border-radius: 50%; }   /* starts round: no square → circle step */
+    .lp-ctrl-morph.is-gone { opacity: 0; transform: scale(0.6); animation: none; }
+    .lp-voice {
+      display: block;
+      width: 100%;
+      height: 96px;
+      opacity: 0;
+      transform: scale(0.6);
+      transition: opacity 150ms var(--vk-ease), transform 350ms var(--pa-ease-spring);
+    }
+    .lp-voice.visible { opacity: 1; transform: none; }
+
+    /* The score takes no room until it lands: the wrapper's single row grows
+       from 0fr to 1fr, and the divider arrives with it. */
+    .demo-score-collapse {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 800ms cubic-bezier(0.2, 0, 0, 1);   /* with the split */
+    }
+    .demo-score-collapse:has(.demo-section.visible) { grid-template-rows: 1fr; }
+    .demo-score-collapse > .pa-score {
+      min-height: 0;
+      overflow: hidden;
+    }
+    .demo-score-collapse > .pa-score::before {
+      content: '';
+      flex-shrink: 0;
+      margin: var(--vk-sp-4) 0 var(--vk-sp-2);
+      border-top: 1px solid var(--vk-border);
     }
 
 
@@ -799,43 +865,18 @@
     .lp-step-head .lp-step-title { margin-bottom: 0; }
 
     /* Step 1 — listen */
-    .lp-listen-row { display: flex; align-items: center; gap: var(--vk-sp-4); }
-    .lp-wave { display: flex; align-items: center; gap: 3px; height: 40px; flex: 1; }
-    .lp-wave span {
-      width: 4px;
-      height: 100%;
-      border-radius: 999px;
-      background: var(--vk-accent);
-      opacity: 0.55;
-      transform: scaleY(0.2);
-    }
-    .lp-wave.is-playing span { animation: lp-wave 900ms ease-in-out infinite alternate; }
-    .lp-wave span:nth-child(3n)   { animation-delay: -300ms; }
-    .lp-wave span:nth-child(3n+1) { animation-delay: -600ms; }
-    .lp-wave span:nth-child(4n)   { animation-duration: 700ms; }
-    .lp-wave span:nth-child(5n)   { animation-duration: 1100ms; }
-    @keyframes lp-wave { from { transform: scaleY(0.15); } to { transform: scaleY(1); } }
-    .lp-viz .pa-utterance { font-size: var(--vk-type-title-lg); }
+    /* Play and brand mark share one spot: the play button gives way to blue waves */
+    .lp-listen-row { display: grid; place-items: center; padding: var(--vk-sp-2) 0; }
+    .lp-listen-row > * { grid-area: 1 / 1; }
+    .lp-viz .pa-utterance { font-size: var(--vk-type-title-lg); margin: 0; }
 
-    .lp-seg { display: inline-flex; align-self: flex-start; }
-    .lp-seg span {
-      display: inline-flex;
-      align-items: center;
-      height: 32px;
-      padding: 0 12px;
-      font-family: var(--pa-font-mono);
-      font-size: var(--vk-type-label-md);
-      font-weight: 600;
-      color: var(--vk-fg-2);
-      border: 1px solid var(--vk-outline);
-      margin-left: -1px;
-    }
-    .lp-seg span:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
-    .lp-seg span:last-child  { border-radius: 0 999px 999px 0; }
-    .lp-seg span.is-on { background: var(--vk-tonal); color: var(--vk-on-tonal); }
 
     /* Step 2 — speak */
-    .lp-speak-row { display: flex; justify-content: center; padding: var(--vk-sp-2) 0; }
+    /* Mic and brand mark share one spot: the mic gives way to gold waves */
+    .lp-speak-row { display: grid; place-items: center; padding: var(--vk-sp-2) 0; }
+    .lp-speak-row > * { grid-area: 1 / 1; }
+    .lp-listen-row .lp-voice,
+    .lp-speak-row .lp-voice { height: 80px; }
     .lp-viz .pv-speech { display: flex; flex-direction: column; min-height: 84px; }
     .lp-viz .pv-live-text { min-height: 1.55em; }
     .lp-caret {
@@ -851,9 +892,9 @@
     @keyframes lp-caret { 50% { opacity: 0; } }
 
     /* Step 3 — scored */
-    .lp-scored-row { display: flex; align-items: center; gap: var(--vk-sp-4); }
-    .lp-scored-row .pv-speech { flex: 1; min-width: 0; }
-    .lp-ring { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+    /* Score ring on top, centred, in the same 80px row as the play / record buttons */
+    .lp-scored-row { display: flex; justify-content: center; padding: var(--vk-sp-2) 0; }
+    .lp-ring { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
     .lp-ring .pa-cp { width: 100%; height: 100%; }
     .lp-ring-num {
       position: absolute;
@@ -894,20 +935,15 @@
       padding: 20px 20px 4px;
     }
     .lp-fb-top .pa-utterance { font-size: var(--vk-type-title-lg); }
-    .lp-fb-say {
-      display: flex;
-      flex-direction: column;
-      gap: var(--vk-sp-2);
-      padding: var(--vk-sp-2) 20px var(--vk-sp-2);
-    }
-    .lp-fb-say-label, .lp-fb-card-title {
+    .lp-fb-card-title {
       font-family: var(--pa-font-sans);
       font-size: var(--vk-type-title-sm);
       font-weight: 600;
       color: var(--vk-fg-1);
     }
     .lp-fb-word { color: var(--pa-pass); font-weight: 700; }
-    .lp-fb-drill {
+    /* Callout card (#2 say the phrase, #3 drill): surface card, nested panels inside */
+    .lp-fb-panel {
       background: var(--vk-surface);
       border-radius: var(--vk-card-radius);
       padding: 18px 20px 20px;
@@ -939,6 +975,13 @@
     .lp-fb-chip.is-on svg { color: inherit; }
     .lp-fb-card .pa-wi-drill { display: flex; }
     .lp-fb-card .phv-syllable-line { margin: 0; }
+    .lp-fb-view { display: flex; flex-direction: column; gap: 6px; }
+    .lp-fb-view-label {
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-type-label-lg);
+      font-weight: 600;
+      color: var(--vk-fg-2);
+    }
     .lp-pips { display: flex; gap: 6px; }
     .lp-pips .pa-drill-pip.is-fail { background: var(--pa-fail); }
 
@@ -1040,7 +1083,6 @@
     .lp-spark polyline { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 
     @media (prefers-reduced-motion: reduce) {
-      .lp-wave.is-playing span { animation: none; transform: scaleY(0.6); }
       .lp-caret { animation: none; }
       .lp-kpi-bar .pa-lp-fill, .lp-wstage .pa-lp-fill { transition: none; }
     }
@@ -1073,7 +1115,7 @@
       transform: none;
     }
     @media (prefers-reduced-motion: reduce) {
-      .reveal, .demo-section { transition: none; transform: none; }
+      .reveal, .demo-section, .demo-score-collapse { transition: none; transform: none; }
       .lp-stage-words > * { animation: none; }
     }
 
@@ -1144,7 +1186,7 @@
 
   <!-- Navbar -->
   <nav class="lp-nav" id="lp-nav">
-    <a class="lp-wordmark" href="/">VraiFrench</a>
+    <a class="lp-wordmark" href="/"><span class="pa-brand-mark" aria-hidden="true"></span>VraiFrench</a>
     <div class="lp-nav-actions">
       <a class="vk-btn vk-btn-text" href="/login">Sign in</a>
       <a class="vk-btn vk-btn-primary" href="/login?tab=register">Get started</a>
@@ -1174,6 +1216,7 @@
           <div class="demo-phrase-display">les enfants jouent dehors</div>
 
           <!-- Score -->
+          <div class="demo-score-collapse">
           <div class="pa-score is-progress demo-section" id="demo-score">
             <div class="pa-score-head">
               <span class="pa-score-num">67%</span>
@@ -1183,6 +1226,20 @@
               <span class="pa-bar-thresh at-70"></span>
               <span class="pa-bar-thresh at-90"></span>
             </div>
+          </div>
+          </div>
+        </div>
+
+        <!-- Student speech — record button → brand mark → gold waves → loader -->
+        <div class="demo-voice-slot" id="demo-voice-slot" aria-hidden="true">
+          <div class="demo-voice-inner">
+            <button class="pa-ctrl pa-ctrl-record lp-ctrl-morph" id="demo-mic" type="button" tabindex="-1">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z" fill="currentColor"/>
+                <path d="M6 11a6 6 0 0012 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <canvas class="lp-voice" id="demo-voice"></canvas>
           </div>
         </div>
 
@@ -1277,11 +1334,12 @@
             </svg>
           </div>
           <h3 class="lp-feature-name">Listening</h3>
-          <p class="lp-feature-desc">Comprehension passages and dictation drills that train your ear for natural spoken French — not the slow, clear French of textbooks.</p>
+          <p class="lp-feature-desc">Comprehension passages and everyday dialogues read by eight natural French voices, men and women, with a different speaker each time. Plus dictation drills to train your ear for real spoken French.</p>
           <div class="lp-feature-tags">
             <span class="lp-tag">Comprehension</span>
+            <span class="lp-tag">Dialogues</span>
             <span class="lp-tag">Dictation</span>
-            <span class="lp-tag">Native-paced speech</span>
+            <span class="lp-tag">8 natural voices</span>
           </div>
         </div>
 
@@ -1294,11 +1352,11 @@
             </svg>
           </div>
           <h3 class="lp-feature-name">Vocabulary</h3>
-          <p class="lp-feature-desc">Four-round oral sessions where you hear, use, and recall new words by speaking — not typing. Build the words you actually need, practiced the way you'll actually use them.</p>
+          <p class="lp-feature-desc">Flashcards built for the ear. Hear each new word and its definition in French, then recall it by listening: match the word to a definition you hear. English is one tap away if you need it.</p>
           <div class="lp-feature-tags">
-            <span class="lp-tag">Oral sessions</span>
-            <span class="lp-tag">4-round format</span>
-            <span class="lp-tag">Active recall</span>
+            <span class="lp-tag">Listening only</span>
+            <span class="lp-tag">Hear, then recall</span>
+            <span class="lp-tag">Cumulative review</span>
           </div>
         </div>
 
@@ -1318,13 +1376,15 @@
           <p class="lp-step-desc">A native voice reads the phrase. Liaisons are marked, and you can slow it down.</p>
           <div class="lp-viz" aria-hidden="true">
             <div class="lp-listen-row">
-              <span class="pa-ctrl pa-ctrl-play is-outline" id="loop-play">
+              <span class="pa-ctrl pa-ctrl-play is-outline lp-ctrl-morph" id="loop-play">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
               </span>
-              <div class="lp-wave" id="loop-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+              <canvas class="lp-voice" id="loop-voice-listen"></canvas>
             </div>
-            <p class="pa-utterance">Les<span class="liaison-mark">‿</span>enfants jouent dehors.</p>
-            <div class="lp-seg"><span>×0.75</span><span>×0.9</span><span class="is-on">×1</span><span>×1.25</span></div>
+            <div class="pv-speech">
+              <span class="pv-live-label">Phrase exercise</span>
+              <p class="pa-utterance">Les<span class="liaison-mark">‿</span>enfants jouent dehors.</p>
+            </div>
           </div>
         </div>
 
@@ -1333,9 +1393,10 @@
           <p class="lp-step-desc">Say it out loud. Your words appear as you speak.</p>
           <div class="lp-viz" aria-hidden="true">
             <div class="lp-speak-row">
-              <span class="pa-ctrl pa-ctrl-record" id="loop-mic">
+              <span class="pa-ctrl pa-ctrl-record lp-ctrl-morph" id="loop-mic">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
               </span>
+              <canvas class="lp-voice" id="loop-voice-speak"></canvas>
             </div>
             <div class="pv-speech" id="loop-speech">
               <span class="pv-live-label" id="loop-speech-label">Tap the mic and speak</span>
@@ -1349,23 +1410,23 @@
           <p class="lp-step-desc">Each word is lined up against the target and scored, so you know exactly which ones landed.</p>
           <div class="lp-viz" aria-hidden="true">
             <div class="lp-scored-row">
-              <div class="pv-speech" id="loop-heard">
-                <span class="pv-live-label">What I heard</span>
-                <span class="pv-live-text">Waiting for your attempt</span>
-                <div class="pv-speech-heard">
-                  <div class="pa-transcript-heard">
-                    <span class="pa-run is-pass">les enfants</span>
-                    <span class="pa-run is-fail">jouait</span>
-                    <span class="pa-run is-unheard">dehors</span>
-                  </div>
-                </div>
-              </div>
               <div class="lp-ring">
                 <svg class="pa-cp" viewBox="0 0 96 96" id="loop-ring">
                   <circle class="pa-cp-track" cx="48" cy="48" r="42" pathLength="100"/>
                   <circle class="pa-cp-fill is-progress" cx="48" cy="48" r="42" pathLength="100"/>
                 </svg>
                 <span class="lp-ring-num" id="loop-ring-num">–</span>
+              </div>
+            </div>
+            <div class="pv-speech" id="loop-heard">
+              <span class="pv-live-label">What I heard</span>
+              <span class="pv-live-text">Waiting for your attempt</span>
+              <div class="pv-speech-heard">
+                <div class="pa-transcript-heard">
+                  <span class="pa-run is-pass">les enfants</span>
+                  <span class="pa-run is-fail">jouait</span>
+                  <span class="pa-run is-unheard">dehors</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1384,7 +1445,7 @@
       <!-- Three groups, each a row: the visual, then the callout(s) it illustrates -->
       <div class="lp-fb-groups">
 
-        <!-- 1 + 2: what you said, how to pronounce it, how to say the phrase -->
+        <!-- 1: what you said, and why it missed -->
         <div class="lp-fb-group">
           <div class="pa-word-list lp-fb-card reveal" aria-hidden="true">
             <div class="lp-fb-top">
@@ -1402,20 +1463,33 @@
               <div class="lp-fb-row"><span class="lp-mark">1</span><div class="pa-wi-tip">The -ent ending is silent, so jouent is just /ʒu/. You added a vowel at the end, which turned it into jouait /ʒwɛ/.</div></div>
               <div class="pa-wi-note">Present tense: the children are playing right now.</div>
             </div>
-            <div class="lp-fb-say">
-              <div class="lp-fb-row is-center"><span class="lp-mark">2</span><span class="lp-fb-say-label">Say the whole phrase</span></div>
-              <div class="phv-syllable-line">les<span class="liaison-mark">‿</span>en<span class="syl-dot">·</span>fants jouent de<span class="syl-dot">·</span>hors</div>
-            </div>
           </div>
           <ol class="lp-callouts">
             <li class="lp-callout reveal"><span class="lp-mark">1</span><div><div class="lp-callout-title">What you said, and why it missed</div><div class="lp-callout-desc">The word we heard instead, and the likely cause in plain English.</div></div></li>
-            <li class="lp-callout reveal"><span class="lp-mark">2</span><div><div class="lp-callout-title">How to say the phrase</div><div class="lp-callout-desc">Syllables and liaisons, so you hear where the words link.</div></div></li>
+          </ol>
+        </div>
+
+        <!-- 2: how to say the phrase — the same phrase seen two ways -->
+        <div class="lp-fb-group">
+          <div class="lp-fb-card lp-fb-panel reveal" aria-hidden="true">
+            <div class="lp-fb-row is-center"><span class="lp-mark">2</span><span class="lp-fb-card-title">Say the whole phrase</span></div>
+            <div class="lp-fb-view">
+              <span class="lp-fb-view-label">Liaisons: where the words link</span>
+              <div class="phv-syllable-line">les<span class="liaison-mark">‿</span>enfants jouent dehors</div>
+            </div>
+            <div class="lp-fb-view">
+              <span class="lp-fb-view-label">Syllables: the beat of the phrase</span>
+              <div class="phv-syllable-line">les<span class="liaison-mark">‿</span>en<span class="syl-dot">·</span><span class="syl-stress">fants</span> jouent de<span class="syl-dot">·</span><span class="syl-stress">hors</span></div>
+            </div>
+          </div>
+          <ol class="lp-callouts" start="2">
+            <li class="lp-callout reveal"><span class="lp-mark">2</span><div><div class="lp-callout-title">The sound and the cadence</div><div class="lp-callout-desc">Liaisons show where the words run together; syllables show the beat, with the stress at the end of each group.</div></div></li>
           </ol>
         </div>
 
         <!-- 3: drill / practice -->
         <div class="lp-fb-group">
-          <div class="lp-fb-card lp-fb-drill reveal" aria-hidden="true">
+          <div class="lp-fb-card lp-fb-panel reveal" aria-hidden="true">
             <div class="lp-fb-row is-center"><span class="lp-mark">3</span><span class="lp-fb-card-title">Practice <span class="lp-fb-word">jouent</span></span></div>
             <div class="pa-wi-actions">
               <span class="lp-fb-chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/></svg>Practice</span>
@@ -1652,8 +1726,8 @@
     </div>
   </section>
 
-  <!-- Pricing — set display:none on the section to hide until ready -->
-  <section class="lp-section" id="pricing">
+  <!-- Pricing — hidden until pricing is decided; remove `hidden` to show it -->
+  <section class="lp-section" id="pricing" hidden>
     <div class="lp-section-inner">
       <p class="lp-section-label">Pricing</p>
       <h2 class="lp-section-title">Simple, honest pricing.</h2>
@@ -1735,12 +1809,13 @@
 
   <!-- Footer -->
   <footer class="lp-footer">
-    <span class="lp-footer-copy">VraiFrench &mdash; Built for real French</span>
+    <span class="lp-footer-copy"><span class="pa-brand-mark" aria-hidden="true"></span>VraiFrench &mdash; Built for real French</span>
     <a class="vk-btn vk-btn-text" href="/login">Sign in &rarr;</a>
   </footer>
 
 </div>
 
+<script src="/static/pa-voice-atom.js"></script>
 <script>
   // Navbar scroll effect
   var nav = document.getElementById('lp-nav');
@@ -1749,8 +1824,8 @@
   }, { passive: true });
 
   // Hero stage — mirrors the phrase view: speech input streams into the speech
-  // tile, reads back, becomes "What I heard"; the score lands in the card; then
-  // the grid splits — the main column glides left and the side column rises.
+  // tile, reads back, becomes "What I heard"; then the score builds in the card
+  // while the grid splits — the main column glides left and the side column rises.
   (function() {
     var stage    = document.getElementById('lp-stage');
     var main     = document.getElementById('demo-main');
@@ -1762,6 +1837,10 @@
     var tiles    = document.getElementById('demo-tiles');
     var replay   = document.getElementById('lp-stage-replay');
     if (!stage || !main || !speech) return;
+    var slot     = document.getElementById('demo-voice-slot');
+    var mic      = document.getElementById('demo-mic');
+    var voiceEl  = document.getElementById('demo-voice');
+    var atom     = window.PaVoiceAtom && voiceEl ? new PaVoiceAtom(voiceEl) : null;
 
     var said = 'les enfants jouait';
     var timers = [];
@@ -1778,7 +1857,7 @@
       var dx = before - main.getBoundingClientRect().left;
       if (Math.abs(dx) >= 1) {
         main.animate([{ transform: 'translateX(' + dx + 'px)' }, { transform: 'translateX(0)' }],
-          { duration: 560, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+          { duration: 800, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
       }
     }
 
@@ -1790,6 +1869,10 @@
       text.textContent = '';
       scoreEl.classList.remove('visible');
       barFill.style.width = '0%';
+      if (atom) atom.reset();
+      voiceEl.classList.remove('visible');
+      mic.classList.remove('listening', 'is-gone');
+      slot.classList.remove('is-done');
     }
 
     function heard() {
@@ -1805,39 +1888,68 @@
     function run(t) {
       reset();
       if (reduce) {
+        slot.style.display = 'none';
         speech.classList.add('visible');
         heard();
         score();
         setSplit(true);
         return;
       }
-      // 1. Speech input — the attempt streams in
+      // 0. The record button is pressed and hands straight over to the brand
+      //    mark, whose electrons start turning into gold waves at once
+      var WAVE = { inMs: 500, fadeMs: 200, outMs: 450 };   // PaVoiceAtom timings
+      // Speech input at a speaking pace — the learner talks, the tool listens:
+      // a beat before the first word, ~110ms a letter, a pause between words
+      var LEAD = 600, CHAR = 110, WORD_GAP = 220;
+      var charAt = [], typing = LEAD;
+      for (var c = 0; c < said.length; c++) {
+        if (said[c] === ' ') typing += WORD_GAP;
+        typing += CHAR;
+        charAt.push(typing);                  // when letter c + 1 appears
+      }
+      at(t, function() { mic.classList.add('listening'); });
+      t += 250;
+      // 1. Speech input — the attempt streams in while the gold waves move;
+      //    they hold until the last word, then settle
       at(t, function() {
         speech.classList.add('visible');
         text.innerHTML = '<span class="lp-caret"></span>';
+        if (atom) {
+          mic.classList.add('is-gone');
+          voiceEl.classList.add('visible');
+          atom.voice('you', PaVoiceAtom.speechEnvelope(said, typing - WAVE.inMs), WAVE);
+        }
       });
       for (var i = 1; i <= said.length; i++) {
         (function(n) {
-          at(t + 500 + n * 85, function() {
+          at(t + charAt[n - 1], function() {
             text.innerHTML = said.slice(0, n) + '<span class="lp-caret"></span>';
           });
         })(i);
       }
-      // 2. Reading it back…
-      t += 500 + said.length * 85 + 800;      // hold on the finished attempt
+      // 2. Analysis — the mark loads while the result comes in. The tool is
+      //    quick, so the read-back, "What I heard", the score and the tiles all
+      //    arrive while it's still loading
+      t += typing + WAVE.fadeMs + WAVE.outMs; // speech over, waves settled
       at(t, function() {
         text.textContent = said;
         label.textContent = 'Reading it back…';
         speech.classList.add('is-analysing');
+        if (atom) atom.startLoading();
+        else mic.classList.remove('listening');
       });
-      // 3. What I heard — runs recolour left to right
-      t += 1700;                              // let the read-back sweep run
+      t += 500;
       at(t, heard);
-      // 4. Score lands in the card
-      t += 1400;                              // time to read the recoloured words
-      at(t, function() { scoreEl.classList.add('visible'); at(60, function() { barFill.style.width = '67%'; }); });
-      // 5. The grid splits
-      at(t + 1800, function() { setSplit(true); });   // let the score land first
+      // 3. One motion: the score builds in the card, the grid splits, the tiles
+      //    rise, and the loading mark fades out as its space closes
+      t += 400;
+      at(t, function() {
+        scoreEl.classList.add('visible');
+        setSplit(true);
+        slot.classList.add('is-done');
+        at(60, function() { barFill.style.width = '67%'; });
+        if (atom) at(850, function() { atom.reset(); });   // stop the loader once it's hidden
+      });
     }
 
     // Play once, when the stage is on screen — not on load, so it isn't
@@ -1899,8 +2011,11 @@
   // How it works — listen → speak → read back → scored, looping while in view
   (function() {
     var play = document.getElementById('loop-play');
-    var wave = document.getElementById('loop-wave');
     var mic = document.getElementById('loop-mic');
+    var speakEl = document.getElementById('loop-voice-speak');
+    var listenEl = document.getElementById('loop-voice-listen');
+    var listenAtom = window.PaVoiceAtom ? new PaVoiceAtom(listenEl) : null;
+    var speakAtom = window.PaVoiceAtom ? new PaVoiceAtom(speakEl) : null;
     var speech = document.getElementById('loop-speech');
     var label = document.getElementById('loop-speech-label');
     var text = document.getElementById('loop-speech-text');
@@ -1917,9 +2032,12 @@
     function reset() {
       timers.forEach(clearTimeout);
       timers = [];
-      play.classList.remove('is-playing');
-      wave.classList.remove('is-playing');
-      mic.classList.remove('listening');
+      play.classList.remove('is-playing', 'is-gone');
+      listenEl.classList.remove('visible');
+      mic.classList.remove('listening', 'is-gone');
+      speakEl.classList.remove('visible');
+      if (listenAtom) listenAtom.reset();
+      if (speakAtom) speakAtom.reset();
       speech.classList.remove('is-analysing');
       heard.classList.remove('is-heard');
       label.textContent = 'Tap the mic and speak';
@@ -1940,25 +2058,54 @@
       return;
     }
 
+    // PaVoiceAtom: electrons → waves 800ms, waves → electrons ~1070ms
+    var LISTEN_MS = 1500, SPEAK_MS = 1000;
     function cycle() {
       reset();
-      at(300, function() { play.classList.add('is-playing'); wave.classList.add('is-playing'); });
-      at(2300, function() {
-        play.classList.remove('is-playing'); wave.classList.remove('is-playing');
+      // 1. Listen — play is pressed, gives way to the mark, whose electrons turn to
+      //    blue waves while the phrase plays; then the play button comes back
+      at(300, function() { play.classList.add('is-playing'); });
+      var listened = 300;
+      if (listenAtom) {
+        at(700, function() {
+          play.classList.add('is-gone');
+          listenEl.classList.add('visible');
+          listenAtom.voice('audio', PaVoiceAtom.speechEnvelope('les enfants jouent dehors', LISTEN_MS));
+        });
+        listened = 700 + 800 + LISTEN_MS + 1070;
+      } else {
+        listened = 300 + LISTEN_MS;
+      }
+      at(listened, function() {
+        listenEl.classList.remove('visible');
+        play.classList.remove('is-playing', 'is-gone');
+      });
+      // 2. Speak — the mic is pressed, gives way to the mark, whose electrons turn to gold waves
+      var speak = listened + 400;
+      at(speak, function() {
         mic.classList.add('listening');
         label.textContent = 'Listening…';
         text.innerHTML = '<span class="lp-caret"></span>';
       });
+      if (speakAtom) {
+        at(speak + 500, function() {
+          mic.classList.add('is-gone');
+          speakEl.classList.add('visible');
+          speakAtom.voice('you', PaVoiceAtom.speechEnvelope(said, SPEAK_MS));
+        });
+      }
       for (var i = 1; i <= said.length; i++) {
         (function(n) {
-          at(2700 + n * 60, function() {
+          at(speak + 800 + n * 85, function() {
             text.innerHTML = said.slice(0, n) + '<span class="lp-caret"></span>';
           });
         })(i);
       }
-      var spoken = 2700 + said.length * 60 + 500;
+      // 3. Reading it back — the waves have settled; the mark gives way to the mic again
+      var spoken = speak + 500 + 800 + SPEAK_MS + 1070 + 100;
       at(spoken, function() {
-        mic.classList.remove('listening');
+        mic.classList.remove('listening', 'is-gone');
+        speakEl.classList.remove('visible');
         label.textContent = 'Reading it back';
         text.textContent = said;
         speech.classList.add('is-analysing');
