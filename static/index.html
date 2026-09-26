@@ -6182,6 +6182,28 @@
     rollStudyLocale();
   }
   function sttLang() { return studyLocale; }
+
+  // Join a new speech segment onto the transcript so far. Chrome on Android (continuous mode)
+  // re-sends the whole utterance-so-far in each new result ("je", "je suis", "je suis allé"),
+  // so plain concatenation stacks it up ("je je suis je suis allé"). On mobile, a segment that
+  // restates the end of the transcript replaces that overlap instead of being appended.
+  const _STT_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  function sttJoin(prev, seg) {
+    prev = (prev || '').trim(); seg = (seg || '').trim();
+    if (!seg) return prev;
+    if (!prev) return seg;
+    if (!_STT_MOBILE) return prev + ' ' + seg;
+    const norm = w => w.toLowerCase().replace(/[.,!?;:«»"]/g, '');
+    const a = prev.split(/\s+/), b = seg.split(/\s+/);
+    for (let k = Math.min(a.length, b.length); k > 0; k--) {
+      let same = true;
+      for (let i = 0; i < k; i++) {
+        if (norm(a[a.length - k + i]) !== norm(b[i])) { same = false; break; }
+      }
+      if (same) return a.slice(0, a.length - k).concat(b).join(' ');
+    }
+    return prev + ' ' + seg;
+  }
   // /tts request body in the study language (French requests stay exactly as before).
   function ttsRequestBody(text) { return studyLang() === 'en' ? { text, locale: studyLocale } : { text }; }
   // English register labels (informal/neutral/formal) reuse the French register styles.
@@ -6412,10 +6434,10 @@
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
-          if (r.isFinal) _sdFinalBuffer += r[0].transcript + ' ';
-          else interim += r[0].transcript;
+          if (r.isFinal) _sdFinalBuffer = sttJoin(_sdFinalBuffer, r[0].transcript);
+          else interim = sttJoin(interim, r[0].transcript);
         }
-        _sdAccumulated = contractElisions((_sdFinalBuffer + interim).trim());
+        _sdAccumulated = contractElisions(sttJoin(_sdFinalBuffer, interim));
         return;
       }
 
@@ -6425,10 +6447,10 @@
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
-          if (r.isFinal) _dsFinalBuffer += r[0].transcript + ' ';
-          else interim += r[0].transcript;
+          if (r.isFinal) _dsFinalBuffer = sttJoin(_dsFinalBuffer, r[0].transcript);
+          else interim = sttJoin(interim, r[0].transcript);
         }
-        _dsAccumulated = contractElisions((_dsFinalBuffer + interim).trim());
+        _dsAccumulated = contractElisions(sttJoin(_dsFinalBuffer, interim));
         const live = document.getElementById(`ds-live-${_dsActiveRow}`);
         if (live) { live.style.display = ''; live.textContent = _dsAccumulated || '…'; }
         if (_dsSilenceTimer) clearTimeout(_dsSilenceTimer);
@@ -6444,10 +6466,10 @@
         const r = e.results[i];
         const alts = Array.from({length: r.length}, (_, j) => `"${r[j].transcript}" (${(r[j].confidence*100).toFixed(1)}%)`);
         console.log(`[STT] ${r.isFinal ? 'FINAL' : 'interim'} — ${alts.join(' | ')}`);
-        if (r.isFinal) finalTranscriptBuffer += r[0].transcript + ' ';
-        else interim += r[0].transcript;
+        if (r.isFinal) finalTranscriptBuffer = sttJoin(finalTranscriptBuffer, r[0].transcript);
+        else interim = sttJoin(interim, r[0].transcript);
       }
-      let t = contractElisions((finalTranscriptBuffer + interim).trim());
+      let t = contractElisions(sttJoin(finalTranscriptBuffer, interim));
 
       // Clear previous silence timer
       if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
@@ -13350,9 +13372,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
           if (r.isFinal) {
-            speakingTranscript = (speakingTranscript + ' ' + r[0].transcript.trim()).trim();
+            speakingTranscript = sttJoin(speakingTranscript, r[0].transcript);
           } else {
-            interim += r[0].transcript;
+            interim = sttJoin(interim, r[0].transcript);
           }
         }
         _renderSpeakingTranscript(interim);
@@ -13630,11 +13652,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           if (r.isFinal) {
             const prefix = _wuTranscript;
             for (let j = 0; j < r.length; j++) {
-              const cand = contractElisions(((prefix + ' ' + r[j].transcript).trim()));
+              const cand = contractElisions(sttJoin(prefix, r[j].transcript));
               if (cand) _wuAltCandidates.add(cand);
             }
-            _wuTranscript = (prefix + ' ' + r[0].transcript.trim()).trim();
-          } else interim += r[0].transcript;
+            _wuTranscript = sttJoin(prefix, r[0].transcript);
+          } else interim = sttJoin(interim, r[0].transcript);
         }
         _renderWarmupTranscript(interim);
         if (_wuSilenceTimer) clearTimeout(_wuSilenceTimer);
@@ -14194,8 +14216,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
-          if (r.isFinal) _psTranscript = (_psTranscript + ' ' + r[0].transcript.trim()).trim();
-          else interim += r[0].transcript;
+          if (r.isFinal) _psTranscript = sttJoin(_psTranscript, r[0].transcript);
+          else interim = sttJoin(interim, r[0].transcript);
         }
         _renderPronounTranscript(interim);
       };
@@ -14568,11 +14590,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
             // whole-sentence variants; the backend scores them all and keeps the best match.
             const prefix = _plTranscript;
             for (let j = 0; j < r.length; j++) {
-              const cand = contractElisions(((prefix + ' ' + r[j].transcript).trim()));
+              const cand = contractElisions(sttJoin(prefix, r[j].transcript));
               if (cand) _plAltCandidates.add(cand);
             }
-            _plTranscript = (prefix + ' ' + r[0].transcript.trim()).trim();
-          } else interim += r[0].transcript;
+            _plTranscript = sttJoin(prefix, r[0].transcript);
+          } else interim = sttJoin(interim, r[0].transcript);
         }
         _renderPlacementTranscript(interim);
         // Auto-submit after a brief silence — same one-shot feel as the phrase exercise.
