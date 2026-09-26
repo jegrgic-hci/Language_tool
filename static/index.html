@@ -2416,6 +2416,36 @@
       }
       .hub-row:first-child > .hub-row-label { padding-top: 0; }
       .sd-headphone-notice { margin: 8px 16px 0; }
+
+      /* The whole hub scrolls on a phone (not just its content), so the intro
+         scrolls away instead of pinning above a short scroll area. */
+      #phrase-hub, #shadow-hub, #comprehension-hub, #natural-hub, #vocab-hub,
+      #dictation-hub, #writing-hub, #speaking-hub, #transform-hub, #pronoun-hub {
+        overflow-x: hidden !important;   /* beats the inline overflow:hidden */
+        overflow-y: auto !important;
+      }
+      #hub-content,
+      #sd-hub-content,
+      #comp-hub-content,
+      #nat-hub-content,
+      #vocab-hub-content,
+      #dict-hub-content,
+      #writing-hub-content,
+      #transform-hub-content,
+      #pronoun-hub-content,
+      #speaking-hub-content {
+        flex: none;
+        overflow: visible;
+        padding-bottom: 0;
+      }
+      /* Start pinned to the bottom of the screen, above the navigation bar */
+      .hub-row-label:has(+ .hub-row-controls > .hub-start-btn) { display: none; }
+      .hub-row-controls:has(> .hub-start-btn) {
+        position: sticky; bottom: 0; z-index: 2;
+        margin: 16px -16px 0; padding: 12px 16px 16px;
+        background: var(--vk-bg);
+      }
+      .hub-row-controls > .hub-start-btn { width: 100%; margin-top: 0; }
     }
 
     /* ── Dictation view chrome ── */
