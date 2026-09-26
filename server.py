@@ -260,6 +260,9 @@ async def generate_audio(text: str, voice: str = VOICE, rate: str = "+0%") -> st
     return filename
 
 
+_CHIRP_L_ETE_RE = re.compile(r"\b([Ll])['’](?=été)")
+
+
 async def generate_library_audio(text: str, chirp_voice: str, edge_voice: Optional[str] = None) -> str:
     """Audio for the listening library: Chirp3-HD with content-addressed caching
     (synthesized once per unique text, then reused for free), falling back to
@@ -271,6 +274,10 @@ async def generate_library_audio(text: str, chirp_voice: str, edge_voice: Option
     """
     cleaned = clean_for_tts(text)
     if library_store.chirp_enabled() and _CHIRP_MARK in chirp_voice:
+        # Chirp3-HD spells out the elided article in "l'été" ("el… l'été", every
+        # voice, any position). Dropping the apostrophe reads it correctly; other
+        # l'+vowel words (l'école, l'eau, l'hôtel…) were checked and are fine.
+        cleaned = _CHIRP_L_ETE_RE.sub(r"\1", cleaned)
         try:
             return await asyncio.to_thread(library_store.synth_and_cache, cleaned, chirp_voice)
         except Exception as e:
