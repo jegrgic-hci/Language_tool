@@ -2742,7 +2742,9 @@
   .area-title { display: none; }   /* the phone top app bar already shows the area name */
   .area-tabs-inner { overflow-x: auto; scrollbar-width: none; }
   .area-tabs-inner::-webkit-scrollbar { display: none; }
-  .area-tab { flex: 0 0 auto; height: 48px; padding: 0 18px; font-size: var(--vk-type-label-lg); }
+  /* Share the bar evenly like desktop; never shrink below the label, so an area
+     with more tabs than fit still scrolls instead of truncating. */
+  .area-tab { flex: 1 0 auto; height: 48px; padding: 0 18px; font-size: var(--vk-type-label-lg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
