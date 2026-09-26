@@ -253,6 +253,12 @@
     .phv-side > .phv-tiles            { order: 2; }
     .phv-side > #phv-word-list        { order: 3; }
     .phv-side > #phv-pass-tiles       { order: 4; }   /* Next + Auto advance, at the bottom */
+    /* Tiles rise in reading order — Attempt, Highest accuracy, Skip, Meaning —
+       though JS appends Skip after Meaning in the DOM */
+    #phv-tiles.is-visible > #phrase-action-tile  { animation-delay: 300ms; }
+    #phv-tiles.is-visible > #phrase-meaning-tile { animation-delay: 360ms; }
+    /* Meaning open takes a full row; Skip takes its row too, so no cell sits empty */
+    #phv-tiles:has(> #phrase-meaning-tile.is-open) > #phrase-action-tile { grid-column: 1 / -1; }
     @media (min-width: 1200px) {
       #phrase-view .pv-col.is-split {
         max-width: 1120px;
@@ -3056,6 +3062,18 @@
               <span class="phv-tile-label">Highest accuracy</span>
               <span class="phv-tile-value"><span class="phv-attempt-best is-empty" id="phrase-attempt-best">—</span></span>
             </div>
+            <!-- Meaning — fills the grid's spare cell; tap to span the row with the
+                 English (+ a note for idioms). togglePhraseTranslation() -->
+            <button type="button" class="phv-tile phv-action phv-meaning-tile fr-only" id="phrase-meaning-tile" onclick="togglePhraseTranslation()" aria-expanded="false" aria-controls="phrase-meaning-body">
+              <span class="phv-meaning-head">
+                <span class="phv-action-title">Meaning</span>
+                <svg class="phv-meaning-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+              <span class="phv-meaning-body" id="phrase-meaning-body" aria-live="polite" hidden>
+                <span class="phv-meaning-en" id="phrase-meaning-en"></span>
+                <span class="phv-meaning-note" id="phrase-meaning-note" hidden></span>
+              </span>
+            </button>
           </div>
 
           <div id="phv-word-list" class="feedback-items" style="display:none;"></div>
@@ -8036,6 +8054,78 @@
     }).catch(() => {});
   }
 
+  // ── Meaning tile: the phrase's English meaning, closed until asked for ──────
+  // Sits in the side grid's spare cell; opening spans the row and shows the
+  // English, plus a note when the phrase is an idiom (ça marche, ça va…).
+  // Translated on first open (/phrase/translate, cached server-side by text),
+  // then remembered here so re-opening is instant. Closes with each new phrase.
+  let translationOn = false;
+  const _phraseTranslations = new Map();   // phrase → { en, note }
+
+  function _showPhraseMeaning(d) {
+    document.getElementById('phrase-meaning-tile').classList.remove('is-pending');
+    document.getElementById('phrase-meaning-en').textContent = d.en;
+    const noteEl = document.getElementById('phrase-meaning-note');
+    noteEl.textContent = d.note || '';
+    noteEl.hidden = !d.note;
+  }
+
+  function _resetPhraseTranslation() {
+    translationOn = false;
+    const tile = document.getElementById('phrase-meaning-tile');
+    tile.classList.remove('is-open', 'is-pending');
+    tile.setAttribute('aria-expanded', 'false');
+    document.getElementById('phrase-meaning-body').hidden = true;
+    document.getElementById('phrase-meaning-en').textContent = '';
+    document.getElementById('phrase-meaning-note').hidden = true;
+  }
+
+  // Open, close and the English arriving all re-flow the grid — glide them
+  function togglePhraseTranslation() {
+    const grid = document.getElementById('phv-tiles');
+    if (translationOn) { _flipTiles(grid, _resetPhraseTranslation); return; }
+
+    const phrase = currentPhrase;
+    if (!phrase || phrase === '—' || phrase === '…' || phrase.includes('Error') || phrase.includes('complete')) return;
+
+    const tile = document.getElementById('phrase-meaning-tile');
+    const body = document.getElementById('phrase-meaning-body');
+    const cached = _phraseTranslations.get(phrase);
+    translationOn = true;
+    _flipTiles(grid, () => {
+      tile.classList.add('is-open');
+      tile.setAttribute('aria-expanded', 'true');
+      body.hidden = false;
+      if (cached) { _showPhraseMeaning(cached); return; }
+      tile.classList.add('is-pending');
+      document.getElementById('phrase-meaning-en').textContent = 'Translating…';
+    });
+    // Text fades in as the tile settles, so it isn't seen re-wrapping mid-glide
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      body.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 200, easing: 'ease-out', fill: 'backwards' });
+    }
+    if (cached) return;
+
+    fetch('/phrase/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: phrase }),
+    })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(d => {
+        _phraseTranslations.set(phrase, d);
+        if (!translationOn || currentPhrase !== phrase) return;
+        _flipTiles(grid, () => _showPhraseMeaning(d));
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          body.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+        }
+      })
+      .catch(() => {
+        if (!translationOn || currentPhrase !== phrase) return;
+        _flipTiles(grid, () => _showPhraseMeaning({ en: 'Translation unavailable right now. Tap to close and try again.', note: '' }));
+      });
+  }
+
   function buildRhythmHTML(data) {
     const groups = data.rhythm_groups || [];
     return groups
@@ -8114,6 +8204,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('phrase-rhythm-btn').classList.remove('active');
     document.getElementById('phrase-syllable-btn').classList.remove('active');
     document.getElementById('phrase-syllable-line').style.display = 'none';
+    _resetPhraseTranslation();
     setShadowPlayBtnState(false);
 
     try {
@@ -8349,8 +8440,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const metaEl = document.getElementById('phrase-attempt-meta');
       metaEl.textContent = String(phraseAttemptNumber);
       if (phraseAttemptNumber > 1) _landValue(metaEl);
-      document.getElementById('phv-tiles').classList.add('is-visible');
-      setPhraseSplit(true);
       const res = await apiFetch('/speaking/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -8493,10 +8582,15 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     document.getElementById('phv-score-block').style.display = '';
     itemsEl.style.display = itemsEl.children.length ? '' : 'none';
-    if (isPhraseBlock && itemsEl.children.length) setPhraseSplit(true);
     _hidePhraseStatus();
-    // Next after a pass; Skip otherwise (not in the drill tray, which drills one sentence)
-    if (isPhraseBlock) _setPhraseAction(passed ? 'next' : (phraseInTray ? null : 'skip'));
+    if (isPhraseBlock) {
+      // Next after a pass; Skip otherwise (not in the drill tray, which drills one sentence)
+      _setPhraseAction(passed ? 'next' : (phraseInTray ? null : 'skip'));
+      // First scored attempt: the card glides aside and the tiles grid rises
+      // complete (Skip already placed), staggered in reading order
+      document.getElementById('phv-tiles').classList.add('is-visible');
+      setPhraseSplit(true);
+    }
   }
 
   // Phrase move-on tile: 'skip' | 'next' | null (hidden). Skip is a tonal
@@ -8505,18 +8599,71 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function _setPhraseAction(kind) {
     const tile = document.getElementById('phrase-action-tile');
     const passRow = document.getElementById('phv-pass-tiles');
+    const grid = document.getElementById('phv-tiles');
     if (!tile) return;
     const next = kind === 'next';
-    passRow.classList.toggle('is-visible', next);
-    tile.hidden = !kind;
+    // Skip leaving the grid after a pass re-flows Meaning — glide it (_flipTiles)
+    _flipTiles(grid, () => {
+      passRow.classList.toggle('is-visible', next);
+      tile.hidden = !kind;
+      if (!kind) return;
+      if (next) { if (tile.parentNode !== passRow) passRow.prepend(tile); }
+      else if (tile.parentNode !== grid) grid.appendChild(tile);
+    });
     if (!kind) return;
-    if (next) { if (tile.parentNode !== passRow) passRow.prepend(tile); }
-    else if (tile.parentNode !== document.getElementById('phv-tiles')) document.getElementById('phv-tiles').appendChild(tile);
     tile.classList.toggle('is-next', next);
     const label = document.getElementById('phrase-action-label');
     label.textContent = next ? 'Passed' : '';
     label.style.display = next ? '' : 'none';
     document.getElementById('phrase-action-title').textContent = next ? 'Next phrase' : 'Skip';
+  }
+
+  // ── Tile grid FLIP ───────────────────────────────────────────────────────
+  // Grid changes (Meaning opening across the row, its English arriving, Skip
+  // leaving after a pass) re-flow the tiles, and CSS can't animate grid
+  // placement. So: measure every tile, apply the change, then glide each one
+  // from its old box to its new one — position by transform, size by
+  // width/height. While it runs, rows size to their tiles (.is-flipping) so the
+  // equal-height rule can't snap them. Interrupting mid-glide starts from where
+  // the tiles are on screen. No-op while the grid is hidden.
+  let _tileFlipGen = 0;
+  function _flipTiles(grid, mutate) {
+    const tiles = () => [...grid.children];
+    const before = new Map(tiles().map(el => [el, el.getBoundingClientRect()]));
+    tiles().forEach(el => el.getAnimations().forEach(a => { if (a.id === 'tile-flip') a.cancel(); }));
+    grid.classList.remove('is-flipping');
+    mutate();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const moves = [];
+    tiles().forEach(el => {
+      const a = before.get(el);
+      if (!a || !a.width) return;
+      const b = el.getBoundingClientRect();
+      if (!b.width) return;
+      const dx = a.left - b.left, dy = a.top - b.top;
+      const resized = Math.abs(a.width - b.width) > 1 || Math.abs(a.height - b.height) > 1;
+      if (resized || Math.abs(dx) >= 1 || Math.abs(dy) >= 1) moves.push({ el, a, b, dx, dy, resized });
+    });
+    if (!moves.length) return;
+
+    grid.classList.add('is-flipping');
+    const gen = ++_tileFlipGen;
+    const done = moves.map(({ el, a, b, dx, dy, resized }) => {
+      const from = { transform: `translate(${dx}px, ${dy}px)` };
+      const to   = { transform: 'translate(0, 0)' };
+      if (resized) {
+        Object.assign(from, { width: a.width + 'px', height: a.height + 'px' });
+        Object.assign(to,   { width: b.width + 'px', height: b.height + 'px' });
+        el.style.overflow = 'hidden';
+      }
+      const anim = el.animate([from, to], { duration: 420, easing: 'cubic-bezier(0.2, 0, 0, 1)', id: 'tile-flip' });
+      // Unclip once no glide is running on it (a newer one may have taken over)
+      return anim.finished.catch(() => {}).then(() => {
+        if (!el.getAnimations().some(x => x.id === 'tile-flip')) el.style.overflow = '';
+      });
+    });
+    Promise.all(done).then(() => { if (gen === _tileFlipGen) grid.classList.remove('is-flipping'); });
   }
 
   // ── Phrase layout: centred card → card + words column ──────────────────────
@@ -12771,6 +12918,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('phrase-rhythm-btn').classList.remove('active');
     document.getElementById('phrase-syllable-btn').classList.remove('active');
     document.getElementById('phrase-syllable-line').style.display = 'none';
+    _resetPhraseTranslation();
     setShadowPlayBtnState(false);
     document.getElementById('phrase-replay-btn').disabled = true;
     _setPhraseLoading(true);

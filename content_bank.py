@@ -20,6 +20,7 @@ cheaply pull an unseen piece for the requested bucket.
 Python 3.9 compatible (typing.Optional/List, no PEP 604 unions).
 """
 
+import hashlib
 import json
 import re
 import uuid
@@ -228,6 +229,28 @@ def attach_questions(passage_id: str, questions: list, vocab_preview: Optional[l
         rec["vocab_preview"] = vocab_preview
     _put_json(_record_key("passage", passage_id, locale), rec)
     return rec
+
+
+# ── Translations ────────────────────────────────────────────────────────────────
+# English meanings of French sentences, content-addressed by the sentence text so
+# a sentence is translated once, ever — whichever exercise shows it (bank phrase,
+# paragraph sentence, focus phrase). French bank only.
+def _translation_key(text: str) -> str:
+    digest = hashlib.md5(text.encode("utf-8")).hexdigest()
+    return "{}translations/{}.json".format(_prefix("fr-FR"), digest)
+
+
+def get_translation(text: str) -> Optional[dict]:
+    """{"en", "note"} for a sentence, or None. Records from before notes existed
+    (no "note" key) count as missing, so they're re-translated with a note."""
+    obj = _get_json(_translation_key(text))
+    if isinstance(obj, dict) and obj.get("en") and "note" in obj:
+        return {"en": obj["en"], "note": obj["note"]}
+    return None
+
+
+def put_translation(text: str, en: str, note: str = "") -> None:
+    _put_json(_translation_key(text), {"text": text, "en": en, "note": note})
 
 
 def bucket_ids(kind: str, register: str, level: str, topic: str, style: str = "",

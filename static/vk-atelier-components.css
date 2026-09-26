@@ -1450,6 +1450,47 @@
 .phv-action.is-next:focus-visible { box-shadow: 0 0 0 2px var(--vk-bg), 0 0 0 4px var(--pa-pass); }
 @media (prefers-reduced-motion: reduce) { .phv-action.is-next { animation: none; } }
 
+/* Meaning tile — a tonal .phv-action in the .phv-tiles grid's spare cell (after
+   Skip, whatever order JS appends them in). Open (.is-open): spans the row and
+   shows the English + an optional idiom note; rows stop being equal-height so
+   the other tiles keep their size. */
+.phv-meaning-tile { order: 1; }
+.phv-tile.phv-meaning-tile.is-open {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+.phv-tiles:has(.phv-meaning-tile.is-open),
+.phv-tiles.is-flipping { grid-auto-rows: auto; }   /* JS glides re-flows (_flipTiles) */
+.phv-meaning-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.phv-meaning-chevron {
+  width: 24px; height: 24px; flex-shrink: 0;
+  transition: transform var(--vk-dur-quick) var(--vk-ease);
+}
+.phv-meaning-tile.is-open .phv-meaning-chevron { transform: rotate(180deg); }
+.phv-meaning-body:not([hidden]) { display: flex; flex-direction: column; gap: 8px; }
+.phv-meaning-en {
+  font-family: var(--pa-font-sans);
+  font-size: var(--vk-type-body-lg);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.phv-meaning-tile.is-pending .phv-meaning-en { font-weight: 400; font-style: italic; }
+.phv-meaning-note {
+  font-family: var(--pa-font-sans);
+  font-size: var(--vk-type-body-md);
+  line-height: 1.5;
+}
+.phv-meaning-note[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .phv-meaning-chevron { transition: none; } }
+
 
 /* ══════════════════════════════════════════════════════════════════════════════
    VIEW LAYOUT SHELL

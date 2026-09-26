@@ -76,7 +76,7 @@ The app is an exercise platform, not a chatbot — there is no `/chat` route or 
 8. `server.generate_audio()` renders the target with edge-tts for playback
 
 ### Exercise types (route families)
-- **Shadow / phrase** — `/shadow/phrase`, `/shadow/analyze`, `/shadow/rhythm`: repeat a single generated phrase
+- **Shadow / phrase** — `/shadow/phrase`, `/shadow/analyze`, `/shadow/rhythm`: repeat a single generated phrase. `/phrase/translate` backs the phrase view's Meaning tile (`#phrase-meaning-tile`, the spare cell of the side tiles grid; opens to span the row): the English *meaning* (not word-for-word) plus a short `note` only for idioms/set expressions (ça va, ça marche), via `translate_phrase()` in `shadow_engine.py` on `mistral-large-latest`, cached once per sentence text in the bank (`content_bank.get_translation` / `put_translation`, `bank/translations/<md5>.json`)
 - **Paragraph** — `/paragraph/start`, `/paragraph/analyze` (per chunk), `/paragraph/analyze-patterns`: read a paragraph chunk-by-chunk, then a cross-chunk pattern summary
 - **Prosody** — `/prosody/targets`, `/prosody/phrase`, `/prosody/analyze`: phrases focused on a specific sound/rhythm target
 - **Practice list** — `/practice-list` CRUD, `/practice-list/pronunciation`, `/practice-list/context-phrase`, `/analyze_word_drill`: user's saved words

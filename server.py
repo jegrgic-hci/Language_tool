@@ -32,7 +32,7 @@ BASE_DIR = Path(__file__).parent
 
 from document_engine import UPLOADS_DIR
 import shadow_engine as _shadow_module
-from shadow_engine import generate_phrase, score_attempt, analyze_mismatches as analyze_shadow_mismatches
+from shadow_engine import generate_phrase, score_attempt, analyze_mismatches as analyze_shadow_mismatches, translate_phrase
 from shadow_engine import generate_phrase_en, SOUND_FOCUS_EN
 import paragraph_engine as _paragraph_module
 from paragraph_engine import generate_paragraph, score_chunk, TOPICS, analyze_mismatches, analyze_patterns
@@ -1961,6 +1961,39 @@ async def shadow_phrase(req: ShadowPhraseRequest):
     except Exception as e:
         logging.getLogger("phrase").exception("/shadow/phrase failed (level=%s topic=%s)", req.level, req.topic)
         raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
+
+
+class PhraseTranslateRequest(BaseModel):
+    text: str
+
+
+@app.post("/phrase/translate")
+async def phrase_translate(req: PhraseTranslateRequest):
+    """English meaning of a French phrase (+ a note for idioms), for the phrase view's
+    Meaning tile. Cached by text, so each sentence costs one Mistral Large call ever."""
+    # Liaison marks (‿ ⁀) are display-only; strip them so marked and plain copies
+    # of a sentence share one translation.
+    text = re.sub(r"\s+", " ", re.sub(r"[‿⁀]", " ", req.text or "")).strip()
+    if not text or len(text) > 400:
+        raise HTTPException(status_code=400, detail="text must be 1–400 characters")
+    try:
+        cached = await asyncio.to_thread(content_bank.get_translation, text)
+    except Exception as e:
+        logging.getLogger("translate").warning("cache read failed: %s: %s", type(e).__name__, e)
+        cached = None
+    if cached:
+        return cached
+    try:
+        result = await asyncio.to_thread(translate_phrase, text)
+    except Exception as e:
+        logging.getLogger("translate").exception("translation failed for %r", text)
+        raise HTTPException(status_code=502, detail=f"Translation failed: {e}")
+    try:
+        await asyncio.to_thread(content_bank.put_translation, text, result["en"], result["note"])
+    except Exception as e:
+        # A failed cache write only costs a re-translation next time.
+        logging.getLogger("translate").warning("cache write failed: %s: %s", type(e).__name__, e)
+    return result
 
 
 @app.post("/shadow/analyze", response_model=ShadowAnalyzeResponse)

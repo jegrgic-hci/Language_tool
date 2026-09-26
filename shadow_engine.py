@@ -146,6 +146,49 @@ def analyze_mismatches(target: str, transcription: str, mismatches: list, lang: 
     return _analyze_mismatches(target, transcription, mismatches, _client, lang=lang)
 
 
+# Meaning, not word-for-word: "Comment ça va ?" is "How are you?", not "How does
+# it go?". Large, because a wrong gloss teaches the wrong thing — and each
+# sentence is translated once, then cached (content_bank.put_translation).
+_TRANSLATE_SYSTEM = """You translate French sentences into English for a French learner.
+
+Rules:
+- Give the natural English a native speaker would say in the same situation. Translate the MEANING, never word by word ("Comment ça va ?" → "How are you?", "Ça marche" → "Sounds good").
+- For an idiom or proverb, use the matching English idiom if one exists; otherwise say plainly what it means.
+- Keep the same register: casual French stays casual English, formal stays formal.
+- One sentence in, one translation out. No alternatives, no quotation marks.
+- "note": ONLY when the sentence contains a set expression or idiom whose meaning is not clear from its individual words (e.g. "ça va", "ça marche", "il pleut des cordes", "avoir le cafard"). In plain English, max 30 words: what it says word for word and how French speakers use it. Example for "Ça marche": "Literally 'it walks'. Used to agree to a plan or confirm an order, like 'sounds good' or 'deal'." Otherwise "" — most sentences need no note.
+
+Return ONLY valid JSON (no markdown, no extra text):
+{"en": "...", "note": "..."}"""
+
+
+def translate_phrase(text: str) -> dict:
+    """English meaning of one French sentence, plus a note for idioms (Mistral Large).
+    Returns {"en": str, "note": str} — note is "" when none is needed."""
+    for attempt in range(3):
+        try:
+            resp = _client.chat.complete(
+                model="mistral-large-latest",
+                messages=[
+                    {"role": "system", "content": _TRANSLATE_SYSTEM},
+                    {"role": "user", "content": text},
+                ],
+                temperature=0.2,
+                max_tokens=200,
+                response_format={"type": "json_object"},
+            )
+            data = json.loads(resp.choices[0].message.content)
+            en = (data.get("en") or "").strip()
+            if not en:
+                raise ValueError("empty translation")
+            return {"en": en, "note": (data.get("note") or "").strip()}
+        except Exception as e:
+            if attempt < 2 and "429" in str(e):
+                time.sleep(2 ** attempt)
+                continue
+            raise
+
+
 # ── English (private beta) ──────────────────────────────────────────────────────
 _PHRASE_SYSTEM_EN = """You are generating English sentences for a shadowing exercise. The learners are French speakers learning English.
 
