@@ -515,13 +515,22 @@
     #para-viz.para-tiles { flex-wrap: wrap; align-items: stretch; justify-content: flex-start; gap: 12px; }
     #para-viz .para-tile-ring,
     #para-viz .para-tile-block { flex: 1 1 calc(50% - 6px); }
-    #para-viz .para-tile-bars  { flex: 1 1 100%; }
+    #para-viz .para-tile-bars,
+    #para-viz .para-tile-focus,
+    #para-viz .para-tile-action { flex: 1 1 100%; }
+    #para-viz .para-tile-focus[hidden] { display: none; }
+    .para-focus-text { margin: 0; font-size: var(--vk-type-body-md); line-height: 1.5; color: var(--vk-fg-1); }
+    .para-tile-focus .vk-btn { align-self: flex-start; }
+    #para-listen-skip { grid-column: 2; }
     #para-viz .para-tile-bars:has(#para-viz-phrases:empty) { display: none; }
     #para-viz .para-tile-ring .pv-viz-ring-chart { align-self: center; }
     #para-viz .phv-tile { animation: pa-rise-tile 420ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
     #para-viz .phv-tile:nth-child(1) { animation-delay: 180ms; }
     #para-viz .phv-tile:nth-child(2) { animation-delay: 240ms; }
     #para-viz .phv-tile:nth-child(3) { animation-delay: 300ms; }
+    #para-viz .phv-tile:nth-child(4) { animation-delay: 360ms; }
+    #para-viz .phv-tile:nth-child(5) { animation-delay: 420ms; }
+    #para-viz .phv-action.is-next    { animation: pa-btn-pass-in 480ms var(--pa-ease-spring) both; }
     #para-block-pips .phv-attempt-pip.is-step { background: var(--vk-accent); }
     /* Sentence rows inside the speech block — the block is the card */
     #para-live-transcript .pv-sentence-scores { background: none; border-radius: 0; }
@@ -812,46 +821,24 @@
     }
     #para-controls { display: flex; flex-direction: column; gap: 0; }
 
-    /* ── Level chip dropdown (mobile level selector) ── */
-    .level-chip-dropdown { display: none; position: relative; }
-    .level-chip-trigger {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-family: var(--vkg-font-sans);
-      font-size: var(--vk-type-label-md);
-      font-weight: 600;
-      background: var(--vk-accent);
-      border: 1px solid var(--vk-accent);
-      color: var(--vk-accent-fg);
-      padding: 5px 10px;
-      cursor: pointer;
+    /* Level chip beside the view title + its menu (toggleLevelMenu / pickLevel) */
+    .pv-level-chip-wrap { position: relative; display: inline-flex; }
+    .pv-level-chip { gap: 2px; padding: 0 6px 0 12px; }
+    .pv-level-chip svg { width: 18px; height: 18px; transition: transform 150ms var(--vk-ease); }
+    .pv-level-chip[aria-expanded="true"] svg { transform: rotate(180deg); }
+    .pv-level-menu {
+      position: absolute; top: calc(100% + 4px); left: 0; z-index: 300;
+      width: 232px; padding: 8px 0;
+      background: var(--vk-surface-lowest); border-radius: 16px;
+      box-shadow: var(--vk-elev-menu);
+      animation: nav-menu-in 200ms cubic-bezier(.2,0,0,1) both;
     }
-    .level-chip-panel {
-      position: absolute;
-      top: calc(100% + 4px);
-      right: 0;
-      background: var(--vk-surface);
-      border: 1px solid var(--vk-border-mid);
-      box-shadow: var(--vk-elev-1);
-      padding: 8px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      z-index: 300;
-      min-width: 140px;
-    }
-    .level-chip-option {
-      font-family: var(--vkg-font-sans);
-      font-size: var(--vk-type-label-md);
-      font-weight: 600;
-      background: transparent;
-      border: 1px solid var(--vk-border-mid);
-      color: var(--vk-fg-1);
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-    .level-chip-option.active { background: var(--vk-accent); border-color: var(--vk-accent); color: var(--vk-accent-fg); }
+    .pv-level-menu[hidden] { display: none; }
+    .pv-level-menu-note { margin: 0; padding: 6px 16px 10px; font: var(--vk-type-body-sm)/1.4 var(--pa-font-sans); color: var(--vk-fg-2); }
+    .pv-level-menu .nav-menu-item { justify-content: space-between; }
+    .pv-level-menu .nav-menu-item[aria-checked="true"] { background: var(--vk-tonal); color: var(--vk-on-tonal); font-weight: 600; }
+    .pv-level-menu .nav-menu-item svg { color: currentColor; visibility: hidden; }
+    .pv-level-menu .nav-menu-item[aria-checked="true"] svg { visibility: visible; }
 
     /* ── Speed chip dropdown — compact playback-speed control (mobile header) ──
        A subtle, outline icon trigger that reveals the speed options. Distinct
@@ -905,8 +892,6 @@
     @media (max-width: 768px) {
       /* Paragraph header: kill the level selector entirely (set from the hub),
          and collapse the three speed buttons into the speed chip dropdown. */
-      .pv-levels,
-      #pv-chip-wrapper,
       .pv-header-right .header-status { display: none; }
       #para-speed-btns { display: none; }
       #para-speed-chip { display: block; }
@@ -2930,17 +2915,17 @@
       <div class="pv-header">
         <div class="pv-header-left">
           <span class="pv-title">Phrases</span>
+          <!-- Level chip: a menu of levels; a change applies from the next phrase (pickLevel) -->
+          <span class="pv-level-chip-wrap">
+            <button type="button" class="vk-filter-chip pv-level-chip" id="phrase-level-chip" aria-haspopup="menu" aria-expanded="false" onclick="toggleLevelMenu('phrase', event)">
+              <span id="phrase-level-chip-label">A1</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
+            </button>
+            <div class="pv-level-menu" id="phrase-level-menu" role="menu" aria-label="Level" hidden></div>
+          </span>
           <button class="pv-guide-link" onclick="pvGuideStart('phrase')">How it works</button>
         </div>
         <div class="pv-header-right">
-          <div class="pv-levels" id="phrase-levels">
-            <button class="pv-level-btn is-active" data-level="A1" onclick="setShadowLevel('A1')">A1</button>
-            <button class="pv-level-btn" data-level="A2" onclick="setShadowLevel('A2')">A2</button>
-            <button class="pv-level-btn" data-level="B1" onclick="setShadowLevel('B1')">B1</button>
-            <button class="pv-level-btn" data-level="B2" onclick="setShadowLevel('B2')">B2</button>
-            <button class="pv-level-btn" data-level="C1" onclick="setShadowLevel('C1')">C1</button>
-            <button class="pv-level-btn" data-level="C2" onclick="setShadowLevel('C2')">C2</button>
-          </div>
           <div class="pv-speed-btns" id="phrase-speed-btns">
             <button class="pv-speed-btn speed-btn" data-rate="0.75" onclick="setPlaybackSpeed(0.75)">×0.75</button>
             <button class="pv-speed-btn speed-btn" data-rate="0.9" onclick="setPlaybackSpeed(0.9)">×0.9</button>
@@ -3397,37 +3382,17 @@
       <div class="pv-header">
         <div class="pv-header-left">
           <span class="pv-title">Paragraphs</span>
+          <!-- Level chip: a menu of levels; a change applies from the next paragraph (pickLevel) -->
+          <span class="pv-level-chip-wrap">
+            <button type="button" class="vk-filter-chip pv-level-chip" id="paragraph-level-chip" aria-haspopup="menu" aria-expanded="false" onclick="toggleLevelMenu('paragraph', event)">
+              <span id="paragraph-level-chip-label">A1</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
+            </button>
+            <div class="pv-level-menu" id="paragraph-level-menu" role="menu" aria-label="Level" hidden></div>
+          </span>
           <button class="pv-guide-link" onclick="pvGuideStart('paragraph')">How it works</button>
         </div>
         <div class="pv-header-right">
-          <span class="header-status">Level</span>
-          <div class="pv-levels" id="pv-levels">
-            <button class="pv-level-btn is-active" data-level="A1" onclick="setParagraphLevel('A1')">A1</button>
-            <button class="pv-level-btn" data-level="A2" onclick="setParagraphLevel('A2')">A2</button>
-            <button class="pv-level-btn" data-level="B1" onclick="setParagraphLevel('B1')">B1</button>
-            <button class="pv-level-btn" data-level="B2" onclick="setParagraphLevel('B2')">B2</button>
-            <button class="pv-level-btn" data-level="C1" onclick="setParagraphLevel('C1')">C1</button>
-            <button class="pv-level-btn" data-level="C2" onclick="setParagraphLevel('C2')">C2</button>
-          </div>
-          <div class="level-chip-dropdown" id="pv-chip-wrapper">
-            <button class="level-chip-trigger" onclick="togglePvChip(event)">
-              <span id="pv-chip-label">A1</span>
-              <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="level-chip-panel" id="pv-chip-panel" style="display:none;">
-              <button class="level-chip-option active" onclick="setParagraphLevel('A1');closePvChip()">A1</button>
-              <button class="level-chip-option" onclick="setParagraphLevel('A2');closePvChip()">A2</button>
-              <button class="level-chip-option" onclick="setParagraphLevel('B1');closePvChip()">B1</button>
-              <button class="level-chip-option" onclick="setParagraphLevel('B2');closePvChip()">B2</button>
-              <button class="level-chip-option" onclick="setParagraphLevel('C1');closePvChip()">C1</button>
-              <button class="level-chip-option" onclick="setParagraphLevel('C2');closePvChip()">C2</button>
-            </div>
-          </div>
-          <select id="pv-level-select" style="display:none;" onchange="setParagraphLevel(this.value)">
-            <option value="A1">A1</option><option value="A2">A2</option>
-            <option value="B1">B1</option><option value="B2">B2</option>
-            <option value="C1">C1</option><option value="C2">C2</option>
-          </select>
           <div class="pv-speed-btns" id="para-speed-btns">
             <button class="pv-speed-btn speed-btn" data-rate="0.75" onclick="setPlaybackSpeed(0.75)">×0.75</button>
             <button class="pv-speed-btn speed-btn active" data-rate="1" onclick="setPlaybackSpeed(1)">×1</button>
@@ -3456,11 +3421,14 @@
           <div id="para-card" class="pv-card">
             <div class="pv-card-top">
               <div class="pv-card-top-left">
-                <button class="pa-ctrl pa-ctrl-play is-outline is-sm" id="para-replay-btn" onclick="toggleParaPlayPause()" disabled aria-label="Play / Pause">
-                  <svg id="para-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                  <svg id="para-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
-                </button>
-                <span id="para-stage-label" class="pa-drill-prompt">—</span>
+                <!-- Loader while the paragraph loads, then it gives way to the play button (_setParaLoading) -->
+                <span class="pa-ctrl-slot" id="para-play-slot">
+                  <span class="pa-loader" aria-hidden="true"></span>
+                  <button class="pa-ctrl pa-ctrl-play is-outline is-sm" id="para-replay-btn" onclick="toggleParaPlayPause()" disabled aria-label="Play / Pause">
+                    <svg id="para-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <svg id="para-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+                  </button>
+                </span>
               </div>
               <div class="pv-card-top-right">
                 <button id="para-save-btn" class="pv-action-btn fr-only" aria-label="Save paragraph to library">
@@ -3502,17 +3470,23 @@
             <!-- Controls -->
             <div id="para-controls">
 
-              <!-- record dead centre · skip / continue pinned right -->
+              <!-- Record dead centre (the atom: gold electrons orbit it while
+                   recording — _initRecordOrbit). During the first listen the
+                   record button is hidden and Skip to speaking takes its place. -->
               <div id="para-controls-main" class="pv-func is-split">
-                <button class="pa-ctrl pa-ctrl-record" id="para-mic-btn" onclick="toggleParaMic()" disabled aria-label="Record">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z" fill="currentColor"/>
-                    <path d="M6 11a6 6 0 0012 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                  </svg>
-                </button>
-                <span class="pv-func-end">
-                  <button class="pv-func-skip" id="para-action-btn" onclick="handleParaAction()" style="display:none;">skip</button>
+                <span class="pa-ctrl-slot is-orbit" id="para-mic-slot">
+                  <button class="pa-ctrl pa-ctrl-record" id="para-mic-btn" onclick="toggleParaMic()" disabled aria-label="Record">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z" fill="currentColor"/>
+                      <path d="M6 11a6 6 0 0012 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                  <canvas class="pa-rec-orbit" id="para-mic-orbit" aria-hidden="true"></canvas>
                 </span>
+                <button class="vk-btn vk-btn-tonal" id="para-listen-skip" onclick="skipContextAudio()" style="display:none;">
+                  Skip to speaking
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
               </div>
 
               <!-- complete: all chunks done -->
@@ -3564,6 +3538,20 @@
                <span class="phv-tile-label">Sentence scores</span>
                <div id="para-viz-phrases" class="pv-viz-phrases"></div>
              </div>
+             <!-- Where to focus — the one sentence whose fix lifts the block most (_renderParaFocus) -->
+             <div class="phv-tile para-tile-focus" id="para-focus-tile" hidden>
+               <span class="phv-tile-label">Where to focus</span>
+               <p class="para-focus-text" id="para-focus-text"></p>
+               <button class="vk-btn vk-btn-tonal sm" id="para-focus-btn"></button>
+             </div>
+             <!-- Move on — tonal Skip under passing, green Next after a pass (_setParaAction) -->
+             <button type="button" class="phv-tile phv-action para-tile-action" id="para-action-tile" onclick="handleParaAction()" hidden>
+               <span class="phv-action-text">
+                 <span class="phv-tile-label" id="para-action-label"></span>
+                 <span class="phv-action-title" id="para-action-title"></span>
+               </span>
+               <svg class="phv-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </button>
            </div>
          </div><!-- /.para-side -->
 
@@ -5480,6 +5468,15 @@
     }
     return map[view] || view;
   }
+  // The hub named in the URL hash, for restoring a view on page load. Exercise
+  // views map back to their hub (their state doesn't survive a reload);
+  // anything unknown opens Home.
+  function _viewFromHash() {
+    const view = navHubFor(location.hash.slice(1));
+    const hubs = new Set(['account']);
+    NAV_AREAS.forEach(a => a.views.forEach(([id]) => hubs.add(id)));
+    return hubs.has(view) ? view : 'home';
+  }
   // Areas and their views, filtered to what the current study language offers.
   function _navAreas() {
     let english = false;
@@ -5650,25 +5647,48 @@
   window.addEventListener('resize', () => closeNavMenus(false));
   renderNav();                    // draw the rail before the first switchView
 
-  // ── Level chip dropdowns ───────────────────────────────────────────────────
-  function toggleDiffChip(e) {
+  // ── Level chip (phrase + paragraph views) ──────────────────────────────
+  // Level decides what content comes next, so a change never swaps out the
+  // phrase or paragraph on screen: it applies from the next one.
+  const _LEVEL_NOUN = { phrase: 'phrase', paragraph: 'paragraph' };
+  function _levelOf(fmt) { return fmt === 'phrase' ? shadowLevel : paragraphLevel; }
+  function _syncLevelChip(fmt) {
+    const label = document.getElementById(fmt + '-level-chip-label');
+    if (label) label.textContent = _levelOf(fmt);
+    const chip = document.getElementById(fmt + '-level-chip');
+    if (chip) chip.setAttribute('aria-label', 'Level ' + _levelOf(fmt) + ', change level');
+  }
+  function toggleLevelMenu(fmt, e) {
     e.stopPropagation();
-    const panel = document.getElementById('diff-chip-panel');
-    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+    const menu = document.getElementById(fmt + '-level-menu');
+    const open = menu.hidden;
+    closeLevelMenus();
+    if (!open) return;
+    const cur = _levelOf(fmt);
+    const check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+    menu.innerHTML = `<p class="pv-level-menu-note">Changes apply from the next ${_LEVEL_NOUN[fmt]}.</p>` +
+      ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l =>
+        `<button type="button" class="nav-menu-item" role="menuitemradio" aria-checked="${l === cur}" onclick="pickLevel('${fmt}', '${l}')">${l}${check}</button>`
+      ).join('');
+    menu.hidden = false;
+    document.getElementById(fmt + '-level-chip').setAttribute('aria-expanded', 'true');
+    menu.querySelector('[aria-checked="true"]')?.focus();
   }
-  function closeDiffChip() {
-    const panel = document.getElementById('diff-chip-panel');
-    if (panel) panel.style.display = 'none';
+  function closeLevelMenus() {
+    ['phrase', 'paragraph'].forEach(fmt => {
+      const menu = document.getElementById(fmt + '-level-menu');
+      if (menu) menu.hidden = true;
+      document.getElementById(fmt + '-level-chip')?.setAttribute('aria-expanded', 'false');
+    });
   }
-  function togglePvChip(e) {
-    e.stopPropagation();
-    const panel = document.getElementById('pv-chip-panel');
-    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  function pickLevel(fmt, level) {
+    closeLevelMenus();
+    if (level === _levelOf(fmt)) return;
+    const onScreen = fmt === 'phrase' ? !!currentPhrase : paragraphSentences.length > 0;
+    if (fmt === 'phrase') setShadowLevel(level); else setParagraphLevel(level);
+    if (onScreen) addSys(`Level ${level} starts with the next ${_LEVEL_NOUN[fmt]}.`);
   }
-  function closePvChip() {
-    const panel = document.getElementById('pv-chip-panel');
-    if (panel) panel.style.display = 'none';
-  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLevelMenus(); });
   function toggleSpeedChip(e) {
     e.stopPropagation();
     const panel = document.getElementById('para-speed-chip-panel');
@@ -5678,7 +5698,7 @@
     const panel = document.getElementById('para-speed-chip-panel');
     if (panel) panel.style.display = 'none';
   }
-  document.addEventListener('click', () => { closeDiffChip(); closePvChip(); closeSpeedChip(); });
+  document.addEventListener('click', () => { closeLevelMenus(); closeSpeedChip(); });
 
   // ── Auth helpers ───────────────────────────────────────────────────────────
   async function apiFetch(url, opts = {}) {
@@ -5806,7 +5826,8 @@
       }
       renderTeachPlan();
     }
-    setTimeout(() => switchView('home'), 0);
+    // A refresh reopens the hub in the URL hash (never a mid-exercise view)
+    setTimeout(() => switchView(_viewFromHash()), 0);
     window.addEventListener('popstate', () => switchView(location.hash.slice(1) || 'home'));
     // Populate sidebar profile + check onboarding
     if (_teachAccessCode) {
@@ -7049,13 +7070,13 @@
       micStep,
       { id: 'context', waitFor: 'chunk', skipIf: () => paraStage >= 1,
         title: 'Listen to the whole paragraph',
-        body: 'It plays once so you hear it in context. Just listen, or press skip to start speaking straight away.' },
+        body: 'It plays once so you hear it in context. Just listen, or press Skip to speaking to start straight away.' },
       { id: 'speak', waitFor: 'scored', target: '#para-mic-btn',
         title: 'Say the highlighted part',
         body: 'The bold text is your block. Tap the mic and say it out loud. When you pause, it stops and scores you automatically. Press play first if you want to hear it again.' },
       { id: 'read', done: true,
         title: 'Read your score',
-        body: 'The ring is your score for this block. Below it, each sentence shows green for matched words and red for missed ones. Pass and press continue: each new block adds one more sentence until you can say the whole paragraph.' },
+        body: 'The ring is your score for this block. Below it, each sentence shows green for matched words and red for missed ones. Pass and press Next block: each new block adds one more sentence until you can say the whole paragraph.' },
     ];
   }
 
@@ -8059,14 +8080,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (!_SHADOW_LEVELS.includes(level)) level = 'A1';
     shadowLevel = level;
     shadowPassStreak = 0;
-    document.querySelectorAll('#phrase-levels .pv-level-btn').forEach(b =>
-      b.classList.toggle('is-active', b.dataset.level === shadowLevel)
-    );
-    const chipLabel = document.getElementById('diff-chip-label');
-    if (chipLabel) chipLabel.textContent = shadowLevel;
-    document.querySelectorAll('#diff-chip-panel .level-chip-option').forEach(b =>
-      b.classList.toggle('active', b.textContent === shadowLevel)
-    );
+    _syncLevelChip('phrase');
   }
 
   async function fetchNextPhrase() {
@@ -8278,6 +8292,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     }).observe(btn, { attributes: true, attributeFilter: ['class'] });
   }
   _initRecordOrbit('phrase-mic-btn', 'phrase-mic-orbit');
+  _initRecordOrbit('para-mic-btn', 'para-mic-orbit');
 
   function contractElisions(t) {
     // French-only: English contractions are expanded server-side by lang/en.py.
@@ -9218,6 +9233,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     }
     const url = pl.urls[pl.idx++];
     currentAudio = new Audio(url);
+    currentAudio.playbackRate = audioPlaybackRate;
     if (pl.idx < pl.urls.length) {           // preload next for gapless-ish playback
       const nx = new Audio(); nx.preload = 'auto'; nx.src = pl.urls[pl.idx];
     }
@@ -9484,7 +9500,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const completeRow    = document.getElementById('para-controls-complete');
     const playBtn        = document.getElementById('para-replay-btn');
     const micBtn         = document.getElementById('para-mic-btn');
-    const actionBtn      = document.getElementById('para-action-btn');
+    const micSlot        = document.getElementById('para-mic-slot');
+    const listenSkip     = document.getElementById('para-listen-skip');
     const liveTranscript = document.getElementById('para-live-transcript');
     const sentenceScores = document.getElementById('para-sentence-scores');
     const viz            = document.getElementById('para-viz');
@@ -9492,22 +9509,22 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     mainRow.style.display     = '';   // grid (.pv-func.is-split) — don't force flex
     completeRow.style.display = 'none';
+    // First listen: Skip to speaking stands in for the record button
+    micSlot.style.display     = state === 'context' ? 'none' : '';
+    listenSkip.style.display  = state === 'context' ? '' : 'none';
+    document.getElementById('para-focus-tile').hidden = true;   // re-shown by _renderParaFocus after scoring
+    // Move-on tile: Skip under passing, green Next after a pass
+    _setParaAction(state === 'feedback-pass' ? 'next'
+      : (state === 'feedback-fail' || state === 'listening-retry') ? 'skip' : null);
 
     if (state === 'context') {
       playBtn.disabled           = false;
       micBtn.disabled            = true;
-      micBtn.style.display       = 'none';
-      actionBtn.className        = 'pv-func-skip';
-      actionBtn.textContent      = 'skip';
-      actionBtn.style.display    = '';
       if (viz) viz.style.display = 'none';
     } else if (state === 'idle') {
       document.querySelectorAll('.para-chunk-exit').forEach(el => el.classList.remove('para-chunk-exit'));
       playBtn.disabled           = true;
       micBtn.disabled            = true;
-      micBtn.style.display       = '';
-      actionBtn.className        = 'pv-func-skip';
-      actionBtn.style.display    = 'none';
       sentenceScores.style.display = 'none';
       // Split (mid-paragraph): keep the tiles, clear them for the new block.
       // Centred: nothing in the side column yet.
@@ -9519,8 +9536,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     } else if (state === 'listening') {
       playBtn.disabled           = true;
       micBtn.disabled            = false;
-      actionBtn.className        = 'pv-func-skip';
-      actionBtn.style.display    = 'none';
       if (viz) {
         if (viz.style.display === 'flex') { paraVizResetAnimated(); }
         else                              { viz.style.display = 'none'; }
@@ -9528,23 +9543,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     } else if (state === 'listening-retry') {
       playBtn.disabled           = false;
       micBtn.disabled            = false;
-      actionBtn.className        = 'pv-func-skip';
-      actionBtn.textContent      = 'skip';
-      actionBtn.style.display    = '';
       if (viz) { viz.style.display = 'flex'; paraVizResetAnimated(); }
     } else if (state === 'feedback-pass') {
       playBtn.disabled           = false;
       micBtn.disabled            = false;
-      actionBtn.className        = 'vk-btn vk-btn-pass sm';
-      actionBtn.textContent      = 'Continue →';
-      actionBtn.style.display    = '';
       if (viz) viz.style.display = 'flex';
     } else if (state === 'feedback-fail') {
       playBtn.disabled           = false;
       micBtn.disabled            = false;
-      actionBtn.className        = 'pv-func-skip';
-      actionBtn.textContent      = 'skip';
-      actionBtn.style.display    = '';
       if (viz) viz.style.display = 'flex';
     } else if (state === 'complete') {
       mainRow.style.display      = 'none';
@@ -9565,6 +9571,30 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       _paraSpeechState(null);
     }
     if (state !== 'complete') document.getElementById('para-cheer').innerHTML = '';
+  }
+
+  // Paragraph move-on tile: 'skip' | 'next' | null (hidden). Skip is tonal;
+  // Next is pass-green and names where it goes (next block / finish).
+  function _setParaAction(kind) {
+    const tile = document.getElementById('para-action-tile');
+    if (!tile) return;
+    tile.hidden = !kind;
+    tile.classList.remove('para-chunk-exit');
+    if (!kind) return;
+    const next = kind === 'next';
+    tile.classList.toggle('is-next', next);
+    const label = document.getElementById('para-action-label');
+    label.textContent = next ? 'Passed' : '';
+    label.style.display = next ? '' : 'none';
+    const last = paraStage >= paragraphSentences.length;
+    document.getElementById('para-action-title').textContent =
+      next ? (last ? 'Finish paragraph' : 'Next block') : 'Skip';
+  }
+
+  // Paragraph card: the brand-mark loader holds the play button's spot while
+  // a paragraph loads, then gives way to the play button.
+  function _setParaLoading(on) {
+    document.getElementById('para-play-slot')?.classList.toggle('is-loading', on);
   }
 
   function _paraSpeechState(state, prefix) {
@@ -9694,17 +9724,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function setParagraphLevel(level) {
     paragraphLevel = level;
     paraPassCount = 0;
-    document.querySelectorAll('#pv-levels .pv-level-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.level === level)
-    );
-    const sel = document.getElementById('pv-level-select');
-    if (sel) sel.value = level;
-    const pvChipLabel = document.getElementById('pv-chip-label');
-    if (pvChipLabel) pvChipLabel.textContent = level;
-    document.querySelectorAll('#pv-chip-panel .level-chip-option').forEach(b =>
-      b.classList.toggle('active', b.textContent === level)
-    );
-    fetchNextParagraph();
+    _syncLevelChip('paragraph');
+    // No fetch here: the paragraph on screen stays; the next one uses this level
+    // (the hub's Start clears paragraphSentences, so switchView fetches one).
   }
 
   async function fetchNextParagraph() {
@@ -9723,8 +9745,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     lastSentenceScores = [];
     isSentenceDrill = false;
 
-    document.getElementById('para-full-text').innerHTML = loadingHtml('Generating paragraph…');
+    document.getElementById('para-full-text').innerHTML = '<span class="phv-phrase-pending" role="status">Generating paragraph…</span>';
     document.getElementById('para-full-text').classList.remove('is-blurred');
+    _setParaLoading(true);
 
     rollStudyLocale();   // English: this paragraph's accent, kept for all its blocks and drills
     try {
@@ -9751,16 +9774,18 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       paraChunkIndex = 0;
       startContextStage();
     } catch (err) {
-      document.getElementById('para-full-text').textContent = 'Error — please try again';
+      document.getElementById('para-full-text').innerHTML =
+        '<span class="phv-phrase-pending">Couldn\'t load a paragraph.</span> ' +
+        '<button class="vk-btn vk-btn-text sm" onclick="fetchNextParagraph()">Try again</button>';
       console.error('fetchNextParagraph failed:', err);
     } finally {
       isParaLoading = false;
+      _setParaLoading(false);
     }
   }
 
   function startContextStage() {
     paraStage = 0;
-    document.getElementById('para-stage-label').textContent = 'First, just listen to the whole paragraph';
     setParaState('context');
 
     // Full read: stitch all sentence clips (banked) or play the blob (custom).
@@ -9833,10 +9858,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     // Update display with chunk highlighting
     renderParagraphWithChunkHighlight();
-    document.getElementById('para-stage-label').textContent =
-      chunkSize >= paragraphSentences.length ? 'Now read the whole paragraph'
-      : chunkSize === 1 ? 'Read the first sentence'
-      : `Read the first ${chunkSize} sentences`;
     updateParaBlockTile();
 
     setParaState('idle');  // resets display, hides action btn (also disables buttons)
@@ -9888,7 +9909,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function handleParaAction() {
     _stopParaPlaylist();
     // Fade out results so the chunk load doesn't snap everything away at once
-    ['para-viz', 'para-tray-results', 'para-action-btn'].forEach(id => {
+    ['para-viz', 'para-tray-results', 'para-action-tile', 'para-focus-tile'].forEach(id => {
       document.getElementById(id)?.classList.add('para-chunk-exit');
     });
     advanceToNextStage();
@@ -9927,9 +9948,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function updateLevelButtons() {
-    document.querySelectorAll('#pv-levels .pv-level-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.level === paragraphLevel)
-    );
+    _syncLevelChip('paragraph');
   }
 
   function renderPatternCard(pattern) {
@@ -10217,7 +10236,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function retryThisParagraph() {
-    // Reset to stage 0 with instruction text
+    // Reset to stage 0
     paraStage = 0;
     paraChunkIndex = 0;
     paragraphChunkScores = [];
@@ -10225,8 +10244,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     lastSentenceScores = [];
     isSentenceDrill = false;
     paraMissCounts = {}; paraLastResults = [];
-
-    document.getElementById('para-stage-label').textContent = 'Once more from the top. Listen to the whole paragraph first';
 
     setParaSplit(false);
     setParaState('context');
@@ -10325,6 +10342,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       lastSentenceStart = start;
       renderSentenceScores();
       renderParaFeedback(data, text);
+      _renderParaFocus(data, start);
       pvGuideEvent('paragraph', 'scored');
 
     } catch (err) {
@@ -10332,6 +10350,31 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       _paraSpeechState(null);
       console.error('handleParaResult failed:', err);
     }
+  }
+
+  // Where to focus: in a multi-sentence block, call out the weakest sentence
+  // when it's under 40%. Under 25% the block can't pass (the backend's sentence
+  // floor, SENTENCE_FLOOR in paragraph_engine.py), so the note says why.
+  function _renderParaFocus(data, start) {
+    const tile = document.getElementById('para-focus-tile');
+    const scores = data.sentence_scores || [];
+    tile.hidden = true;
+    if (isSentenceDrill || scores.length < 2) return;
+    let w = 0;
+    scores.forEach((sc, i) => { if (sc < scores[w]) w = i; });
+    if (scores[w] >= 0.4) return;
+
+    const k   = w + 1;
+    const pct = Math.round(scores[w] * 100);
+    const how = pct === 0 ? `Sentence ${k} wasn't heard` : `Sentence ${k} scored ${pct}%`;
+    document.getElementById('para-focus-text').textContent = scores[w] < 0.25
+      ? `${how}, so this block doesn't count yet. Practice it, then try the block again.`
+      : `${how}. It's worth practicing on its own.`;
+    const btn = document.getElementById('para-focus-btn');
+    btn.textContent = `Practice sentence ${k}`;
+    btn.onclick = () => enterSentenceDrill(start + w,
+      document.querySelector(`#pss-rows .pv-ss-drill-btn[data-idx="${start + w}"]`));
+    tile.hidden = false;
   }
 
   // ── Sentence drill helpers ───────────────────────────────────────────────────

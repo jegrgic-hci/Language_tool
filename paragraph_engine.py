@@ -60,6 +60,9 @@ def _split_sentences(paragraph: str) -> list[str]:
     return result
 
 
+SENTENCE_FLOOR = 0.25   # every sentence in a multi-sentence block must reach this to pass
+
+
 def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_set=None,
                 lang: str = "fr") -> dict:
     """
@@ -106,9 +109,14 @@ def score_chunk(target: str, transcription: str, chunk_size: int = 1, noun_adj_s
         sentence_scores.append(round(sent_matched / n, 3) if n > 0 else 1.0)
         si += n
 
+    # Sentence floor: a multi-sentence block never passes while any one sentence
+    # is under 25% — a high score elsewhere can't carry a sentence barely said.
+    # (The frontend calls that sentence out; 25–40% passes but is called out too.)
+    passed = score >= threshold and (len(sentence_scores) < 2 or min(sentence_scores) >= SENTENCE_FLOOR)
+
     return {
         "score": round(score, 3),
-        "passed": score >= threshold,
+        "passed": passed,
         "mismatches": mismatches,
         "word_results": word_results,
         "display_results": display_results,
