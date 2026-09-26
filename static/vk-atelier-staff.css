@@ -535,43 +535,7 @@ body[data-theme="atelier"] {
 
 /* Segmented buttons are the shared .vk-seg (vk-atelier-components.css). */
 
-/* Primary tabs — sentence case, accent indicator with rounded top */
-[data-theme="atelier"] .vk-tabs {
-  gap: 0;
-  border-bottom: 1px solid var(--vk-outline-variant);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-[data-theme="atelier"] .vk-tabs::-webkit-scrollbar { display: none; }
-[data-theme="atelier"] .vk-tab {
-  position: relative;
-  flex-shrink: 0;
-  font: 600 var(--vk-type-label-lg)/1 var(--pa-font-sans);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--vk-fg-2);
-  padding: 0 16px;
-  height: 48px;
-  border-bottom: none;
-  margin-bottom: 0;
-  transition: background 120ms cubic-bezier(0.4, 0, 0.2, 1), color 120ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-[data-theme="atelier"] .vk-tab:hover {
-  color: var(--vk-fg-1);
-  background: color-mix(in srgb, var(--vk-fg-1) 8%, transparent);
-}
-[data-theme="atelier"] .vk-tab[aria-selected="true"] { color: var(--vk-accent-text); }
-[data-theme="atelier"] .vk-tab[aria-selected="true"]::after {
-  content: '';
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 0;
-  height: 3px;
-  border-radius: 3px 3px 0 0;
-  background: var(--vk-accent);
-}
-[data-theme="atelier"] .vk-tab:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--vk-accent); }
+/* Tabs are the shared .vk-tabs / .vk-tab (vk-atelier-components.css). */
 
 /* Chips / tags — 8px, outlined neutral by default.
    System state:  .is-tonal (active / on)   ·  default outline (off / paused)
