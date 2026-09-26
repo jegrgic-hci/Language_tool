@@ -33,7 +33,7 @@ A French language learning webapp built for a user living in Marseille who wants
 | `elision.py` | French elision rules + homophones + number/gender-ending normalization — consumed by `score_utils.py` (and `analytics.py`) |
 | `liaison_rules.py` | Mandatory liaison (‿) and enchaînement (⁀) detection: `detect_links()` |
 | `pos_tagger.py` | spaCy `fr_core_news_sm` wrapper: `tag_nouns_adjs()`, `_get_nlp()` — feeds gender/number-aware scoring |
-| `practice_list.py` | JSON-backed practice word list CRUD (stored under `data/`) |
+| `practice_list.py` | JSON-backed practice word list CRUD (stored under `data/`); one list per study language (`lang` on each entry, missing = `fr`; English beta-gated via `?lang=en`). Words are spoken in a short carrier phrase (`carrier`, from `/practice-list/pronunciation`) so STT hears them reliably |
 | `document_engine.py` | PDF text extraction for uploaded docs, `UPLOADS_DIR` |
 | `analytics.py` | SQLite event tracking, all aggregation functions, coach system |
 | `phonetic_lookup.py` | Loads `data/Lexique383.tsv` once at import; `get_phonetic_categories(word)` → list of `nasal`/`u_sound`/`eu_sound` labels; consumed by `analytics.py` |
@@ -76,10 +76,10 @@ The app is an exercise platform, not a chatbot — there is no `/chat` route or 
 8. `server.generate_audio()` renders the target with edge-tts for playback
 
 ### Exercise types (route families)
-- **Shadow / phrase** — `/shadow/phrase`, `/shadow/analyze`, `/shadow/rhythm`: repeat a single generated phrase. `/phrase/translate` backs the phrase view's Meaning tile (`#phrase-meaning-tile`, the spare cell of the side tiles grid; opens to span the row): the English *meaning* (not word-for-word) plus a short `note` only for idioms/set expressions (ça va, ça marche), via `translate_phrase()` in `shadow_engine.py` on `mistral-large-latest`, cached once per sentence text in the bank (`content_bank.get_translation` / `put_translation`, `bank/translations/<md5>.json`)
+- **Shadow / phrase** — `/shadow/phrase`, `/shadow/analyze`, `/shadow/rhythm`: repeat a single generated phrase. `/phrase/translate` backs the phrase view's Meaning tile (`#phrase-meaning-tile`, beside Skip in the side tiles grid, under the full-width This session tile; opens to span the row): the English *meaning* (not word-for-word) plus a short `note` only for idioms/set expressions (ça va, ça marche), via `translate_phrase()` in `shadow_engine.py` on `mistral-large-latest`, cached once per sentence text in the bank (`content_bank.get_translation` / `put_translation`, `bank/translations/<md5>.json`)
 - **Paragraph** — `/paragraph/start`, `/paragraph/analyze` (per chunk), `/paragraph/analyze-patterns`: read a paragraph chunk-by-chunk, then a cross-chunk pattern summary
 - **Prosody** — `/prosody/targets`, `/prosody/phrase`, `/prosody/analyze`: phrases focused on a specific sound/rhythm target
-- **Practice list** — `/practice-list` CRUD, `/practice-list/pronunciation`, `/practice-list/context-phrase`, `/analyze_word_drill`: user's saved words
+- **Practice list** — `/practice-list` CRUD, `/practice-list/pronunciation` (tip + short carrier phrase), `/analyze_word_drill`: user's saved words, phrases and paragraphs, one list per study language
 - **Listen & Answer** — `/listen/generate`: passage + multiple-choice comprehension questions; audio via `/tts` with a random Chirp3-HD narrator (`voice: 'chirp-random'`)
 - **Dialogue French** — `/natural/generate`: casual 2-speaker dialogue with named speakers (French names per voice), random mixed-gender Chirp3-HD pair, per-line cached audio + questions (shares the `comprMode` comprehension runner)
 - **Dictation** — `/dictation/generate`, `/dictation/check`, `/dictation/check-inline`
@@ -92,6 +92,8 @@ The app is an exercise platform, not a chatbot — there is no `/chat` route or 
 - **Play / pause** — `pa-ctrl-play`, plays the edge-tts audio of the target
 - **Mic** — Web Speech API, fr-FR; the `…-mic-btn` toggles a `listening` class; works only in Chrome/Edge
 - **Skip / Next / Continue** — `pv-func-skip` and the per-view advance buttons, laid out in the centered `.pv-func` controls row. Exception: the phrase view moves on with a `.phv-action` tile in the side column (`_setPhraseAction()`): a plain "Skip →" cell in the Attempt / Highest accuracy grid (same size) when under passing, after a pass a row at the bottom with the green Next tile and a tonal Auto advance switch tile (`#phv-pass-tiles`); the controls row holds only the record button. The paragraph view follows suit: a full-width `#para-action-tile` at the bottom of the side tiles (tonal Skip / green "Next block" or "Finish paragraph", `_setParaAction()`, no auto advance), the same play-slot loader (`_setParaLoading()`) and orbit record button; only the first-listen stage keeps a control in the row, the tonal "Skip to speaking" button in the record button's place
+- **Phrase session** (phrase view, no setup) — runs from Start: a This session tile counts passes (≥ the pass mark, once per phrase) with pips toward the next milestone; every 5 passes a milestone card (every 10 also lists words that slipped, tap to save); 10 passes with 7+ within 3 attempts suggests the next level (replaced the old silent 3-in-a-row level-up); 3 non-passes in a row suggests one level lower (naming the sound focus if set), or at A1 a "no rush" note + slower audio + longer mic silence window (2.5s → 4s; back to 2.5s after 3 passes in a row, a level change, or a new session). Suggestions never change level on their own. `_sessionRecordAttempt()` / `_sessionMoveOn()` in `index.html`
+- **Phrase pass mark** — 70% by default; the learner picks 60/70/80/90 in Account settings → Practice (`phrasePassMark`, localStorage `ft_phrase_pass_mark`). Sent as `pass_mark` to `/speaking/analyze` → `score_attempt(pass_mark=…)`; recorded in the `phrase_attempted` payload. Everything else (paragraphs, pronoun drills, Azure-graded English) keeps its own threshold
 - **Per-sentence / per-word scores** — colour-coded score bars rendered from the analyze response
 
 ## Known constraints

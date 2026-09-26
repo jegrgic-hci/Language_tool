@@ -415,6 +415,9 @@ class ShadowAnalyzeRequest(BaseModel):
     alt_transcriptions: Optional[list] = None
     confidence: Optional[float] = None
     noun_adj_tokens: Optional[list] = None
+    # Share of words to match to pass (the phrase view's pass-mark setting, 0.5–1.0).
+    # Absent → 0.90. Word-match scoring only; Azure-graded English keeps its own rule.
+    pass_mark: Optional[float] = None
     # analytics fields
     session_id: Optional[str] = None
     access_code: Optional[str] = None
@@ -539,6 +542,7 @@ class PracticeWordRequest(BaseModel):
     source_phrase: Optional[str] = None
     article: Optional[str] = None
     entry_type: Optional[str] = None
+    lang: Optional[str] = None  # "fr" (default) / "en" (beta accounts only) — each language has its own list
 
 
 class CustomSaveRequest(BaseModel):
@@ -550,6 +554,7 @@ class CustomSaveRequest(BaseModel):
 class CustomStartRequest(BaseModel):
     text: str
     content_type: str = "paragraph"
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -1701,16 +1706,24 @@ async def _phrase_generate(req: ShadowPhraseRequest) -> ShadowPhraseResponse:
     )
 
 
+def _pass_mark(req: ShadowAnalyzeRequest) -> float:
+    """The request's pass mark, clamped to 0.5–1.0; 0.90 when not sent."""
+    if req.pass_mark is None:
+        return 0.90
+    return min(1.0, max(0.5, req.pass_mark))
+
+
 async def _phrase_analyze(req: ShadowAnalyzeRequest, exercise_type: str) -> ShadowAnalyzeResponse:
     noun_adj_set = _build_noun_adj_set(req.noun_adj_tokens)
+    pass_mark = _pass_mark(req)
     # Score the top hypothesis and any extra STT alternatives; keep the best-matching one.
     # (Only clients that send alt_transcriptions — the pronoun drills — opt into this.)
     transcription = req.transcription
-    result = score_attempt(req.target, transcription, noun_adj_set)
+    result = score_attempt(req.target, transcription, noun_adj_set, pass_mark=pass_mark)
     for alt in (req.alt_transcriptions or [])[:6]:
         if not alt or alt == transcription:
             continue
-        alt_result = score_attempt(req.target, alt, noun_adj_set)
+        alt_result = score_attempt(req.target, alt, noun_adj_set, pass_mark=pass_mark)
         if alt_result["score"] > result["score"]:
             transcription, result = alt, alt_result
     if req.session_id and req.access_code:
@@ -1720,6 +1733,7 @@ async def _phrase_analyze(req: ShadowAnalyzeRequest, exercise_type: str) -> Shad
             "topic": req.topic,
             "score": result["score"],
             "passed": result["passed"],
+            "pass_mark": _pass_mark(req),
             "attempt_number": req.attempt_number,
             "phrase_id": req.phrase_id,
             "listen_count": req.listen_count,
@@ -1860,7 +1874,7 @@ async def _phrase_analyze_en(req: ShadowAnalyzeRequest, locale: str,
             # Malformed/empty Azure payload: score the transcription the normal way.
             logging.getLogger("phrase").warning("Azure parse failed (%s: %s) — using transcription",
                                                 type(e).__name__, e)
-    result = score_attempt(req.target, req.transcription, None, lang="en")
+    result = score_attempt(req.target, req.transcription, None, lang="en", pass_mark=_pass_mark(req))
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "phrase_attempted", {
             "exercise_type": exercise_type,
@@ -1869,6 +1883,7 @@ async def _phrase_analyze_en(req: ShadowAnalyzeRequest, locale: str,
             "topic": req.topic,
             "score": result["score"],
             "passed": result["passed"],
+            "pass_mark": _pass_mark(req),
             "attempt_number": req.attempt_number,
             "phrase_id": req.phrase_id,
             "listen_count": req.listen_count,
@@ -1955,7 +1970,15 @@ async def speaking_rhythm(req: ShadowRhythmRequest):
 # ── Shadow routes (true simultaneous shadowing exercise) ───────────────────────
 
 @app.post("/shadow/phrase", response_model=ShadowPhraseResponse)
-async def shadow_phrase(req: ShadowPhraseRequest):
+async def shadow_phrase(req: ShadowPhraseRequest, authorization: Optional[str] = Header(None)):
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
+        try:
+            return await _phrase_generate_en(req, locale)
+        except Exception as e:
+            logging.getLogger("phrase").exception("/shadow/phrase (%s) failed", locale)
+            raise HTTPException(status_code=500, detail=f"Phrase generation failed: {e}")
     try:
         return await _phrase_generate(req)
     except Exception as e:
@@ -1997,7 +2020,12 @@ async def phrase_translate(req: PhraseTranslateRequest):
 
 
 @app.post("/shadow/analyze", response_model=ShadowAnalyzeResponse)
-async def shadow_analyze(req: ShadowAnalyzeRequest):
+async def shadow_analyze(req: ShadowAnalyzeRequest, authorization: Optional[str] = Header(None)):
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        # Shadowing speaks over the audio, so it is always Web Speech (no Azure payload)
+        await _check_english_access(authorization)
+        return await _phrase_analyze_en(req, locale, "shadow")
     return await _phrase_analyze(req, "shadow")
 
 
@@ -2010,6 +2038,7 @@ class WordDrillAnalyzeRequest(BaseModel):
     level: Optional[str] = None
     source: Optional[str] = None  # "practice_list" | "phrase_exercise" | "paragraph_drill"
     mode: Optional[str] = None    # "check" | "drill"
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 _WORD_DRILL_SYSTEM_STRUGGLING = """You are a French pronunciation coach analyzing a student's repeated attempts to say a single word.
@@ -2042,20 +2071,59 @@ The student got this word right most of the time. Give brief, encouraging feedba
 Keep it to 2 sentences max. Be specific to the word. No preamble. Plain text, no markdown."""
 
 
+_WORD_DRILL_SYSTEM_STRUGGLING_EN = """You are an English pronunciation coach for a French-speaking learner, analyzing their repeated attempts to say a single English word.
+
+You are given:
+- The target word (what they should have said)
+- A list of transcribed attempts (what speech recognition captured each time)
+- A hit rate: the fraction of attempts where speech recognition matched the target
+
+Identify the consistent pattern across attempts — what phoneme or feature is the student struggling with (typical French-speaker traps: th, the aspirated h, short vs long vowels, word stress).
+
+Return a concise coaching note (2-4 sentences) covering:
+1. The specific sound or pattern they're missing
+2. One body-mechanics cue (lip/tongue position, airflow)
+3. One practical tip to improve
+
+WRITE IN FRENCH. The English word itself and any IPA stay in English.
+Be direct and specific. No preamble. Plain text, no markdown."""
+
+_WORD_DRILL_SYSTEM_SOLID_EN = """You are an English pronunciation coach for a French-speaking learner, reviewing their drill results for a single English word.
+
+You are given:
+- The target word
+- A list of transcribed attempts
+- A hit rate: the fraction of attempts where speech recognition matched the target
+
+The student got this word right most of the time. Give brief, encouraging feedback that:
+1. Confirms what they're doing well (1 sentence)
+2. Notes any minor inconsistency worth watching, or a refinement tip if all attempts were perfect
+
+WRITE IN FRENCH. The English word itself and any IPA stay in English.
+Keep it to 2 sentences max. Be specific to the word. No preamble. Plain text, no markdown."""
+
+
 def _word_drill_hit_rate(word: str, attempts: list) -> float:
-    target = re.sub(r"[^\w]", "", word.lower())
-    hits = sum(1 for a in attempts if re.sub(r"[^\w]", "", a.lower()) == target)
+    # Attempts may be a carrier phrase ("le verre"), so the word counts if it
+    # appears as a whole token, not only when it is the whole attempt
+    target = " " + " ".join(re.findall(r"\w+", word.lower())) + " "
+    hits = sum(1 for a in attempts if target in " " + " ".join(re.findall(r"\w+", a.lower())) + " ")
     return hits / len(attempts) if attempts else 0.0
 
 
 @app.post("/analyze_word_drill")
-async def analyze_word_drill(req: WordDrillAnalyzeRequest):
+async def analyze_word_drill(req: WordDrillAnalyzeRequest, authorization: Optional[str] = Header(None)):
     if not req.word or not req.attempts:
         return {"feedback": "No attempts to analyze."}
+    locale = _resolve_locale(req.locale)
+    english = _lang.lang_of(locale) == "en"
+    if english:
+        await _check_english_access(authorization)
 
     hit_rate = _word_drill_hit_rate(req.word, req.attempts)
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "word_attempted", {
+            **({"locale": locale} if english else {}),
             "exercise_type": "word",
             "mode": req.mode or "drill",
             "source": req.source,
@@ -2064,7 +2132,10 @@ async def analyze_word_drill(req: WordDrillAnalyzeRequest):
             "attempts": len(req.attempts),
             "score": round(hit_rate, 3),
         }, req.visit_id)
-    system = _WORD_DRILL_SYSTEM_SOLID if hit_rate >= 0.6 else _WORD_DRILL_SYSTEM_STRUGGLING
+    if english:
+        system = _WORD_DRILL_SYSTEM_SOLID_EN if hit_rate >= 0.6 else _WORD_DRILL_SYSTEM_STRUGGLING_EN
+    else:
+        system = _WORD_DRILL_SYSTEM_SOLID if hit_rate >= 0.6 else _WORD_DRILL_SYSTEM_STRUGGLING
     attempts_text = "\n".join(f"- {a}" for a in req.attempts)
     prompt = f"Target word: {req.word}\nHit rate: {hit_rate:.0%}\n\nAttempts:\n{attempts_text}"
 
@@ -2401,9 +2472,12 @@ async def custom_delete(entry_id: str):
 
 
 @app.post("/custom/start")
-async def custom_start(req: CustomStartRequest):
+async def custom_start(req: CustomStartRequest, authorization: Optional[str] = Header(None)):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) == "en":
+        await _check_english_access(authorization)
     valid_types = {"phrase", "paragraph", "story"}
     content_type = req.content_type if req.content_type in valid_types else "paragraph"
     if content_type == "phrase":
@@ -2414,7 +2488,7 @@ async def custom_start(req: CustomStartRequest):
         raise HTTPException(status_code=400, detail="No content found in text")
     if content_type == "phrase":
         return {"sentences": sentences, "full_audio_url": None, "content_type": "phrase"}
-    audio_file = await generate_library_audio(req.text.strip(), DEFAULT_CHIRP_VOICE)
+    audio_file = await generate_library_audio(req.text.strip(), default_chirp_voice(locale))
     return {
         "sentences": sentences,
         "full_audio_url": f"/audio/{audio_file}",
@@ -2424,30 +2498,80 @@ async def custom_start(req: CustomStartRequest):
 
 # ── Practice list routes ────────────────────────────────────────────────────────
 
+async def _practice_lang(lang: Optional[str], authorization: Optional[str]) -> str:
+    """The practice list's study language: absent means French; English is beta-gated."""
+    lang = lang or "fr"
+    if lang not in _lang.SUPPORTED:
+        raise HTTPException(status_code=400, detail="Unsupported lang: {}".format(lang))
+    if lang == "en":
+        await _check_english_access(authorization)
+    return lang
+
+
 @app.get("/practice-list")
-async def get_practice_list():
-    return {"items": pl.get_all()}
+async def get_practice_list(lang: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    return {"items": pl.get_all(await _practice_lang(lang, authorization))}
 
 
 @app.post("/practice-list")
-async def add_to_practice_list(req: PracticeWordRequest):
+async def add_to_practice_list(req: PracticeWordRequest, authorization: Optional[str] = Header(None)):
+    lang = await _practice_lang(req.lang, authorization)
     entry_type = req.entry_type if req.entry_type in ("word", "phrase", "paragraph") else "word"
-    entry = pl.add_word(req.word, req.tip, req.source_phrase, req.article, entry_type)
+    entry = pl.add_word(req.word, req.tip, req.source_phrase, req.article, entry_type, lang)
     return {"status": "ok", "item": entry}
 
 
+def _valid_carrier(word: str, carrier: str) -> bool:
+    """A carrier must be short (≤ 4 words) and contain the word exactly as saved."""
+    if not carrier or len(carrier.split()) > 4:
+        return False
+    return re.search(r"(?<![\w])" + re.escape(word.lower()) + r"(?![\w])", carrier.lower()) is not None
+
+
+def _pronunciation_prompt_en(word: str) -> str:
+    # English list: the learner is a French speaker, so the tip is written in French
+    # (as the English feedback prompts are); the word and its IPA stay in English.
+    return (
+        f'For the English word or phrase "{word}", return a JSON object with two fields:\n'
+        '- "tip": the word followed by its IPA transcription in slashes, em-dash, one body-mechanics cue '
+        'written in French for a French-speaking learner (tongue placement for th, aspirated h, vowel length, '
+        'silent letters, word stress). Max 20 words total.\n'
+        '- "carrier": the SHORTEST natural English phrase (2 or 3 words) that contains the word exactly as given '
+        '(same spelling, same form), so speech recognition hears it reliably. Put one short word before it: '
+        'a noun takes a determiner (the, a, my); a verb takes a subject (I, you, we, they) or "to" for a base '
+        'form; an adjective takes "very" or "so"; an adverb takes "so" or "very". If the word has a common '
+        'homophone, choose the frame that rules it out (write → "to write", right → "all right"). '
+        'If the input is already a multi-word phrase, return it unchanged.\n\n'
+        'Examples:\n'
+        '{"tip": "thought /θɔːt/ — langue entre les dents pour le th, le gh est muet", "carrier": "we thought"}\n'
+        '{"tip": "bread /brɛd/ — le ea se prononce comme un è court, d final bien net", "carrier": "the bread"}\n'
+        '{"tip": "happy /ˈhæpi/ — h expiré, accent sur la première syllabe", "carrier": "very happy"}\n\n'
+        'Return only the JSON object. No extra text.'
+    )
+
+
 @app.get("/practice-list/pronunciation")
-async def get_word_pronunciation(word: str):
-    prompt = (
+async def get_word_pronunciation(word: str, lang: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    lang = await _practice_lang(lang, authorization)
+    # Single words are unreliable for STT: with no context the recogniser often
+    # picks a homophone or drops the word. A 2–3 word carrier phrase with a firm
+    # consonant onset (le / de / je / très …) gives it enough to lock on.
+    prompt = _pronunciation_prompt_en(word) if lang == "en" else (
         f'For the French word or phrase "{word}", return a JSON object with two fields:\n'
         '- "tip": the word followed by its IPA transcription in slashes, em-dash, one body-mechanics cue '
         '(lip position, tongue placement, nasal vs. oral airflow, or silent letter). Max 20 words total.\n'
-        '- "article": the correct definite article — le, la, l\', or les. '
-        'For a verb use "je". For a fixed phrase with no natural article use "".\n\n'
+        '- "carrier": the SHORTEST natural French phrase (2 or 3 words) that contains the word exactly as given '
+        '(same spelling, same form), so speech recognition hears it reliably. Put one short word with a firm '
+        'consonant before it: a noun takes its determiner (le, la, l\', les, un, une, des, du, de); a verb takes '
+        'its subject (je, tu, il, nous, vous, ils) or "pour" for an infinitive; an adjective takes "très" or '
+        '"c\'est"; an adverb takes "c\'est" or "très". If the word has a common homophone, choose the frame that '
+        'rules it out (verre → "le verre", vert → "c\'est vert"). If the input is already a multi-word phrase, '
+        'return it unchanged.\n\n'
         'Examples:\n'
-        '{"tip": "cathédrale /ka.te.dʁal/ — uvular \'r\', final \'e\' is silent", "article": "la"}\n'
-        '{"tip": "pain /pɛ̃/ — nasal vowel, mouth slightly open, no N sound at the end", "article": "le"}\n'
-        '{"tip": "m\'appelle /ma.pɛl/ — lips forward on the \'a\', final \'l\' is light", "article": "je"}\n\n'
+        '{"tip": "cathédrale /ka.te.dʁal/ — uvular \'r\', final \'e\' is silent", "carrier": "la cathédrale"}\n'
+        '{"tip": "pain /pɛ̃/ — nasal vowel, mouth slightly open, no N sound at the end", "carrier": "du pain"}\n'
+        '{"tip": "parlez /paʁ.le/ — final \'z\' is silent, lips spread on the \'é\'", "carrier": "vous parlez"}\n'
+        '{"tip": "heureux /ø.ʁø/ — rounded lips, silent \'h\' and \'x\'", "carrier": "très heureux"}\n\n'
         'Return only the JSON object. No extra text.'
     )
     if _mistral is None:
@@ -2461,42 +2585,24 @@ async def get_word_pronunciation(word: str):
     try:
         data = json.loads(content)
         tip = data.get("tip", "").strip()
-        article = data.get("article", "").strip()
+        carrier = data.get("carrier", "").strip()
     except Exception:
         tip = content
-        article = ""
-    if article:
-        pl.update_article(word, article)
-    return {"tip": tip, "article": article}
-
-
-@app.get("/practice-list/context-phrase")
-async def get_context_phrase(word: str):
-    prompt = (
-        f'Generate one short, natural French sentence (8–14 words) that includes the word or phrase "{word}". '
-        'The sentence should be conversational and help a learner hear the word in real flow. '
-        'Return a JSON object with two fields: "phrase" (the French sentence) and "translation" (English translation). '
-        'Example: {"phrase": "Le boulanger pétrit le pain chaque matin.", "translation": "The baker kneads the bread every morning."}\n'
-        'Return only the JSON object. No extra text.'
-    )
-    if _mistral is None:
-        raise HTTPException(status_code=503, detail="API key not configured")
-    resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
-        model="mistral-small-latest",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=120,
-    ))
-    content = resp.choices[0].message.content.strip()
-    try:
-        data = json.loads(content)
-        return {"phrase": data.get("phrase", "").strip(), "translation": data.get("translation", "").strip()}
-    except Exception:
-        return {"phrase": content, "translation": ""}
+        carrier = ""
+    # Keep a saved word's carrier stable, so the learner practises the same phrase each time
+    saved = pl.get_word(word, lang)
+    if saved and _valid_carrier(word, saved.get("carrier", "")):
+        carrier = saved["carrier"]
+    elif _valid_carrier(word, carrier):
+        pl.update_carrier(word, carrier, lang)
+    else:
+        carrier = ""
+    return {"tip": tip, "carrier": carrier}
 
 
 @app.delete("/practice-list/{word}")
-async def remove_from_practice_list(word: str):
-    removed = pl.remove_word(word)
+async def remove_from_practice_list(word: str, lang: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    removed = pl.remove_word(word, await _practice_lang(lang, authorization))
     if not removed:
         raise HTTPException(status_code=404, detail="Word not found")
     return {"status": "deleted"}
@@ -3390,9 +3496,57 @@ Rules:
 Return ONLY the raw JSON object, no markdown fences, no extra text."""
 
 
+_SPEAKING_PROMPT_SYSTEM_EN = """You generate English speaking prompts for French-speaking learners of English practising free oral production.
+Generate a brief, clear, inviting prompt in English that asks the learner to SPEAK aloud for 20-40 seconds.
+The prompt must be natural, personal, and easy to talk about out loud — calibrated to the CEFR level and topic.
+The topic may be given in French; write the prompt in English anyway.
+
+CEFR guidelines:
+- A1: Very simple personal prompts (introduce yourself, your family, what you like)
+- A2: Describe a daily routine, a place you know, or what you did recently
+- B1: Give an opinion or tell a short story with a reason
+- B2: Argue a position, compare two things, or describe an experience in detail
+- C1: Nuanced reflection, a hypothetical situation, or an abstract topic
+
+Favour prompts that invite a spoken monologue ("Tell me about…", "Describe…", "What do you think about…", "Explain…").
+Keep it to one or two sentences. Return ONLY the English prompt text — no quotes, no French, no explanation."""
+
+_SPEAKING_CHECK_SYSTEM_EN = """You are a warm, encouraging English speaking coach for a French-speaking learner. The learner spoke aloud in response to a prompt and their words were captured by speech-to-text, so IGNORE missing punctuation, capitalisation, and obvious transcription glitches — judge only the English they evidently produced.
+
+The learner was asked (in English): {prompt}
+They said (speech-to-text transcript): {response}
+Their CEFR level: {level}
+
+Your goal is to TEACH and BUILD CONFIDENCE. Unlike a strict grader, you SHOW the better version and explain why — briefly and kindly.
+
+WRITE ALL EXPLANATIONS IN FRENCH. The learner's words and your corrected versions stay in English.
+
+Return a JSON object with exactly these fields:
+{{
+  "overall": "2-3 warm sentences in French: name what they managed to communicate, then frame the next step positively",
+  "strengths": ["1-3 specific, concrete things they did well — a correct structure, a good word choice, a clear idea (in French)"],
+  "corrections": [
+    {{
+      "said": "the phrase as they said it (English)",
+      "better": "a natural, correct English version",
+      "why": "one short, plain-French reason the learner can act on — name the rule simply"
+    }}
+  ],
+  "level_up": "optional: one English word or expression that would make their answer sound more natural, with a short French gloss in parentheses. Empty string if nothing to add."
+}}
+
+Rules:
+- Be supportive first. ALWAYS find at least one genuine strength.
+- Give AT MOST 3 corrections — only the highest-value ones, never every small slip. If the English is essentially correct, return an empty corrections array and celebrate that in "overall".
+- Corrections SHOW the fix (this is teaching, not testing). Keep each "why" to one sentence, calibrated to {level}.
+- Never be harsh or discouraging. Do not assign scores or grades.
+Return ONLY the raw JSON object, no markdown fences, no extra text."""
+
+
 class SpeakingPromptRequest(BaseModel):
     level: str = "B1"
     topic: str = "la vie quotidienne"
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 class SpeakingCheckRequest(BaseModel):
@@ -3403,16 +3557,20 @@ class SpeakingCheckRequest(BaseModel):
     session_id: Optional[str] = None
     access_code: Optional[str] = None
     visit_id: Optional[str] = None
+    locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
 
 
 @app.post("/speaking/prompt")
-async def speaking_prompt(req: SpeakingPromptRequest):
+async def speaking_prompt(req: SpeakingPromptRequest, authorization: Optional[str] = Header(None)):
     if _mistral is None:
         raise HTTPException(status_code=503, detail="Mistral not configured")
+    english = _lang.lang_of(_resolve_locale(req.locale)) == "en"
+    if english:
+        await _check_english_access(authorization)
     resp = await asyncio.to_thread(lambda: _mistral.chat.complete(
         model="mistral-small-latest",
         messages=[
-            {"role": "system", "content": _SPEAKING_PROMPT_SYSTEM},
+            {"role": "system", "content": _SPEAKING_PROMPT_SYSTEM_EN if english else _SPEAKING_PROMPT_SYSTEM},
             {"role": "user", "content": f"CEFR level: {req.level}\nTopic: {req.topic}"},
         ],
         temperature=0.9,
@@ -3423,13 +3581,17 @@ async def speaking_prompt(req: SpeakingPromptRequest):
 
 
 @app.post("/speaking/check")
-async def speaking_check(req: SpeakingCheckRequest):
+async def speaking_check(req: SpeakingCheckRequest, authorization: Optional[str] = Header(None)):
     if _mistral is None:
         raise HTTPException(status_code=503, detail="Mistral not configured")
     if not req.prompt.strip() or not req.response.strip():
         raise HTTPException(status_code=400, detail="prompt and response are required")
+    locale = _resolve_locale(req.locale)
+    english = _lang.lang_of(locale) == "en"
+    if english:
+        await _check_english_access(authorization)
 
-    system = _SPEAKING_CHECK_SYSTEM.format(
+    system = (_SPEAKING_CHECK_SYSTEM_EN if english else _SPEAKING_CHECK_SYSTEM).format(
         prompt=req.prompt,
         response=req.response,
         level=req.level,
@@ -3454,6 +3616,7 @@ async def speaking_check(req: SpeakingCheckRequest):
         corrections = result.get("corrections", []) or []
         word_count = len(req.response.split())
         _analytics.track(req.session_id, req.access_code, "speaking_attempted", {
+            **({"locale": locale} if english else {}),
             "exercise_type": "speaking",
             "level": req.level,
             "topic": req.topic,

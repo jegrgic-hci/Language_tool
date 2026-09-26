@@ -253,12 +253,20 @@
     .phv-side > .phv-tiles            { order: 2; }
     .phv-side > #phv-word-list        { order: 3; }
     .phv-side > #phv-pass-tiles       { order: 4; }   /* Next + Auto advance, at the bottom */
-    /* Tiles rise in reading order — Attempt, Highest accuracy, Skip, Meaning —
-       though JS appends Skip after Meaning in the DOM */
-    #phv-tiles.is-visible > #phrase-action-tile  { animation-delay: 300ms; }
-    #phv-tiles.is-visible > #phrase-meaning-tile { animation-delay: 360ms; }
-    /* Meaning open takes a full row; Skip takes its row too, so no cell sits empty */
+    /* Grid: This session (full row, on top) / Attempt · Highest accuracy /
+       Skip · Meaning. Tiles rise in that reading order (Skip is appended by JS,
+       after Meaning in the DOM). Whichever of Skip / Meaning would sit alone —
+       Meaning after a pass (Skip moves to the pass row), Skip while Meaning is
+       open — spans the row, so no cell is left empty. */
+    #phv-tiles > #phrase-passed-tile  { grid-column: 1 / -1; }
+    #phv-tiles > #phrase-action-tile  { order: 1; }
+    #phv-tiles > #phrase-meaning-tile { order: 2; }
+    #phv-tiles:not(:has(> #phrase-action-tile:not([hidden]))) > #phrase-meaning-tile,
     #phv-tiles:has(> #phrase-meaning-tile.is-open) > #phrase-action-tile { grid-column: 1 / -1; }
+    #phv-tiles.is-visible > #phrase-attempt-best-row { animation-delay: 300ms; }
+    #phv-tiles.is-visible > #phrase-action-tile      { animation-delay: 360ms; }
+    #phv-tiles.is-visible > #phrase-meaning-tile     { animation-delay: 420ms; }
+    #phrase-nudge:empty { display: none; }
     @media (min-width: 1200px) {
       #phrase-view .pv-col.is-split {
         max-width: 1120px;
@@ -764,9 +772,6 @@
     .psdp-score-bar-fill.fail   { background: var(--pa-fail); }
     .psdp-tip { font-family: var(--pa-font-sans); font-size: var(--vk-type-label-md); color: var(--vk-fg-2); margin: -4px 0 8px; }
     .psdp-section-label { font-family: var(--pa-font-sans); font-size: var(--vk-type-label-md); color: var(--vk-fg-2); margin: 14px 0 6px; }
-    #practice-psdp-context-block { margin-top: 4px; }
-    .psdp-context-phrase { font-family: var(--vkg-font-sans); font-size: var(--vk-type-body-md); color: var(--vk-fg-1); line-height: 1.5; margin-bottom: 4px; }
-    .psdp-context-translation { font-family: var(--pa-font-sans); font-size: var(--vk-type-label-md); color: var(--vk-fg-2); margin-bottom: 8px; font-style: italic; }
 
     /* ── Drill tray buttons ── */
 
@@ -1249,7 +1254,7 @@
       background: var(--vk-surface);
       border: 1px solid var(--vk-border-mid);
       padding: 24px;
-      width: 340px;
+      width: min(420px, calc(100vw - 32px));
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -1259,7 +1264,7 @@
       font-size: var(--vk-type-label-md);
       color: var(--vk-fg-2);
     }
-    #pl-add-input { width: 100%; }
+    #pl-add-input { width: 100%; resize: vertical; min-height: 48px; }
     #pl-add-type-row { display: flex; align-items: center; gap: 10px; }
     #pl-add-type-label {
       font-family: var(--pa-font-sans);
@@ -2969,7 +2974,7 @@
                 </button>
               </span>
               <span class="phv-toolbar-spacer"></span>
-              <button class="phv-save-btn fr-only" id="phrase-save-btn" title="Save phrase to library">
+              <button class="phv-save-btn" id="phrase-save-btn" title="Save phrase to library">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
               </button>
               <button class="phv-toolbar-btn fr-only" id="phrase-syllable-btn" onclick="toggleSyllableLine()" title="Show syllables">SYL</button>
@@ -2993,10 +2998,10 @@
                 </div>
                 <div class="pa-bar pa-lp">
                   <div class="pa-bar-fill pa-lp-fill" style="width:0%"></div>
-                  <span class="pa-bar-thresh at-90"></span>
+                  <span class="pa-bar-thresh at-90" id="phrase-pass-thresh"></span>
                 </div>
                 <div class="pa-bar-scale">
-                  <span class="at-90">90</span>
+                  <span class="at-90" id="phrase-pass-label">90</span>
                 </div>
               </div>
             </div>
@@ -3008,6 +3013,10 @@
 
             <div id="phrase-dict-trigger-row" style="display:none;"></div>
           </div>
+
+          <!-- Session nudge — step down a level / slow down, after 3 phrases in a row
+               that didn't pass (_showStruggleNudge) -->
+          <div id="phrase-nudge" hidden></div>
 
           <!-- First-run guide (pvGuide*) -->
           <div class="pv-guide" id="phrase-guide" style="display:none;" role="status" aria-live="polite"></div>
@@ -3042,6 +3051,19 @@
               desktop after the first attempt; stacked below otherwise. -->
          <div class="phv-side">
           <div class="phv-tiles" id="phv-tiles">
+            <!-- Session passes, full width on top; the pips fill toward the next
+                 milestone (every 5) — _renderSessionTile() -->
+            <div class="phv-tile" id="phrase-passed-tile">
+              <span class="phv-tile-label">This session</span>
+              <span class="phv-tile-value"><span id="phrase-session-passed">0</span><small>passed</small></span>
+              <div class="phv-attempt-pips" id="phrase-session-pips" aria-hidden="true">
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+                <span class="phv-attempt-pip"></span>
+              </div>
+            </div>
             <div class="phv-tile">
               <span class="phv-tile-label">Attempt</span>
               <span class="phv-tile-value"><span id="phrase-attempt-meta">0</span><small>of 10</small></span>
@@ -3319,7 +3341,7 @@
           <div class="hub-row-controls">
             <div id="sd-hub-styles">
               <button class="vk-filter-chip hub-subject-chip active" data-style="story" onclick="selectSdStyle(this)">Story</button>
-              <button class="vk-filter-chip hub-subject-chip" data-style="vocabulary" onclick="selectSdStyle(this)">Vocabulary</button>
+              <button class="vk-filter-chip hub-subject-chip fr-only" data-style="vocabulary" onclick="selectSdStyle(this)">Vocabulary</button>
             </div>
           </div>
         </div>
@@ -3449,10 +3471,10 @@
                 </span>
               </div>
               <div class="pv-card-top-right">
-                <button id="para-save-btn" class="pv-action-btn fr-only" aria-label="Save paragraph to library">
+                <button id="para-save-btn" class="pv-action-btn" aria-label="Save paragraph to library">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
                 </button>
-                <button id="para-add-word-btn" class="pv-action-btn fr-only">+ word</button>
+                <button id="para-add-word-btn" class="pv-action-btn">+ word</button>
                 <button id="para-blur-btn" class="pa-bubble-eye" onclick="toggleParaBlur()" aria-label="Toggle blur">
                   <svg id="para-blur-icon-visible" width="15" height="15" viewBox="0 0 16 16" fill="none">
                     <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z" stroke="currentColor" stroke-width="1.3"/>
@@ -3731,7 +3753,7 @@
       <div class="hub-intro">
         <span class="hub-intro-eyebrow">Practice List</span>
         <h2 class="hub-intro-heading">Drill the words you've saved</h2>
-        <p class="hub-intro-text">Items saved from your exercises, organised by type. Play native audio, record yourself, and get scored. Short words are embedded in a carrier phrase to ensure reliable speech recognition.</p>
+        <p class="hub-intro-text">Items saved from your exercises, organised by type. Listen to a native voice, say it aloud, and see how clearly it was understood. Single words are practised inside a short phrase, like <span id="practice-intro-example">"le verre"</span>, so speech recognition picks them up reliably.</p>
       </div>
       <span id="practice-count-label" style="display:none"></span>
       <div id="practice-tabs" class="vk-tabs is-block">
@@ -3739,7 +3761,7 @@
         <button class="vk-tab" data-tab="phrase">Phrases</button>
         <button class="vk-tab" data-tab="paragraph">Paragraphs</button>
       </div>
-      <button id="pl-add-fab" class="pa-fab" title="Add a word or phrase" aria-label="Add a word or phrase">
+      <button id="pl-add-fab" class="pa-fab" title="Add a word, phrase or paragraph" aria-label="Add a word, phrase or paragraph">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
       <div id="practice-content">
@@ -3786,25 +3808,6 @@
             <div id="practice-psdp-word-log" class="word-check-log"></div>
           </div>
           <div id="practice-psdp-drill-panel" class="pa-wi-drill"></div>
-
-          <div id="practice-psdp-context-block" style="display:none; border-top: 1px solid var(--vk-border); margin-top: 16px; padding-top: 4px;">
-            <div class="psdp-section-label">In context</div>
-            <div id="practice-psdp-context-phrase" class="psdp-context-phrase">…</div>
-            <div id="practice-psdp-context-translation" class="psdp-context-translation"></div>
-            <div class="psdp-controls" style="margin-top:8px;">
-              <button class="pa-ctrl pa-ctrl-play is-outline is-sm para-replay-btn psdp-context-play-btn" id="practice-psdp-context-play-btn" title="Play phrase" disabled>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <polygon points="4,2 13,8 4,14" fill="currentColor"/>
-                </svg>
-              </button>
-              <button class="pa-ctrl pa-ctrl-play para-mic-btn" id="practice-psdp-context-mic-btn" title="Practise phrase" disabled>
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-                  <rect x="5" y="1" width="6" height="9" rx="3" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M3 8a5 5 0 0010 0M8 13v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-              </button>
-            </div>
-          </div>
 
           <div id="practice-psdp-live-transcript" style="display:none;">
             <span class="speech-input-label">Speech input</span>
@@ -4691,8 +4694,8 @@
       </div>
       <div id="speaking-hub-content">
 
-        <!-- Warm-up (Azure-scored articulation warm-up before a lesson) -->
-        <div class="pv-card hub-feature-card">
+        <!-- Warm-up (Azure-scored articulation warm-up before a lesson) — French tongue-twisters -->
+        <div class="pv-card hub-feature-card fr-only">
           <div class="pv-live-label" style="color:var(--vk-accent-text);">Before you start</div>
           <div class="sp-prompt-text" style="margin-top:4px;">Pronunciation warm-up</div>
           <p class="hub-row-desc" style="margin:8px 0 14px;">Loosen up with French tongue-twisters and sound drills, scored on the actual sounds you make (Azure, when running locally). Say each one, get instant per-sound feedback.</p>
@@ -4731,11 +4734,11 @@
             <div id="speaking-hub-topics">
               <button class="vk-filter-chip hub-subject-chip active" data-topic="la vie quotidienne" onclick="selectSpeakingTopic(this)">Daily life</button>
               <button class="vk-filter-chip hub-subject-chip" data-topic="la nature" onclick="selectSpeakingTopic(this)">Nature</button>
-              <button class="vk-filter-chip hub-subject-chip" data-topic="la culture française" onclick="selectSpeakingTopic(this)">French culture</button>
+              <button class="vk-filter-chip hub-subject-chip fr-only" data-topic="la culture française" onclick="selectSpeakingTopic(this)">French culture</button>
               <button class="vk-filter-chip hub-subject-chip" data-topic="la gastronomie" onclick="selectSpeakingTopic(this)">Food</button>
               <button class="vk-filter-chip hub-subject-chip" data-topic="les voyages" onclick="selectSpeakingTopic(this)">Travel</button>
               <button class="vk-filter-chip hub-subject-chip" data-topic="le travail" onclick="selectSpeakingTopic(this)">Work</button>
-              <button class="vk-filter-chip hub-subject-chip" data-topic="Marseille" onclick="selectSpeakingTopic(this)">Marseille</button>
+              <button class="vk-filter-chip hub-subject-chip fr-only" data-topic="Marseille" onclick="selectSpeakingTopic(this)">Marseille</button>
             </div>
             <div class="vocab-custom-row">
               <input id="speaking-custom-topic-input" class="vk-input" type="text" placeholder="Custom topic…" maxlength="80"
@@ -5342,6 +5345,17 @@
         </section>
 
         <section class="acct-section">
+          <h2 class="acct-section-title">Practice</h2>
+          <p class="acct-section-desc">Phrase pass mark: how many of a phrase's words you need to match for it to count as passed. Saved on this device.</p>
+          <div class="vk-seg" id="acct-pass-mark" role="group" aria-label="Phrase pass mark">
+            <button type="button" data-mark="60" onclick="setPhrasePassMark(60)">60%</button>
+            <button type="button" data-mark="70" onclick="setPhrasePassMark(70)">70%</button>
+            <button type="button" data-mark="80" onclick="setPhrasePassMark(80)">80%</button>
+            <button type="button" data-mark="90" onclick="setPhrasePassMark(90)">90%</button>
+          </div>
+        </section>
+
+        <section class="acct-section">
           <h2 class="acct-section-title">Change password</h2>
           <div class="acct-field">
             <label class="acct-label" for="acct-cur-pw">Current password</label>
@@ -5425,12 +5439,13 @@
 <div id="pl-add-modal">
   <div id="pl-add-modal-card">
     <div id="pl-add-modal-label">Add to practice list</div>
-    <input id="pl-add-input" class="vk-input" type="text" placeholder="Enter a word or phrase…" maxlength="120" autocomplete="off" />
+    <textarea id="pl-add-input" class="vk-input" rows="3" placeholder="Enter a word, phrase or paragraph…" maxlength="2000" autocomplete="off"></textarea>
     <div id="pl-add-type-row">
       <span id="pl-add-type-label">Save as</span>
       <div id="pl-add-type-toggle" class="vk-seg">
         <button class="pl-type-btn active" data-type="word">Word</button>
         <button class="pl-type-btn" data-type="phrase">Phrase</button>
+        <button class="pl-type-btn" data-type="paragraph">Paragraph</button>
       </div>
       <span id="pl-add-auto-hint">auto-detected</span>
     </div>
@@ -6224,7 +6239,8 @@
   const STUDY_LANG_BADGE = { fr: 'FR', en: 'EN' };
   const STUDY_LANG_NAME  = { fr: 'Français', en: 'English' };
   // Views available while studying English (v1: Speaking phrases + Flashcards).
-  const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'paragraph-hub', 'phrase', 'paragraph', 'vocab-hub', 'vocab']);
+  const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'paragraph-hub', 'phrase', 'paragraph', 'vocab-hub', 'vocab', 'practice',
+                              'shadow-hub', 'shadow-drill', 'speaking-hub', 'speaking']);
   let studyLocale = 'fr-FR';   // locale of the current item (en-US / en-GB while studying English)
   let enAccent = 'both';
 
@@ -6301,9 +6317,21 @@
         const story = document.querySelector('#hub-styles [data-style="story"]');
         if (story) selectStyleChip(story);
       }
+      if (_sdStyle !== 'story') {
+        const story = document.querySelector('#sd-hub-styles [data-style="story"]');
+        if (story) selectSdStyle(story);
+      }
+      if (['la culture française', 'Marseille'].includes(speakingTopic)) {
+        const daily = document.querySelector('#speaking-hub-topics [data-topic="la vie quotidienne"]');
+        if (daily) selectSpeakingTopic(daily);
+      }
     }
     // Rail / bottom bar / tabs hide exercises English doesn't have yet (and empty areas).
     renderNav();
+    // Each study language keeps its own practice list.
+    updatePracticeCount();
+    const plExample = document.getElementById('practice-intro-example');
+    if (plExample) plExample.textContent = english ? '"the bread"' : '"le verre"';
     // Same filter for the exercise tiles on Home.
     document.querySelectorAll('.home-action[data-action-key]').forEach(el => {
       el.style.display = english && !EN_VIEWS.has(el.dataset.actionKey) ? 'none' : '';
@@ -6547,9 +6575,11 @@
       // and a longer delay while the result is still interim. This prevents the
       // timer from firing mid-word when Chrome briefly drops the audio stream.
       const lastResult = e.results[e.results.length - 1];
-      const silenceDelay = lastResult.isFinal ? 2500 : 4000;
+      let silenceDelay = lastResult.isFinal ? 2500 : 4000;
 
       if (currentView === 'phrase' || phraseInTray) {
+        // After the A1 "no rush" nudge, pauses get more room (_showStruggleNudge)
+        if (phraseSession && phraseSession.patientMic) silenceDelay += 1500;
         _showPhraseTranscript(t || '…');
         silenceTimeoutId = setTimeout(() => {
           if (document.getElementById('phrase-mic-btn').classList.contains('listening')) {
@@ -7233,6 +7263,7 @@
       customPhraseQueue  = [];
       customPhraseIndex  = 0;
       currentPhrase = '';
+      _newPhraseSession();
       setShadowLevel(shadowingLevel);
       switchView('phrase');
     } else if (mode === 'paragraph') {
@@ -7319,6 +7350,7 @@
     _sdAttemptCount = 0;
     _sdListenCount  = 0;
     _sdPhraseId     = crypto.randomUUID();
+    rollStudyLocale();   // English: this phrase's accent (US / UK) for its voice and recognizer
     // Reset UI
     _sdPhrase = ''; _sdNounAdj = []; _sdAudioUrl = null;
     _sdFinalBuffer = ''; _sdAccumulated = '';
@@ -7346,10 +7378,10 @@
     if (revealSec)   revealSec.style.display = 'none';
 
     try {
-      const res = await fetch('/shadow/phrase', {
+      const res = await apiFetch('/shadow/phrase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: _sdLevel, topic: _sdTopic, style: _sdStyle, ...getAnalyticsFields() }),
+        body: JSON.stringify({ level: _sdLevel, topic: _sdTopic, style: _sdStyle, ...getAnalyticsFields(), locale: studyLocale }),
       });
       if (!res.ok) throw new Error('phrase fetch failed');
       const data = await res.json();
@@ -7402,7 +7434,7 @@
     if (autoLabel) autoLabel.textContent = 'Scoring…';
 
     try {
-      const res = await fetch('/shadow/analyze', {
+      const res = await apiFetch('/shadow/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -7414,6 +7446,7 @@
           topic: _sdTopic,
           phrase_id: _sdPhraseId,
           listen_count: _sdListenCount,
+          locale: studyLocale,
         }),
       });
       if (!res.ok) throw new Error('analyze failed');
@@ -7727,10 +7760,10 @@
 
   async function startCustomPhrasePractice(text) {
     try {
-      const res = await fetch('/custom/start', {
+      const res = await apiFetch('/custom/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, content_type: 'phrase' }),
+        body: JSON.stringify({ text, content_type: 'phrase', locale: studyLocale }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -7738,8 +7771,8 @@
       customPhraseIndex  = 0;
       isCustomPhraseMode = true;
       shadowLevel        = 'A1';
-      shadowPassStreak   = 0;
       currentPhrase      = '';
+      _newPhraseSession();
       switchView('phrase');
     } catch (err) {
       console.error('startCustomPhrasePractice failed:', err);
@@ -7758,10 +7791,10 @@
     document.getElementById('para-full-text').classList.remove('is-blurred');
 
     try {
-      const res = await fetch('/custom/start', {
+      const res = await apiFetch('/custom/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, content_type: 'paragraph' }),
+        body: JSON.stringify({ text, content_type: 'paragraph', locale: studyLocale }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -7790,7 +7823,6 @@
   let currentNounAdjTokens = [];
   let isBlurred          = false;
   let shadowLevel        = 'A1';
-  let shadowPassStreak   = 0;
   let isPhraseLoading    = false;
   let phraseAdvanceTimer = null;
   let phraseAttemptNumber = 0;
@@ -7798,8 +7830,38 @@
   let phraseListenCount   = 0;
   let phraseHighestScore  = -1;
   let currentPhraseId     = null;
-  const SHADOW_AUTO_ADVANCE = 3;
   let phraseAutoAdvance = false;
+  // Phrase pass mark (% of words to match): Account settings → Practice, saved on
+  // this device. Drives the server's `passed`, the pass colour and the bar marker.
+  const PASS_MARKS = [60, 70, 80, 90];
+  let phrasePassMark = (() => {
+    let v = 70;
+    try { v = parseInt(localStorage.getItem('ft_phrase_pass_mark'), 10); } catch {}
+    return PASS_MARKS.includes(v) ? v : 70;
+  })();
+
+  function setPhrasePassMark(mark) {
+    if (!PASS_MARKS.includes(mark)) return;
+    phrasePassMark = mark;
+    try { localStorage.setItem('ft_phrase_pass_mark', String(mark)); } catch {}
+    _applyPhrasePassMark();
+  }
+
+  // The phrase score bar's pass marker + label, and the settings control
+  function _applyPhrasePassMark() {
+    const thresh = document.getElementById('phrase-pass-thresh');
+    const label  = document.getElementById('phrase-pass-label');
+    if (thresh) thresh.style.left = phrasePassMark + '%';
+    if (label) { label.style.left = phrasePassMark + '%'; label.textContent = String(phrasePassMark); }
+    document.querySelectorAll('#acct-pass-mark > button').forEach(b => {
+      const on = parseInt(b.dataset.mark, 10) === phrasePassMark;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  document.addEventListener('DOMContentLoaded', _applyPhrasePassMark);
+  let phraseSession     = null;    // the running session — _newPhraseSession()
+  let phrasePassCounted = false;   // this phrase has already counted as a session pass
 
   function _resetPhrasePips() {
     const pips = document.querySelectorAll('#phrase-attempt-pips .phv-attempt-pip');
@@ -7838,7 +7900,7 @@
       const bestEl = document.getElementById('phrase-attempt-best');
       const text = phraseHighestScore + '%';
       if (bestEl && bestEl.textContent !== text) {
-        const tier = phraseHighestScore >= 90 ? 'is-pass' : phraseHighestScore >= 60 ? 'is-progress' : phraseHighestScore >= 40 ? 'is-almost' : 'is-fail';
+        const tier = phraseHighestScore >= phrasePassMark ? 'is-pass' : phraseHighestScore >= 60 ? 'is-progress' : phraseHighestScore >= 40 ? 'is-almost' : 'is-fail';
         bestEl.className = 'phv-attempt-best ' + tier;
         bestEl.textContent = text;
         _landValue(bestEl);   // a new best settles in, same motion as the score
@@ -8169,14 +8231,243 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function setShadowLevel(level) {
     if (!_SHADOW_LEVELS.includes(level)) level = 'A1';
     shadowLevel = level;
-    shadowPassStreak = 0;
+    if (phraseSession) {
+      phraseSession.levelPasses = [];
+      phraseSession.nonPassStreak = 0;
+      phraseSession.patientMic = false;   // a new level starts on the standard silence window
+    }
     _syncLevelChip('phrase');
+  }
+
+  // ── Phrase session: passes, milestones, level suggestions ─────────────────
+  // A session runs from Start (hub or custom phrases); nothing to set up. It
+  // counts passes (≥ the pass mark, once per phrase) in the This session tile, marks every
+  // 5th with a milestone (every 10th also lists the words that slipped, to
+  // save), and suggests the next level after 10 strong passes (7+ within 3
+  // attempts). After 3 phrases in a row that didn't pass it suggests one level
+  // lower, naming the sound focus if one is on — or at A1, says there's no rush
+  // and gives the mic a longer silence window. Suggestions never change the
+  // level on their own; custom phrases, coach focus and the drill tray get none.
+  const SESSION_MILESTONE_EVERY = 5;
+  const LEVEL_UP_WINDOW = 10, LEVEL_UP_STRONG = 7, LEVEL_UP_MAX_ATTEMPTS = 3;
+  const STRUGGLE_STREAK = 3, STRUGGLE_GAP = 10;   // at most one step-down nudge per 10 phrases
+  const PATIENT_MIC_RECOVERED = 3;                 // passes in a row that end the longer silence window
+
+  const SESSION_MILESTONES = {
+    5:  { fr: 'Cinq dans la poche !', en: 'Five passed. You’re warmed up now.' },
+    10: { fr: 'Dix ! Et ça continue.', en: 'Ten passed. That’s a proper session.' },
+    15: { fr: 'Quinze. Rien ne vous arrête.', en: 'Fifteen passed. Nothing’s stopping you.' },
+    20: { fr: 'Vingt ! Chapeau bas.', en: 'Twenty passed. Take a bow, then keep going if you like.' },
+  };
+  const STRUGGLE_SOUND_LINES = {
+    liaison: lvl => `Liaisons are one of the hardest parts of French, so this is normal. Shorter phrases make them easier to catch. Try liaisons at ${lvl}?`,
+    nasal:   lvl => `Nasal vowels are one of the hardest parts of French, so this is normal. Shorter phrases make them easier to catch. Try nasal vowels at ${lvl}?`,
+    u_vowel: lvl => `The French u sound (as in tu, sur) is one of the hardest parts of French, so this is normal. Shorter phrases make it easier to catch. Try it at ${lvl}?`,
+  };
+
+  function _newPhraseSession() {
+    // patientMic: the A1 "no rush" nudge's longer mic silence window. Lasts
+    // until 3 passes in a row, a level change, or a new session.
+    phraseSession = { passes: 0, levelPasses: [], nonPassStreak: 0, sinceNudge: STRUGGLE_GAP, slipped: {},
+                      patientMic: false, patientPasses: 0 };
+    phrasePassCounted = false;
+    _renderSessionTile(false);
+    _hidePhraseNudge();
+  }
+
+  function _levelSuggestionsOn() {
+    return !isCustomPhraseMode && !phraseInTray
+      && !(coachFocusWords.length && coachFocusIndex < coachFocusWords.length);
+  }
+
+  function _renderSessionTile(land) {
+    const n = phraseSession ? phraseSession.passes : 0;
+    const el = document.getElementById('phrase-session-passed');
+    el.textContent = String(n);
+    if (land) _landValue(el);
+    const filled = n === 0 ? 0 : (n % SESSION_MILESTONE_EVERY || SESSION_MILESTONE_EVERY);
+    document.querySelectorAll('#phrase-session-pips .phv-attempt-pip').forEach((p, i) => {
+      p.className = 'phv-attempt-pip' + (i < filled ? ' is-pass' : '');
+    });
+  }
+
+  // After each scored attempt (phrase view only). Returns 'offer' (a level
+  // suggestion is waiting for an answer), 'milestone', or null — auto advance
+  // holds for an offer and lingers on a milestone.
+  function _sessionRecordAttempt(data) {
+    if (phraseInTray) return null;
+    if (!phraseSession) _newPhraseSession();
+    const s = phraseSession;
+    (data.feedback || []).forEach(f => {
+      const w = (f.target_word || '').trim();
+      if (!w) return;
+      const k = w.toLowerCase();
+      const e = s.slipped[k] || (s.slipped[k] = { word: w, count: 0 });
+      e.count++;
+      e.tip = f.tip || e.tip || '';
+      e.phrase = currentPhrase;
+    });
+    if (!data.passed || phrasePassCounted) return null;
+
+    phrasePassCounted = true;
+    s.passes++;
+    s.nonPassStreak = 0;
+    s.levelPasses.push(phraseAttemptNumber);
+    if (s.patientMic && ++s.patientPasses >= PATIENT_MIC_RECOVERED) s.patientMic = false;
+    _hidePhraseNudge();
+    _renderSessionTile(true);
+
+    const list = document.getElementById('phv-word-list');
+    const offer = _levelUpOffer();
+    const milestone = s.passes % SESSION_MILESTONE_EVERY === 0 ? _milestoneEl(s.passes) : null;
+    if (offer) list.prepend(offer);
+    if (milestone) {
+      // The milestone takes the 100% cheer's place; "Words to work on" stays
+      list.querySelectorAll(':scope > .pa-cheer, :scope > .pv-pass-label').forEach(el => el.remove());
+      list.prepend(milestone);
+    }
+    if (offer || milestone) list.style.display = '';
+    return offer ? 'offer' : milestone ? 'milestone' : null;
+  }
+
+  // Moving on from a phrase (Next, Skip, auto advance). Tried and not passed
+  // counts toward the step-down nudge.
+  function _sessionMoveOn() {
+    const tried = phraseAttemptNumber > 0, passed = phrasePassCounted;
+    phrasePassCounted = false;
+    if (!phraseSession || !tried) return;
+    const s = phraseSession;
+    s.sinceNudge++;
+    if (passed) return;
+    s.nonPassStreak++;
+    s.patientPasses = 0;
+    if (s.nonPassStreak >= STRUGGLE_STREAK && s.sinceNudge >= STRUGGLE_GAP) {
+      s.nonPassStreak = 0;
+      s.sinceNudge = 0;
+      _showStruggleNudge();
+    }
+  }
+
+  function _levelUpOffer() {
+    const s = phraseSession;
+    const idx = _SHADOW_LEVELS.indexOf(shadowLevel);
+    if (!_levelSuggestionsOn() || idx < 0 || idx >= _SHADOW_LEVELS.length - 1) return null;
+    if (s.levelPasses.length < LEVEL_UP_WINDOW) return null;
+    const strong = s.levelPasses.slice(-LEVEL_UP_WINDOW).filter(n => n <= LEVEL_UP_MAX_ATTEMPTS).length;
+    if (strong < LEVEL_UP_STRONG) return null;
+    s.levelPasses = [];   // ask again only after another 10 passes
+    const next = _SHADOW_LEVELS[idx + 1];
+    return _nudgeEl(
+      `You’re on a roll: ${strong} of your last ${LEVEL_UP_WINDOW} passed within three tries. Ready for ${next}?`,
+      [{ label: `Try ${next}`, primary: true, act: () => _sessionChangeLevel(next) },
+       { label: `Stay at ${shadowLevel}` }]);
+  }
+
+  function _showStruggleNudge() {
+    const idx = _SHADOW_LEVELS.indexOf(shadowLevel);
+    let el;
+    if (idx > 0 && _levelSuggestionsOn()) {
+      const lower = _SHADOW_LEVELS[idx - 1];
+      const soundLine = studyLang() === 'fr' && STRUGGLE_SOUND_LINES[shadowingSoundFocus];
+      el = _nudgeEl(
+        soundLine ? soundLine(lower)
+          : `You’re pushing yourself, and that’s good. But when every phrase is a fight, it’s harder to learn from it. Want to try ${lower} for a while?`,
+        [{ label: soundLine ? `Try at ${lower}` : `Try ${lower}`, primary: true, act: () => _sessionChangeLevel(lower) },
+         { label: 'Keep going' }]);
+    } else {
+      // Nowhere lower to go: reassure, and give pauses more room from here on
+      phraseSession.patientMic = true;
+      phraseSession.patientPasses = 0;
+      const actions = [{ label: 'Keep going' }];
+      if (audioPlaybackRate > 0.75) actions.unshift({ label: 'Slow the audio down', primary: true, act: () => setPlaybackSpeed(0.75) });
+      el = _nudgeEl('There’s no rush. You don’t need to match the speed of the recording. Say it slowly and clearly, one word at a time if that helps. We’ll wait until you’ve finished.', actions);
+    }
+    const slot = document.getElementById('phrase-nudge');
+    slot.replaceChildren(el);
+    slot.hidden = false;
+  }
+
+  function _hidePhraseNudge() {
+    const slot = document.getElementById('phrase-nudge');
+    if (!slot) return;
+    slot.hidden = true;
+    slot.replaceChildren();
+  }
+
+  function _sessionChangeLevel(level) {
+    _hidePhraseNudge();
+    setShadowLevel(level);
+    fetchNextPhrase();
+  }
+
+  // A suggestion card: text + actions. Every action dismisses the card first.
+  function _nudgeEl(text, actions) {
+    const el = document.createElement('div');
+    el.className = 'phv-nudge';
+    el.setAttribute('role', 'status');
+    const p = document.createElement('p');
+    p.className = 'phv-nudge-text';
+    p.textContent = text;
+    const row = document.createElement('div');
+    row.className = 'phv-nudge-actions';
+    actions.forEach(a => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'vk-btn sm ' + (a.primary ? 'vk-btn-tonal' : 'vk-btn-text');
+      b.textContent = a.label;
+      b.addEventListener('click', () => {
+        if (el.parentNode && el.parentNode.id === 'phrase-nudge') _hidePhraseNudge(); else el.remove();
+        if (a.act) a.act();
+      });
+      row.appendChild(b);
+    });
+    el.append(p, row);
+    return el;
+  }
+
+  // Milestone card — the 100% cheer's look; every 10th also lists the words
+  // that slipped this session, each one tap to save to the practice list.
+  function _milestoneEl(n) {
+    const line = SESSION_MILESTONES[n] || { fr: `${n} phrases réussies !`, en: `${n} passed. Still going strong.` };
+    const el = document.createElement('div');
+    el.className = 'pa-cheer';
+    el.setAttribute('role', 'status');
+    el.innerHTML =
+      '<span class="pa-cheer-burst" aria-hidden="true">' + '<i></i>'.repeat(8) + '</span>' +
+      `<p class="pa-cheer-fr" lang="fr">${line.fr}</p>` +
+      `<p class="pa-cheer-en">${line.en}</p>`;
+    const slipped = n % 10 === 0
+      ? Object.values(phraseSession.slipped).sort((a, b) => b.count - a.count).slice(0, 6) : [];
+    if (slipped.length) {
+      const wrap = document.createElement('div');
+      wrap.className = 'pa-cheer-beaten';
+      wrap.innerHTML = '<span class="pa-cheer-beaten-label">Words that slipped, tap to save</span>';
+      slipped.forEach(m => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pa-cheer-save';
+        b.lang = studyLang();
+        b.title = 'Save to your practice list';
+        b.innerHTML = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>${esc(m.word)}<small>×${m.count}</small>`;
+        b.addEventListener('click', async () => {
+          if (b.classList.contains('is-saved')) return;
+          b.classList.add('is-saved');
+          b.querySelector('svg path').setAttribute('fill', 'currentColor');
+          try { await addToPracticeList(m.word, m.tip || '', m.phrase || ''); updatePracticeCount(); }
+          catch { b.classList.remove('is-saved'); b.querySelector('svg path').setAttribute('fill', 'none'); }
+        });
+        wrap.appendChild(b);
+      });
+      el.appendChild(wrap);
+    }
+    return el;
   }
 
   async function fetchNextPhrase() {
     if (phraseAdvanceTimer) { clearTimeout(phraseAdvanceTimer); phraseAdvanceTimer = null; }
     if (isPhraseLoading) return;
     isPhraseLoading = true;
+    _sessionMoveOn();
     phraseAttemptNumber = 0;
     phraseMissCounts    = {};
     phraseListenCount   = 0;
@@ -8216,10 +8507,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           return;
         }
         const phrase = customPhraseQueue[customPhraseIndex++];
-        const ttsRes = await fetch('/tts', {
+        const ttsRes = await apiFetch('/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: phrase }),
+          body: JSON.stringify(ttsRequestBody(phrase)),
         });
         if (!ttsRes.ok) throw new Error(`TTS HTTP ${ttsRes.status}`);
         const ttsData = await ttsRes.json();
@@ -8446,7 +8737,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         body: JSON.stringify({
           target: currentPhrase, transcription: text, confidence, noun_adj_tokens: currentNounAdjTokens,
           ...getAnalyticsFields(), level: shadowLevel, topic: shadowingTopic, attempt_number: phraseAttemptNumber, phrase_id: currentPhraseId, listen_count: phraseListenCount, sound_focus: activeSoundFocus(),
-          locale: studyLocale, azure_json: azureJson || undefined,
+          locale: studyLocale, azure_json: azureJson || undefined, pass_mark: phrasePassMark / 100,
         }),
       });
       const data = await res.json();
@@ -8455,21 +8746,17 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       if (wait > 0) await new Promise(r => setTimeout(r, wait));
       renderFeedback(data, text, undefined, confidence);
       pvGuideEvent('phrase', 'scored');
+      const note = _sessionRecordAttempt(data);
 
       if (data.passed) {
-        shadowPassStreak++;
-        const nextIdx = _SHADOW_LEVELS.indexOf(shadowLevel) + 1;
-        if (shadowPassStreak >= SHADOW_AUTO_ADVANCE && nextIdx < _SHADOW_LEVELS.length) {
-          setShadowLevel(_SHADOW_LEVELS[nextIdx]);
-        }
         if (coachFocusWords.length && coachFocusIndex < coachFocusWords.length) {
           advanceCoachFocus();
         }
-        if (phraseAutoAdvance) {
-          phraseAdvanceTimer = setTimeout(() => { phraseAdvanceTimer = null; fetchNextPhrase(); }, 1500);
+        // A level offer waits for an answer; a milestone gets time to be read
+        if (phraseAutoAdvance && note !== 'offer') {
+          phraseAdvanceTimer = setTimeout(() => { phraseAdvanceTimer = null; fetchNextPhrase(); },
+            note === 'milestone' ? 4000 : 1500);
         }
-      } else {
-        shadowPassStreak = 0;
       }
     } catch {
       _hidePhraseStatus();
@@ -8480,7 +8767,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (!container) container = document.getElementById('phv-score-block');
     const pct    = Math.round(data.score * 100);
     const passed = data.passed;
-    const tier   = pct >= 90 ? 'is-pass' : pct >= 60 ? 'is-progress' : pct >= 40 ? 'is-almost' : 'is-fail';
+    // Green follows the server's verdict, so it matches whatever pass mark applied
+    const tier   = passed ? 'is-pass' : pct >= 60 ? 'is-progress' : pct >= 40 ? 'is-almost' : 'is-fail';
 
     const scoreWrap = container.querySelector('.pa-score');
     scoreWrap.className = 'pa-score ' + tier;
@@ -8865,7 +9153,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     });
 
     const actionsRow = document.createElement('div');
-    actionsRow.className = 'pa-wi-actions fr-only';  // practice list + word drill are French-only for now
+    actionsRow.className = 'pa-wi-actions';
     actionsRow.appendChild(micBtn);
     actionsRow.appendChild(drillBtn);
     actionsRow.appendChild(saveBtn);
@@ -8880,6 +9168,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let _wordDrillSR = null;
   let _wordDrillAttempts = [];
   let _wordDrillSource = null;
+  let _wordDrillCarrier = '';
   let _wordCheckSource = null;
   const _WORD_DRILL_MAX = 10;
 
@@ -8887,9 +9176,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (_wordDrillSR) { try { _wordDrillSR.stop(); } catch(e){} _wordDrillSR = null; }
   }
 
-  function startWordDrill(word, container, triggerBtn, source) {
+  function startWordDrill(word, container, triggerBtn, source, carrier) {
     _wordDrillAttempts = [];
     _wordDrillSource = source || null;
+    _wordDrillCarrier = carrier || '';
     _renderWordDrillState(word, container, triggerBtn);
     _recordWordDrillAttempt(word, container, triggerBtn);
   }
@@ -8899,7 +9189,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const done = count >= _WORD_DRILL_MAX;
     container.innerHTML = done
       ? `<div id="wd-analysis" class="pa-wd-transcript">Analyzing…</div>`
-      : `<div class="pa-wd-meta">Attempt ${count + 1} / ${_WORD_DRILL_MAX}</div>
+      : `<div class="pa-wd-meta">Attempt ${count + 1} / ${_WORD_DRILL_MAX}${_wordDrillCarrier ? ` · say "${esc(_wordDrillCarrier)}"` : ''}</div>
          <div class="pa-wd-transcript" id="wd-transcript">…</div>
          ${_wordDrillAttempts.map((a, i) => `<div class="pa-wd-meta">attempt ${i+1}: ${esc(a)}</div>`).join('')}`;
     if (done) _analyzeWordDrillAttempts(word, container, triggerBtn);
@@ -8940,10 +9230,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function _analyzeWordDrillAttempts(word, container, triggerBtn) {
     try {
-      const resp = await fetch('/analyze_word_drill', {
+      const resp = await apiFetch('/analyze_word_drill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word, attempts: _wordDrillAttempts, session_id: sessionId, access_code: _activeAccessCode(), visit_id: visitId, source: _wordDrillSource, mode: 'drill' }),
+        body: JSON.stringify({ word, attempts: _wordDrillAttempts, session_id: sessionId, access_code: _activeAccessCode(), visit_id: visitId, source: _wordDrillSource, mode: 'drill', locale: studyLocale }),
       });
       const data = await resp.json();
       const el = container.querySelector('#wd-analysis');
@@ -8957,11 +9247,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   // ── Practice list ──────────────────────────────────────────────────────────
+  // The practice list is kept per study language; English calls need the auth header (beta gate).
+  function plQuery() { return 'lang=' + studyLang(); }
+
   async function addToPracticeList(word, tip, sourcePhrase, entryType) {
-    await fetch('/practice-list', {
+    await apiFetch('/practice-list', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word, tip, source_phrase: sourcePhrase, entry_type: entryType || 'word' }),
+      body: JSON.stringify({ word, tip, source_phrase: sourcePhrase, entry_type: entryType || 'word', lang: studyLang() }),
     });
   }
 
@@ -8975,8 +9268,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     let selectedType = 'word';
     let userOverrode = false;
 
+    // One word → word; two or more sentences (or a long run of text) → paragraph
     function detectType(text) {
-      return text.trim().split(/\s+/).filter(Boolean).length > 1 ? 'phrase' : 'word';
+      const t = text.trim();
+      const words = t.split(/\s+/).filter(Boolean).length;
+      const sentences = t.split(/[.!?…]+(?:\s+|$)/).filter(x => x.trim()).length;
+      if ((sentences >= 2 && words >= 6) || words > 25) return 'paragraph';   // ≥ 6 words: "Mr. Smith" stays a phrase
+      return words > 1 ? 'phrase' : 'word';
     }
 
     function setType(type, isAuto) {
@@ -8998,6 +9296,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     });
 
     function openPlModal() {
+      // Name the list the item goes into (each study language has its own)
+      document.getElementById('pl-add-modal-label').textContent =
+        `Add to your ${studyLang() === 'en' ? 'English' : 'French'} practice list`;
       input.value = '';
       userOverrode = false;
       setType('word', true);
@@ -9014,7 +9315,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       if (!word) return;
       await addToPracticeList(word, '', '', selectedType);
       // Switch to the tab that will show the newly added item
-      activePracticeTab = selectedType === 'phrase' ? 'phrase' : 'word';
+      activePracticeTab = selectedType;
       document.querySelectorAll('#practice-tabs .vk-tab').forEach(b =>
         b.classList.toggle('active', b.dataset.tab === activePracticeTab)
       );
@@ -9023,7 +9324,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       input.placeholder = '✓ Added';
       setTimeout(() => {
         closePlModal();
-        input.placeholder = 'Enter a word or phrase…';
+        input.placeholder = 'Enter a word, phrase or paragraph…';
       }, 800);
     }
 
@@ -9032,7 +9333,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('pl-add-confirm').addEventListener('click', confirmPlAdd);
     modal.addEventListener('click', e => { if (e.target === modal) closePlModal(); });
     input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') confirmPlAdd();
+      // Enter adds; Shift+Enter keeps a line break in a pasted paragraph
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmPlAdd(); }
       if (e.key === 'Escape') closePlModal();
     });
   })();
@@ -9041,10 +9343,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   async function saveToLibrary(text, contentType, btn) {
     if (!text || text === '—') return;
     const entryType = contentType === 'paragraph' ? 'paragraph' : 'phrase';
-    await fetch('/practice-list', {
+    await apiFetch('/practice-list', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word: text, tip: '', entry_type: entryType }),
+      body: JSON.stringify({ word: text, tip: '', entry_type: entryType, lang: studyLang() }),
     });
     updatePracticeCount();
     if (btn) {
@@ -9123,7 +9425,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function updatePracticeCount() {
     try {
-      const { items } = await fetch('/practice-list').then(r => r.json());
+      const { items } = await apiFetch('/practice-list?' + plQuery()).then(r => r.json());
       _cachedPracticeItems = items;
       const words = items.filter(i => (i.type || 'word') === 'word');
       document.getElementById('practice-badge').textContent = items.length;
@@ -9152,14 +9454,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const body = document.createElement('div');
         body.className = 'pl-card-body';
 
-        const articleEl = document.createElement('span');
-        articleEl.className = 'practice-article';
-        if (item.article) articleEl.textContent = item.article + ' ';
-
+        let resolvedCarrier = wordCarrier(item.word, item.carrier, item.article);
         const word = document.createElement('div');
         word.className = 'practice-word';
-        word.appendChild(articleEl);
-        word.appendChild(document.createTextNode(item.word));
+        fillCarrier(word, item.word, resolvedCarrier);
         body.appendChild(word);
 
         const tipEl = document.createElement('div');
@@ -9168,14 +9466,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         body.appendChild(tipEl);
         card.appendChild(body);
 
-        let resolvedArticle = item.article || null;
-        fetch(`/practice-list/pronunciation?word=${encodeURIComponent(item.word)}`)
+        apiFetch(`/practice-list/pronunciation?word=${encodeURIComponent(item.word)}&${plQuery()}`)
           .then(r => r.json())
           .then(d => {
             if (d.tip) tipEl.textContent = d.tip;
-            if (d.article) {
-              resolvedArticle = d.article;
-              articleEl.textContent = d.article + ' ';
+            if (d.carrier && d.carrier !== resolvedCarrier) {
+              resolvedCarrier = d.carrier;
+              cachedAudioUrl = null;
+              fillCarrier(word, item.word, resolvedCarrier);
             }
           })
           .catch(() => { if (!item.tip) tipEl.textContent = ''; });
@@ -9196,13 +9494,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           if (cachedAudioUrl) { playAudio(cachedAudioUrl); return; }
           playBtn.disabled = true;
           try {
-            const ttsText = resolvedArticle
-              ? (resolvedArticle.endsWith("'") ? resolvedArticle + item.word : resolvedArticle + ' ' + item.word)
-              : item.word;
-            const d = await fetch('/tts', {
+            const d = await apiFetch('/tts', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: ttsText }),
+              body: JSON.stringify(ttsRequestBody(resolvedCarrier || item.word)),
             }).then(r => r.json());
             cachedAudioUrl = d.audio_url;
             playAudio(cachedAudioUrl);
@@ -9215,7 +9510,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         practiceBtn.className = 'vk-btn vk-btn-outline-accent sm';
         practiceBtn.textContent = 'Practice';
         practiceBtn.addEventListener('click', () => {
-          enterWordDrill(item.word, tipEl.textContent || item.tip || '', item.word, resolvedArticle, true);
+          enterWordDrill(item.word, tipEl.textContent || item.tip || '', item.word, resolvedCarrier, true);
         });
         footerLeft.appendChild(practiceBtn);
         footer.appendChild(footerLeft);
@@ -9224,7 +9519,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         del.className = 'vk-btn vk-btn-ghost sm pl-delete-btn';
         del.textContent = 'Remove';
         del.addEventListener('click', async () => {
-          await fetch('/practice-list/' + encodeURIComponent(item.word), { method: 'DELETE' });
+          await apiFetch('/practice-list/' + encodeURIComponent(item.word) + '?' + plQuery(), { method: 'DELETE' });
           card.remove();
           _cachedPracticeItems = _cachedPracticeItems.filter(i => i.id !== item.id);
           updatePracticeCount();
@@ -9281,10 +9576,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           if (cachedAudioUrl) { playAudio(cachedAudioUrl); return; }
           playBtn.disabled = true;
           try {
-            const d = await fetch('/tts', {
+            const d = await apiFetch('/tts', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: item.word, voice: 'chirp-default' }),
+              body: JSON.stringify({ ...ttsRequestBody(item.word), voice: 'chirp-default' }),
             }).then(r => r.json());
             cachedAudioUrl = d.audio_url;
             playAudio(cachedAudioUrl);
@@ -9326,7 +9621,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function loadPracticeList() {
     try {
-      const { items } = await fetch('/practice-list').then(r => r.json());
+      const { items } = await apiFetch('/practice-list?' + plQuery()).then(r => r.json());
       _cachedPracticeItems = items;
       const words = items.filter(i => (i.type || 'word') === 'word');
       document.getElementById('practice-badge').textContent = items.length;
@@ -9442,6 +9737,41 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   const CHECK_DURATION = 30;
 
+  // Single words are unreliable for STT, so a practice word is spoken inside a
+  // short carrier phrase ("le verre", "vous parlez") from /practice-list/pronunciation.
+  // Legacy entries only have an article; build the phrase from it until a carrier arrives.
+  function wordCarrier(word, carrier, article) {
+    if (carrier) return carrier;
+    if (article) return article.endsWith("'") ? article + word : article + ' ' + word;
+    return '';
+  }
+
+  // The prompt shown while Active Listening waits for speech, in the study language
+  function wordCheckHint(word, carrierPhrase) {
+    if (studyLang() === 'en') {
+      return carrierPhrase ? `Say: "${carrierPhrase}"` : `Try: "the ${word}", "a ${word}", "I ${word}"…`;
+    }
+    return carrierPhrase ? `Dis : "${carrierPhrase}"` : `Essaie : "le ${word}", "la ${word}", "je ${word}"…`;
+  }
+
+  // Show a carrier phrase in el with the frame words muted, so the word stays the focus
+  function fillCarrier(el, word, carrier) {
+    el.textContent = '';
+    const phrase = carrier || word;
+    const i = phrase.toLowerCase().indexOf(word.toLowerCase());
+    if (i < 0) { el.textContent = phrase; return; }
+    const muted = t => {
+      if (!t) return;
+      const span = document.createElement('span');
+      span.className = 'practice-article';
+      span.textContent = t;
+      el.appendChild(span);
+    };
+    muted(phrase.slice(0, i));
+    el.appendChild(document.createTextNode(phrase.slice(i, i + word.length)));
+    muted(phrase.slice(i + word.length));
+  }
+
 
   function resetCheckBtn(micBtn) {
     micBtn.textContent = 'Practice';
@@ -9462,20 +9792,20 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     practicePanel.appendChild(interimEl);
     practicePanel.appendChild(logEl);
 
-    let resolvedArticle = null;
-    let articleFetched = false;
+    let resolvedCarrier = null;
+    let carrierFetched = false;
 
     micBtn.addEventListener('click', async () => {
       if (activeCheckCard && activeCheckCard.card === item) { stopWordCheck(); return; }
-      if (!articleFetched) {
-        articleFetched = true;
+      if (!carrierFetched) {
+        carrierFetched = true;
         try {
-          const d = await fetch(`/practice-list/pronunciation?word=${encodeURIComponent(word)}`).then(r => r.json());
-          if (d.article) resolvedArticle = d.article;
+          const d = await apiFetch(`/practice-list/pronunciation?word=${encodeURIComponent(word)}&${plQuery()}`).then(r => r.json());
+          if (d.carrier) resolvedCarrier = d.carrier;
         } catch {}
       }
       _wordCheckSource = source || null;
-      startWordCheck(word, item, micBtn, interimEl, logEl, resolvedArticle, practicePanel);
+      startWordCheck(word, item, micBtn, interimEl, logEl, resolvedCarrier, practicePanel);
     });
 
     return { micBtn, practicePanel };
@@ -9511,6 +9841,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
             source: _wordCheckSource,
             score: parseFloat((hitCount / totalCount).toFixed(3)),
             attempts: totalCount,
+            ...(studyLang() === 'en' ? { locale: studyLocale } : {}),
           },
         })], { type: 'application/json' }));
       } else {
@@ -9522,7 +9853,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     }
   }
 
-  function startWordCheck(word, card, micBtn, interimEl, logEl, article, practicePanel) {
+  function startWordCheck(word, card, micBtn, interimEl, logEl, carrier, practicePanel) {
     if (activeCheckCard && activeCheckCard.card === card) { stopWordCheck(); return; }
     stopWordCheck();
 
@@ -9531,15 +9862,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     let secondsLeft = CHECK_DURATION;
     let lastInterim = '';
-    const carrierPhrase = article
-      ? (article.endsWith("'") ? article + word : article + ' ' + word)
-      : null;
+    const carrierPhrase = carrier || null;
     activeCheckCard = { card, micBtn, interimEl, logEl, practicePanel, timerInterval: null, hitCount: 0, totalCount: 0, userStopped: false };
 
     micBtn.classList.add('listening');
     if (practicePanel) practicePanel.classList.add('active');
     interimEl.classList.add('active');
-    interimEl.textContent = carrierPhrase ? `Dis : "${carrierPhrase}"` : `Essaie : "le ${word}", "la ${word}", "je ${word}"…`;
+    interimEl.textContent = wordCheckHint(word, carrierPhrase);
     logEl.innerHTML = '';
     logEl.classList.add('active');
 
@@ -9591,7 +9920,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
             interimEl.textContent = '…';
           } else {
             lastInterim = r[0].transcript.trim();
-            interimEl.textContent = lastInterim || (carrierPhrase ? `Dis : "${carrierPhrase}"` : `Essaie : "le ${word}", "la ${word}", "je ${word}"…`);
+            interimEl.textContent = lastInterim || wordCheckHint(word, carrierPhrase);
           }
         }
       };
@@ -9636,8 +9965,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let wordDrillWord         = '';
   let wordDrillTip          = '';
   let wordDrillAudioUrl     = '';
-  let wordDrillContextPhrase = '';
-  let isPhraseContextDrill  = false;
 
   // ── State machine helpers ────────────────────────────────────────────────────
   function setParaState(state) {
@@ -9987,10 +10314,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       paraNowSingle = null;
     } else {
       try {
-        const res = await fetch('/tts', {
+        const res = await apiFetch('/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: chunkText, voice: 'chirp-default' }),
+          body: JSON.stringify({ ...ttsRequestBody(chunkText), voice: 'chirp-default' }),
         });
         const data = await res.json();
         paraAudioUrl  = data.audio_url;
@@ -10593,7 +10920,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           <span class="pv-ss-text">${sentHtml}</span>
           <div class="pv-ss-actions">
             <button class="pv-ss-drill-btn" data-idx="${globalIdx}" onclick="enterSentenceDrill(${globalIdx}, this)">Practice</button>
-            <button class="pv-ss-drill-btn pss-save-btn pss-save-icon-btn fr-only" data-sentence="${esc(sent)}" title="Save sentence to library"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
+            <button class="pv-ss-drill-btn pss-save-btn pss-save-icon-btn" data-sentence="${esc(sent)}" title="Save sentence to library"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
           </div>
         </div>
       `;
@@ -10646,7 +10973,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.querySelectorAll('.pv-ss-drill-btn.active').forEach(b => b.classList.remove('active'));
   }
 
-  async function enterWordDrill(word, tip, title, article, isWordEntry) {
+  async function enterWordDrill(word, tip, title, carrier, isWordEntry) {
     isWordDrill = true;
     isSentenceDrill = false;
     wordDrillWord = word;
@@ -10667,9 +10994,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const tray = document.getElementById(trayId);
     tray.querySelector('.psdp-title').textContent = title || 'Word Drill';
 
-    // Display word with article prefix
-    const displayWord = article ? (article.endsWith("'") ? article + word : article + ' ' + word) : word;
-    document.getElementById(textId).textContent = displayWord;
+    // Display the word inside its carrier phrase
+    fillCarrier(document.getElementById(textId), word, carrier);
 
     // Tip (only in practice tray)
     if (inPracticeView) {
@@ -10713,26 +11039,17 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       document.getElementById('practice-psdp-practice-panel').classList.remove('active');
       if (isWordEntry) resetCheckBtn(wordCheckBtn);
 
-      wordDrillContextPhrase = '';
-      isPhraseContextDrill = false;
-      const ctxBlock = document.getElementById('practice-psdp-context-block');
-      ctxBlock.style.display = 'none';
-      document.getElementById('practice-psdp-context-phrase').textContent = '…';
-      document.getElementById('practice-psdp-context-translation').textContent = '';
-      document.getElementById('practice-psdp-context-play-btn').disabled = true;
-      document.getElementById('practice-psdp-context-mic-btn').disabled = true;
     }
 
     tray.classList.add('open');
     document.getElementById(backdropId).classList.add('open');
 
-    // TTS for the word
-    const ttsText = article ? (article.endsWith("'") ? article + word : article + ' ' + word) : word;
+    // TTS for the carrier phrase
     try {
-      const res = await fetch('/tts', {
+      const res = await apiFetch('/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: ttsText }),
+        body: JSON.stringify(ttsRequestBody(carrier || word)),
       });
       const data = await res.json();
       wordDrillAudioUrl = data.audio_url;
@@ -10754,7 +11071,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
               drillPanel.classList.remove('is-open');
               drillPanel.innerHTML = '';
             }
-            startWordCheck(word, practicePanel, wordCheckBtn, wordInterim, wordLog, article, practicePanel);
+            startWordCheck(word, practicePanel, wordCheckBtn, wordInterim, wordLog, carrier, practicePanel);
           };
 
           drillBtn.disabled = false;
@@ -10770,7 +11087,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
               practicePanel.classList.remove('active');
               drillPanel.classList.add('is-open');
               drillBtn.textContent = '✕ Drill';
-              startWordDrill(word, drillPanel, drillBtn, 'practice_list');
+              startWordDrill(word, drillPanel, drillBtn, 'practice_list', carrier);
             }
           };
         } else {
@@ -10783,48 +11100,6 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       }
     } catch (err) {
       console.error('enterWordDrill TTS failed:', err);
-    }
-
-    // Context phrase (only for word entries in practice tray)
-    if (inPracticeView && isWordEntry) {
-      fetch(`/practice-list/context-phrase?word=${encodeURIComponent(word)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (!d.phrase) return;
-          wordDrillContextPhrase = d.phrase;
-          document.getElementById('practice-psdp-context-phrase').textContent = d.phrase;
-          document.getElementById('practice-psdp-context-translation').textContent = d.translation || '';
-          const ctxBlock = document.getElementById('practice-psdp-context-block');
-          ctxBlock.style.display = '';
-
-          // Play button for phrase
-          const playBtn = document.getElementById('practice-psdp-context-play-btn');
-          playBtn.disabled = false;
-          let ctxAudioUrl = null;
-          playBtn.onclick = async () => {
-            if (ctxAudioUrl) { playAudio(ctxAudioUrl); return; }
-            playBtn.disabled = true;
-            try {
-              const r = await fetch('/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: d.phrase, voice: 'chirp-default' }),
-              }).then(x => x.json());
-              ctxAudioUrl = r.audio_url;
-              playAudio(ctxAudioUrl);
-            } catch {}
-            playBtn.disabled = false;
-          };
-
-          // Context mic — scores against the context phrase
-          const ctxMicBtn = document.getElementById('practice-psdp-context-mic-btn');
-          ctxMicBtn.disabled = false;
-          ctxMicBtn.onclick = () => {
-            isPhraseContextDrill = true;
-            togglePracticeDrillMic();
-          };
-        })
-        .catch(() => {});
     }
   }
 
@@ -10902,11 +11177,11 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function handleWordDrillResult(text, confidence) {
     try {
-      const target = isPhraseContextDrill ? wordDrillContextPhrase : wordDrillWord;
-      const res = await fetch('/paragraph/analyze', {
+      const target = wordDrillWord;
+      const res = await apiFetch('/paragraph/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target, transcription: text, confidence, chunk_size: 1 }),
+        body: JSON.stringify({ target, transcription: text, confidence, chunk_size: 1, locale: studyLocale }),
       });
       const data = await res.json();
       renderWordDrillFeedback(data, text, confidence);
@@ -10918,7 +11193,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   async function populateFeedbackTip(tipEl, word, tip) {
     if (tip) { tipEl.textContent = tip; return; }
     try {
-      const d = await fetch(`/practice-list/pronunciation?word=${encodeURIComponent(word)}`).then(r => r.json());
+      const d = await apiFetch(`/practice-list/pronunciation?word=${encodeURIComponent(word)}&${plQuery()}`).then(r => r.json());
       if (d.tip) tipEl.textContent = d.tip;
     } catch {}
   }
@@ -11010,7 +11285,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
       const { micBtn, practicePanel } = attachWordCheckToFeedbackItem(item, f.target_word, 'paragraph_drill');
       const actionsRow = document.createElement('div');
-      actionsRow.className = 'pa-wi-actions fr-only';  // word check + practice list are French-only for now
+      actionsRow.className = 'pa-wi-actions';
       actionsRow.appendChild(micBtn);
       item.appendChild(actionsRow);
       item.appendChild(practicePanel);
@@ -11021,18 +11296,12 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (passed && (data.feedback || []).length === 0) {
       const ok = document.createElement('div');
       ok.style.cssText = 'padding:16px 0; font-family:var(--font-body); color:var(--pa-pass); font-size:var(--vk-type-body-md);';
-      ok.textContent = 'Parfait — well done!';
+      ok.textContent = studyLang() === 'en' ? 'Perfect, well done!' : 'Parfait — well done!';
       itemsEl.appendChild(ok);
     }
 
-    // Re-enable whichever mic was used
-    if (inPracticeView) {
-      const usedMicId = isPhraseContextDrill ? 'practice-psdp-context-mic-btn' : 'practice-para-drill-mic-btn';
-      document.getElementById(usedMicId).disabled = false;
-    } else {
-      document.getElementById(micBtnId).disabled = false;
-    }
-    isPhraseContextDrill = false;
+    // Re-enable the mic
+    document.getElementById(inPracticeView ? 'practice-para-drill-mic-btn' : micBtnId).disabled = false;
   }
 
 
@@ -11106,7 +11375,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
       const { micBtn, practicePanel } = attachWordCheckToFeedbackItem(item, f.target_word);
       const actionsRow = document.createElement('div');
-      actionsRow.className = 'pa-wi-actions fr-only';  // word check + practice list are French-only for now
+      actionsRow.className = 'pa-wi-actions';
       actionsRow.appendChild(micBtn);
       actionsRow.appendChild(addBtn);
       item.appendChild(actionsRow);
@@ -11123,23 +11392,19 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function exitPracticeDrill() {
     isSentenceDrill = false;
     isWordDrill = false;
-    isPhraseContextDrill = false;
     drillAudioUrl = '';
     sentenceDrillIdx = 0;
     wordDrillWord = '';
-    wordDrillContextPhrase = '';
     document.getElementById('practice-drill-tray').classList.remove('open');
     document.getElementById('practice-drill-backdrop').classList.remove('open');
-    // Stop phrase mic or context mic if active
-    ['practice-para-drill-mic-btn', 'practice-psdp-context-mic-btn'].forEach(id => {
-      const mic = document.getElementById(id);
-      if (mic && mic.classList.contains('listening')) {
-        mic.classList.remove('listening');
-        if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
-        userStoppedRecognition = true;
-        recognition && recognition.stop();
-      }
-    });
+    // Stop the phrase mic if active
+    const phraseMic = document.getElementById('practice-para-drill-mic-btn');
+    if (phraseMic && phraseMic.classList.contains('listening')) {
+      phraseMic.classList.remove('listening');
+      if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
+      userStoppedRecognition = true;
+      recognition && recognition.stop();
+    }
     // Stop active word-check or drill if running
     if (activeCheckCard) stopWordCheck();
     stopWordDrill();
@@ -11176,10 +11441,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   async function togglePracticeDrillMic() {
     if (!recognition) return;
-    // Resolve which mic button is the active one (phrase-mode mic or context mic)
-    const phraseMic = document.getElementById('practice-para-drill-mic-btn');
-    const ctxMic = document.getElementById('practice-psdp-context-mic-btn');
-    const btn = (isPhraseContextDrill ? ctxMic : phraseMic) || phraseMic;
+    const btn = document.getElementById('practice-para-drill-mic-btn');
     if (btn.classList.contains('listening')) {
       if (silenceTimeoutId) clearTimeout(silenceTimeoutId);
       userStoppedRecognition = true;
@@ -12928,10 +13190,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     try {
       let url = audioUrl;
       if (!url) {
-        const res = await fetch('/tts', {
+        const res = await apiFetch('/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, voice: 'chirp-default' }),
+          body: JSON.stringify({ ...ttsRequestBody(text), voice: 'chirp-default' }),
         });
         url = (await res.json()).audio_url;
       }
@@ -13557,11 +13819,12 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _speakingSetState('loading');
     const btn = document.getElementById('speaking-generate-btn');
     if (btn) btn.disabled = true;
+    rollStudyLocale();   // English: this prompt's accent (US / UK) for the recognizer
     try {
-      const res = await fetch('/speaking/prompt', {
+      const res = await apiFetch('/speaking/prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: speakingLevel, topic: speakingTopic }),
+        body: JSON.stringify({ level: speakingLevel, topic: speakingTopic, locale: studyLocale }),
       });
       const data = await res.json();
       speakingCurrentPrompt = data.prompt || '';
@@ -13660,7 +13923,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     const btn = document.getElementById('sp-submit-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
     try {
-      const res = await fetch('/speaking/check', {
+      const res = await apiFetch('/speaking/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -13669,6 +13932,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           level: speakingLevel,
           topic: speakingTopic,
           ...getAnalyticsFields(),
+          locale: studyLocale,
         }),
       });
       const data = await res.json();

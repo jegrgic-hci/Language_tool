@@ -41,11 +41,14 @@ Return ONLY valid JSON in this exact shape (no markdown, no extra text):
 
 
 
-def score_attempt(target: str, transcription: str, noun_adj_set=None, lang: str = "fr") -> dict:
+def score_attempt(target: str, transcription: str, noun_adj_set=None, lang: str = "fr",
+                  pass_mark: float = 0.90) -> dict:
     """
     Compare transcription to target using sequence alignment (SequenceMatcher).
     Returns word_results (normalized, used for scoring/mismatches) and
     display_results (aligned to original phrase tokens, used for visual diff).
+    ``pass_mark``: share of words to match for ``passed`` (the phrase view sends
+    the learner's setting; everything else keeps 0.90).
     """
     target_words = _normalize(target, noun_adj_set, phonetic=True, lang=lang)
     said_words = _normalize(transcription, noun_adj_set, phonetic=True, lang=lang)
@@ -64,7 +67,7 @@ def score_attempt(target: str, transcription: str, noun_adj_set=None, lang: str 
 
     return {
         "score": round(score, 3),
-        "passed": score >= 0.90,
+        "passed": score >= pass_mark,
         "mismatches": mismatches,
         "word_results": word_results,
         "display_results": display_results,

@@ -801,6 +801,33 @@
   font-size: var(--vk-type-label-sm);
   font-weight: 500;
 }
+/* Session milestone: "words that slipped" as tonal save chips (a control, not
+   a score — so tonal, not pass-green). Bookmark fills once saved. */
+.pa-cheer-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--vk-tag-radius, 8px);
+  background: var(--vk-tonal);
+  color: var(--vk-on-tonal);
+  font-family: var(--pa-font-sans);
+  font-size: var(--vk-type-body-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--vk-dur-quick) var(--vk-ease);
+}
+.pa-cheer-save svg { width: 12px; height: 12px; flex-shrink: 0; }
+.pa-cheer-save small {
+  font-family: var(--pa-font-mono);
+  font-size: var(--vk-type-label-sm);
+  font-weight: 500;
+}
+.pa-cheer-save:hover  { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+.pa-cheer-save:active { background: color-mix(in srgb, var(--vk-on-tonal) 12%, var(--vk-tonal)); }
+.pa-cheer-save:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+.pa-cheer-save.is-saved { cursor: default; }
 /* Honey burst — eight dots radiating from the top-left, once */
 .pa-cheer-burst {
   position: absolute;
@@ -1490,6 +1517,29 @@
 }
 .phv-meaning-note[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .phv-meaning-chevron { transition: none; } }
+
+/* Session nudge (phv-nudge) — a short suggestion with one or two actions:
+   try the next level (top of the side list, after a pass), step down a level
+   or slow down (under the phrase card). Never blocks; every action dismisses. */
+.phv-nudge {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--vk-card-radius);
+  background: var(--vk-surface);
+  animation: pa-cheer-in 420ms var(--pa-ease-spring) both;
+}
+.phv-nudge-text {
+  margin: 0;
+  font-family: var(--pa-font-sans);
+  font-size: var(--vk-type-body-lg);
+  line-height: 1.5;
+  color: var(--vk-fg-1);
+  text-wrap: pretty;
+}
+.phv-nudge-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (prefers-reduced-motion: reduce) { .phv-nudge { animation: none; } }
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
