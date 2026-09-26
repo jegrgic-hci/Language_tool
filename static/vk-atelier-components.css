@@ -60,7 +60,7 @@
                  pv-speech           (speech block: live → reading back → heard; phrase + paragraph)
                  phv-syllable-line   (syllable breakdown)
                  phv-score-block     (pa-score + pa-transcript after attempt)
-                 phv-auto-row        (auto-advance toggle switch)
+                 phv-auto-row / -tile (auto-advance toggle switch)
                  phv-limit-msg       (attempts-exhausted note)
                  phv-coach-banner    (coach focus word strip)
 
@@ -212,6 +212,45 @@
   box-shadow: var(--vk-elev-fab);
 }
 .pa-ctrl-play   { width: 56px; height: 56px; }
+
+/* Control slot — a loader holds a control's spot while its content loads, then
+   gives way to it: the loader fades and shrinks, the control springs in (e.g.
+   the phrase card's play button). Toggle .is-loading on the slot.
+     <span class="pa-ctrl-slot is-loading"><span class="pa-loader"></span><button class="pa-ctrl …"></span> */
+.pa-ctrl-slot { display: inline-grid; place-items: center; flex-shrink: 0; }
+.pa-ctrl-slot > * { grid-area: 1 / 1; }
+.pa-ctrl-slot > .pa-loader {
+  width: 36px;
+  height: 36px;
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  transition: opacity 150ms var(--vk-ease), transform 250ms var(--vk-ease);
+}
+.pa-ctrl-slot > .pa-ctrl {
+  transition: background var(--vk-dur-quick) var(--vk-ease),
+              opacity 150ms var(--vk-ease),
+              transform 350ms var(--pa-ease-spring),
+              border-radius 450ms var(--pa-ease-spring);
+}
+.pa-ctrl-slot.is-loading > .pa-loader { opacity: 1; transform: none; }
+.pa-ctrl-slot.is-loading > .pa-ctrl   { opacity: 0; transform: scale(0.6); pointer-events: none; }
+/* Record button as the atom (.is-orbit): the record button is a plain circle —
+   the nucleus — and while recording PaOrbitRing draws the gold orbit round it
+   on .pa-rec-orbit (112px for the 80px button, outside the layout, taps pass
+   through to the button). Replaces the rounded-square → pulsing-circle state. */
+.pa-ctrl-slot.is-orbit { position: relative; }
+.pa-ctrl-slot.is-orbit > .pa-ctrl-record,
+.pa-ctrl-slot.is-orbit > .pa-ctrl-record.listening { border-radius: 50%; animation: none; }
+.pa-rec-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 112px;
+  height: 112px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
 .pa-ctrl.is-sm   { width: 44px; height: 44px; }   /* play inside a card toolbar */
 
 .pa-ctrl.is-outline       { background: var(--vk-tonal); color: var(--vk-on-tonal); border: none; }
@@ -1188,7 +1227,8 @@
   gap: 12px;
 }
 .pv-func.is-split > .pv-func-start  { grid-column: 1; justify-self: start; }
-.pv-func.is-split > .pa-ctrl-record { grid-column: 2; }
+.pv-func.is-split > .pa-ctrl-record,
+.pv-func.is-split > .pa-ctrl-slot   { grid-column: 2; }
 .pv-func.is-split > .pv-func-end    { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 8px; }
 /* M3 text button */
 .pv-func-skip {
@@ -1356,6 +1396,58 @@
   100% { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) { .vk-btn-pass { animation: none; } }
+
+/* Action tile (phv-action) — the phrase view's move-on control. Skip (under
+   passing): a tonal "Skip →" tile in the .phv-tiles grid, so it takes the same
+   size as Attempt / Highest accuracy (equal rows); the tonal fill marks it as
+   a control beside those surface (information) tiles. Next (.is-next,
+   after a pass): pass-green, the reward, in the pass row (#phv-pass-tiles, a
+   .phv-tiles grid) beside the tonal Auto advance tile (.phv-auto-tile). Both
+   rows are equal-height grids, so every tile in a row matches.
+     <button class="phv-tile phv-action" type="button">
+       <span class="phv-action-text"><span class="phv-tile-label">…</span>
+         <span class="phv-action-title">…</span></span>
+       <svg class="phv-action-arrow" …/>
+     </button> */
+.phv-action {
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--vk-on-tonal);
+  transition: background var(--vk-dur-quick) var(--vk-ease);
+}
+.phv-tile.phv-action {                 /* beats .phv-tile (declared later): a row, tonal */
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--vk-tonal);
+}
+.phv-action[hidden] { display: none; }
+.phv-action:hover  { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+.phv-action:active { background: color-mix(in srgb, var(--vk-on-tonal) 12%, var(--vk-tonal)); }
+.phv-action:focus-visible { outline: none; box-shadow: var(--vk-focus-ring); }
+.phv-action-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.phv-action-title {
+  font-family: var(--pa-font-sans);
+  font-size: var(--vk-type-title-md);
+  font-weight: 600;
+  color: inherit;
+}
+.phv-action-arrow { width: 24px; height: 24px; flex-shrink: 0; color: inherit; }
+.phv-action.is-next {
+  background: var(--pa-pass);
+  color: var(--pa-on-pass);
+  animation: pa-btn-pass-in 480ms var(--pa-ease-spring) both;
+}
+.phv-action.is-next .phv-tile-label,
+.phv-action.is-next .phv-action-title,
+.phv-action.is-next .phv-action-arrow { color: var(--pa-on-pass); }
+.phv-action.is-next:hover  { background: color-mix(in srgb, var(--pa-on-pass) 10%, var(--pa-pass)); }
+.phv-action.is-next:active { background: color-mix(in srgb, var(--pa-on-pass) 14%, var(--pa-pass)); }
+.phv-action.is-next:focus-visible { box-shadow: 0 0 0 2px var(--vk-bg), 0 0 0 4px var(--pa-pass); }
+@media (prefers-reduced-motion: reduce) { .phv-action.is-next { animation: none; } }
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -1877,7 +1969,7 @@
    Attempt count + highest accuracy as two tonal tiles in the phrase view's
    side column. Hidden until the first attempt (.is-visible). */
 
-.phv-tiles { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.phv-tiles { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; }
 .phv-tiles.is-visible { display: grid; }
 /* Both tiles rise together, staggered 60ms, starting as the card's glide
    settles — never one now and one later. */
@@ -2029,7 +2121,8 @@
 
 
 /* ── Auto-advance toggle ────────────────────────────────────────────────────
-   Small toggle switch positioned left of the controls row. */
+   M3 switch. .phv-auto-row: a bare label + switch; .phv-auto-tile: the phrase
+   view's tonal tile beside the green Next (a .phv-action). */
 
 .phv-auto-row {
   display: flex;
@@ -2062,7 +2155,8 @@
   border-radius: 999px;
   transition: background 150ms, border-color 150ms;
 }
-.phv-auto-row.is-on .phv-auto-track { background: var(--vk-accent); border-color: var(--vk-accent); }
+.phv-auto-row.is-on .phv-auto-track,
+.phv-auto-tile.is-on .phv-auto-track { background: var(--vk-accent); border-color: var(--vk-accent); }
 .phv-auto-thumb {
   width: 12px;
   height: 12px;
@@ -2070,7 +2164,8 @@
   border-radius: 999px;
   transition: transform 250ms var(--pa-ease-spring), width 200ms, height 200ms, background 150ms;
 }
-.phv-auto-row.is-on .phv-auto-thumb { width: 16px; height: 16px; transform: translateX(14px); background: #fff; }
+.phv-auto-row.is-on .phv-auto-thumb,
+.phv-auto-tile.is-on .phv-auto-thumb { width: 16px; height: 16px; transform: translateX(14px); background: #fff; }
 
 
 /* ── Attempts-exhausted note ────────────────────────────────────────────────

@@ -249,8 +249,10 @@
        keeps the single column. */
     .phv-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
     .phv-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .phv-phrase-pending { font-size: var(--vk-type-body-lg); font-weight: 400; color: var(--vk-fg-2); }
     .phv-side > .phv-tiles            { order: 2; }
     .phv-side > #phv-word-list        { order: 3; }
+    .phv-side > #phv-pass-tiles       { order: 4; }   /* Next + Auto advance, at the bottom */
     @media (min-width: 1200px) {
       #phrase-view .pv-col.is-split {
         max-width: 1120px;
@@ -259,7 +261,7 @@
         gap: 24px;
         align-items: start;
       }
-      #phrase-view .pv-col.is-split .phv-tiles { order: 0; }
+      #phrase-view .pv-col.is-split #phv-tiles { order: 0; }
       #phrase-view #phv-word-list.pa-word-list {
         display: flex; flex-direction: column; gap: 12px;
         background: none; border-radius: 0; overflow: visible; margin-top: 0;
@@ -3027,10 +3029,14 @@
           <!-- Utterance card -->
           <div class="pv-card" id="phv-card">
             <div class="phv-toolbar">
-              <button class="pa-ctrl pa-ctrl-play is-outline is-sm" id="phrase-replay-btn" onclick="toggleShadowAudio()" title="Play / Pause" aria-label="Play the phrase" disabled>
-                <svg id="phrase-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                <svg id="phrase-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
-              </button>
+              <!-- Loader while the phrase loads, then it gives way to the play button (_setPhraseLoading) -->
+              <span class="pa-ctrl-slot" id="phrase-play-slot">
+                <span class="pa-loader" aria-hidden="true"></span>
+                <button class="pa-ctrl pa-ctrl-play is-outline is-sm" id="phrase-replay-btn" onclick="toggleShadowAudio()" title="Play / Pause" aria-label="Play the phrase" disabled>
+                  <svg id="phrase-play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  <svg id="phrase-pause-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+                </button>
+              </span>
               <span class="phv-toolbar-spacer"></span>
               <button class="phv-save-btn fr-only" id="phrase-save-btn" title="Save phrase to library">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h10v13l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
@@ -3077,21 +3083,16 @@
 
           <!-- Controls row -->
           <div class="pv-func is-split" id="phrase-actions">
-            <button class="phv-auto-row pv-func-start" id="phrase-auto-advance-btn" onclick="togglePhraseAutoAdvance()" title="Auto-advance to next phrase on pass">
-              <span class="phv-auto-label" id="phrase-auto-advance-label">Auto</span>
-              <span class="phv-auto-track" id="phrase-auto-advance-track">
-                <span class="phv-auto-thumb" id="phrase-auto-advance-thumb"></span>
-              </span>
-            </button>
-            <button class="pa-ctrl pa-ctrl-record" id="phrase-mic-btn" onclick="toggleShadowMic()" title="Repeat the phrase">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z" fill="currentColor"/>
-                <path d="M6 11a6 6 0 0012 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <span class="pv-func-end">
-              <button class="pv-func-skip" id="phrase-skip-btn" onclick="fetchNextPhrase()">skip</button>
-              <button id="phrase-next-btn" class="vk-btn vk-btn-pass" onclick="fetchNextPhrase()" style="display:none;">Next →</button>
+            <!-- Record button as the atom: while recording, gold electrons orbit
+                 the round button and draw the orbit as a ring — _initRecordOrbit() -->
+            <span class="pa-ctrl-slot is-orbit" id="phrase-mic-slot">
+              <button class="pa-ctrl pa-ctrl-record" id="phrase-mic-btn" onclick="toggleShadowMic()" title="Repeat the phrase">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z" fill="currentColor"/>
+                  <path d="M6 11a6 6 0 0012 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <canvas class="pa-rec-orbit" id="phrase-mic-orbit" aria-hidden="true"></canvas>
             </span>
           </div>
 
@@ -3133,6 +3134,24 @@
           </div>
 
           <div id="phv-word-list" class="feedback-items" style="display:none;"></div>
+
+          <!-- Move on — Skip joins the tiles grid (under passing), green Next sits
+               at the bottom (after a pass). _setPhraseAction() places it. -->
+          <button type="button" class="phv-tile phv-action" id="phrase-action-tile" onclick="fetchNextPhrase()" hidden>
+            <span class="phv-action-text">
+              <span class="phv-tile-label" id="phrase-action-label"></span>
+              <span class="phv-action-title" id="phrase-action-title"></span>
+            </span>
+            <svg class="phv-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+
+          <!-- After a pass: green Next (moved in by _setPhraseAction) + Auto advance -->
+          <div class="phv-tiles" id="phv-pass-tiles">
+            <button type="button" class="phv-tile phv-action phv-auto-tile" id="phrase-auto-advance-btn" role="switch" aria-checked="false" onclick="togglePhraseAutoAdvance()" title="Move to the next phrase automatically after a pass">
+              <span class="phv-action-text"><span class="phv-action-title">Auto advance</span></span>
+              <span class="phv-auto-track" id="phrase-auto-advance-track"><span class="phv-auto-thumb" id="phrase-auto-advance-thumb"></span></span>
+            </button>
+          </div>
          </div><!-- /.phv-side -->
 
         </div>
@@ -5485,6 +5504,7 @@
 </div>
 
 </html>
+<script src="/static/pa-voice-atom.js"></script>
 <script>
   // ── Navigation: M3 rail (desktop) · bottom bar (phone) · area tabs ────────
   // One config drives everything. An AREA is a rail destination; its VIEWS are
@@ -7949,7 +7969,9 @@
 
   function togglePhraseAutoAdvance() {
     phraseAutoAdvance = !phraseAutoAdvance;
-    document.getElementById('phrase-auto-advance-btn').classList.toggle('is-on', phraseAutoAdvance);
+    const btn = document.getElementById('phrase-auto-advance-btn');
+    btn.classList.toggle('is-on', phraseAutoAdvance);
+    btn.setAttribute('aria-checked', String(phraseAutoAdvance));
   }
 
   function togglePhraseBlur() {
@@ -8111,10 +8133,10 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _resetPhrasePips();
     setPhraseSplit(false);
     document.getElementById('phrase-limit-msg').style.display = 'none';
-    const _nextBtn = document.getElementById('phrase-next-btn');
-    if (_nextBtn) _nextBtn.style.display = 'none';
-    document.getElementById('phrase-text').innerHTML = loadingHtml('Generating phrase…');
+    _setPhraseAction(null);
+    document.getElementById('phrase-text').innerHTML = '<span class="phv-phrase-pending" role="status">Generating phrase…</span>';
     document.getElementById('phrase-text').classList.remove('is-blurred');
+    _setPhraseLoading(true);
     _hidePhraseStatus();
     rhythmOn = false;
     syllableOn = false;
@@ -8176,12 +8198,22 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         if (!pvGuideHolds('phrase')) playAudio(data.audio_url);
       }
     } catch (err) {
-      document.getElementById('phrase-text').textContent = 'Error — tap skip to retry';
+      document.getElementById('phrase-text').innerHTML =
+        '<span class="phv-phrase-pending">Couldn\'t load a phrase.</span> ' +
+        '<button class="vk-btn vk-btn-text sm" onclick="fetchNextPhrase()">Try again</button>';
       _hidePhraseStatus();
       console.error('fetchNextPhrase failed:', err);
     } finally {
       isPhraseLoading = false;
+      _setPhraseLoading(false);
     }
+  }
+
+  // Phrase card toolbar: the brand-mark loader holds the play button's spot
+  // while a phrase (or its audio) loads, then gives way to the play button.
+  function _setPhraseLoading(on) {
+    const slot = document.getElementById('phrase-play-slot');
+    if (slot) slot.classList.toggle('is-loading', on);
   }
 
   function retryPhrase() {
@@ -8236,6 +8268,64 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       recognition.start();
     }
   }
+
+  // ── Record button as the atom ──────────────────────────────────────────
+  // Recording state lives in the button's .listening class (set and cleared in
+  // many places: start, stop, silence auto-submit, errors, tray, Azure), so
+  // watch the class rather than hook each one. While listening, PaOrbitRing
+  // draws the gold orbit round the button, thickening with the mic level.
+  const _IS_MOBILE_UA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // Mic level 0–1 via a second audio stream — desktop only: on phones a second
+  // stream can starve the speech recogniser. Returns a stop function, or null.
+  async function _startMicMeter(onLevel) {
+    if (_IS_MOBILE_UA || !navigator.mediaDevices) return null;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const an = ctx.createAnalyser();
+      an.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(an);
+      const buf = new Uint8Array(an.fftSize);
+      let raf = 0;
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) { const x = (buf[i] - 128) / 128; sum += x * x; }
+        onLevel(Math.min(1, Math.sqrt(sum / buf.length) * 5));
+        raf = requestAnimationFrame(tick);
+      };
+      tick();
+      return () => { cancelAnimationFrame(raf); stream.getTracks().forEach(t => t.stop()); ctx.close(); };
+    } catch (_) { return null; }
+  }
+
+  function _initRecordOrbit(btnId, canvasId) {
+    const btn = document.getElementById(btnId), cv = document.getElementById(canvasId);
+    if (!btn || !cv || !window.PaOrbitRing) return;
+    const ring = new PaOrbitRing(cv);
+    let on = false, stopMeter = null, idle = 0;
+    new MutationObserver(async () => {
+      const listening = btn.classList.contains('listening');
+      if (listening === on) return;
+      on = listening;
+      if (on) {
+        ring.set(true);
+        const stop = await _startMicMeter(v => ring.setLevel(v));
+        if (!on) { if (stop) stop(); return; }          // stopped while the stream opened
+        stopMeter = stop;
+        if (!stopMeter) {                               // no meter: a gentle, steady level
+          const t0 = performance.now();
+          idle = setInterval(() => ring.setLevel(0.25 + 0.15 * Math.abs(Math.sin((performance.now() - t0) / 400))), 80);
+        }
+      } else {
+        if (stopMeter) { stopMeter(); stopMeter = null; }
+        if (idle) { clearInterval(idle); idle = 0; }
+        ring.set(false);
+      }
+    }).observe(btn, { attributes: true, attributeFilter: ['class'] });
+  }
+  _initRecordOrbit('phrase-mic-btn', 'phrase-mic-orbit');
 
   function contractElisions(t) {
     // French-only: English contractions are expanded server-side by lang/en.py.
@@ -8438,12 +8528,28 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     itemsEl.style.display = itemsEl.children.length ? '' : 'none';
     if (isPhraseBlock && itemsEl.children.length) setPhraseSplit(true);
     _hidePhraseStatus();
-    if (isPhraseBlock) {
-      const nextBtn = document.getElementById('phrase-next-btn');
-      if (nextBtn) nextBtn.style.display = passed ? '' : 'none';
-      const skipBtn = document.getElementById('phrase-skip-btn');
-      if (skipBtn) skipBtn.style.display = (passed || phraseInTray) ? 'none' : '';
-    }
+    // Next after a pass; Skip otherwise (not in the drill tray, which drills one sentence)
+    if (isPhraseBlock) _setPhraseAction(passed ? 'next' : (phraseInTray ? null : 'skip'));
+  }
+
+  // Phrase move-on tile: 'skip' | 'next' | null (hidden). Skip is a tonal
+  // "Skip →" cell in the tiles grid (same size as Attempt / Highest accuracy);
+  // Next is green, in the pass row at the bottom beside the Auto advance tile.
+  function _setPhraseAction(kind) {
+    const tile = document.getElementById('phrase-action-tile');
+    const passRow = document.getElementById('phv-pass-tiles');
+    if (!tile) return;
+    const next = kind === 'next';
+    passRow.classList.toggle('is-visible', next);
+    tile.hidden = !kind;
+    if (!kind) return;
+    if (next) { if (tile.parentNode !== passRow) passRow.prepend(tile); }
+    else if (tile.parentNode !== document.getElementById('phv-tiles')) document.getElementById('phv-tiles').appendChild(tile);
+    tile.classList.toggle('is-next', next);
+    const label = document.getElementById('phrase-action-label');
+    label.textContent = next ? 'Passed' : '';
+    label.style.display = next ? '' : 'none';
+    document.getElementById('phrase-action-title').textContent = next ? 'Next phrase' : 'Skip';
   }
 
   // ── Phrase layout: centred card → card + words column ──────────────────────
@@ -12602,8 +12708,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     phraseInTray = true;
 
     // Hide skip and auto-advance — not applicable when drilling a specific sentence
-    const skipBtn = document.getElementById('phrase-skip-btn');
-    if (skipBtn) skipBtn.style.display = 'none';
+    _setPhraseAction(null);
     const autoBtn = document.getElementById('phrase-auto-advance-btn');
     if (autoBtn) autoBtn.style.display = 'none';
 
@@ -12618,9 +12723,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function closeDrillTray() {
     const phraseContent = document.getElementById('phrase-content');
     if (phraseContent && phraseInTray) {
-      // Restore skip button and auto-advance toggle
-      const skipBtn = document.getElementById('phrase-skip-btn');
-      if (skipBtn) skipBtn.style.display = '';
+      // Restore the auto-advance toggle (the Skip / Next tile returns with the next score)
       const autoBtn = document.getElementById('phrase-auto-advance-btn');
       if (autoBtn) autoBtn.style.display = '';
 
@@ -12677,6 +12780,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('phrase-syllable-line').style.display = 'none';
     setShadowPlayBtnState(false);
     document.getElementById('phrase-replay-btn').disabled = true;
+    _setPhraseLoading(true);
 
     // Prefer the already-banked Chirp clip (same voice as the paragraph, no
     // re-synthesis); otherwise synthesize this sentence on Chirp (chirp-default).
@@ -12696,6 +12800,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       playAudio(url);
     } catch(e) {
       console.error('loadPhraseForDrill TTS failed:', e);
+    } finally {
+      _setPhraseLoading(false);
     }
   }
 

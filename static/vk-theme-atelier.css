@@ -189,6 +189,7 @@
   --pa-fail:        #B0472E;   /* fail      <40% — clay, NOT fire-engine red */
 
   --pa-pass-bg:       rgba(31, 122, 82, 0.10);
+  --pa-on-pass:       #FFFFFF;   /* text on a solid --pa-pass fill (5.3:1 AA) */
   --pa-progress-bg:   rgba(26, 107, 154, 0.10);
   --pa-almost-bg:     rgba(138, 90, 0, 0.10);
   --pa-fail-bg:       rgba(176, 71, 46, 0.10);

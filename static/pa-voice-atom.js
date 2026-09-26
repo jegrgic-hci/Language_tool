@@ -17,6 +17,9 @@
      await atom.voice('audio', PaVoiceAtom.speechEnvelope('les enfants jouent dehors', 1900));
      atom.startLoading(); … await atom.stopLoading();
      atom.reset();                       // back to rest immediately
+
+   PaOrbitRing (below) — the record button as the atom: while recording, two
+   gold electrons orbit the round button and draw the orbit as a ring.
    ========================================================================== */
 (function () {
   const TAU = Math.PI * 2, TOP = -Math.PI / 2, BOT = Math.PI / 2;
@@ -252,4 +255,79 @@
   }
 
   window.PaVoiceAtom = PaVoiceAtom;
+
+  /* PaOrbitRing — the record button as the atom. The round button is the
+     nucleus; this canvas (centred on it, 112 units square for an 80 button)
+     draws the orbit at r48. set(true): two gold electrons pop in at top and
+     bottom and orbit clockwise, each drawing the line behind it; as the trails
+     join into a ring the electrons melt into it. The ring thickens with
+     setLevel() (0–1). set(false): the electrons re-emerge and carry on
+     clockwise round the rest of the ring, erasing the line as they pass over
+     it, until each is back at its start (top / bottom) and shrinks away. Runs a frame loop only while visible. Colour: --vk-voice-you.
+       const ring = new PaOrbitRing(canvas); ring.set(true); ring.setLevel(v); ring.set(false); */
+  class PaOrbitRing {
+    constructor(canvas) {
+      this.cv = canvas; this.ctx = canvas.getContext('2d');
+      this.on = 0; this.target = 0; this.level = 0; this.shown = 0;
+      this.raf = 0; this.last = 0;
+      this._frame = this._frame.bind(this);
+    }
+    set(listening) {
+      this.target = listening ? 1 : 0;
+      if (listening) this.color = getComputedStyle(this.cv).getPropertyValue('--vk-voice-you').trim() || '#B37D12';
+      if (!this.raf) { this.last = now(); this.raf = requestAnimationFrame(this._frame); }
+    }
+    setLevel(v) { this.level = clamp(v, 0, 1); }
+
+    _frame(t) {
+      const dt = Math.min(0.05, (t - this.last) / 1000); this.last = t;
+      // Progress runs at a steady rate, the same both ways, so the exit is the
+      // build played backwards — easing lives in _draw.
+      this.on = this.target ? Math.min(1, this.on + dt / 0.55) : Math.max(0, this.on - dt / 0.55);
+      this.shown += ((this.target ? this.level : 0) - this.shown) * Math.min(1, dt * (reduced() ? 4 : 12));
+      const g = this.on;
+      if (g <= 0 && !this.target) {                   // back at rest: clear and stop the loop
+        this.on = 0; this.raf = 0;
+        this.ctx.clearRect(0, 0, this.cv.width, this.cv.height);
+        return;
+      }
+      this._draw(g, easeIO(clamp((g - 0.25) / 0.75, 0, 1)));
+      this.raf = requestAnimationFrame(this._frame);
+    }
+
+    _draw(g, draw) {
+      const cv = this.cv, c = this.ctx, d = window.devicePixelRatio || 1;
+      const w = cv.clientWidth, h = cv.clientHeight;
+      if (cv.width !== Math.round(w * d) || cv.height !== Math.round(h * d)) {
+        cv.width = Math.round(w * d); cv.height = Math.round(h * d);
+      }
+      c.setTransform(d, 0, 0, d, 0, 0);
+      c.clearRect(0, 0, w, h);
+      const u = w / 112, cx = w / 2, cy = h / 2, R = 48 * u, dot = 5 * u;
+      const appear = easeIO(clamp(g / 0.25, 0, 1));   // the electrons pop in…
+      const len = Math.PI * draw;                      // …each trail grows to half the ring
+      const closed = clamp((draw - 0.85) / 0.15, 0, 1); // …and they melt in as the trails join
+      const lw = (2.5 + 3 * this.shown) * u;           // the ring follows the voice
+      c.strokeStyle = this.color; c.fillStyle = this.color; c.lineCap = 'round'; c.lineWidth = lw;
+      // In: each electron draws its line behind it, out from its start.
+      // Out: it carries on clockwise and erases the line in front of it (the
+      // other electron's half), ending a full circle round, back at its start.
+      const out = !this.target;
+      for (const base of [TOP, BOT]) {
+        const head = out ? base + 2 * Math.PI - len : base + len;
+        if (len > 0.02) {
+          c.beginPath();
+          if (out) c.arc(cx, cy, R, head, head + len);   // the line still ahead of it
+          else c.arc(cx, cy, R, head - len, head);        // the line it has drawn
+          c.stroke();
+        }
+        if (closed < 1) {
+          c.beginPath();
+          c.arc(cx + R * Math.cos(head), cy + R * Math.sin(head), lerp(dot * appear, lw / 2, closed), 0, TAU);
+          c.fill();
+        }
+      }
+    }
+  }
+  window.PaOrbitRing = PaOrbitRing;
 })();
