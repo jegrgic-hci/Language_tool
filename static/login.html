@@ -22,10 +22,35 @@
       color: var(--vk-fg-1);
       min-height: 100dvh;
       display: flex;
+      flex-direction: column;
+      margin: 0;
+    }
+
+    /* Top bar — same logo + wordmark as the landing nav; it links home */
+    .lp-nav {
+      display: flex;
+      align-items: center;
+      height: 64px;
+      padding: 0 var(--vk-sp-6);
+    }
+    .lp-wordmark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: var(--vk-type-body-lg);
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--vk-fg-1);
+      text-decoration: none;
+    }
+    .lp-wordmark .pa-brand-mark { width: 28px; height: 28px; }
+
+    main {
+      flex: 1;
+      display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px 16px;
-      margin: 0;
+      padding: 24px 16px 88px;
     }
 
     .card {
@@ -37,20 +62,176 @@
       box-sizing: border-box;
     }
 
-    .wordmark {
-      display: inline-block;
-      font-size: var(--vk-type-body-lg);
+    /* ── The atom — brand-mark.svg geometry, animated by state classes ──
+       The rule: the atom rotates only once its form is completely filled in
+       (.is-charged), on sign in and register alike.
+       Sign in: nucleus and orbit together, bobbing; the email (or username)
+       sends the first electron flying in, the password the second. Spins
+       while the details are checked, shakes on a wrong password.
+       Register: with no email yet, the nucleus and orbit drift apart,
+       independently, as if in space. A valid email brings them together
+       (Atom.settle glides each from wherever it is) and the atom bobs as
+       one. Then a valid password sends the first electron flying in (top
+       left) and the atom recoils as it catches it; the confirmation sends
+       the second (bottom right); a complete form sets it rotating.
+       Success, either way: the whole atom turns gold (--vk-voice-you) and
+       spins fast. The cut round each electron is a disc in the card colour,
+       so it travels with the electron.
+       Nesting — svg (bob) > .atom-c1 / .atom-c2 (catch recoils) >
+       nucleus + orbit (arrival) and .atom-spin > electrons (fly-in). */
+    .atom-head {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .atom { --atom-ink: var(--vk-brand-mark); width: 104px; height: 104px; }
+    .atom svg { width: 100%; height: 100%; overflow: visible; }
+    .atom.is-success { --atom-ink: var(--vk-voice-you); }
+    .atom .ink-fill { fill: var(--atom-ink); transition: fill 400ms; }
+    .atom .cut { fill: var(--vk-surface); }
+    .atom-orbit { fill: none; stroke: var(--atom-ink); stroke-width: 9; transition: stroke 400ms; }
+    .atom-halo {
+      fill: none; stroke: var(--atom-ink); stroke-width: 1.5; opacity: 0;
+      transform-origin: 50px 50px; transition: stroke 400ms;
+    }
+    .atom-spin, .atom-nuc, .atom-orbit-in { transform-origin: 50px 50px; }
+    .atom-e1 { transform-origin: 50px 17px; }
+    .atom-e2 { transform-origin: 50px 83px; }
+
+    /* Register, no email yet: nucleus and orbit arrive and drift apart, each
+       on its own path and period. .is-parting: they were together and a
+       change to the email pulled them apart again, so no fresh arrival. */
+    .atom.is-building:not(.has-email) .atom-nuc-in {
+      animation: atom-nuc-arrive 1.4s cubic-bezier(.2, .7, .3, 1) both,
+                 atom-nuc-drift 8s ease-in-out 1.4s infinite;
+    }
+    .atom.is-building:not(.has-email) .atom-orbit-in {
+      animation: atom-orbit-arrive 1.7s cubic-bezier(.2, .7, .3, 1) both,
+                 atom-orbit-drift 9.6s ease-in-out 1.7s infinite;
+    }
+    .atom.is-building.is-parting:not(.has-email) .atom-nuc-in {
+      animation: atom-nuc-part 900ms ease-in-out both,
+                 atom-nuc-drift 8s ease-in-out 900ms infinite;
+    }
+    .atom.is-building.is-parting:not(.has-email) .atom-orbit-in {
+      animation: atom-orbit-part 900ms ease-in-out both,
+                 atom-orbit-drift 9.6s ease-in-out 900ms infinite;
+    }
+    /* Together: electrons fly in and are caught; the atom bobs as one */
+    .atom.is-building.has-email:not(.is-charged):not(.is-success) svg { animation: atom-bob 5s ease-in-out 1s infinite; }
+    .atom.is-building:not(.has-e1) .atom-e1 { opacity: 0; transform: translate(-70px, -55px) scale(.55); }
+    .atom.is-building:not(.has-e2) .atom-e2 { opacity: 0; transform: translate(70px, 55px) scale(.55); }
+    .atom.is-building.has-e1 .atom-e1 { animation: atom-fly-1 850ms cubic-bezier(.25, .6, .3, 1) both; }
+    .atom.is-building.has-e2 .atom-e2 { animation: atom-fly-2 850ms cubic-bezier(.25, .6, .3, 1) both; }
+    .atom.is-building.has-e1 .atom-e1 .cut,
+    .atom.is-building.has-e2 .atom-e2 .cut { animation: atom-cut-in 850ms both; }
+    .atom.is-building.has-e1 .atom-c1 { animation: atom-catch-1 850ms ease-out; }
+    .atom.is-building.has-e2 .atom-c2 { animation: atom-catch-2 850ms ease-out; }
+
+    /* State: complete form rotates; checking / success spin fast */
+    .atom.is-charged  .atom-spin { animation: atom-spin 5s linear infinite; }
+    .atom.is-checking .atom-spin { animation: atom-spin 0.6s cubic-bezier(.5, 0, .5, 1) infinite; }
+    .atom.is-success  .atom-spin { animation: atom-spin 0.7s linear infinite; }
+    .atom.is-charged:not(.is-checking):not(.is-success) .atom-nuc { animation: atom-nuc 1.6s ease-in-out infinite; }
+    .atom.is-charged  .atom-halo { animation: atom-halo 1.6s ease-out infinite; }
+    .atom.is-checking .atom-halo,
+    .atom.is-success  .atom-halo { animation: atom-halo 0.7s ease-out infinite; }
+    .atom.is-shake { animation: atom-shake 0.45s ease-in-out; }
+
+    /* Apart pose: nucleus low left, orbit up right, clear of each other.
+       Each drift loop starts and ends on that pose. The drifts swing them
+       wide apart (~130px) and back in to a near pass (~57px centre to
+       centre) that never touches the ring; the two periods differ, so the
+       pairing of near and far changes every cycle. */
+    @keyframes atom-nuc-arrive {
+      from { transform: translate(-84px, 34px); opacity: 0; }
+      to   { transform: translate(-54px, 14px); opacity: 1; }
+    }
+    @keyframes atom-orbit-arrive {
+      from { transform: translate(70px, -30px) rotate(-50deg) scale(.85); opacity: 0; }
+      to   { transform: translate(40px, -8px) rotate(-18deg); opacity: 1; }
+    }
+    @keyframes atom-nuc-part {
+      from { transform: none; }
+      to   { transform: translate(-54px, 14px); }
+    }
+    @keyframes atom-orbit-part {
+      from { transform: none; }
+      to   { transform: translate(40px, -8px) rotate(-18deg); }
+    }
+    @keyframes atom-nuc-drift {
+      0%, 100% { transform: translate(-54px, 14px); }
+      30%      { transform: translate(-24px, 20px); }
+      65%      { transform: translate(-72px, 6px); }
+    }
+    @keyframes atom-orbit-drift {
+      0%, 100% { transform: translate(40px, -8px) rotate(-18deg); }
+      40%      { transform: translate(22px, -14px) rotate(8deg); }
+      75%      { transform: translate(58px, -2px) rotate(-40deg); }
+    }
+    @keyframes atom-bob {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50%      { transform: translateY(-3px) rotate(-2deg); }
+    }
+    /* Electrons arc in, overshoot their slot a touch, and settle */
+    @keyframes atom-fly-1 {
+      0%   { transform: translate(-70px, -55px) scale(.55); opacity: 0; }
+      15%  { opacity: 1; }
+      40%  { transform: translate(-38px, -12px) scale(.8); }
+      70%  { transform: translate(3px, 2.5px) scale(1.08); }
+      85%  { transform: translate(-1px, -.8px) scale(.98); }
+      100% { transform: none; opacity: 1; }
+    }
+    @keyframes atom-fly-2 {
+      0%   { transform: translate(70px, 55px) scale(.55); opacity: 0; }
+      15%  { opacity: 1; }
+      40%  { transform: translate(38px, 12px) scale(.8); }
+      70%  { transform: translate(-3px, -2.5px) scale(1.08); }
+      85%  { transform: translate(1px, .8px) scale(.98); }
+      100% { transform: none; opacity: 1; }
+    }
+    @keyframes atom-cut-in { 0%, 65% { opacity: 0; } 100% { opacity: 1; } }
+    /* The catch: the atom gives a little with the electron's momentum */
+    @keyframes atom-catch-1 {
+      0%, 62% { transform: none; }
+      72%     { transform: translate(2.2px, 1.8px); }
+      88%     { transform: translate(-.6px, -.5px); }
+      100%    { transform: none; }
+    }
+    @keyframes atom-catch-2 {
+      0%, 62% { transform: none; }
+      72%     { transform: translate(-2.2px, -1.8px); }
+      88%     { transform: translate(.6px, .5px); }
+      100%    { transform: none; }
+    }
+    @keyframes atom-spin  { to { transform: rotate(360deg); } }
+    @keyframes atom-nuc   { 50% { transform: scale(1.14); } }
+    @keyframes atom-halo  { 0% { transform: scale(.86); opacity: .55; } 100% { transform: scale(1.2); opacity: 0; } }
+    @keyframes atom-shake {
+      0%, 100% { transform: translateX(0); }
+      15% { transform: translateX(-8px); } 35% { transform: translateX(7px); }
+      55% { transform: translateX(-5px); } 75% { transform: translateX(3px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .atom *, .atom { animation: none !important; transition-duration: 1ms !important; }
+    }
+
+    .atom-title {
+      font-size: var(--vk-type-title-lg, 22px);
       font-weight: 800;
       letter-spacing: -0.01em;
       color: var(--vk-fg-1);
-      text-decoration: none;
-      margin-bottom: 2px;
     }
-
-    .byline {
-      font-size: var(--vk-type-body-md);
+    .atom-caption {
+      font-family: 'Geist Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
       color: var(--vk-fg-2);
-      margin-bottom: 28px;
     }
 
     /* Sign in / Register — .vk-seg.is-block (JS toggles .active on .tab) */
@@ -69,6 +250,11 @@
     /* Fields are .vk-input — 48px, on the nested-panel tone */
     .field .vk-input { height: 48px; background: var(--vk-surface-lowest); font-size: var(--vk-type-body-lg); }
     .field .vk-input[readonly] { background: var(--vk-surface-2); border-color: transparent; }
+    .field .vk-field-helper {
+      margin-top: 6px;
+      font: 400 var(--vk-type-body-sm)/1.45 var(--pa-font-sans);
+      color: var(--vk-fg-2);
+    }
 
     /* Submit buttons are .vk-btn.vk-btn-primary.lg; .btn is the layout hook */
     .btn { width: 100%; margin-top: 8px; }
@@ -141,15 +327,40 @@
     }
     .note a { color: var(--vk-accent-text); font-weight: 600; }
 
+    @media (max-width: 767px) {
+      .lp-nav { padding: 0 var(--vk-sp-4); }
+    }
+
     @media (max-width: 480px) {
+      main { padding-bottom: 48px; }
       .card { padding: 28px 20px 24px; border-radius: 24px; }
     }
   </style>
 </head>
 <body data-theme="atelier">
+<nav class="lp-nav">
+  <a class="lp-wordmark" href="/"><span class="pa-brand-mark" aria-hidden="true"></span>VraiFrench</a>
+</nav>
+
+<main>
 <div class="card">
-  <a class="wordmark" href="/">VraiFrench</a>
-  <div class="byline">French pronunciation training</div>
+  <div class="atom-head">
+    <div class="atom" id="atom" aria-hidden="true">
+      <svg viewBox="0 0 100 100">
+        <circle class="atom-halo" cx="50" cy="50" r="46"/>
+        <g class="atom-c1"><g class="atom-c2">
+          <g class="atom-orbit-in"><circle class="atom-orbit" cx="50" cy="50" r="33"/></g>
+          <g class="atom-nuc-in"><circle class="atom-nuc ink-fill" cx="50" cy="50" r="10.5"/></g>
+          <g class="atom-spin">
+            <g class="atom-e1"><circle class="cut" cx="50" cy="17" r="15"/><circle class="ink-fill" cx="50" cy="17" r="10.5"/></g>
+            <g class="atom-e2"><circle class="cut" cx="50" cy="83" r="15"/><circle class="ink-fill" cx="50" cy="83" r="10.5"/></g>
+          </g>
+        </g></g>
+      </svg>
+    </div>
+    <div class="atom-title" id="atom-title">Welcome back</div>
+    <div class="atom-caption" id="atom-caption" aria-live="polite">Sign in to keep practising</div>
+  </div>
 
   <div class="tab-row vk-seg is-block">
     <button class="tab active" onclick="showPanel('login', this)">Sign in</button>
@@ -198,7 +409,8 @@
       <div id="reset-form">
         <div class="field">
           <label for="reset-pw">New password</label>
-          <input class="vk-input" type="password" id="reset-pw" autocomplete="new-password" placeholder="Min. 8 characters">
+          <input class="vk-input" type="password" id="reset-pw" autocomplete="new-password" minlength="8" aria-describedby="reset-pw-help">
+          <div class="vk-field-helper" id="reset-pw-help">At least 8 characters</div>
         </div>
         <div class="field">
           <label for="reset-pw-confirm">Confirm password</label>
@@ -214,7 +426,8 @@
       <div class="section-label">Set a new password</div>
       <div class="field">
         <label for="new-pw">New password</label>
-        <input class="vk-input" type="password" id="new-pw" autocomplete="new-password" placeholder="Choose a strong password">
+        <input class="vk-input" type="password" id="new-pw" autocomplete="new-password" minlength="8" aria-describedby="new-pw-help">
+        <div class="vk-field-helper" id="new-pw-help">At least 8 characters</div>
       </div>
       <div class="field">
         <label for="new-pw-confirm">Confirm password</label>
@@ -234,7 +447,8 @@
     </div>
     <div class="field">
       <label for="reg-password">Password</label>
-      <input class="vk-input" type="password" id="reg-password" autocomplete="new-password" placeholder="Min. 8 characters">
+      <input class="vk-input" type="password" id="reg-password" autocomplete="new-password" minlength="8" aria-describedby="reg-password-help">
+      <div class="vk-field-helper" id="reg-password-help">At least 8 characters</div>
     </div>
     <div class="field">
       <label for="reg-password-confirm">Confirm password</label>
@@ -256,11 +470,124 @@
     <div class="error" id="reg-error"></div>
   </div>
 </div>
+</main>
 
 <script>
   let _pendingToken  = null;
   let _inviteToken   = null;
   let _accountType   = 'student';
+
+  // ── The atom (see the .atom styles) ──────────────────────────────────────
+  // render() reads the form and sets the atom's state classes and captions.
+  const Atom = (() => {
+    const el      = document.getElementById('atom');
+    const title   = document.getElementById('atom-title');
+    const caption = document.getElementById('atom-caption');
+    let mode = 'login';   // 'login' | 'register'
+    let busy = null;      // null | 'checking' | 'success'
+    let together = false; // register: nucleus and orbit have settled into one atom
+    let parted = false;   // …and a change to the email pulled them apart again
+    const val = id => document.getElementById(id).value;
+    const bodies = el.querySelectorAll('.atom-nuc-in, .atom-orbit-in');
+    const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    // Glide the nucleus and orbit from wherever their drift has them to rest.
+    // CSS can't start a transition from a running animation's pose, so read
+    // each pose before the class change and animate from it.
+    function settle(from) {
+      bodies.forEach((g, i) => g.animate(
+        [{ transform: from[i].transform, opacity: from[i].opacity }, { transform: 'none', opacity: 1 }],
+        { duration: 1000, easing: 'cubic-bezier(.3, .7, .2, 1)' }
+      ));
+    }
+
+    function regParts() {
+      const pw = val('reg-password');
+      const pwOk = pw.length >= 8;
+      return {
+        email: /.+@.+\..+/.test(val('reg-email').trim()),
+        e1:    pwOk,
+        e2:    pwOk && val('reg-password-confirm') === pw,
+        code:  !!_inviteToken || val('reg-code').trim().length > 0,
+      };
+    }
+
+    function render() {
+      const cls = ['atom'];
+      let t, c, settleFrom = null;
+      if (mode === 'register') {
+        const p = regParts();
+        const charged = p.email && p.e1 && p.e2 && p.code;
+        const have = [p.email, p.e1, p.e2, !_inviteToken && p.code].filter(Boolean).length;
+        // The email brings nucleus and orbit together; electrons only come
+        // once they are one atom
+        const joined = p.email || !!busy;
+        cls.push('is-building');
+        if (joined) cls.push('has-email');
+        else if (together || parted) { parted = true; cls.push('is-parting'); }
+        if (joined && (p.e1 || busy)) cls.push('has-e1');
+        if (joined && (p.e2 || busy)) cls.push('has-e2');
+        if (charged) cls.push('is-charged');
+        if (joined && !together && !reduced()) {
+          settleFrom = [...bodies].map(g => {
+            const cs = getComputedStyle(g);
+            return { transform: cs.transform, opacity: cs.opacity };
+          });
+        }
+        together = joined;
+        // Register goes gold as soon as the account is being created
+        if (busy)            cls.push('is-success');
+        const total = _inviteToken ? 3 : 4;
+        if (busy === 'success')       { t = 'Bienvenue'; c = 'Your account is ready'; }
+        else if (busy === 'checking') { t = 'Creating your account'; c = 'One moment'; }
+        else if (charged)             { t = 'Create your account'; c = 'All fields complete'; }
+        else {
+          t = 'Create your account';
+          c = have ? have + ' of ' + total + ' fields complete' : total + ' fields to complete';
+        }
+      } else {
+        // Nucleus and orbit start together; the email (or username) sends
+        // the first electron in, the password the second
+        const e1 = !!val('login-email').trim();
+        const e2 = !!val('login-password');
+        cls.push('is-building', 'has-email');
+        if (e1 || busy) cls.push('has-e1');
+        if (e2 || busy) cls.push('has-e2');
+        if (busy === 'success')       { cls.push('is-success');  t = 'Bon retour'; c = 'Opening your practice…'; }
+        else if (busy === 'checking') { cls.push('is-checking'); t = 'Welcome back'; c = 'Checking…'; }
+        else {
+          // The rule: a completely filled-in form rotates
+          if (e1 && e2) cls.push('is-charged');
+          t = 'Welcome back'; c = 'Sign in to keep practising';
+        }
+      }
+      if (el.classList.contains('is-shake')) cls.push('is-shake');
+      el.className = cls.join(' ');
+      if (settleFrom) settle(settleFrom);
+      title.textContent = t;
+      caption.textContent = c;
+    }
+
+    el.addEventListener('animationend', e => {
+      if (e.target === el) { el.classList.remove('is-shake'); }
+    });
+    document.addEventListener('input', render);
+    render();   // start from the form's state, not the markup's complete logo
+
+    return {
+      render,
+      setMode(m) { mode = m; busy = null; together = false; parted = false; render(); },
+      setBusy(b) { busy = b; render(); },
+      // A failed attempt: stop, shake, and fall back to the form's state
+      fail() {
+        busy = null;
+        el.classList.remove('is-shake');
+        void el.offsetWidth;          // restart the shake if it's already running
+        el.classList.add('is-shake');
+        render();
+      },
+    };
+  })();
 
   function setAccountType(type) {
     _accountType = type;
@@ -277,6 +604,7 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('panel-register').classList.add('active');
     document.querySelector('.tab[onclick*="register"]').classList.add('active');
+    Atom.setMode('register');
   }
 
   // Read URL params: ?tab=register | ?invite=… | ?reset=…
@@ -310,6 +638,7 @@
     document.getElementById('invite-banner').textContent = 'You have been invited by your teacher. Create your account below.';
     document.getElementById('reg-type-field').style.display = 'none';
     document.getElementById('reg-code-field').style.display = 'none';
+    Atom.render();
   })();
 
   function showPanel(name, btn) {
@@ -320,6 +649,7 @@
     document.getElementById('change-pw-section').style.display = 'none';
     hideForgot();
     _pendingToken = null;
+    Atom.setMode(name);
   }
 
   function showForgot() {
@@ -395,13 +725,13 @@
     if (data.access_code) localStorage.setItem('ft_access_code', data.access_code);
 
     const role = data.role;
-    if (role === 'super_admin') {
-      location.href = '/admin';
-    } else if (role === 'teacher') {
-      location.href = '/analytics/dashboard';
-    } else {
-      location.href = '/app';
-    }
+    const dest = role === 'super_admin' ? '/admin'
+      : role === 'teacher' ? '/analytics/dashboard'
+      : '/app';
+    // Hold on the gold atom for a beat before leaving
+    Atom.setBusy('success');
+    const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setTimeout(() => { location.href = dest; }, reduced ? 0 : 1100);
   }
 
   async function doLogin() {
@@ -412,6 +742,7 @@
     errEl.textContent = '';
     if (!email || !password) { errEl.textContent = 'Email (or username) and password required.'; return; }
     btn.disabled = true;
+    Atom.setBusy('checking');
     try {
       const res = await fetch('/auth/login', {
         method: 'POST',
@@ -419,19 +750,21 @@
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) { errEl.textContent = data.detail || 'Login failed.'; btn.disabled = false; return; }
+      if (!res.ok) { errEl.textContent = data.detail || 'Login failed.'; btn.disabled = false; Atom.fail(); return; }
 
       if (data.force_pw_change) {
         _pendingToken = data;
         document.getElementById('change-pw-section').style.display = 'block';
         document.getElementById('new-pw').focus();
         btn.disabled = false;
+        Atom.setBusy(null);
         return;
       }
       storeAndRedirect(data);
     } catch (e) {
       errEl.textContent = 'Connection error. Is the server running?';
       btn.disabled = false;
+      Atom.fail();
     }
   }
 
@@ -491,6 +824,7 @@
     const regCode = document.getElementById('reg-code').value.trim();
     const body = { email, password, is_teacher: _accountType === 'teacher', registration_code: regCode };
     if (_inviteToken) body.invite_token = _inviteToken;
+    Atom.setBusy('checking');
     try {
       const res = await fetch('/auth/register', {
         method: 'POST',
@@ -498,11 +832,12 @@
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) { errEl.textContent = data.detail || 'Registration failed.'; btn.disabled = false; return; }
+      if (!res.ok) { errEl.textContent = data.detail || 'Registration failed.'; btn.disabled = false; Atom.fail(); return; }
       storeAndRedirect(data);
     } catch (e) {
       errEl.textContent = 'Connection error. Is the server running?';
       btn.disabled = false;
+      Atom.fail();
     }
   }
 
@@ -518,22 +853,30 @@
     else if (regActive) doRegister();
   });
 
-  // Redirect if already logged in
-  (() => {
+  // Redirect if already logged in — but only once the server accepts the token.
+  // Trusting the token's own expiry let a rejected token loop /login ↔ /admin;
+  // a token the server turns down is cleared so the sign-in form stays up.
+  (async () => {
     const token = localStorage.getItem('ft_jwt');
     if (!token) return;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.exp * 1000 > Date.now()) {
-        if (payload.role === 'super_admin') {
-          location.href = '/admin';
-        } else if (payload.role === 'teacher') {
-          location.href = '/analytics/dashboard';
-        } else {
-          location.href = '/app';
-        }
+      if (payload.exp * 1000 <= Date.now()) return;
+      const res = await fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) throw new Error('rejected');
+      const me = await res.json();
+      if (me.role === 'super_admin') {
+        location.href = '/admin';
+      } else if (me.role === 'teacher') {
+        location.href = '/analytics/dashboard';
+      } else {
+        location.href = '/app';
       }
-    } catch (_) {}
+    } catch (_) {
+      localStorage.removeItem('ft_jwt');
+      localStorage.removeItem('ft_refresh_token');
+      localStorage.removeItem('ft_access_code');
+    }
   })();
 </script>
 </body>
