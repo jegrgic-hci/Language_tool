@@ -67,6 +67,7 @@
       align-items: center;
       gap: var(--vk-sp-2);
     }
+    .lp-nav-actions[hidden] { display: none; }
 
     .lp-page .vk-btn.lg {
       height: 48px;
@@ -1168,18 +1169,50 @@
 <body data-theme="atelier">
 
 <script>
-  (function() {
-    var token = localStorage.getItem('ft_jwt');
-    if (token) {
+  // The landing page never redirects, so it stays reachable when signed in.
+  // A live session swaps the nav's Sign in / Get started for "Open app".
+  // An expired access token is refreshed first; if that fails the session is
+  // dead, so it is cleared and the guest nav stays.
+  document.addEventListener('DOMContentLoaded', function() {
+    function showMember(token) {
       var role = null;
       try { role = JSON.parse(atob(token.split('.')[1])).role; } catch(e) {}
-      window.location.replace(
-        role === 'super_admin' ? '/static/admin.html'
-          : role === 'teacher' ? '/static/analytics.html'
-          : '/static/index.html'
-      );
+      document.getElementById('lp-open-app').href =
+        role === 'super_admin' ? '/admin'
+          : role === 'teacher' ? '/analytics/dashboard'
+          : '/app';
+      document.getElementById('lp-nav-guest').hidden = true;
+      document.getElementById('lp-nav-member').hidden = false;
     }
-  })();
+    function clearSession() {
+      localStorage.removeItem('ft_jwt');
+      localStorage.removeItem('ft_refresh_token');
+    }
+
+    var token = localStorage.getItem('ft_jwt');
+    if (!token) return;
+    var exp = 0;
+    try { exp = JSON.parse(atob(token.split('.')[1])).exp || 0; } catch(e) {}
+    if (exp * 1000 > Date.now()) { showMember(token); return; }
+
+    var rt = localStorage.getItem('ft_refresh_token');
+    if (!rt) { clearSession(); return; }
+    fetch('/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: rt })
+    })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) {
+        if (d && d.access_token) {
+          localStorage.setItem('ft_jwt', d.access_token);
+          showMember(d.access_token);
+        } else {
+          clearSession();
+        }
+      })
+      .catch(function() {});
+  });
 </script>
 
 <div class="lp-page">
@@ -1187,9 +1220,12 @@
   <!-- Navbar -->
   <nav class="lp-nav" id="lp-nav">
     <a class="lp-wordmark" href="/"><span class="pa-brand-mark" aria-hidden="true"></span>VraiFrench</a>
-    <div class="lp-nav-actions">
+    <div class="lp-nav-actions" id="lp-nav-guest">
       <a class="vk-btn vk-btn-text" href="/login">Sign in</a>
       <a class="vk-btn vk-btn-primary" href="/login?tab=register">Get started</a>
+    </div>
+    <div class="lp-nav-actions" id="lp-nav-member" hidden>
+      <a class="vk-btn vk-btn-primary" id="lp-open-app" href="/app">Open app</a>
     </div>
   </nav>
 

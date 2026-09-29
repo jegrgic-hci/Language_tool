@@ -5757,8 +5757,19 @@
           }
         } catch (_) {}
       }
+      // Still rejected after trying to renew: the session is dead
+      if (res.status === 401) endDeadSession();
     }
     return res;
+  }
+
+  // Clear a session the server won't accept and send the visitor home, rather
+  // than leaving them in an app where every request fails.
+  function endDeadSession() {
+    localStorage.removeItem('ft_access_code');
+    localStorage.removeItem('ft_jwt');
+    localStorage.removeItem('ft_refresh_token');
+    location.href = '/';
   }
 
   // ── Session ────────────────────────────────────────────────────────────────

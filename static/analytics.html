@@ -957,7 +957,7 @@ function _authHeaders() {
 async function fetchJSON(path) {
   const sep = path.includes('?') ? '&' : '?';
   const url = K_QS ? path + sep + K_QS : path;
-  const res = await fetch(url, { headers: _authHeaders() });
+  const res = await _mgmtFetch(url);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
@@ -2244,8 +2244,19 @@ async function _mgmtFetch(path, opts = {}) {
         }
       } catch (_) {}
     }
+    // Still rejected after trying to renew: the session is dead
+    if (res.status === 401 && !KEY) endDeadSession();
   }
   return res;
+}
+
+// Clear a session the server won't accept and send the visitor home, rather
+// than leaving them on a dashboard where every panel fails.
+function endDeadSession() {
+  localStorage.removeItem('ft_jwt');
+  localStorage.removeItem('ft_refresh_token');
+  localStorage.removeItem('ft_access_code');
+  window.location.href = '/';
 }
 
 let _mgmtStudents = [];

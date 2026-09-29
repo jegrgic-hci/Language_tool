@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 import uuid
 import json
 import random
@@ -49,6 +50,64 @@ from prosody_engine import annotate_phrase_rhythm
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+# ── Caching ────────────────────────────────────────────────────────────────────
+# Pages are revalidated on every load (cheap: an unchanged page is a 304), and
+# page_response() stamps each /static/ link in them with a hash of that file's
+# contents. A stamped URL never changes content, so browsers keep it for a year;
+# editing the file changes its hash, so the next page load points at a new URL.
+# Without explicit headers browsers guessed, and kept running stale pages/JS.
+
+_STATIC_DIR = BASE_DIR / "static"
+_STATIC_LINK_RE = re.compile(r'(\b(?:src|href)=")/static/([^"?#]+)(")')
+_asset_hashes: dict = {}  # path -> (mtime, hash)
+
+
+def _asset_hash(rel: str) -> Optional[str]:
+    path = _STATIC_DIR / rel
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return None
+    cached = _asset_hashes.get(rel)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+    _asset_hashes[rel] = (mtime, digest)
+    return digest
+
+
+def page_response(request: Request, name: str) -> Response:
+    html = (_STATIC_DIR / name).read_text(encoding="utf-8")
+
+    def _stamp(m):
+        digest = _asset_hash(m.group(2))
+        if not digest:
+            return m.group(0)
+        return f"{m.group(1)}/static/{m.group(2)}?v={digest}{m.group(3)}"
+
+    html = _STATIC_LINK_RE.sub(_stamp, html)
+    etag = '"' + hashlib.sha256(html.encode()).hexdigest()[:16] + '"'
+    headers = {"ETag": etag, "Cache-Control": "no-cache"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return HTMLResponse(html, headers=headers)
+
+
+@app.middleware("http")
+async def cache_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        if "v" in request.query_params and response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+    elif response.headers.get("content-type", "").startswith("text/html"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 _api_key: str = os.environ.get("MISTRAL_API_KEY", "")
@@ -560,25 +619,25 @@ class CustomStartRequest(BaseModel):
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
 @app.get("/")
-async def root():
-    return FileResponse(BASE_DIR / "static" / "landing.html")
+async def root(request: Request):
+    return page_response(request, "landing.html")
 
 @app.get("/login")
-async def login_page():
-    return FileResponse(BASE_DIR / "static" / "login.html")
+async def login_page(request: Request):
+    return page_response(request, "login.html")
 
 @app.get("/app")
-async def app_page():
-    return FileResponse(BASE_DIR / "static" / "index.html")
+async def app_page(request: Request):
+    return page_response(request, "index.html")
 
 @app.get("/admin")
-async def admin_page():
-    return FileResponse(BASE_DIR / "static" / "admin.html")
+async def admin_page(request: Request):
+    return page_response(request, "admin.html")
 
 
 @app.get("/dev")
-async def dev_launcher():
-    return FileResponse(BASE_DIR / "static" / "dev.html")
+async def dev_launcher(request: Request):
+    return page_response(request, "dev.html")
 
 
 class AccessCodeRequest(BaseModel):
@@ -768,7 +827,8 @@ async def auth_change_password(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not _auth.verify_password(req.current_password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Current password incorrect")
+        # 400, not 401: the clients treat a 401 as an expired session and sign out
+        raise HTTPException(status_code=400, detail="Current password incorrect")
     _analytics.update_user_password(user["id"], _auth.hash_password(req.new_password))
     return {"ok": True}
 
@@ -1551,12 +1611,12 @@ async def update_student(access_code: str, req: UpdateStudentRequest, auth: dict
 @app.get("/dashboard")
 async def dashboard_shortcut():
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/analytics.html")
+    return RedirectResponse(url="/analytics/dashboard")
 
 
 @app.get("/analytics/dashboard")
-async def analytics_dashboard():
-    return FileResponse(BASE_DIR / "static" / "analytics.html")
+async def analytics_dashboard(request: Request):
+    return page_response(request, "analytics.html")
 
 
 @app.get("/audio/{filename}")

@@ -451,16 +451,43 @@
   function token() { return localStorage.getItem('ft_jwt') || ''; }
   function authHeaders() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token() }; }
 
+  // A rejected session is cleared and sent home, not to /login — leaving the
+  // dead token in place made /login send it straight back here.
   async function guardAuth() {
     if (!token()) { location.href = '/login'; return false; }
     try {
-      const r = await fetch('/auth/me', { headers: authHeaders() });
-      if (!r.ok) { location.href = '/login'; return false; }
+      let r = await fetch('/auth/me', { headers: authHeaders() });
+      if (r.status === 401 && await tryRefresh()) {
+        r = await fetch('/auth/me', { headers: authHeaders() });
+      }
+      if (!r.ok) { endDeadSession(); return false; }
       const data = await r.json();
-      if (data.role !== 'super_admin') { location.href = '/login'; return false; }
+      if (data.role !== 'super_admin') { location.href = '/'; return false; }
       document.getElementById('sb-email').textContent = data.email || '';
       return true;
-    } catch { location.href = '/login'; return false; }
+    } catch { endDeadSession(); return false; }
+  }
+
+  async function tryRefresh() {
+    const rt = localStorage.getItem('ft_refresh_token');
+    if (!rt) return false;
+    try {
+      const rr = await fetch('/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+      if (!rr.ok) return false;
+      localStorage.setItem('ft_jwt', (await rr.json()).access_token);
+      return true;
+    } catch { return false; }
+  }
+
+  function endDeadSession() {
+    localStorage.removeItem('ft_jwt');
+    localStorage.removeItem('ft_refresh_token');
+    localStorage.removeItem('ft_access_code');
+    location.href = '/';
   }
 
   function signOut() {
