@@ -1169,33 +1169,54 @@
 <body data-theme="atelier">
 
 <script>
-  // The landing page never redirects, so it stays reachable when signed in.
-  // A live session swaps the nav's Sign in / Get started for "Open app".
-  // An expired access token is refreshed first; if that fails the session is
-  // dead, so it is cleared and the guest nav stays.
-  document.addEventListener('DOMContentLoaded', function() {
-    function showMember(token) {
-      var role = null;
-      try { role = JSON.parse(atob(token.split('.')[1])).role; } catch(e) {}
-      document.getElementById('lp-open-app').href =
-        role === 'super_admin' ? '/admin'
-          : role === 'teacher' ? '/analytics/dashboard'
-          : '/app';
-      document.getElementById('lp-nav-guest').hidden = true;
-      document.getElementById('lp-nav-member').hidden = false;
+  // Signed-in visitors go straight to their app. The token lives in
+  // localStorage, so this runs here, before the page paints: an unexpired
+  // token redirects at once, an expired one is refreshed first, and one that
+  // can't be refreshed is cleared and the landing page stays. /?home shows the
+  // page to a signed-in visitor, with "Open app" in place of Sign in /
+  // Get started. No redirect loop: the app clears a session the server
+  // rejects before it sends anyone back here.
+  (function() {
+    var stay = new URLSearchParams(location.search).has('home');
+
+    function claims(token) {
+      try {
+        var b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(b64));
+      } catch(e) { return null; }
+    }
+    function appFor(token) {
+      var role = (claims(token) || {}).role;
+      return role === 'super_admin' ? '/admin'
+        : role === 'teacher' ? '/analytics/dashboard'
+        : '/app';
+    }
+    function enter(token) {
+      if (!stay) { location.replace(appFor(token)); return; }
+      function showMember() {
+        document.getElementById('lp-open-app').href = appFor(token);
+        document.getElementById('lp-nav-guest').hidden = true;
+        document.getElementById('lp-nav-member').hidden = false;
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showMember);
+      else showMember();
     }
     function clearSession() {
-      localStorage.removeItem('ft_jwt');
-      localStorage.removeItem('ft_refresh_token');
+      try {
+        localStorage.removeItem('ft_jwt');
+        localStorage.removeItem('ft_refresh_token');
+      } catch(e) {}
     }
 
-    var token = localStorage.getItem('ft_jwt');
+    var token = null, rt = null;
+    try {
+      token = localStorage.getItem('ft_jwt');
+      rt = localStorage.getItem('ft_refresh_token');
+    } catch(e) { return; }
     if (!token) return;
-    var exp = 0;
-    try { exp = JSON.parse(atob(token.split('.')[1])).exp || 0; } catch(e) {}
-    if (exp * 1000 > Date.now()) { showMember(token); return; }
+    var c = claims(token);
+    if (c && (c.exp || 0) * 1000 > Date.now()) { enter(token); return; }
 
-    var rt = localStorage.getItem('ft_refresh_token');
     if (!rt) { clearSession(); return; }
     fetch('/auth/refresh', {
       method: 'POST',
@@ -1206,13 +1227,13 @@
       .then(function(d) {
         if (d && d.access_token) {
           localStorage.setItem('ft_jwt', d.access_token);
-          showMember(d.access_token);
+          enter(d.access_token);
         } else {
           clearSession();
         }
       })
       .catch(function() {});
-  });
+  })();
 </script>
 
 <div class="lp-page">
