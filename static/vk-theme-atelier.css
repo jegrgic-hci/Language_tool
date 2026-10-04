@@ -99,6 +99,12 @@
   --pa-medal-silver: #7A8491;
   --pa-medal-bronze: #A2622D;
 
+  /* Flag of India — the "Travel in India" subject chip icon (graphic only) */
+  --vk-flag-in-saffron: #FF9933;
+  --vk-flag-in-white:   #FFFFFF;
+  --vk-flag-in-green:   #138808;
+  --vk-flag-in-navy:    #000080;
+
   /* ── Accent — friendly blue = the SYSTEM ──────────────────────────────── */
   --vk-accent:               #2D6CB3;    /* buttons, active, focus, recording */
   --vk-accent-bright:        #3E7DC4;

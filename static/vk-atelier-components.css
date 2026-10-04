@@ -2609,6 +2609,12 @@
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z'/%3E%3C/svg%3E") center / contain no-repeat;
           mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
+/* Leading icon (M3): <svg class="vk-chip-icon"> before the label; padding tightens
+   on the leading side, and the check replaces the icon while selected. */
+.vk-filter-chip:has(> .vk-chip-icon) { padding-left: 8px; }
+.vk-chip-icon { width: 18px; height: 18px; flex-shrink: 0; display: block; }
+.vk-filter-chip.is-active > .vk-chip-icon,
+.vk-filter-chip.active > .vk-chip-icon { display: none; }
 .vk-filter-chip:focus-visible,
 .vk-filter-chip:has(input:focus-visible) { outline: none; box-shadow: var(--vk-focus-ring); }
 .vk-filter-chip input[type=checkbox] {
