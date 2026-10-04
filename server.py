@@ -3200,8 +3200,39 @@ class VocabGenerateRequest(BaseModel):
     access_code: Optional[str] = None
     visit_id: Optional[str] = None
 
+class VocabDecoy(BaseModel):
+    """An extra word outside the set, used as the one outside wrong option per
+    quiz question. french_definition holds the definition in the language being
+    learned (English for English cards), like VocabCard."""
+    word: str
+    french_definition: str
+
 class VocabGenerateResponse(BaseModel):
     cards: list[VocabCard]
+    decoys: list[VocabDecoy] = []
+
+
+def _vocab_decoy_count(count: int) -> int:
+    return max(3, min(6, count // 3))
+
+
+def _vocab_parse(text: str, count: int, def_key: str):
+    """Model output -> (raw card dicts, VocabDecoy list). Accepts the
+    {cards, decoys} object or a bare card array (then no decoys). Decoys that
+    repeat a card or each other are dropped."""
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text)
+    data = json.loads(text)
+    cards_raw = data.get("cards", []) if isinstance(data, dict) else data
+    cards_raw = cards_raw[:count]
+    seen = {str(c.get("word", "")).strip().lower() for c in cards_raw}
+    decoys = []
+    for d in (data.get("decoys", []) if isinstance(data, dict) else []):
+        w, d_def = str(d.get("word", "")).strip(), str(d.get(def_key, "")).strip()
+        if w and d_def and w.lower() not in seen:
+            seen.add(w.lower())
+            decoys.append(VocabDecoy(word=w, french_definition=d_def))
+    return cards_raw, decoys
 
 _VOCAB_SYSTEM = """You are a French language teacher generating vocabulary flashcards.
 
@@ -3213,14 +3244,23 @@ Rules:
 - For C1/C2: include nuanced expressions, literary terms, register variation
 - french_definition: a concise definition IN FRENCH, appropriate to the learner's level (simpler French for A1/A2)
 - english_definition: an English translation of the french_definition (not the word itself — translate the definition)
-- example_sentence: one natural sentence using the word/phrase in context
+- example_sentence: one natural, everyday sentence (about 8–20 words) that contains the word/phrase (conjugated or agreed as needed) and shows HOW it is typically used, with enough context that the meaning is clear from the sentence alone:
+  - idioms / expressions / locutions: a realistic situation where a native speaker would actually say it (who says it, about what)
+  - verbs: their usual construction (preposition, direct/indirect object, reflexive form)
+  - adjectives: a typical noun or situation it describes, in the usual position
+- english_translation: a natural English translation of example_sentence
 - part_of_speech: one of "verbe", "nom", "adjectif", "adverbe", "expression", "locution"
 - usage: one of "courant", "familier", "soutenu"
 
 Focus for this session: {angle}
 
-Return ONLY valid JSON array, no other text:
-[{{"word": "...", "part_of_speech": "...", "usage": "...", "french_definition": "...", "english_definition": "...", "example_sentence": "...", "english_translation": "..."}}, ...]"""
+Also generate exactly {decoys} decoys: extra words/expressions at the same level and on the same subject, used as wrong options in the quiz. Each decoy:
+- is NOT one of the cards above, and is not a synonym or near-synonym of any card (its definition must never also fit a card)
+- has a french_definition in the same style and length as the cards'
+
+Return ONLY a valid JSON object, no other text:
+{{"cards": [{{"word": "...", "part_of_speech": "...", "usage": "...", "french_definition": "...", "english_definition": "...", "example_sentence": "...", "english_translation": "..."}}, ...],
+ "decoys": [{{"word": "...", "french_definition": "..."}}, ...]}}"""
 
 _VOCAB_ANGLES = [
     "Prioritise verbs and action words — what people do, feel, or experience.",
@@ -3245,8 +3285,11 @@ Rules:
 - For C1/C2: include nuanced expressions, formal and literary terms, register variation
 - definition: a concise definition IN ENGLISH, appropriate to the learner's level (simple English for A1/A2)
 - definition_fr: a French translation of the definition (translate the definition, not the word)
-- example_sentence: one natural English sentence using the word/phrase in context
-- example_fr: a French translation of the example sentence
+- example_sentence: one natural, everyday English sentence (about 8–20 words) that contains the word/phrase (inflected as needed) and shows HOW it is typically used, with enough context that the meaning is clear from the sentence alone:
+  - idioms / expressions: a realistic situation where a native speaker would actually say it (who says it, about what)
+  - verbs and phrasal verbs: their usual construction (preposition, object, where the particle goes)
+  - adjectives: a typical noun or situation it describes
+- example_fr: a natural French translation of the example sentence
 - part_of_speech: one of "noun", "verb", "adjective", "adverb", "phrasal verb", "idiom", "expression"
 - usage: one of "neutral", "informal", "formal"
 - {accent}
@@ -3254,8 +3297,13 @@ Rules:
 
 Focus for this session: {angle}
 
-Return ONLY valid JSON array, no other text:
-[{{"word": "...", "part_of_speech": "...", "usage": "...", "definition": "...", "definition_fr": "...", "example_sentence": "...", "example_fr": "..."}}, ...]"""
+Also generate exactly {decoys} decoys: extra words/expressions at the same level and on the same subject, used as wrong options in the quiz. Each decoy:
+- is NOT one of the cards above, and is not a synonym or near-synonym of any card (its definition must never also fit a card)
+- has a definition in the same style and length as the cards'
+
+Return ONLY a valid JSON object, no other text:
+{{"cards": [{{"word": "...", "part_of_speech": "...", "usage": "...", "definition": "...", "definition_fr": "...", "example_sentence": "...", "example_fr": "..."}}, ...],
+ "decoys": [{{"word": "...", "definition": "..."}}, ...]}}"""
 
 _VOCAB_ACCENTS = {
     "en-US": "Use American English spelling and vocabulary (color, apartment, vacation, fall).",
@@ -3271,7 +3319,8 @@ async def _vocab_generate_en(req: VocabGenerateRequest, locale: str) -> VocabGen
     level = req.level.upper()
     count = max(4, min(20, req.count))
     system = _VOCAB_SYSTEM_EN.format(count=count, level=level, subject=req.subject,
-                                     accent=_VOCAB_ACCENTS[locale], angle=random.choice(_VOCAB_ANGLES))
+                                     accent=_VOCAB_ACCENTS[locale], angle=random.choice(_VOCAB_ANGLES),
+                                     decoys=_vocab_decoy_count(count))
     raw = await asyncio.to_thread(
         lambda: _mistral.chat.complete(
             model="mistral-small-latest",
@@ -3280,12 +3329,10 @@ async def _vocab_generate_en(req: VocabGenerateRequest, locale: str) -> VocabGen
                 {"role": "user", "content": f"Generate {count} vocabulary cards."},
             ],
             temperature=1.0,
-            max_tokens=3200,
+            max_tokens=4800,
         )
     )
-    text = raw.choices[0].message.content.strip()
-    text = re.sub(r"^```(?:json)?\s*", "", text)
-    text = re.sub(r"\s*```$", "", text)
+    cards_raw, decoys = _vocab_parse(raw.choices[0].message.content, count, "definition")
     cards = [
         VocabCard(
             word=c["word"],
@@ -3296,7 +3343,7 @@ async def _vocab_generate_en(req: VocabGenerateRequest, locale: str) -> VocabGen
             example_sentence=c.get("example_sentence", ""),
             english_translation=c.get("example_fr", ""),
         )
-        for c in json.loads(text)[:count]
+        for c in cards_raw
     ]
     if req.session_id and req.access_code:
         _analytics.track(req.session_id, req.access_code, "vocab_session_started", {
@@ -3306,7 +3353,7 @@ async def _vocab_generate_en(req: VocabGenerateRequest, locale: str) -> VocabGen
             "subject": req.subject,
             "card_count": len(cards),
         }, req.visit_id)
-    return VocabGenerateResponse(cards=cards)
+    return VocabGenerateResponse(cards=cards, decoys=decoys)
 
 
 @app.post("/vocab/generate", response_model=VocabGenerateResponse)
@@ -3323,7 +3370,8 @@ async def vocab_generate(req: VocabGenerateRequest, authorization: Optional[str]
     level = req.level.upper()
     count = max(4, min(20, req.count))
     angle = random.choice(_VOCAB_ANGLES)
-    system = _VOCAB_SYSTEM.format(count=count, level=level, subject=req.subject, angle=angle)
+    system = _VOCAB_SYSTEM.format(count=count, level=level, subject=req.subject, angle=angle,
+                                  decoys=_vocab_decoy_count(count))
     try:
         raw = await asyncio.to_thread(
             lambda: _mistral.chat.complete(
@@ -3333,15 +3381,11 @@ async def vocab_generate(req: VocabGenerateRequest, authorization: Optional[str]
                     {"role": "user", "content": f"Generate {count} vocabulary cards."},
                 ],
                 temperature=1.0,
-                max_tokens=3200,
+                max_tokens=4800,
             )
         )
-        text = raw.choices[0].message.content.strip()
-        # Strip markdown code fences if present
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-        cards_raw = json.loads(text)
-        cards = [VocabCard(**c) for c in cards_raw[:count]]
+        cards_raw, decoys = _vocab_parse(raw.choices[0].message.content, count, "french_definition")
+        cards = [VocabCard(**c) for c in cards_raw]
         if req.session_id and req.access_code:
             _analytics.track(req.session_id, req.access_code, "vocab_session_started", {
                 "exercise_type": "vocab",
@@ -3349,9 +3393,61 @@ async def vocab_generate(req: VocabGenerateRequest, authorization: Optional[str]
                 "subject": req.subject,
                 "card_count": len(cards),
             }, req.visit_id)
-        return VocabGenerateResponse(cards=cards)
+        return VocabGenerateResponse(cards=cards, decoys=decoys)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
+
+
+class VocabCheckTypedRequest(BaseModel):
+    answer: str
+    target: str
+    locale: Optional[str] = None
+
+
+_TYPED_LEADING_WORDS = {"the", "a", "an", "to"}
+
+
+def _typed_key(text: str) -> str:
+    """Forgiving comparison key for a typed English flashcard answer: case,
+    punctuation, hyphens, accents and US/UK spelling ignored (shared English
+    normalizer, spelling mode), plus an optional leading article or infinitive 'to'."""
+    words = normalize(text, phonetic=False, lang="en")
+    while len(words) > 1 and words[0] in _TYPED_LEADING_WORDS:
+        words = words[1:]
+    return " ".join(words)
+
+
+def _edit_distance(a: str, b: str) -> int:
+    """Edits between a and b; swapping two neighbouring letters (recieve) counts as one."""
+    d = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
+    for i in range(len(a) + 1):
+        d[i][0] = i
+    for j in range(len(b) + 1):
+        d[0][j] = j
+    for i in range(1, len(a) + 1):
+        for j in range(1, len(b) + 1):
+            d[i][j] = min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] != b[j - 1]))
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
+                d[i][j] = min(d[i][j], d[i - 2][j - 2] + 1)
+    return d[-1][-1]
+
+
+@app.post("/vocab/check-typed")
+async def vocab_check_typed(req: VocabCheckTypedRequest, authorization: Optional[str] = Header(None)):
+    """English flashcards' Write question. "exact" / "close" (a one-letter typo:
+    counted right, correct spelling shown) / "wrong"."""
+    locale = _resolve_locale(req.locale)
+    if _lang.lang_of(locale) != "en":
+        raise HTTPException(status_code=400, detail="Typed answers are English only")
+    await _check_english_access(authorization)
+    said, target = _typed_key(req.answer), _typed_key(req.target)
+    if not said:
+        return {"result": "wrong"}
+    if said == target:
+        return {"result": "exact"}
+    if len(target) >= 4 and _edit_distance(said, target) <= 1:
+        return {"result": "close"}
+    return {"result": "wrong"}
 
 
 # ── Resumable cumulative vocab session (tied to the logged-in account) ──────────
@@ -3382,6 +3478,49 @@ async def vocab_session_save(req: VocabSessionSave, current_user: dict = Depends
 async def vocab_session_delete(current_user: dict = Depends(_auth.get_current_user)):
     _analytics.delete_vocab_session(_current_user_id(current_user))
     return {"ok": True}
+
+
+# ── Flashcards spaced repetition (account-tied, one deck per study language) ────
+
+def _review_lang(lang: str) -> str:
+    if lang not in ("fr", "en"):
+        raise HTTPException(status_code=400, detail="Unknown study language")
+    return lang
+
+
+class VocabReviewAdd(BaseModel):
+    lang: str
+    cards: list[dict]
+    missed: list[str] = []
+    decoys: list[dict] = []
+
+
+class VocabReviewResults(BaseModel):
+    lang: str
+    results: list[dict]   # [{word, correct}]
+
+
+@app.get("/vocab/review/summary")
+async def vocab_review_summary(lang: str = "fr", current_user: dict = Depends(_auth.get_current_user)):
+    return _analytics.vocab_review_summary(_current_user_id(current_user), _review_lang(lang))
+
+
+@app.get("/vocab/review/due")
+async def vocab_review_due(lang: str = "fr", current_user: dict = Depends(_auth.get_current_user)):
+    return _analytics.vocab_review_due(_current_user_id(current_user), _review_lang(lang))
+
+
+@app.post("/vocab/review/add")
+async def vocab_review_add(req: VocabReviewAdd, current_user: dict = Depends(_auth.get_current_user)):
+    added = _analytics.vocab_review_add(_current_user_id(current_user), _review_lang(req.lang),
+                                        req.cards[:40], req.missed, req.decoys)
+    return {"added": added}
+
+
+@app.post("/vocab/review/results")
+async def vocab_review_results(req: VocabReviewResults, current_user: dict = Depends(_auth.get_current_user)):
+    due = _analytics.vocab_review_results(_current_user_id(current_user), _review_lang(req.lang), req.results[:40])
+    return {"ok": True, "due": due}
 
 
 _WRITING_PROMPT_SYSTEM = """You generate French writing prompts for language learners.

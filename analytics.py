@@ -68,8 +68,8 @@ _SESSION_EVENTS = frozenset({
     'paragraph_started', 'paragraph_completed', 'chunk_listened',
     'phrase_attempted', 'paragraph_attempted', 'paragraph_drilled', 'word_attempted',
     'dictation_attempted', 'writing_attempted', 'transform_attempted',
-    'vocab_session_started', 'vocab_session_completed', 'listen_answer_started',
-    'comprehension_answered',
+    'vocab_session_started', 'vocab_session_completed', 'vocab_review_completed',
+    'listen_answer_started', 'comprehension_answered',
 })
 
 # A session only counts if it contains at least one of these scored attempts.
@@ -260,6 +260,23 @@ def init_db():
                 updated_at DATETIME DEFAULT (datetime('now'))
             )
         """)
+        # Flashcards spaced repetition: one row per studied word per account and study
+        # language. stage indexes VOCAB_REVIEW_INTERVALS; due_at is a UTC date.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS vocab_review (
+                user_id    INTEGER NOT NULL REFERENCES users(id),
+                lang       TEXT NOT NULL,
+                word_key   TEXT NOT NULL,
+                card       TEXT NOT NULL,
+                decoys     TEXT NOT NULL DEFAULT '[]',
+                stage      INTEGER NOT NULL DEFAULT 0,
+                due_at     DATE NOT NULL,
+                right_n    INTEGER NOT NULL DEFAULT 0,
+                missed_n   INTEGER NOT NULL DEFAULT 0,
+                updated_at DATETIME DEFAULT (datetime('now')),
+                PRIMARY KEY (user_id, lang, word_key)
+            )
+        """)
         # Content-bank novelty: which banked units (phrase/passage ids) a learner
         # has already been served, so the selector can serve unseen pieces first.
         conn.execute("""
@@ -375,6 +392,112 @@ def get_vocab_session(user_id: int) -> Optional[dict]:
 def delete_vocab_session(user_id: int) -> None:
     with _conn() as conn:
         conn.execute("DELETE FROM vocab_sessions WHERE user_id=?", (user_id,))
+
+
+# ── Flashcards spaced repetition ──────────────────────────────────────────────
+# A word joins after its first Recall and is due the next day. Each review it gets
+# right moves it one step along these intervals (days); a miss sends it back to the
+# start (due tomorrow). The last interval repeats.
+VOCAB_REVIEW_INTERVALS = [1, 3, 7, 14, 30]
+
+
+def _vocab_word_key(word: str) -> str:
+    return " ".join(str(word or "").lower().split())
+
+
+def vocab_review_add(user_id: int, lang: str, cards: list, missed: list, decoys: list) -> int:
+    """Add a finished Recall's words. New words are due tomorrow; a word already in
+    the deck keeps its schedule unless it was missed again (then back to the start)."""
+    missed_keys = {_vocab_word_key(w) for w in missed}
+    decoys_json = json.dumps(decoys[:6])
+    added = 0
+    with _conn() as conn:
+        for card in cards:
+            key = _vocab_word_key(card.get("word"))
+            if not key:
+                continue
+            row = conn.execute(
+                "SELECT stage FROM vocab_review WHERE user_id=? AND lang=? AND word_key=?",
+                (user_id, lang, key)).fetchone()
+            if row is None:
+                conn.execute(
+                    "INSERT INTO vocab_review (user_id, lang, word_key, card, decoys, stage, due_at, "
+                    "right_n, missed_n) VALUES (?,?,?,?,?,0, date('now','+1 day'),?,?)",
+                    (user_id, lang, key, json.dumps(card), decoys_json,
+                     0 if key in missed_keys else 1, 1 if key in missed_keys else 0))
+                added += 1
+            elif key in missed_keys:
+                conn.execute(
+                    "UPDATE vocab_review SET stage=0, due_at=date('now','+1 day'), card=?, "
+                    "missed_n=missed_n+1, updated_at=datetime('now') "
+                    "WHERE user_id=? AND lang=? AND word_key=?",
+                    (json.dumps(card), user_id, lang, key))
+    return added
+
+
+def vocab_review_summary(user_id: int, lang: str) -> dict:
+    """{total, due, next_due (date or None), next_count} for the hub card."""
+    with _conn() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM vocab_review WHERE user_id=? AND lang=?",
+                             (user_id, lang)).fetchone()[0]
+        due = conn.execute("SELECT COUNT(*) FROM vocab_review WHERE user_id=? AND lang=? "
+                           "AND due_at <= date('now')", (user_id, lang)).fetchone()[0]
+        nxt = conn.execute("SELECT due_at, COUNT(*) AS n FROM vocab_review WHERE user_id=? AND lang=? "
+                           "AND due_at > date('now') GROUP BY due_at ORDER BY due_at LIMIT 1",
+                           (user_id, lang)).fetchone()
+    return {"total": total, "due": due,
+            "next_due": nxt["due_at"] if nxt else None, "next_count": nxt["n"] if nxt else 0}
+
+
+def vocab_review_due(user_id: int, lang: str, limit: int = 20) -> dict:
+    """The most overdue words (up to limit) plus up to 30 other saved words and the
+    saved decoys, which supply the wrong options."""
+    with _conn() as conn:
+        due = conn.execute(
+            "SELECT card, decoys FROM vocab_review WHERE user_id=? AND lang=? AND due_at <= date('now') "
+            "ORDER BY due_at, stage LIMIT ?", (user_id, lang, limit)).fetchall()
+        others = conn.execute(
+            "SELECT card FROM vocab_review WHERE user_id=? AND lang=? AND due_at > date('now') "
+            "ORDER BY RANDOM() LIMIT 30", (user_id, lang)).fetchall()
+    cards, decoys, seen = [], [], set()
+    for r in due:
+        cards.append(json.loads(r["card"]))
+        for d in json.loads(r["decoys"] or "[]"):
+            k = _vocab_word_key(d.get("word"))
+            if k and k not in seen:
+                seen.add(k)
+                decoys.append(d)
+    return {"cards": cards, "pool": [json.loads(r["card"]) for r in others], "decoys": decoys}
+
+
+def vocab_review_results(user_id: int, lang: str, results: list) -> dict:
+    """Apply a review session: right → next interval, missed → due tomorrow.
+    Returns {word as sent: new due date} for the end screen."""
+    last = len(VOCAB_REVIEW_INTERVALS) - 1
+    due = {}
+    with _conn() as conn:
+        for res in results:
+            key = _vocab_word_key(res.get("word"))
+            row = conn.execute(
+                "SELECT stage FROM vocab_review WHERE user_id=? AND lang=? AND word_key=?",
+                (user_id, lang, key)).fetchone()
+            if row is None:
+                continue
+            if res.get("correct"):
+                stage = min(row["stage"] + 1, last)
+                conn.execute(
+                    "UPDATE vocab_review SET stage=?, due_at=date('now', ?), right_n=right_n+1, "
+                    "updated_at=datetime('now') WHERE user_id=? AND lang=? AND word_key=?",
+                    (stage, "+{} days".format(VOCAB_REVIEW_INTERVALS[stage]), user_id, lang, key))
+            else:
+                conn.execute(
+                    "UPDATE vocab_review SET stage=0, due_at=date('now','+1 day'), missed_n=missed_n+1, "
+                    "updated_at=datetime('now') WHERE user_id=? AND lang=? AND word_key=?",
+                    (user_id, lang, key))
+            row = conn.execute("SELECT due_at FROM vocab_review WHERE user_id=? AND lang=? AND word_key=?",
+                               (user_id, lang, key)).fetchone()
+            due[res.get("word")] = row["due_at"]
+    return due
 
 
 # Teach mode: the student tool sends a "teach-" session id while a teacher is

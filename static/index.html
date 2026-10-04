@@ -353,11 +353,18 @@
       line-height: 1.45;
       color: var(--vk-fg-2);
     }
-    #hub-levels, #hub-styles, #hub-sound-chips, #hub-subjects, .hub-accent-chips {
+    #hub-levels, #hub-styles, #hub-sound-chips, #hub-en-sound-chips, #hub-subjects, .hub-accent-chips {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
+    }
+    .hub-row-note {
+      margin: 12px 0 0;
+      font-family: var(--pa-font-sans);
+      font-size: var(--vk-type-body-sm);
+      line-height: 1.45;
+      color: var(--vk-fg-2);
     }
     /* Hub chips are .vk-filter-chip (vk-atelier-components.css); .hub-subject-chip is the JS hook */
     .hub-chip-delete {
@@ -1730,56 +1737,62 @@
     .vocab-exp-english-text.visible { max-height: 100px; }
 
     /* ── Choice rows (Path A + Path B) ─────────────────────────────────────── */
-    .vc-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+    /* Write question (English): answer field + Check */
+    .vc-write-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    .vc-write-row .vk-input { flex: 1; min-width: 0; }
+    /* M3 list item: leading radio | divider | play (secondary action), label + status.
+       The row itself is the radio (select); the play button never selects. */
+    .vc-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
     .vc-row {
-      display: flex; align-items: center;
-      border: 1px solid var(--vk-border); background: var(--vk-surface);
-      cursor: pointer; user-select: none;
-      transition: border-color 120ms, background 100ms;
+      display: flex; align-items: center; gap: 16px;
+      min-height: 64px; padding: 8px 16px;
+      background: var(--vk-surface-lowest); border-radius: var(--vk-radius-ui);
+      cursor: pointer; user-select: none; outline: none;
+      transition: background 120ms cubic-bezier(0.4,0,0.2,1);
     }
-    .vc-row:not(.disabled):not(.correct):not(.reveal):not(.wrong):hover { border-color: var(--vk-accent-border); background: var(--vk-accent-bg); }
-    .vc-row.selected { border-color: var(--vk-accent); background: var(--vk-accent-bg); }
-    .vc-row.correct  { border-color: var(--pa-pass); background: var(--pa-pass-bg); cursor: default; }
-    .vc-row.reveal   { border-color: var(--pa-pass); background: var(--pa-pass-bg); cursor: default; }
-    .vc-row.wrong    { border-color: var(--pa-fail); background: var(--pa-fail-bg); cursor: default; }
+    .vc-row:hover { background: color-mix(in srgb, var(--vk-fg-1) 8%, var(--vk-surface-lowest)); }
+    .vc-row:focus-visible { box-shadow: var(--vk-focus-ring); }
+    .vc-row.selected { background: var(--vk-tonal); }
+    .vc-row.correct, .vc-row.reveal { background: var(--pa-pass-bg); cursor: default; }
+    .vc-row.wrong    { background: var(--pa-fail-bg); cursor: default; }
     .vc-row.disabled { pointer-events: none; }
-    .vcr-num {
-      font-family: var(--pa-font-mono); font-size: var(--vk-type-label-sm); font-weight: 600;
-      color: var(--vk-fg-3); letter-spacing: 0.05em;
-      width: 36px; flex-shrink: 0; text-align: center;
-      padding: 14px 0; border-right: 1px solid var(--vk-border);
-    }
+    .vcr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .vcr-label {
-      flex: 1; padding: 14px 16px;
-      font-family: var(--pa-font-display); font-size: var(--vk-type-title-md); font-weight: 600; letter-spacing: -0.01em;
+      font-family: var(--pa-font-sans); font-size: var(--vk-type-title-md); font-weight: 500;
       color: var(--vk-fg-1);
     }
-    .vc-row.correct .vcr-label,
-    .vc-row.reveal  .vcr-label { color: var(--pa-pass); }
+    .vcr-status { font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md); color: var(--vk-fg-2); }
+    .vc-row.selected .vcr-label, .vc-row.selected .vcr-status { color: var(--vk-on-tonal); }
+    .vc-row.correct .vcr-label, .vc-row.reveal .vcr-label { color: var(--pa-pass); }
     .vc-row.wrong   .vcr-label { color: var(--pa-fail); }
-    .vcr-play {
-      width: 52px; height: 44px; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      border: none; border-left: 1px solid var(--vk-border);
-      background: transparent; cursor: pointer;
-      transition: background 100ms;
-    }
-    .vcr-play:hover { background: var(--vk-surface-tint); }
-    .vcr-circle {
-      width: 30px; height: 30px; border-radius: 999px;
-      border: 1.5px solid var(--vk-accent); color: var(--vk-accent-text);
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-      transition: background 100ms, color 100ms, border-color 100ms, box-shadow 120ms;
-    }
-    .vcr-play:hover .vcr-circle { background: var(--vk-accent-bg); }
-    .vcr-play.is-playing .vcr-circle {
-      background: var(--vk-accent); color: var(--vk-accent-fg); border-color: var(--vk-accent);
-      box-shadow: 0 0 0 3px var(--pa-record-ring);
-    }
+    /* Leading play: .vk-icon-btn.is-tonal; fills with the accent while playing */
+    .vc-row.selected .vcr-play { background: var(--vk-surface-lowest); }
+    .vcr-play.is-playing, .vc-row.selected .vcr-play.is-playing { background: var(--vk-accent); color: var(--vk-accent-fg); }
     .vcr-play .icon-pause { display: none; }
     .vcr-play.is-playing .icon-play  { display: none; }
     .vcr-play.is-playing .icon-pause { display: block; }
+    /* Splits the select zone (radio) from the listen zone (play + label) */
+    .vcr-divider {
+      width: 1px; align-self: stretch; flex-shrink: 0; margin: 4px 0;
+      background: var(--vk-outline-variant);
+    }
+    /* Leading M3 radio (visual; the row carries role="radio") */
+    .vcr-radio {
+      width: 20px; height: 20px; flex-shrink: 0; position: relative;
+      border: 2px solid var(--vk-fg-2); border-radius: 50%;
+      transition: border-color 120ms cubic-bezier(0.4,0,0.2,1);
+    }
+    .vcr-radio::after {
+      content: ''; position: absolute; inset: 3px; border-radius: 50%;
+      background: var(--vk-accent); transform: scale(0);
+      transition: transform 150ms var(--pa-ease-spring);
+    }
+    .vc-row.selected .vcr-radio { border-color: var(--vk-accent); }
+    .vc-row.selected .vcr-radio::after { transform: scale(1); }
+    .vc-row.correct .vcr-radio, .vc-row.reveal .vcr-radio { border-color: var(--pa-pass); }
+    .vc-row.correct .vcr-radio::after { background: var(--pa-pass); }
+    .vc-row.wrong .vcr-radio { border-color: var(--pa-fail); }
+    .vc-row.wrong .vcr-radio::after { background: var(--pa-fail); }
 
     /* play/pause icon toggle on pa-ctrl (Path A replay button) */
     .pa-ctrl .icon-pause { display: none; }
@@ -1822,12 +1835,120 @@
     .vocab-summary-score span { font-weight: 700; color: var(--vk-fg-1); }
     .vocab-summary-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
 
+    /* ── Results end screen (session + review) — M3 Expressive on Tonal tokens:
+       a scalloped score shape, display numeral, spring entrance, staggered word rows. */
+    .vr { display: flex; flex-direction: column; gap: 16px; padding-bottom: 32px; }
+    .vr-hero {
+      display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center;
+      padding: 28px 32px; border-radius: var(--vk-card-radius);
+    }
+    /* The brand mark celebrates the score: medal colour by tier; the electrons spin
+       round the orbit and sparks burst out (gold 12, silver 8, bronze 6). Below 50%
+       it settles in quietly in --pa-fail. */
+    .vr-atom { width: 132px; height: 132px; flex-shrink: 0; overflow: visible; fill: currentColor;
+               animation: vr-pop 600ms var(--pa-ease-spring) both; }
+    .vr-atom.is-gold   { color: var(--pa-medal-gold); }
+    .vr-atom.is-silver { color: var(--pa-medal-silver); }
+    .vr-atom.is-bronze { color: var(--pa-medal-bronze); }
+    .vr-atom.is-low    { color: var(--pa-fail); }
+    .vr-atom-orbit, .vr-spark { transform-box: view-box; transform-origin: 50px 50px; }
+    .vr-atom:not(.is-low) .vr-atom-orbit { animation: vr-spin 1400ms cubic-bezier(0.2, 0.7, 0.2, 1) 300ms both; }
+    .vr-spark { opacity: 0; animation: vr-spark 900ms cubic-bezier(0.2, 0.7, 0.3, 1) 650ms both; }
+    @keyframes vr-pop   { from { transform: scale(0.3); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes vr-spin  { from { transform: rotate(-540deg); } to { transform: none; } }
+    @keyframes vr-spark {
+      0%   { transform: rotate(var(--a)) translateY(-36px) scale(0.4); opacity: 0; }
+      25%  { opacity: 1; }
+      100% { transform: rotate(var(--a)) translateY(-68px) scale(1); opacity: 0; }
+    }
+    .vr-pct {
+      font-family: var(--pa-font-mono); font-variant-numeric: tabular-nums; font-weight: 600;
+      font-size: var(--vk-type-display-md); line-height: 1; letter-spacing: -0.02em; color: var(--vk-fg-1);
+      animation: vk-fade-up var(--vk-dur-enter) var(--vk-ease-expressive) 200ms both;
+    }
+    .vr-head { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+    .vr-label { font-family: var(--pa-font-sans); font-size: var(--vk-type-label-lg); font-weight: 600; color: var(--vk-accent-text); }
+    .vr-title {
+      margin: 0; font-family: var(--pa-font-sans); font-weight: 600; letter-spacing: -0.01em;
+      font-size: var(--vk-type-fluid-headline); line-height: 1.15; color: var(--vk-fg-1);
+    }
+    .vr-sub { margin: 0; font-family: var(--pa-font-sans); font-size: var(--vk-type-body-lg); line-height: 1.5; color: var(--vk-fg-2); }
+    .vr-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .vr-stat {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; border-radius: var(--vk-radius-card); background: var(--vk-surface-lowest);
+    }
+    .vr-stat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .vr-stat.is-pass .vr-stat-dot { background: var(--pa-pass); }
+    .vr-stat.is-fail .vr-stat-dot { background: var(--pa-fail); }
+    .vr-stat-n { font-family: var(--pa-font-mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: var(--vk-type-title-lg); color: var(--vk-fg-1); }
+    .vr-stat-label { font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md); color: var(--vk-fg-2); }
+    .vr-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+    .vr-section { padding: 20px; border-radius: var(--vk-card-radius); }
+    .vr-section-head { display: flex; align-items: baseline; gap: 10px; margin: 0 4px 12px; }
+    .vr-section-title { margin: 0; font-family: var(--pa-font-sans); font-size: var(--vk-type-title-md); font-weight: 600; color: var(--vk-fg-1); }
+    .vr-section-n { font-family: var(--pa-font-mono); font-size: var(--vk-type-label-lg); color: var(--vk-fg-2); }
+    .vr-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+    .vr-row {
+      display: flex; align-items: center; gap: 16px; padding: 12px 16px;
+      background: var(--vk-surface-lowest); border-radius: var(--vk-radius-ui);
+      animation: vk-fade-up var(--vk-dur-enter) var(--vk-ease-expressive) both;
+      animation-delay: calc(300ms + var(--i, 0) * 40ms);
+    }
+    .vr-list > .vr-row:first-child { border-radius: var(--vk-radius-card) var(--vk-radius-card) var(--vk-radius-ui) var(--vk-radius-ui); }
+    .vr-list > .vr-row:last-child  { border-radius: var(--vk-radius-ui) var(--vk-radius-ui) var(--vk-radius-card) var(--vk-radius-card); }
+    .vr-list > .vr-row:only-child  { border-radius: var(--vk-radius-card); }
+    .vr-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .vr-word { font-family: var(--pa-font-sans); font-size: var(--vk-type-title-md); font-weight: 600; color: var(--vk-fg-1); }
+    .vr-def { font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md); line-height: 1.45; color: var(--vk-fg-2); }
+    .vr-meta {
+      flex-shrink: 0; padding: 4px 10px; border-radius: 8px;
+      font-family: var(--pa-font-sans); font-size: var(--vk-type-label-lg); font-weight: 500;
+      background: var(--vk-tonal); color: var(--vk-on-tonal);
+    }
+    .vr[hidden], .vocab-summary-card[hidden] { display: none; }
+    .vr-play .icon-pause { display: none; }
+    .vr-play.is-playing .icon-play  { display: none; }
+    .vr-play.is-playing .icon-pause { display: block; }
+    .vr-play.is-playing { background: var(--vk-accent); color: var(--vk-accent-fg); }
+    @media (max-width: 768px) {
+      .vr-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 24px 20px; gap: 20px; }
+      .vr-head { align-items: center; }
+      .vr-stats, .vr-actions { justify-content: center; }
+      .vr-atom { width: 112px; height: 112px; }
+      .vr-row { flex-wrap: wrap; }
+      .vr-meta { margin-left: 52px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .vr-atom, .vr-atom-orbit, .vr-pct, .vr-row { animation: none; }
+      .vr-spark { display: none; }
+    }
+
     /* ── Resume card (cumulative, account-tied) ────────────────────────────── */
     .vocab-resume-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; flex-wrap: wrap; }
     .vocab-resume-info { display: flex; flex-direction: column; gap: 4px; }
     .vocab-resume-title { font-family: var(--pa-font-sans); font-size: var(--vk-type-title-md); font-weight: 700; color: var(--vk-fg-1); }
     .vocab-resume-meta  { font-family: var(--pa-font-mono); font-size: var(--vk-type-label-md); color: var(--vk-fg-2); }
     .vocab-resume-actions { display: flex; gap: 10px; align-items: center; }
+    /* Review banner: one slim strip above the setup rows (an alternate path) */
+    .vrb { padding: 10px 12px 10px 20px; border-radius: var(--vk-radius-card); background: var(--vk-surface); }
+    .vrb-main { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .vrb-icon { width: 24px; height: 24px; flex-shrink: 0; color: var(--vk-accent-text); }
+    .vrb-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 2px; }
+    .vrb-desc  { display: inline-flex; align-items: center; gap: 2px; font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md); color: var(--vk-fg-2); }
+    .vrb-action { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .vrb-action[hidden] { display: none; }
+    .vrb-title { font-family: var(--pa-font-sans); font-size: var(--vk-type-title-sm); font-weight: 600; color: var(--vk-fg-1); }
+    .vrb-meta  { font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md); color: var(--vk-fg-2); }
+    .vrb-info[aria-expanded="true"] { background: var(--vk-tonal); color: var(--vk-on-tonal); }
+    .vrb-explain {
+      margin: 8px 0 6px 36px; max-width: 70ch;
+      font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md); line-height: 1.55; color: var(--vk-fg-2);
+    }
+    @media (max-width: 768px) {
+      .vrb-action { flex-basis: 100%; justify-content: space-between; }
+      .vrb-explain { margin-left: 0; }
+    }
 
     /* ── Path B reveal section ─────────────────────────────────────────────── */
     .vocab-pb-reveal {
@@ -1883,6 +2004,18 @@
       color: var(--vk-fg-2); font-style: italic; display: none;
     }
     .vc-exp-eng-text.visible { display: block; }
+    .vc-exp-example {
+      display: flex; flex-direction: column; gap: 6px;
+      margin-top: 8px; padding: 12px 14px;
+      background: var(--vk-surface-lowest); border-radius: var(--vk-radius-ui);
+    }
+    .vc-exp-example-row { display: flex; align-items: flex-start; gap: 12px; }
+    .vc-exp-example-text {
+      flex: 1; margin: 0;
+      font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md);
+      color: var(--vk-fg-1); line-height: 1.55;
+    }
+    .vc-exp-translate-btn { align-self: flex-start; }
     .vc-exp-footer { display: flex; justify-content: flex-end; padding-top: 4px; }
 
     /* ── Dictation hub ── */
@@ -3231,6 +3364,7 @@
               <button class="vk-filter-chip hub-subject-chip" data-focus="vowel_length" onclick="selectHubEnSoundChip(this)">Short / long vowels</button>
               <button class="vk-filter-chip hub-subject-chip" data-focus="ed_endings" onclick="selectHubEnSoundChip(this)">-ED endings</button>
             </div>
+            <p id="hub-en-sound-note" class="hub-row-note" hidden>Sound focus grades how each sound is pronounced, not just whether your words come through. It is stricter, so you may score lower even when you are easy to understand.</p>
           </div>
         </div>
 
@@ -4200,7 +4334,7 @@
       <div class="hub-intro">
         <span class="hub-intro-eyebrow">Vocabulary</span>
         <h2 class="hub-intro-heading">Build your word bank</h2>
-        <p class="hub-intro-text">Two rounds per session: Exposure (read definitions, play audio) then Recall (audio-only identification). Cumulative mode stacks new words on top of previous sessions.</p>
+        <p class="hub-intro-text">Two rounds per session: Exposure (read definitions, play audio) then Recall, answered the way you choose below. Cumulative mode stacks new words on top of previous sessions.</p>
         <div class="hub-intro-chips">
           <span class="hub-intro-chip">Exposure</span>
           <span class="hub-intro-chip">Recall</span>
@@ -4208,6 +4342,27 @@
         </div>
       </div>
       <div id="vocab-hub-content">
+
+        <!-- Review your words: an alternate path (spaced repetition), not a setup row.
+             Account-tied, one deck per study language; hidden in teach mode / signed out. -->
+        <div id="vocab-review-row" class="hub-feature-card vrb" style="display:none;">
+          <div class="vrb-main">
+            <svg class="vrb-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            <span class="vrb-text">
+              <span class="vrb-title">Spaced repetition</span>
+              <span class="vrb-desc"><span id="vocab-review-desc"></span>
+                <button class="vk-icon-btn is-sm vrb-info" title="How review works" aria-label="How review works" aria-expanded="false" aria-controls="vocab-review-explain" onclick="toggleVocabReviewHow(this)">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              </button>
+              </span>
+            </span>
+            <span class="vrb-action">
+              <span id="vocab-review-meta" class="vrb-meta"></span>
+              <button id="vocab-review-btn" class="vk-btn vk-btn-primary vrb-start" onclick="startVocabReview()">Start review →</button>
+            </span>
+          </div>
+          <p id="vocab-review-explain" class="vrb-explain" hidden>Spaced repetition brings back words you've studied at the moment you're likely to start forgetting them. Each time you get a word right, it waits longer before coming back: 1 day, then 3 days, a week, 2 weeks, a month. If you miss it, it comes back tomorrow. Every word from your Flashcards sessions joins your review deck, and a review asks up to 20 words, most overdue first.</p>
+        </div>
 
         <!-- Accent (English) — one shared setting with the Speaking hub -->
         <div class="hub-row en-only">
@@ -4307,6 +4462,22 @@
           </div>
         </div>
 
+        <!-- How to answer (Recall) -->
+        <div class="hub-row">
+          <div class="hub-row-label">
+            <span class="hub-row-name">How to answer</span>
+            <span class="hub-row-desc">One way per word, or Mixed to test each word two ways</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="vocab-hub-modes">
+              <button class="vk-filter-chip hub-subject-chip" data-mode="word" onclick="selectVocabAnswerMode(this)">Hear the definition, pick the word</button>
+              <button class="vk-filter-chip hub-subject-chip" data-mode="definition" onclick="selectVocabAnswerMode(this)">See the word, hear the definitions</button>
+              <button class="vk-filter-chip hub-subject-chip en-only" data-mode="write" onclick="selectVocabAnswerMode(this)">Hear the definition, write the word</button>
+              <button class="vk-filter-chip hub-subject-chip active" data-mode="mixed" onclick="selectVocabAnswerMode(this)">Mixed</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Generate -->
         <div class="hub-row">
           <div class="hub-row-label"></div>
@@ -4378,7 +4549,7 @@
               </div>
               <hr class="vc-path-a-divider">
               <p class="vc-path-a-instr">Listen to the definition, then select the word or expression</p>
-              <div id="vc-path-a-choices" class="vc-choices"></div>
+              <div id="vc-path-a-choices" class="vc-choices" role="radiogroup" aria-label="Words"></div>
               <button id="vc-path-a-submit" class="vk-btn vk-btn-primary" onclick="vocabSubmitPathA()" disabled style="margin-top:12px;">Confirm</button>
               <div id="vc-path-a-result" style="display:none; margin-top:16px;">
                 <div id="vc-path-a-banner" class="vocab-result-banner"></div>
@@ -4395,7 +4566,7 @@
             <!-- ── Path B: see word → listen to 4 defs → pick number ── -->
             <div id="vc-path-b" style="display:none;">
               <p class="vc-path-b-instr">Listen to each definition, then select the correct one</p>
-              <div id="vc-path-b-defs" class="vc-choices"></div>
+              <div id="vc-path-b-defs" class="vc-choices" role="radiogroup" aria-label="Definitions"></div>
               <button id="vc-path-b-submit" class="vk-btn vk-btn-primary" onclick="vocabSubmitPathB()" disabled style="margin-top:12px;">Confirm</button>
               <div id="vc-path-b-result" style="display:none; margin-top:16px;">
                 <div id="vc-path-b-banner" class="vocab-result-banner"></div>
@@ -4409,6 +4580,33 @@
               </div>
             </div><!-- /#vc-path-b -->
 
+            <!-- ── Path C (English only): hear definition → type the word ── -->
+            <div id="vc-path-c" style="display:none;">
+              <div class="vc-path-a-play-wrap">
+                <button id="vc-c-def-play-btn" class="pa-ctrl pa-ctrl-play" onclick="vocabDefPlayBtn(this)" title="Play the definition">
+                  <svg class="icon-play" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" fill="currentColor"/></svg>
+                  <svg class="icon-pause" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="4" height="12" rx="1" fill="currentColor"/><rect x="9" y="2" width="4" height="12" rx="1" fill="currentColor"/></svg>
+                </button>
+              </div>
+              <hr class="vc-path-a-divider">
+              <p class="vc-path-a-instr">Listen to the definition, then write the word or expression</p>
+              <form class="vc-write-row" onsubmit="event.preventDefault(); vocabSubmitPathC();">
+                <input id="vc-path-c-input" class="vk-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                       placeholder="Type your answer" aria-label="Your answer" oninput="vocabPathCInput()">
+                <button id="vc-path-c-submit" type="submit" class="vk-btn vk-btn-primary" disabled>Check</button>
+              </form>
+              <div id="vc-path-c-result" style="display:none; margin-top:16px;">
+                <div id="vc-path-c-banner" class="vocab-result-banner"></div>
+                <div class="vocab-pb-reveal">
+                  <p id="vc-path-c-def" class="vocab-pb-def-text"></p>
+                  <p id="vc-path-c-example" class="vocab-pb-example"></p>
+                  <div id="vc-path-c-english" class="vocab-english-text"></div>
+                  <button id="vc-path-c-eng-btn" class="vk-btn vk-btn-ghost vk-btn-sm" onclick="vocabShowEnglish('path-c')" style="margin-top:6px;">Show English</button>
+                </div>
+                <button class="vk-btn vk-btn-outline-accent" onclick="vocabCardNext()">Next →</button>
+              </div>
+            </div><!-- /#vc-path-c -->
+
           </div><!-- /#vocab-card -->
         </div><!-- /#vocab-card-wrap -->
 
@@ -4421,6 +4619,8 @@
             <div id="vocab-summary-score" class="vocab-summary-score"></div>
             <div id="vocab-summary-actions" class="vocab-summary-actions"></div>
           </div>
+          <!-- Session / review results (end screen); the card above stays for block transitions -->
+          <div id="vocab-results" class="vr" hidden></div>
         </div>
 
       </div><!-- /#vocab-content -->
@@ -6389,9 +6589,10 @@
   }
 
   // ── English pronunciation grading (Azure) ──────────────────────────────────
-  // English Speaking grades the sounds actually produced via Azure Pronunciation
-  // Assessment against the known phrase (Chrome's recognizer autocorrects "tink" to
-  // "think"). Any failure — no token, SDK blocked, quota used up — drops to the Web
+  // English phrases with a sound focus grade the sounds actually produced via Azure
+  // Pronunciation Assessment against the known phrase (Chrome's recognizer autocorrects
+  // "tink" to "think"). Plain phrases and paragraphs stay on Web Speech: Azure is
+  // stricter than a learner needs when the goal is just being understood. Any failure — no token, SDK blocked, quota used up — drops to the Web
   // Speech path for the rest of the session, so the exercise never breaks.
   let _enAzOk = null, _enAzToken = null, _enAzRegion = null, _enAzTokenAt = 0;
   let _enAzSDK = null, _enAzRecognizer = null;
@@ -6951,7 +7152,7 @@
     if (inParagraph && paragraphSentences.length === 0) fetchNextParagraph();
     if (inCustom) loadCustomList();
     if (inHome) loadHomeView();
-    if (inVocabHub) _loadVocabResume();
+    if (inVocabHub) { _loadVocabReview(); _loadVocabResume(); _syncVocabAnswerModeChips(); }
 
     // Sync URL hash so browser back/forward works.
     // Session sub-views (mid-exercise) replace the hub's hash rather than pushing a new entry,
@@ -6978,6 +7179,7 @@
     enSoundFocus = btn.dataset.focus || null;
     document.querySelectorAll('#hub-en-sound-chips .hub-subject-chip').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    document.getElementById('hub-en-sound-note').hidden = !enSoundFocus;
   }
 
   // The sound focus for the current study language (the two sets never mix).
@@ -7142,8 +7344,8 @@
   // 'granted' | 'prompt' | 'denied' | 'unsupported'
   async function _pvGuideMicState(fmt) {
     const hasSR = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-    // English phrases can run on Azure without Web Speech; everything else needs it.
-    if (!hasSR && !(fmt === 'phrase' && studyLang() === 'en')) return 'unsupported';
+    // English sound-focus phrases can run on Azure without Web Speech; everything else needs it.
+    if (!hasSR && !(fmt === 'phrase' && studyLang() === 'en' && enSoundFocus)) return 'unsupported';
     if (micPermissionGranted) return 'granted';
     try {
       const p = await navigator.permissions.query({ name: 'microphone' });
@@ -8607,7 +8809,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       btn.classList.remove('listening');
       return;
     }
-    if (studyLang() === 'en' && _enAzOk !== false && !btn.classList.contains('listening')) {
+    // Azure grades English only under a sound focus; plain phrases use Web Speech.
+    if (studyLang() === 'en' && enSoundFocus && _enAzOk !== false && !btn.classList.contains('listening')) {
       const ok = await ensureMicPermission();
       if (!ok) return;
       if (await _startPhraseAzureMic(btn)) return;
@@ -15694,6 +15897,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   let _vocabInCumReview   = false;
   let _vocabIsLastBatch   = false;
   let _vocabResumeData     = null;  // snapshot loaded from the server for the resume card
+  let _vocabDecoys         = [];    // words outside the set: one wrong option per question
 
   function selectVocabLevel(btn) {
     _vocabLevel = btn.dataset.level;
@@ -15705,6 +15909,33 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _vocabSubject = btn.dataset.subject;
     document.querySelectorAll('#vocab-hub-subjects .hub-subject-chip').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+  }
+
+  // How Recall is answered: 'word' (hear definition → pick word), 'definition'
+  // (see word → pick definition), 'write' (hear definition → type; English only)
+  // or 'mixed' (each word tested two ways). Remembered per device.
+  const _VOCAB_ANSWER_MODES = ['word', 'definition', 'write', 'mixed'];
+  let _vocabAnswerMode = (() => {
+    let m = null;
+    try { m = localStorage.getItem('ft_vocab_answer_mode'); } catch (_) {}
+    return _VOCAB_ANSWER_MODES.includes(m) ? m : 'mixed';
+  })();
+
+  // Write is English only; a saved 'write' runs as Mixed in French.
+  function _vocabEffectiveAnswerMode() {
+    return (_vocabAnswerMode === 'write' && studyLang() !== 'en') ? 'mixed' : _vocabAnswerMode;
+  }
+
+  function _syncVocabAnswerModeChips() {
+    const mode = _vocabEffectiveAnswerMode();
+    document.querySelectorAll('#vocab-hub-modes .hub-subject-chip').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === mode));
+  }
+
+  function selectVocabAnswerMode(btn) {
+    _vocabAnswerMode = btn.dataset.mode;
+    try { localStorage.setItem('ft_vocab_answer_mode', _vocabAnswerMode); } catch (_) {}
+    _syncVocabAnswerModeChips();
   }
 
   function selectVocabCount(btn) {
@@ -15748,6 +15979,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       _vocabScores = [0, 0, 0];
       _vocabTotals = [0, 0, 0];
       _vocabMissed = [];
+      _vocabDecoys = data.decoys || [];
+      _vocabIsReview = false;
+      document.getElementById('vocab-parts').style.display = '';
       if (_vocabIsCumulative) {
         _vocabAllGenerated  = data.cards;
         _vocabBatchIdx      = 0;
@@ -15819,6 +16053,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (_vocabRound === 0) {
       _startRound(1);
     } else if (_vocabRound === 1) {
+      if (_vocabIsReview) { _showReviewSummary(); return; }
+      _vocabAddToReview();
       if (_vocabIsCumulative) _endBatch(scoreHtml);
       else _showFinalSummary();
     } else {
@@ -15844,35 +16080,28 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
     if (_vocabIsCumulative) _clearVocabResume();  // session finished — nothing left to resume
 
-    const pct = quizTot ? Math.round(quizSc / quizTot * 100) : 0;
-    const wordCount = _vocabIsCumulative ? _vocabAllGenerated.length : _vocabCards.length;
-    document.getElementById('vocab-summary-label').textContent = 'Session complete';
-    document.getElementById('vocab-summary-title').textContent = quizTot ? `${pct}% recall` : 'Nice work';
-    const subEl = document.getElementById('vocab-summary-sub');
-    subEl.textContent = `${wordCount} words practiced`;
-    subEl.style.display = '';
-    const scoreEl = document.getElementById('vocab-summary-score');
-    scoreEl.innerHTML = quizTot ? `Recall score: <span>${quizSc}/${quizTot}</span>` : '';
-    scoreEl.style.display = quizTot ? '' : 'none';
-    const actions = document.getElementById('vocab-summary-actions');
-    actions.innerHTML = '';
-    const newBtn = document.createElement('button');
-    newBtn.className = 'vk-btn vk-btn-primary';
-    newBtn.textContent = 'New series →';
-    newBtn.onclick = () => switchView('vocab-hub');
-    const doneBtn = document.createElement('button');
-    doneBtn.className = 'vk-btn vk-btn-outline-accent';
-    doneBtn.textContent = 'Done';
-    doneBtn.onclick = () => switchView('home');
-    actions.appendChild(newBtn);
-    actions.appendChild(doneBtn);
-    _vocabShowOnly('vocab-summary');
-    document.getElementById('vocab-counter').textContent = '';
+    // Word-level results: a word is "to review" if any question on it was missed.
+    const cards  = _vocabIsCumulative ? _vocabAllGenerated : _vocabCards;
+    const missed = new Set(_vocabMissed.map(c => c.word));
+    const inDeck = _vocabReviewAvailable();
+    _renderVocabResults({
+      label: 'Session complete',
+      title: `${cards.length - missed.size} of ${cards.length} words right first time`,
+      sub: inDeck ? `All ${cards.length} words join your review deck. First review tomorrow.` : '',
+      right:  cards.filter(c => !missed.has(c.word)).map(c => ({ card: c })),
+      review: cards.filter(c =>  missed.has(c.word)).map(c => ({ card: c, meta: inDeck ? 'Review tomorrow' : '' })),
+      actions: [
+        { label: 'New series →', cls: 'vk-btn-primary', onclick: () => switchView('vocab-hub') },
+        { label: 'Done', cls: 'vk-btn-outline-accent', onclick: () => switchView('home') },
+      ],
+    });
   }
 
   // Inter-block transition: shows the just-finished block's result + a button
   // to continue to the next series of words (cumulative mode).
   function _showTransition(label, title, scoreHtml, btnLabel, nextRoundIdx) {
+    document.querySelector('#vocab-summary .vocab-summary-card').hidden = false;
+    document.getElementById('vocab-results').hidden = true;
     document.getElementById('vocab-summary-label').textContent = label;
     document.getElementById('vocab-summary-title').textContent = title;
     const subEl = document.getElementById('vocab-summary-sub');
@@ -15911,6 +16140,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       level:        _vocabLevel,
       subject:      _vocabSubject,
       allGenerated: _vocabAllGenerated,
+      decoys:       _vocabDecoys,
       batchIdx:     _vocabBatchIdx,
       totalBatches: Math.ceil(_vocabAllGenerated.length / 5),
       locale:       studyLocale,
@@ -15967,6 +16197,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     }
     _vocabIsCumulative   = true;
     _vocabAllGenerated   = data.allGenerated;
+    _vocabDecoys         = data.decoys || [];  // older saved sets have none
     _vocabBatchIdx       = data.batchIdx || 0;
     _vocabLevel          = data.level;
     _vocabSubject        = data.subject;
@@ -15978,6 +16209,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _vocabScores = [0, 0, 0];
     _vocabTotals = [0, 0, 0];
     _vocabMissed = [];
+    _vocabIsReview = false;
+    document.getElementById('vocab-parts').style.display = '';
     document.getElementById('vp-2').style.display = '';
     document.getElementById('vocab-parts').classList.add('is-cumulative');
     switchView('vocab');
@@ -15990,16 +16223,266 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     _clearVocabResume();
   }
 
+  // ── Spaced repetition review (account-tied, one deck per study language) ────
+  // Every word from a finished Recall joins the deck (due tomorrow); a review asks
+  // up to 20 due words, Recall only. Off in teach mode, like Resume.
+  let _vocabIsReview      = false;
+  let _vocabReviewPool    = [];   // other saved words: wrong options only
+  let _vocabReviewResults = {};   // word -> remembered (first try at every question)
+
+  function _vocabReviewAvailable() {
+    return !_teachAccessCode && !!localStorage.getItem('ft_jwt');
+  }
+
+  function _vocabDueLabel(dateStr, n) {
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    const days = Math.round((new Date(dateStr + 'T00:00:00Z') - today) / 86400000);
+    const when = days <= 1 ? 'tomorrow' : `in ${days} days`;
+    return `Next review ${when} · ${n} ${n === 1 ? 'word' : 'words'}`;
+  }
+
+  async function _loadVocabReview() {
+    const row = document.getElementById('vocab-review-row');
+    if (!row) return;
+    row.style.display = 'none';
+    if (!_vocabReviewAvailable()) return;
+    try {
+      const r = await apiFetch('/vocab/review/summary?lang=' + studyLang());
+      if (!r.ok) return;
+      const s = await r.json();
+      const meta = document.getElementById('vocab-review-meta');
+      const btn  = document.getElementById('vocab-review-btn');
+      // Two states: no words yet (explain how the deck fills) / words saved (review them).
+      const hasWords = s.total > 0;
+      document.getElementById('vocab-review-desc').textContent = hasWords
+        ? "Practice words you've already learned to reinforce them"
+        : 'Practice words in Flashcards to build your review deck';
+      document.getElementById('vocab-review-btn').closest('.vrb-action').hidden = !hasWords;
+      if (s.due > 0) {
+        meta.textContent = `${s.due} due today` + (s.due > 20 ? ' · 20 per review' : '');
+      } else if (hasWords) {
+        meta.textContent = s.next_due ? _vocabDueLabel(s.next_due, s.next_count) : 'Nothing due today';
+      }
+      btn.disabled = !(s.due > 0);
+      row.style.display = '';
+    } catch (_) {}
+  }
+
+  function toggleVocabReviewHow(btn) {
+    const p = document.getElementById('vocab-review-explain');
+    p.hidden = !p.hidden;
+    btn.setAttribute('aria-expanded', p.hidden ? 'false' : 'true');
+  }
+
+  async function startVocabReview() {
+    const btn = document.getElementById('vocab-review-btn');
+    btn.disabled = true;
+    try {
+      const r = await apiFetch('/vocab/review/due?lang=' + studyLang());
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      if (!data.cards || !data.cards.length) { _loadVocabReview(); return; }
+      _vocabIsReview       = true;
+      _vocabIsCumulative   = false;
+      _vocabAllGenerated   = [];
+      _vocabCumulativePool = [];
+      _vocabInCumReview    = false;
+      _vocabCards          = data.cards;
+      _vocabReviewPool     = data.pool || [];
+      _vocabDecoys         = data.decoys || [];
+      _vocabReviewResults  = {};
+      _vocabScores = [0, 0, 0];
+      _vocabTotals = [0, 0, 0];
+      _vocabMissed = [];
+      document.getElementById('vocab-parts').style.display = 'none';  // no Exposure → Recall steps in a review
+      switchView('vocab');
+      _startRound(1);
+    } catch (_) {
+      btn.disabled = false;
+    }
+  }
+
+  // After a regular Recall: the batch's words join the review deck.
+  function _vocabAddToReview() {
+    if (_vocabIsReview || !_vocabReviewAvailable() || !_vocabCards.length) return;
+    apiFetch('/vocab/review/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lang: studyLang(), cards: _vocabCards,
+                             missed: _vocabMissed.map(c => c.word), decoys: _vocabDecoys }),
+    }).catch(() => {});
+  }
+
+  async function _showReviewSummary() {
+    const words = Object.keys(_vocabReviewResults);
+    const kept  = words.filter(w => _vocabReviewResults[w]).length;
+    trackEvent('vocab_review_completed', { exercise_type: 'vocab', words: words.length, remembered: kept });
+    let due = {};
+    try {
+      const r = await apiFetch('/vocab/review/results', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang: studyLang(), results: words.map(w => ({ word: w, correct: _vocabReviewResults[w] })) }),
+      });
+      if (r.ok) due = (await r.json()).due || {};
+    } catch (_) {}
+    const byWord = {};
+    _vocabCards.forEach(c => { byWord[c.word] = c; });
+    const row = w => ({ card: byWord[w] || { word: w }, meta: due[w] ? _vocabNextLabel(due[w]) : '' });
+    _renderVocabResults({
+      label: 'Review complete',
+      title: `${kept} of ${words.length} remembered`,
+      sub: 'Words you remembered wait longer before coming back. Missed words come back tomorrow.',
+      right:  words.filter(w =>  _vocabReviewResults[w]).map(row),
+      review: words.filter(w => !_vocabReviewResults[w]).map(row),
+      actions: [
+        { label: 'Back to Flashcards', cls: 'vk-btn-primary', onclick: () => switchView('vocab-hub') },
+        { label: 'Done', cls: 'vk-btn-outline-accent', onclick: () => switchView('home') },
+      ],
+    });
+  }
+
+  // "Tomorrow" / "In 3 days" / "In 2 weeks" for a UTC due date.
+  function _vocabNextLabel(dateStr) {
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    const days = Math.round((new Date(dateStr + 'T00:00:00Z') - today) / 86400000);
+    if (days <= 1) return 'Tomorrow';
+    if (days >= 14 && days % 7 === 0) return `In ${days / 7} weeks`;
+    if (days === 7) return 'In 1 week';
+    if (days >= 28) return 'In a month';
+    return `In ${days} days`;
+  }
+
+  // The brand mark (brand-mark.svg geometry) as the results celebration.
+  // Medal tier by score; sparks only for a medal.
+  function _vrAtomSvg(pct) {
+    const tier = pct >= 90 ? 'gold' : pct >= 70 ? 'silver' : pct >= 50 ? 'bronze' : 'low';
+    const sparks = { gold: 12, silver: 8, bronze: 6, low: 0 }[tier];
+    let sparkHtml = '';
+    for (let k = 0; k < sparks; k++) {
+      sparkHtml += `<circle class="vr-spark" cx="50" cy="50" r="${k % 2 ? 2.6 : 3.6}" style="--a:${Math.round(k * 360 / sparks + 15)}deg"/>`;
+    }
+    const label = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze', low: '' }[tier];
+    return `<svg class="vr-atom is-${tier}" viewBox="0 0 100 100" role="img" aria-label="${label ? label + ', ' : ''}${pct} percent">
+      ${sparkHtml}
+      <g class="vr-atom-orbit">
+        <path d="M64.93 15.60 A37.5 37.5 0 0 1 64.93 84.40 A15 15 0 0 0 62.93 75.40 A28.5 28.5 0 0 0 62.93 24.60 A15 15 0 0 0 64.93 15.60 Z"/>
+        <path d="M35.07 15.60 A37.5 37.5 0 0 0 35.07 84.40 A15 15 0 0 1 37.07 75.40 A28.5 28.5 0 0 1 37.07 24.60 A15 15 0 0 1 35.07 15.60 Z"/>
+        <circle cx="50" cy="17" r="10.5"/>
+        <circle cx="50" cy="83" r="10.5"/>
+      </g>
+      <circle cx="50" cy="50" r="10.5"/>
+    </svg>`;
+  }
+
+  // End screen for a session or a review: score shape + headline + counts, then
+  // the words to review and the words remembered, each playable.
+  function _renderVocabResults(o) {
+    const total = o.right.length + o.review.length;
+    const pct   = total ? Math.round(o.right.length / total * 100) : 0;
+    _vrRows = o.review.concat(o.right).map(r => r.card);
+    let i = 0;
+    const rowHtml = r => {
+      const idx = i++;
+      return `<li class="vr-row" style="--i:${Math.min(idx, 12)}">
+        <button class="vk-icon-btn is-tonal vr-play" onclick="vocabResultPlay(${idx}, this)" title="Play word" aria-label="Play ${esc(r.card.word).replace(/"/g, '&quot;')}">
+          <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+        </button>
+        <span class="vr-row-text">
+          <span class="vr-word">${esc(r.card.word)}</span>
+          ${r.card.french_definition ? `<span class="vr-def">${esc(r.card.french_definition)}</span>` : ''}
+        </span>
+        ${r.meta ? `<span class="vr-meta">${esc(r.meta)}</span>` : ''}
+      </li>`;
+    };
+    const section = (title, rows) => rows.length ? `
+      <section class="pv-card vr-section">
+        <div class="vr-section-head"><h4 class="vr-section-title">${title}</h4><span class="vr-section-n">${rows.length}</span></div>
+        <ul class="vr-list">${rows.map(rowHtml).join('')}</ul>
+      </section>` : '';
+
+    const el = document.getElementById('vocab-results');
+    el.innerHTML = `
+      <div class="pv-card vr-hero">
+        ${_vrAtomSvg(pct)}
+        <div class="vr-head">
+          <span class="vr-label">${o.label}</span>
+          <span class="vr-pct" aria-hidden="true">${pct}%</span>
+          <h3 class="vr-title">${o.title}</h3>
+          ${o.sub ? `<p class="vr-sub">${o.sub}</p>` : ''}
+          <div class="vr-stats">
+            <span class="vr-stat is-pass"><span class="vr-stat-dot"></span><span class="vr-stat-n">${o.right.length}</span><span class="vr-stat-label">remembered</span></span>
+            <span class="vr-stat is-fail"><span class="vr-stat-dot"></span><span class="vr-stat-n">${o.review.length}</span><span class="vr-stat-label">to review</span></span>
+          </div>
+          <div class="vr-actions"></div>
+        </div>
+      </div>
+      ${section('To review', o.review)}
+      ${section('Remembered', o.right)}`;
+    const actions = el.querySelector('.vr-actions');
+    o.actions.forEach(a => {
+      const b = document.createElement('button');
+      b.className = 'vk-btn ' + a.cls;
+      b.textContent = a.label;
+      b.onclick = a.onclick;
+      actions.appendChild(b);
+    });
+    document.querySelector('#vocab-summary .vocab-summary-card').hidden = true;
+    el.hidden = false;
+    _vocabShowOnly('vocab-summary');
+    document.getElementById('vocab-counter').textContent = '';
+  }
+
+  let _vrRows = [];
+  async function vocabResultPlay(idx, btn) {
+    if (btn.classList.contains('is-playing')) return;
+    document.querySelectorAll('#vocab-results .vr-play').forEach(b => b.classList.remove('is-playing'));
+    btn.classList.add('is-playing');
+    await _vocabTTSPromise(_vrRows[idx].word);
+    btn.classList.remove('is-playing');
+  }
+
+
   // ── Cumulative (additive) batch helpers ──────────────────────────────────────
 
+  const _VOCAB_QUIZ_TYPES = { word: 'listen-identify', definition: 'read-find', write: 'write' };
+
   function _buildQuizDeck(cards) {
-    // Each card is tested both ways (listen-identify + read-find). Fully shuffle
+    const mode = _vocabEffectiveAnswerMode();
+    // One chosen way: each card once, shuffled.
+    if (mode !== 'mixed') return _fisherYates(cards.map(c => ({ card: c, type: _VOCAB_QUIZ_TYPES[mode] })));
+    // Mixed: each card tested both ways (listen-identify + read-find). Fully shuffle
     // the combined deck, then space it out so the same word never appears back-to-back.
+    // English swaps listen-identify for 'write' (same prompt, typed answer): seeing the
+    // word among choices first would give away its spelling.
+    const hearType = studyLang() === 'en' ? 'write' : 'listen-identify';
     const deck = _fisherYates([
-      ...cards.map(c => ({ card: c, type: 'listen-identify' })),
+      ...cards.map(c => ({ card: c, type: hearType })),
       ...cards.map(c => ({ card: c, type: 'read-find' })),
     ]);
     return _spaceOutByCard(deck);
+  }
+
+  // Scores one Recall/Review answer. Review repeats a missed word until it's right
+  // (each try counts). In Recall with one chosen way, a missed word comes back once
+  // at the end of the round; that second try doesn't count toward the score.
+  function _vocabRecordAnswer(card, isRight, quizType) {
+    const entry = _vocabRoundCards[_vocabIndex];
+    const isRetry = !!(entry && entry.retry);
+    if (!isRetry) {
+      _vocabTotals[_vocabRound]++;
+      if (isRight) _vocabScores[_vocabRound]++;
+      // Review: a word counts as remembered only if every question on it was right first time
+      if (_vocabIsReview) _vocabReviewResults[card.word] = _vocabReviewResults[card.word] !== false && isRight;
+    }
+    if (!isRight) {
+      if (_vocabInCumReview) _vocabRoundCards.push(entry);
+      else if (!isRetry) {
+        _vocabMissed.push(card);
+        if (_vocabEffectiveAnswerMode() !== 'mixed') _vocabRoundCards.push({ ...entry, retry: true });
+      }
+    }
+    trackEvent('vocab_card_quizzed', { exercise_type: 'vocab', word: card.word, correct: isRight, round: _vocabRound,
+                                       level: _vocabLevel, quiz_type: quizType, retry: isRetry });
   }
 
   // Reorders a shuffled deck so no two adjacent entries share the same word.
@@ -16023,6 +16506,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   // Returns the pool to use for building distractor choices
   function _getCardPool() {
+    if (_vocabIsReview) return _vocabCards.concat(_vocabReviewPool);
     return _vocabInCumReview ? _vocabCumulativePool : _vocabCards;
   }
 
@@ -16068,13 +16552,15 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     regEl.textContent = card.usage;
     regEl.className   = 'vocab-card-register ' + registerClass(card.usage);
     document.getElementById('vocab-counter').textContent = '';
-    document.getElementById('vc-card-counter').textContent = `Word ${idx + 1} of ${total}`;
+    const entry = _vocabRoundCards[idx];
+    document.getElementById('vc-card-counter').textContent =
+      `Word ${idx + 1} of ${total}` + (entry && entry.retry ? ' · Second try' : '');
     _vocabShowOnly('vocab-card-wrap');
     document.getElementById('vc-exposure-list').style.display = 'none';
     document.getElementById('vocab-card').style.display = '';
     _updateRoundDots(_vocabRound);
     // hide quiz sections
-    ['vc-path-a','vc-path-b'].forEach(id => document.getElementById(id).style.display = 'none');
+    ['vc-path-a','vc-path-b','vc-path-c'].forEach(id => document.getElementById(id).style.display = 'none');
   }
 
   // ── Round 0: Exposure (all cards shown at once) ──────────────────────────────
@@ -16121,8 +16607,19 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           '</button>' +
           '<div class="vc-exp-def-content">' +
             '<p class="vc-exp-def-text">' + card.french_definition + '</p>' +
-            '<button class="vk-btn vk-btn-ghost vk-btn-sm vc-exp-translate-btn" onclick="vocabExpListToggleEnglish(' + i + ', this)">Translate</button>' +
             '<div class="vc-exp-eng-text">' + (card.english_definition || '') + '</div>' +
+            (card.example_sentence ?
+              '<div class="vc-exp-example">' +
+                '<span class="vc-exp-def-label">In a sentence</span>' +
+                '<div class="vc-exp-example-row">' +
+                  '<p class="vc-exp-example-text">' + card.example_sentence + '</p>' +
+                  '<button class="pa-wi-play" onclick="vocabExpListPlayExample(' + i + ', this)" title="Play sentence">' +
+                    '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" fill="currentColor"/></svg>' +
+                  '</button>' +
+                '</div>' +
+                '<div class="vc-exp-eng-text">' + (card.english_translation || '') + '</div>' +
+              '</div>' : '') +
+            '<button class="vk-btn vk-btn-ghost vk-btn-sm vc-exp-translate-btn" onclick="vocabExpListToggleEnglish(' + i + ', this)">Translate</button>' +
           '</div>' +
         '</div>';
       list.appendChild(item);
@@ -16153,23 +16650,29 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     if (pauseIcon) pauseIcon.style.display = 'none';
   }
 
+  async function vocabExpListPlayExample(i, btn) {
+    btn.className = 'pa-wi-play playing';
+    await _vocabTTSPromise(_vocabRoundCards[i].example_sentence);
+    btn.className = 'pa-wi-play done';
+  }
+
   function vocabExpListToggleDef(i, btn) {
     const item    = btn.closest('.vc-exp-item');
     const body    = item.querySelector('.vc-exp-def-content');
     const shown   = body.classList.toggle('visible');
     btn.textContent = shown ? 'Hide' : 'Reveal';
     if (!shown) {
-      const engText = item.querySelector('.vc-exp-eng-text');
-      const transBtn = item.querySelector('.vc-exp-translate-btn');
-      engText.classList.remove('visible');
-      transBtn.textContent = 'Translate';
+      item.querySelectorAll('.vc-exp-eng-text').forEach(el => el.classList.remove('visible'));
+      item.querySelector('.vc-exp-translate-btn').textContent = 'Translate';
     }
   }
 
+  // One Translate button covers both the definition and the example sentence.
   function vocabExpListToggleEnglish(i, btn) {
-    const item    = btn.closest('.vc-exp-item');
-    const engText = item.querySelector('.vc-exp-eng-text');
-    const shown   = engText.classList.toggle('visible');
+    const item  = btn.closest('.vc-exp-item');
+    const texts = item.querySelectorAll('.vc-exp-eng-text');
+    const shown = !texts[0].classList.contains('visible');
+    texts.forEach(el => el.classList.toggle('visible', shown));
     btn.textContent = shown ? 'Hide translation' : 'Translate';
   }
 
@@ -16203,21 +16706,13 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     // Build choice rows — hidden until user plays the definition at least once
     _pathASelectedWord = null;
     document.getElementById('vc-path-a-submit').disabled = true;
-    const choices = _buildWordChoices(card, _getCardPool());
+    const choices = _buildChoices(card, _getCardPool());
     const choicesEl = document.getElementById('vc-path-a-choices');
     choicesEl.innerHTML = choices.map((c, i) => {
       const wEsc = esc(c.word);
       const wJs  = c.word.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return `<div class="vc-row" data-word="${wEsc}" onclick="vocabSelectA('${wJs}', this)">
-        <span class="vcr-num">${i + 1}</span>
-        <span class="vcr-label">${wEsc}</span>
-        <button class="vcr-play" onclick="event.stopPropagation(); vocabChipPlay('${wJs}', this)" title="Écouter">
-          <span class="vcr-circle">
-            <svg class="icon-play" width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" fill="currentColor"/></svg>
-            <svg class="icon-pause" width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="4" height="12" rx="1" fill="currentColor"/><rect x="9" y="2" width="4" height="12" rx="1" fill="currentColor"/></svg>
-          </span>
-        </button>
-      </div>`;
+      return _vcRowHtml(`data-word="${wEsc}" onclick="vocabSelectA('${wJs}', this)"`,
+        `vocabChipPlay('${wJs}', this)`, 'Play word', wEsc, '');
     }).join('');
     choicesEl.style.visibility = 'hidden';
   }
@@ -16276,8 +16771,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function vocabSelectA(word, rowEl) {
     if (document.getElementById('vc-path-a-result').style.display !== 'none') return;
     _pathASelectedWord = word;
-    document.querySelectorAll('#vc-path-a-choices .vc-row').forEach(r => r.classList.remove('selected'));
-    rowEl.classList.add('selected');
+    _vcSelectRow('#vc-path-a-choices', rowEl);
     document.getElementById('vc-path-a-submit').disabled = false;
   }
 
@@ -16289,11 +16783,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function vocabPickPathA(chosenWord) {
     const card    = _getCard();
     const isRight = chosenWord === card.word;
-    _vocabTotals[_vocabRound]++;
-    if (isRight) _vocabScores[_vocabRound]++;
-    else if (_vocabInCumReview) _vocabRoundCards.push(_vocabRoundCards[_vocabIndex]);
-    else _vocabMissed.push(card);
-    trackEvent('vocab_card_quizzed', { exercise_type: 'vocab', word: card.word, correct: isRight, round: _vocabRound, level: _vocabLevel });
+    _vocabRecordAnswer(card, isRight, 'word');
 
     document.getElementById('vc-path-a-submit').disabled = true;
     document.querySelectorAll('#vc-path-a-choices .vc-row').forEach(row => {
@@ -16332,40 +16822,43 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('vc-path-b').style.display = '';
     document.getElementById('vc-path-b-result').style.display = 'none';
 
-    // Build 4 definition slots: correct + 3 distractors from pool, shuffled
-    const others = _fisherYates(_getCardPool().filter(c => c.word !== card.word)).slice(0, 3);
-    const slots  = _fisherYates([card, ...others]);
+    // Six definition slots: correct + 4 from the set + 1 decoy, shuffled
+    const slots  = _buildChoices(card, _getCardPool());
     _pathBChoices    = slots;
     _pathBCorrectIdx = slots.findIndex(c => c.word === card.word);
 
     document.getElementById('vc-path-b-submit').disabled = true;
+    _pathBHeard = new Set();
     document.getElementById('vc-path-b-defs').innerHTML = slots.map((c, i) =>
-      `<div class="vc-row" id="vpb-def-${i}" onclick="vocabSelectB(${i}, this)">
-        <span class="vcr-num">${i + 1}</span>
-        <button class="vcr-play" onclick="event.stopPropagation(); vocabPathBPlayBtn(${i}, this)" title="Écouter">
-          <span class="vcr-circle">
-            <svg class="icon-play" width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" fill="currentColor"/></svg>
-            <svg class="icon-pause" width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="4" height="12" rx="1" fill="currentColor"/><rect x="9" y="2" width="4" height="12" rx="1" fill="currentColor"/></svg>
-          </span>
-        </button>
-      </div>`
+      _vcRowHtml(`id="vpb-def-${i}" onclick="vocabSelectB(${i}, this)"`,
+        `vocabPathBPlayBtn(${i}, this)`, 'Play definition', `Definition ${i + 1}`, 'Tap play to listen')
     ).join('');
   }
 
   let _pathBPlayingSlot  = -1;
   let _pathBSelectedSlot = -1;
+  let _pathBHeard        = new Set();
+
+  // Status line under each definition: playing / heard / not yet heard.
+  function _pathBRefreshStatus() {
+    document.querySelectorAll('#vc-path-b-defs .vc-row').forEach((row, i) => {
+      row.querySelector('.vcr-status').textContent =
+        i === _pathBPlayingSlot ? 'Playing…' : _pathBHeard.has(i) ? 'Heard' : 'Tap play to listen';
+    });
+  }
 
   async function vocabPathBPlayBtn(slotIdx, btnEl) {
+    const stop = () => { btnEl.classList.remove('is-playing'); _pathBPlayingSlot = -1; _pathBRefreshStatus(); };
     if (_pathBPlayingSlot === slotIdx && currentAudio && !currentAudio.paused) {
       currentAudio.pause();
-      btnEl.classList.remove('is-playing');
-      _pathBPlayingSlot = -1;
+      stop();
       return;
     }
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     document.querySelectorAll('#vc-path-b-defs .vcr-play').forEach(b => b.classList.remove('is-playing'));
     btnEl.classList.add('is-playing');
     _pathBPlayingSlot = slotIdx;
+    _pathBRefreshStatus();
     try {
       const r   = await apiFetch('/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsRequestBody(_pathBChoices[slotIdx].french_definition)) });
       const url = (await r.json()).audio_url;
@@ -16374,17 +16867,16 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const audio = new Audio(url);
       currentAudio = audio;
       audio.playbackRate = audioPlaybackRate;
-      audio.addEventListener('ended', () => { if (_pathBPlayingSlot === slotIdx) { btnEl.classList.remove('is-playing'); _pathBPlayingSlot = -1; } });
-      audio.addEventListener('error', () => { btnEl.classList.remove('is-playing'); _pathBPlayingSlot = -1; });
+      audio.addEventListener('ended', () => { if (_pathBPlayingSlot === slotIdx) { _pathBHeard.add(slotIdx); stop(); } });
+      audio.addEventListener('error', () => { if (_pathBPlayingSlot === slotIdx) stop(); });
       audio.play().catch(() => {});
-    } catch (_) { btnEl.classList.remove('is-playing'); _pathBPlayingSlot = -1; }
+    } catch (_) { stop(); }
   }
 
   function vocabSelectB(slotIdx, rowEl) {
     if (document.getElementById('vc-path-b-result').style.display !== 'none') return;
     _pathBSelectedSlot = slotIdx;
-    document.querySelectorAll('#vc-path-b-defs .vc-row').forEach(r => r.classList.remove('selected'));
-    rowEl.classList.add('selected');
+    _vcSelectRow('#vc-path-b-defs', rowEl);
     document.getElementById('vc-path-b-submit').disabled = false;
   }
 
@@ -16396,11 +16888,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function vocabPickPathB(slotIdx) {
     const card    = _getCard();
     const isRight = slotIdx === _pathBCorrectIdx;
-    _vocabTotals[_vocabRound]++;
-    if (isRight) _vocabScores[_vocabRound]++;
-    else if (_vocabInCumReview) _vocabRoundCards.push(_vocabRoundCards[_vocabIndex]);
-    else _vocabMissed.push(card);
-    trackEvent('vocab_card_quizzed', { exercise_type: 'vocab', word: card.word, correct: isRight, round: _vocabRound, level: _vocabLevel });
+    _vocabRecordAnswer(card, isRight, 'definition');
 
     document.getElementById('vc-path-b-submit').disabled = true;
     document.querySelectorAll('#vc-path-b-defs .vc-row').forEach((row, i) => {
@@ -16413,7 +16901,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     });
 
     const banner = document.getElementById('vc-path-b-banner');
-    banner.textContent = isRight ? 'Correct !' : `Pas tout à fait — c'était l'option ${_pathBCorrectIdx + 1}`;
+    banner.textContent = isRight ? 'Correct !' : `Pas tout à fait — c'était la définition ${_pathBCorrectIdx + 1}`;
     banner.className   = 'vocab-result-banner ' + (isRight ? 'correct' : 'wrong');
 
     document.getElementById('vc-path-b-def').textContent     = card.french_definition;
@@ -16430,10 +16918,100 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function _renderQuizCard() {
     const entry = _vocabRoundCards[_vocabIndex];
     if (entry.type === 'listen-identify') _renderPathACard();
+    else if (entry.type === 'write') _renderPathCCard();
     else _renderPathBCard();
   }
 
+  // ── Write (English only) — hear definition → type the word ──────────────────
+
+  let _pathCChecking = false;
+
+  function _renderPathCCard() {
+    const card = _getCard();
+    _setupCard(card, _vocabIndex, _vocabRoundCards.length, false); // word hidden — it's the answer
+    document.getElementById('vc-word-play').style.display = 'none';
+    document.getElementById('vc-path-c').style.display = '';
+    document.getElementById('vc-path-c-result').style.display = 'none';
+    const input = document.getElementById('vc-path-c-input');
+    input.value = '';
+    input.disabled = false;
+    document.getElementById('vc-path-c-submit').disabled = true;
+    _pathCChecking = false;
+    _vocabDefPlaying = false;
+    document.getElementById('vc-c-def-play-btn').classList.remove('is-playing');
+    input.focus();
+  }
+
+  function vocabPathCInput() {
+    document.getElementById('vc-path-c-submit').disabled =
+      _pathCChecking || !document.getElementById('vc-path-c-input').value.trim();
+  }
+
+  async function vocabSubmitPathC() {
+    const input  = document.getElementById('vc-path-c-input');
+    const answer = input.value.trim();
+    if (!answer || _pathCChecking) return;
+    _pathCChecking = true;
+    document.getElementById('vc-path-c-submit').disabled = true;
+    const card = _getCard();
+    let result = 'wrong';
+    try {
+      const r = await apiFetch('/vocab/check-typed', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answer, target: card.word, locale: studyLocale }),
+      });
+      if (r.ok) result = (await r.json()).result;
+    } catch (_) {}
+    const isRight = result !== 'wrong';
+
+    _vocabRecordAnswer(card, isRight, 'write');
+
+    input.disabled = true;
+    const banner = document.getElementById('vc-path-c-banner');
+    banner.textContent = result === 'exact' ? 'Correct!'
+      : result === 'close' ? `Correct! Watch the spelling: “${card.word}”`
+      : `Not quite. The answer was “${card.word}”`;
+    banner.className = 'vocab-result-banner ' + (isRight ? 'correct' : 'wrong');
+
+    document.getElementById('vc-path-c-def').textContent     = card.french_definition;
+    document.getElementById('vc-path-c-example').textContent = card.example_sentence;
+    document.getElementById('vc-path-c-english').textContent = card.english_translation;
+    document.getElementById('vc-path-c-english').className   = 'vocab-english-text';
+    document.getElementById('vc-path-c-eng-btn').style.display = '';
+    document.getElementById('vc-path-c-result').style.display = '';
+  }
+
   // ── Shared helpers ────────────────────────────────────────────────────────────
+
+  // One quiz choice as an M3 list item: leading radio | divider | play (never
+  // selects), label + optional status line. The row is the radio.
+  function _vcRowHtml(rowAttrs, playCall, playTitle, label, status) {
+    return `<div class="vc-row" role="radio" aria-checked="false" tabindex="0" ${rowAttrs} onkeydown="_vcRowKey(event, this)">
+      <span class="vcr-radio" aria-hidden="true"></span>
+      <span class="vcr-divider" aria-hidden="true"></span>
+      <button class="vk-icon-btn is-tonal vcr-play" onclick="event.stopPropagation(); ${playCall}" title="${playTitle}" aria-label="${playTitle}">
+        <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+      </button>
+      <span class="vcr-text">
+        <span class="vcr-label">${label}</span>
+        ${status ? `<span class="vcr-status">${status}</span>` : ''}
+      </span>
+    </div>`;
+  }
+
+  function _vcRowKey(e, row) {
+    if (e.target !== row || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    row.click();
+  }
+
+  function _vcSelectRow(listSel, rowEl) {
+    document.querySelectorAll(listSel + ' .vc-row').forEach(r => {
+      r.classList.toggle('selected', r === rowEl);
+      r.setAttribute('aria-checked', r === rowEl ? 'true' : 'false');
+    });
+  }
 
   function _vocabShowOnly(id) {
     ['vocab-loading', 'vocab-card-wrap', 'vocab-summary']
@@ -16449,9 +17027,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     return arr;
   }
 
-  function _buildWordChoices(correctCard, pool) {
-    const others = _fisherYates(pool.filter(c => c.word !== correctCard.word)).slice(0, 3);
-    return _fisherYates([correctCard, ...others]);
+  // Six options: the answer, 4 other words from the set and 1 decoy from outside
+  // it (from /vocab/generate). Without decoys, the set fills all five wrong options.
+  function _buildChoices(correctCard, pool) {
+    const key = c => (c.word || '').trim().toLowerCase();
+    const decoys = _vocabDecoys.filter(d => key(d) !== key(correctCard));
+    const decoy = decoys.length ? decoys[Math.floor(Math.random() * decoys.length)] : null;
+    const others = _fisherYates(pool.filter(c => c.word !== correctCard.word)).slice(0, decoy ? 4 : 5);
+    return _fisherYates([correctCard, ...others, ...(decoy ? [decoy] : [])]);
   }
 
   async function _vocabTTS(text) {

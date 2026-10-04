@@ -92,6 +92,13 @@
   /* Honey — sparing warmth, celebration on wins only */
   --pa-honey: #C9883E;
 
+  /* Medal tiers — the celebrating brand mark on results end screens (graphics
+     only, never text): gold ≥90%, silver 70–89%, bronze 50–69%. Below 50 the
+     mark uses --pa-fail and does not celebrate. All ≥3:1 on --vk-surface. */
+  --pa-medal-gold:   #A87A0C;
+  --pa-medal-silver: #7A8491;
+  --pa-medal-bronze: #A2622D;
+
   /* ── Accent — friendly blue = the SYSTEM ──────────────────────────────── */
   --vk-accent:               #2D6CB3;    /* buttons, active, focus, recording */
   --vk-accent-bright:        #3E7DC4;
