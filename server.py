@@ -1379,11 +1379,17 @@ async def get_analytics(auth: dict = Depends(_require_analytics_key)):
     return _analytics.get_analytics()
 
 
+def _check_analytics_lang(lang: str) -> None:
+    if lang not in _lang.SUPPORTED:
+        raise HTTPException(status_code=400, detail="Unsupported language")
+
+
 @app.get("/analytics/sessions")
-async def get_session_history(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
+async def get_session_history(access_code: str = "", lang: str = "fr", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
-    return {"sessions": _analytics.get_session_history(access_code)}
+    _check_analytics_lang(lang)
+    return {"sessions": _analytics.get_session_history(access_code, lang=lang)}
 
 
 @app.get("/analytics/word-accuracy/download")
@@ -1493,51 +1499,70 @@ async def analytics_practice(access_code: str = "", window: str = "since", auth:
 
 
 @app.get("/analytics/paragraph")
-async def analytics_paragraph(access_code: str = "", window: str = "all", auth: dict = Depends(_require_analytics_key)):
+async def analytics_paragraph(access_code: str = "", window: str = "all", lang: str = "fr",
+                              auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
+    _check_analytics_lang(lang)
     return _analytics.get_paragraph_exercise_stats(
-        access_code, since_days=_window_to_since_days(window, access_code))
+        access_code, since_days=_window_to_since_days(window, access_code), lang=lang)
 
 
 @app.get("/analytics/phrase")
-async def analytics_phrase(access_code: str = "", window: str = "all", auth: dict = Depends(_require_analytics_key)):
+async def analytics_phrase(access_code: str = "", window: str = "all", lang: str = "fr",
+                           auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
+    _check_analytics_lang(lang)
     return _analytics.get_phrase_exercise_stats(
-        access_code, since_days=_window_to_since_days(window, access_code))
+        access_code, since_days=_window_to_since_days(window, access_code), lang=lang)
 
 
 @app.get("/analytics/words")
-async def analytics_words(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
+async def analytics_words(access_code: str = "", lang: str = "fr", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
-    return {"words": _analytics.get_word_accuracy(access_code)}
+    _check_analytics_lang(lang)
+    return {"words": _analytics.get_word_accuracy(access_code, lang=lang)}
 
 
 @app.get("/analytics/recent-struggles")
-async def analytics_recent_struggles(access_code: str = "", sessions: int = 3, auth: dict = Depends(_require_analytics_key)):
+async def analytics_recent_struggles(access_code: str = "", sessions: int = 3, lang: str = "fr",
+                                     auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
-    return {"words": _analytics.get_recent_struggles(access_code, sessions=sessions)}
+    _check_analytics_lang(lang)
+    return {"words": _analytics.get_recent_struggles(access_code, sessions=sessions, lang=lang)}
 
 
 @app.get("/analytics/content")
-async def analytics_content(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
+async def analytics_content(access_code: str = "", lang: str = "fr", auth: dict = Depends(_require_analytics_key)):
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
+    _check_analytics_lang(lang)
     return {
-        "topics": _analytics.get_topic_coverage(access_code),
-        "listen_speak": _analytics.get_listen_speak_ratio(access_code),
+        "topics": _analytics.get_topic_coverage(access_code, lang=lang),
+        "listen_speak": _analytics.get_listen_speak_ratio(access_code, lang=lang),
     }
 
 
-@app.get("/analytics/exercises")
-async def analytics_exercises(access_code: str = "", window: str = "30d", auth: dict = Depends(_require_analytics_key)):
+@app.get("/analytics/langs")
+async def analytics_langs(access_code: str = "", auth: dict = Depends(_require_analytics_key)):
+    """Study languages this student has practised + the most recent — drives the
+    teacher panel's language switch."""
     if not access_code:
         raise HTTPException(status_code=400, detail="access_code required")
+    return _analytics.get_student_langs(access_code)
+
+
+@app.get("/analytics/exercises")
+async def analytics_exercises(access_code: str = "", window: str = "30d", lang: str = "fr",
+                              auth: dict = Depends(_require_analytics_key)):
+    if not access_code:
+        raise HTTPException(status_code=400, detail="access_code required")
+    _check_analytics_lang(lang)
     return _analytics.get_exercise_stats(
-        access_code, since_days=_window_to_since_days(window, access_code))
+        access_code, since_days=_window_to_since_days(window, access_code), lang=lang)
 
 
 class AddStudentRequest(BaseModel):

@@ -180,6 +180,9 @@ Access-code only — the student tool has no teacher key. Consumed by `loadHomeV
 | `GET` | `/analytics/words?key=&access_code=` | `get_word_accuracy()` |
 | `GET` | `/analytics/recent-struggles?key=&access_code=&sessions=3` | `get_recent_struggles()` — words <50% in last N sessions |
 | `GET` | `/analytics/content?key=&access_code=` | `get_topic_coverage()` + `get_listen_speak_ratio()` |
+| `GET` | `/analytics/langs?key=&access_code=` | `get_student_langs()` — `{langs, latest}` study languages practised |
+
+**Study language:** every per-student endpoint the dashboard calls (`paragraph`, `phrase`, `words`, `recent-struggles`, `content`, `sessions`, `exercises`, plus `/coach` and `/analytics/progress`) takes `lang=fr|en` (default `fr`) and keeps only that language's events (`_event_lang()`: an `en*` `locale` on the payload = English, everything else French). The student panel opens on `get_student_langs()['latest']` and shows a Français / English switch (`.s-lang-seg`) only when the student has English events; switching reloads the open tab and marks the others to reload.
 
 `window` is mapped to `since_days` by `_window_to_since_days()` in `server.py`: `30d`→30, `all`→None, `since`→days since last lesson (falls back to 30 if no schedule).
 
@@ -212,7 +215,7 @@ Access-code only — the student tool has no teacher key. Consumed by `loadHomeV
 | `get_paragraph_exercise_stats(access_code, since_days=None)` | Started / completed / phrases drilled / words practiced — overall + by level |
 | `get_phrase_exercise_stats(access_code, since_days=None)` | Started / completed / stuck / avg attempts to complete — overall + by level. Groups by `phrase_id`; one started phrase per UUID regardless of attempt count. |
 | `get_topic_coverage(access_code)` | Attempts + avg score per topic, sorted by attempts desc |
-| `get_listen_speak_ratio(access_code)` | Listens vs speak attempts + ratio + avg replays per chunk |
+| `get_listen_speak_ratio(access_code, lang)` | Listens vs speak attempts + ratio + avg replays per chunk. Listens = paragraph `chunk_listened` events + each phrase's highest `listen_count`; speak attempts = phrase + paragraph attempts + paragraph drills |
 | `get_score_trend(access_code, weeks=8)` | Weekly score buckets (8 weeks, incl. empty) + recent/lifetime avgs + delta. Not currently wired to dashboard. |
 | `get_progress_trend(access_code, weeks=8)` | Weekly score+pass series split by exercise type and CEFR level, null-padded per week. Powers the student Home and teacher Progress tab charts. Pass thresholds: paragraph 0.70, phrase/word 0.90. |
 | `get_word_mastery_trend(access_code, weeks=8)` | Cumulative words-mastered curve, latched (never decreases). A word masters at ≥3 attempts & ≥80% hit-rate. Also returns `total_mastered`, `newly_mastered` (last week), `mastered_30d`. |

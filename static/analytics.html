@@ -72,6 +72,7 @@
       gap: 8px; margin-bottom: 16px;
     }
     .ind-strip[hidden] { display: none; }
+    .s-lang-seg[hidden] { display: none; }
     @media (max-width: 1100px) { .ind-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 600px)  { .ind-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .ind-card {
@@ -464,7 +465,14 @@
               <p class="st-eyebrow st-code s-code">—</p>
               <h1 class="st-title s-name">Student</h1>
             </div>
-            <button class="vk-btn vk-btn-primary s-lesson-btn">Start lesson</button>
+            <div class="st-head-actions">
+              <!-- Study language — shown only for students who practise English -->
+              <div class="vk-seg s-lang-seg" role="group" aria-label="Study language" hidden>
+                <button data-lang="fr">Français</button>
+                <button data-lang="en">English</button>
+              </div>
+              <button class="vk-btn vk-btn-primary s-lesson-btn">Start lesson</button>
+            </div>
           </div>
           <div class="st-meta">
             <span class="st-meta-item">Last lesson <b class="s-last-lesson">—</b></span>
@@ -926,6 +934,7 @@ function createStudentPanel(s) {
   el._actWin = 'since';
   el._progDays = 7;
   el._exWin = 'since';
+  el._lang = 'fr';
   el.querySelector('.s-name').textContent = s.name || s.access_code;
   el.querySelector('.s-code').textContent = s.access_code;
   const lessonBtn = el.querySelector('.s-lesson-btn');
@@ -942,6 +951,7 @@ function createStudentPanel(s) {
     s.days_since_practice != null ? s.days_since_practice + ' day' + (s.days_since_practice === 1 ? '' : 's') : '—';
   initTabs(el);
   initWinTabs(el);
+  initLangSeg(el);
   document.querySelector('.vk-main').appendChild(el);
   return el;
 }
@@ -974,12 +984,43 @@ function scoreBar(x) {
          '" style="width:' + w + '%"></div></div><span class="st-score-num">' + w + '%</span></div>';
 }
 
-// Called when a student panel is first shown
-function ensureStudentLoaded(panel) {
+// Called when a student panel is first shown. Opens on the study language the
+// student practised most recently; the switch only appears once they have English.
+async function ensureStudentLoaded(panel) {
   if (panel.dataset.inited === '1') return;
   panel.dataset.inited = '1';
+  try {
+    const l = await fetchJSON('/analytics/langs?access_code=' + encodeURIComponent(panel.dataset.code));
+    panel._lang = l.latest || 'fr';
+    panel.querySelector('.s-lang-seg').hidden = !(l.langs || []).includes('en');
+  } catch (e) { /* stay on French */ }
+  _syncLangSeg(panel);
   loadTab(panel, 'prepare');  // default active tab
 }
+
+// Every per-student fetch carries the panel's study language.
+const _langQS = panel => '&lang=' + (panel._lang || 'fr');
+
+function _syncLangSeg(panel) {
+  panel.querySelectorAll('.s-lang-seg button')
+       .forEach(b => b.classList.toggle('is-active', b.dataset.lang === panel._lang));
+}
+
+// Switching language reloads the open tab now and the others when next opened.
+function initLangSeg(panel) {
+  panel.querySelectorAll('.s-lang-seg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.lang === panel._lang) return;
+      panel._lang = btn.dataset.lang;
+      _syncLangSeg(panel);
+      panel.querySelectorAll('.tab-pane').forEach(p => { p.dataset.loaded = '0'; });
+      const active = panel.querySelector('.vk-tab[data-tab][aria-selected="true"]');
+      loadTab(panel, active ? active.dataset.tab : 'prepare');
+    });
+  });
+}
+
+const _soundsLabel = lang => (lang === 'en' ? 'Sounds' : 'French sounds');
 
 // Tutor insights — the explicit "what to act on" strip at the top of the panel.
 
@@ -1072,7 +1113,7 @@ async function renderProgress(panel, code, days) {
   const chartCard = panel.querySelector('.vk-chart');
   if (chartCard) chartCard.classList.add('is-visible');
   try {
-    const res = await fetch('/analytics/progress?access_code=' + encodeURIComponent(code) + '&days=' + days + (K_QS ? '&' + K_QS : ''), { headers: _authHeaders() });
+    const res = await fetch('/analytics/progress?access_code=' + encodeURIComponent(code) + '&days=' + days + _langQS(panel) + (K_QS ? '&' + K_QS : ''), { headers: _authHeaders() });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     panel._progKpis = buildProgKpis(d);
@@ -1208,13 +1249,13 @@ function _progBuildChart(container, series, opts) {
 async function renderDiagnosis(panel, code) {
   const wc = panel.querySelector('.s-words-content');
   try {
-    const d = await fetchJSON('/analytics/words?access_code=' + code);
+    const d = await fetchJSON('/analytics/words?access_code=' + code + _langQS(panel));
     panel._diagnosisWords = d.words || [];
     _renderDiagWords(panel);
   } catch (e) { wc.innerHTML = '<div class="empty">Couldn\'t load this — ' + e.message + '</div>'; }
 
   try {
-    const c = await fetchJSON('/analytics/content?access_code=' + code);
+    const c = await fetchJSON('/analytics/content?access_code=' + code + _langQS(panel));
     const ls = c.listen_speak || {};
     panel.querySelector('.s-listen-speak-content').innerHTML =
       '<div class="three-col">' +
@@ -1326,10 +1367,19 @@ const _SOUND_TIPS = {
   nasal:    'Nasals (an, on, in) require air through the nose — contrast with the pure vowel equivalent.',
   u_sound:  'The French [y] (as in "tu") has no English equivalent — lips rounded and forward, tongue high at the front.',
   eu_sound: 'The [eu/œ] sound (as in "feu", "peur") is mid-front rounded — often confused with [e] or [o].',
+  // English study language
+  th:           'TH (as in "think", "this") puts the tongue tip between the teeth — often replaced by [s], [z], [t] or [d].',
+  h_sound:      'English H is breathed out (as in "house", "happy") — silent only in a few words like "hour" and "honest".',
+  vowel_length: 'Short and long vowels change the word ("ship" / "sheep", "full" / "fool") — hold the long one longer and tenser.',
+  ed_endings:   '-ED is said three ways: [t] after voiceless sounds ("walked"), [d] after voiced ("played"), [ɪd] after t/d ("wanted").',
+  ough:         'OUGH has several pronunciations ("though", "through", "tough", "thought") — learn each word as a whole.',
 };
 // "Words with …" — a missed word that contains the sound doesn't prove the sound was the miss
-const _CAT_LABELS = { nasal: 'Words with nasal sounds', u_sound: 'Words with the [y] sound', eu_sound: 'Words with the [ø/œ] sound' };
-const _CAT_SHORT  = { nasal: 'Nasals',       u_sound: '[y]',       eu_sound: '[ø/œ]'     };
+const _CAT_LABELS = { nasal: 'Words with nasal sounds', u_sound: 'Words with the [y] sound', eu_sound: 'Words with the [ø/œ] sound',
+                      th: 'Words with TH', h_sound: 'Words with an H sound', vowel_length: 'Words with short / long vowels',
+                      ed_endings: 'Words with -ED endings', ough: 'Words with OUGH' };
+const _CAT_SHORT  = { nasal: 'Nasals',       u_sound: '[y]',       eu_sound: '[ø/œ]',
+                      th: 'TH', h_sound: 'H', vowel_length: 'Vowel length', ed_endings: '-ED', ough: 'OUGH' };
 
 // Evidence behind a recommendation: how many items and attempts it rests on.
 // Under EARLY_SIGNAL_ATTEMPTS it is flagged so a thin pattern doesn't read as certain.
@@ -1515,8 +1565,9 @@ function _indCard(label, status, reading, indKey) {
     '<p class="ind-reading">' + esc(reading) + '</p></div>';
 }
 
-function _indSounds(coach) {
-  if (!coach) return _indCard('French sounds', 'grey', 'No data yet', 'sounds');
+function _indSounds(coach, lang) {
+  const label = _soundsLabel(lang);
+  if (!coach) return _indCard(label, 'grey', 'No data yet', 'sounds');
   const tech = (coach.tech_suspect_words || []).length;
   const ec   = coach.error_clusters || {};
   const eli  = (ec.elision_variant || []).length;
@@ -1532,17 +1583,17 @@ function _indSounds(coach) {
     const status = worstPct < 40 ? 'red' : 'amber';
     if (display.length > 1) {
       const parts = display.map(([c, v]) => (_CAT_SHORT[c] || c) + ' ' + Math.round((v.avg_accuracy || 0) * 100) + '%');
-      return _indCard('French sounds', status, parts.join(' · ') + ' — multiple patterns', 'sounds');
+      return _indCard(label, status, parts.join(' · ') + ' — multiple patterns', 'sounds');
     }
     const [cat, data] = display[0];
     const pct = Math.round((data.avg_accuracy || 0) * 100);
-    return _indCard('French sounds', status, (_CAT_LABELS[cat] || cat) + ' — avg ' + pct + '%', 'sounds');
+    return _indCard(label, status, (_CAT_LABELS[cat] || cat) + ' — avg ' + pct + '%', 'sounds');
   }
   if (eli >= 2)
-    return _indCard('French sounds', 'amber', 'Elision / liaison — ' + eli + ' consistent errors', 'sounds');
+    return _indCard(label, 'amber', 'Elision / liaison — ' + eli + ' consistent errors', 'sounds');
   if (tech >= 2)
-    return _indCard('French sounds', 'amber', tech + ' words never register — possibly the mic', 'sounds');
-  return _indCard('French sounds', 'green', 'No clear sound pattern detected', 'sounds');
+    return _indCard(label, 'amber', tech + ' words never register — possibly the mic', 'sounds');
+  return _indCard(label, 'green', 'No clear sound pattern detected', 'sounds');
 }
 
 function _indLevel(prog) {
@@ -1623,7 +1674,7 @@ function _indConsistency(s) {
 // ── Insights tab ──────────────────────────────────────────────────
 
 function _buildIndDetail(key, insightsData) {
-  const { coach, prog, para, phrase, content, roster, exercises } = insightsData;
+  const { coach, prog, para, phrase, content, roster, exercises, lang } = insightsData;
 
   if (key === 'sounds') {
     const phonetic = (coach && coach.phonetic_struggles) || {};
@@ -1652,7 +1703,7 @@ function _buildIndDetail(key, insightsData) {
     } else {
       bodyHtml = '<p class="body-text is-muted">No clear pattern detected</p>';
     }
-    return { label: 'French sounds', bodyHtml, gotoTab: diagFilter ? 'diagnosis' : null, diagFilter, gotoLabel: 'See the words' };
+    return { label: _soundsLabel(lang), bodyHtml, gotoTab: diagFilter ? 'diagnosis' : null, diagFilter, gotoLabel: 'See the words' };
   }
 
   if (key === 'level') {
@@ -1831,16 +1882,18 @@ async function renderInsights(panel, code) {
     '<span class="ind-label">Loading…</span></div><p class="ind-reading">&nbsp;</p></div>'
   ).join('');
   recsEl.innerHTML = '';
+  detailEl.hidden = true;
+  detailEl.innerHTML = '';
 
   // Fetch all signals in parallel
   const [coachR, progR, paraR, phraseR, contentR, strugglesR, exercisesR] = await Promise.allSettled([
-    fetchJSON('/coach?access_code=' + code),
-    fetch('/analytics/progress?access_code=' + encodeURIComponent(code) + (K_QS ? '&' + K_QS : ''), { headers: _authHeaders() }).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetchJSON('/analytics/paragraph?access_code=' + code + '&window=30d'),
-    fetchJSON('/analytics/phrase?access_code='    + code + '&window=30d'),
-    fetchJSON('/analytics/content?access_code='   + code),
-    fetchJSON('/analytics/recent-struggles?access_code=' + code),
-    fetchJSON('/analytics/exercises?access_code=' + code + '&window=30d'),
+    fetchJSON('/coach?access_code=' + code + _langQS(panel)),
+    fetch('/analytics/progress?access_code=' + encodeURIComponent(code) + _langQS(panel) + (K_QS ? '&' + K_QS : ''), { headers: _authHeaders() }).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetchJSON('/analytics/paragraph?access_code=' + code + '&window=30d' + _langQS(panel)),
+    fetchJSON('/analytics/phrase?access_code='    + code + '&window=30d' + _langQS(panel)),
+    fetchJSON('/analytics/content?access_code='   + code + _langQS(panel)),
+    fetchJSON('/analytics/recent-struggles?access_code=' + code + _langQS(panel)),
+    fetchJSON('/analytics/exercises?access_code=' + code + '&window=30d' + _langQS(panel)),
   ]);
 
   const coach     = coachR.status      === 'fulfilled' ? coachR.value         : null;
@@ -1853,7 +1906,7 @@ async function renderInsights(panel, code) {
   const roster    = (window._rosterStudents || []).find(s => s.access_code === code) || {};
 
   // Store for detail expansion
-  panel._insightsData = { coach, prog, para, phrase, content, roster, exercises };
+  panel._insightsData = { coach, prog, para, phrase, content, roster, exercises, lang: panel._lang };
 
   const isNew = _isNewStudent(roster, coach);
   const newEl = panel.querySelector('.s-newstudent');
@@ -1863,7 +1916,7 @@ async function renderInsights(panel, code) {
 
   // Indicator strip
   indEl.innerHTML = isNew ? '' :
-    _indSounds(coach) +
+    _indSounds(coach, panel._lang) +
     _indLevel(prog) +
     _indMix(para, phrase, exercises) +
     _indBalance(content) +
@@ -1961,7 +2014,7 @@ async function renderInsights(panel, code) {
 async function renderActivityWindow(panel, code) {
   const win = panel._actWin || 'since';
   try {
-    const p = await fetchJSON('/analytics/paragraph?access_code=' + code + '&window=' + win);
+    const p = await fetchJSON('/analytics/paragraph?access_code=' + code + '&window=' + win + _langQS(panel));
     panel.querySelector('.s-para-strip').innerHTML = statsStrip([
       ['Started', p.paragraphs_started ?? 0],
       ['Completed', p.paragraphs_completed ?? 0, p.completion_rate != null ? Math.round(p.completion_rate * 100) + '% rate' : ''],
@@ -1970,7 +2023,7 @@ async function renderActivityWindow(panel, code) {
     ]);
   } catch (e) { panel.querySelector('.s-para-strip').innerHTML = '<div class="empty">No paragraph data</div>'; }
   try {
-    const f = await fetchJSON('/analytics/phrase?access_code=' + code + '&window=' + win);
+    const f = await fetchJSON('/analytics/phrase?access_code=' + code + '&window=' + win + _langQS(panel));
     panel.querySelector('.s-ph-strip').innerHTML = statsStrip([
       ['Started', f.phrases_started ?? 0],
       ['Completed', f.phrases_completed ?? 0, f.phrases_started ? Math.round((f.phrases_completed / f.phrases_started) * 100) + '% rate' : ''],
@@ -1985,7 +2038,7 @@ async function renderActivity(panel, code) {
   // Session history (all-time, last 20) — not affected by the window toggle
   const sc = panel.querySelector('.s-sessions-content');
   try {
-    const s = await fetchJSON('/analytics/sessions?access_code=' + code);
+    const s = await fetchJSON('/analytics/sessions?access_code=' + code + _langQS(panel));
     const sessions = s.sessions || [];
     if (!sessions.length) sc.innerHTML = '<div class="empty">No session data yet</div>';
     else sc.innerHTML =
@@ -2021,7 +2074,7 @@ async function renderExercisesWindow(panel, code) {
   host.innerHTML = '';
   let data;
   try {
-    data = await fetchJSON('/analytics/exercises?access_code=' + encodeURIComponent(code) + '&window=' + win);
+    data = await fetchJSON('/analytics/exercises?access_code=' + encodeURIComponent(code) + '&window=' + win + _langQS(panel));
   } catch (e) {
     host.innerHTML = '<div class="empty">Could not load exercise data</div>';
     return;

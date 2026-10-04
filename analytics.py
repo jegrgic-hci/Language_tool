@@ -1735,7 +1735,7 @@ def _avg(lst: list) -> Any:
     return round(sum(lst) / len(lst), 3) if lst else None
 
 
-def get_session_history(access_code: str, limit: int = 20) -> list:
+def get_session_history(access_code: str, limit: int = 20, lang: str = "fr") -> list:
     """Return per-session summary rows, most recent first.
 
     Sessions are computed via activity-gap analysis: a new session begins whenever
@@ -1754,7 +1754,8 @@ def get_session_history(access_code: str, limit: int = 20) -> list:
             (access_code,),
         ).fetchall()
 
-    events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in rows]
+    events = [(r["ts"], r["event_type"], p) for r in rows
+              for p in [json.loads(r["payload"])] if _event_lang(p) == lang]
     sess_groups = _filter_active_sessions(_group_events_into_sessions(events))
 
     seen_words: set = set()
@@ -1825,7 +1826,8 @@ def get_session_history(access_code: str, limit: int = 20) -> list:
     return results[:limit]
 
 
-def get_recent_struggles(access_code: str, sessions: int = 3, threshold: float = 0.50) -> list:
+def get_recent_struggles(access_code: str, sessions: int = 3, threshold: float = 0.50,
+                         lang: str = "fr") -> list:
     """Words with accuracy below `threshold` across the last `sessions` sessions.
 
     Returns a list of dicts sorted by accuracy asc:
@@ -1841,7 +1843,8 @@ def get_recent_struggles(access_code: str, sessions: int = 3, threshold: float =
             (access_code,),
         ).fetchall()
 
-    events = [(r["ts"], r["event_type"], json.loads(r["payload"])) for r in rows]
+    events = [(r["ts"], r["event_type"], p) for r in rows
+              for p in [json.loads(r["payload"])] if _event_lang(p) == lang]
     sess_groups = _filter_active_sessions(_group_events_into_sessions(events))
 
     # Take only the last N sessions
@@ -1970,7 +1973,8 @@ def _aggregate(rows) -> dict:
 
 # ── Paragraph exercise stats ───────────────────────────────────────────────────
 
-def get_paragraph_exercise_stats(access_code: str, since_days: Optional[int] = None) -> dict:
+def get_paragraph_exercise_stats(access_code: str, since_days: Optional[int] = None,
+                                 lang: str = "fr") -> dict:
     _PASS = 0.70
     ts_filter = f" AND ts >= datetime('now', '-{since_days} days')" if since_days else ""
     with _conn() as conn:
@@ -1996,6 +2000,8 @@ def get_paragraph_exercise_stats(access_code: str, since_days: Optional[int] = N
     for row in rows:
         t = row["event_type"]
         p = json.loads(row["payload"])
+        if _event_lang(p) != lang:
+            continue
         if t == "paragraph_started":
             pid   = p.get("paragraph_id", "")
             level = str(p.get("level", "?"))
@@ -2262,7 +2268,8 @@ def get_feature_usage() -> list:
 
 # ── Phrase exercise stats ──────────────────────────────────────────────────────
 
-def get_phrase_exercise_stats(access_code: str, since_days: Optional[int] = None) -> dict:
+def get_phrase_exercise_stats(access_code: str, since_days: Optional[int] = None,
+                              lang: str = "fr") -> dict:
     _PASS = 0.90
     ts_filter = f" AND ts >= datetime('now', '-{since_days} days')" if since_days else ""
     with _conn() as conn:
@@ -2281,6 +2288,8 @@ def get_phrase_exercise_stats(access_code: str, since_days: Optional[int] = None
     for row in rows:
         t = row["event_type"]
         p = json.loads(row["payload"])
+        if _event_lang(p) != lang:
+            continue
         if t == "phrase_attempted":
             pid = p.get("phrase_id")
             att = p.get("attempt_number", 1)
@@ -2353,7 +2362,7 @@ def get_phrase_exercise_stats(access_code: str, since_days: Optional[int] = None
 
 # ── Topic / content coverage ───────────────────────────────────────────────────
 
-def get_topic_coverage(access_code: str) -> list:
+def get_topic_coverage(access_code: str, lang: str = "fr") -> list:
     """Aggregate scored practice by topic across phrase + paragraph exercises.
 
     `topic` is carried directly on phrase_attempted, and on paragraph_started
@@ -2368,22 +2377,21 @@ def get_topic_coverage(access_code: str) -> list:
             "AND event_type IN ('paragraph_started','phrase_attempted','paragraph_attempted','paragraph_drilled')",
             (access_code,),
         ).fetchall()
+    rows = [(r["event_type"], p, r["ts"]) for r in rows
+            for p in [json.loads(r["payload"])] if _event_lang(p) == lang]
 
     # paragraph_id → topic
     para_topic: dict = {}
-    for row in rows:
-        if row["event_type"] == "paragraph_started":
-            p = json.loads(row["payload"])
+    for t, p, _ in rows:
+        if t == "paragraph_started":
             pid, topic = p.get("paragraph_id"), p.get("topic")
             if pid and topic:
                 para_topic[pid] = topic
 
     topic_stats: dict = defaultdict(lambda: {"attempts": 0, "scores": [], "last": ""})
-    for row in rows:
-        t = row["event_type"]
+    for t, p, row_ts in rows:
         if t == "paragraph_started":
             continue  # only used to build the topic map above
-        p = json.loads(row["payload"])
         if t == "phrase_attempted":
             topic = p.get("topic")
         else:  # paragraph_attempted / paragraph_drilled
@@ -2395,7 +2403,7 @@ def get_topic_coverage(access_code: str) -> list:
         score = p.get("score")
         if score is not None:
             s["scores"].append(score)
-        ts = row["ts"] or ""
+        ts = row_ts or ""
         if ts > s["last"]:
             s["last"] = ts
 
@@ -2413,32 +2421,40 @@ def get_topic_coverage(access_code: str) -> list:
 
 # ── Listen-to-speak ratio ──────────────────────────────────────────────────────
 
-def get_listen_speak_ratio(access_code: str) -> dict:
+def get_listen_speak_ratio(access_code: str, lang: str = "fr") -> dict:
     """How much a student replays audio relative to speaking attempts.
 
-    Listening happens on paragraph chunks (chunk_listened); speaking attempts are
-    paragraph_attempted + paragraph_drilled. A high ratio means a lot of replaying
-    before attempting — often a struggle signal.
+    Paragraphs log each chunk play (chunk_listened); phrases carry a running
+    listen_count per phrase on phrase_attempted, so a phrase's listens are its
+    highest listen_count. Speaking attempts are phrase_attempted +
+    paragraph_attempted + paragraph_drilled. A high ratio means a lot of
+    replaying before attempting — often a struggle signal.
     """
     with _conn() as conn:
         rows = conn.execute(
             "SELECT event_type, payload FROM events WHERE access_code=? "
-            "AND event_type IN ('chunk_listened','paragraph_attempted','paragraph_drilled')",
+            "AND event_type IN ('chunk_listened','phrase_attempted','paragraph_attempted','paragraph_drilled')",
             (access_code,),
         ).fetchall()
 
-    listens = 0
     attempts = 0
     chunk_listens: dict = defaultdict(int)
+    phrase_listens: dict = {}                # phrase_id -> highest listen_count
     for row in rows:
         t = row["event_type"]
+        p = json.loads(row["payload"])
+        if _event_lang(p) != lang:
+            continue
         if t == "chunk_listened":
-            listens += 1
-            p = json.loads(row["payload"])
             chunk_listens[(p.get("paragraph_id", ""), p.get("chunk_index", 0))] += 1
-        else:
-            attempts += 1
+            continue
+        attempts += 1
+        if t == "phrase_attempted" and p.get("phrase_id") is not None:
+            n = p.get("listen_count") or 0
+            pid = p["phrase_id"]
+            phrase_listens[pid] = max(phrase_listens.get(pid, 0), n)
 
+    listens = sum(chunk_listens.values()) + sum(phrase_listens.values())
     return {
         "listens": listens,
         "speak_attempts": attempts,
@@ -2872,6 +2888,27 @@ def _event_lang(payload: dict) -> str:
     """Study language of an event: English events carry a "locale" (en-US/en-GB);
     everything else — including all history from before English existed — is French."""
     return "en" if str(payload.get("locale") or "").startswith("en") else "fr"
+
+
+def get_student_langs(access_code: str) -> dict:
+    """Study languages a student has practised, and the most recent one.
+
+    Lets the teacher dashboard open on the language the student is actually
+    working in. Bookkeeping events (session start/end, view time, lesson held)
+    are ignored — only practice counts. Returns {"langs": [...], "latest": code}.
+    """
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT CASE WHEN json_extract(payload, '$.locale') LIKE 'en%' THEN 'en' ELSE 'fr' END AS lang, "
+            "MAX(ts) AS last_ts FROM events WHERE access_code=? "
+            "AND event_type NOT IN ('session_start','session_end','shadowing_time','view_time','lesson_held') "
+            "GROUP BY lang",
+            (access_code,),
+        ).fetchall()
+    seen = {r["lang"]: r["last_ts"] or "" for r in rows}
+    langs = [code for code in ("fr", "en") if code in seen]
+    latest = max(langs, key=lambda code: seen[code]) if langs else "fr"
+    return {"langs": langs, "latest": latest}
 
 
 # Exercise area of each event — for the coach's "last used" (neglect / variety) signals.
@@ -3441,7 +3478,8 @@ def get_home_data(access_code: str, weeks: int = 8, since_days: int = 30, lang: 
     }
 
 
-def get_exercise_stats(access_code: str, since_days: Optional[int] = None) -> dict:
+def get_exercise_stats(access_code: str, since_days: Optional[int] = None,
+                       lang: str = "fr") -> dict:
     """Per-exercise-type breakdown for the teacher Exercises tab.
 
     Returns a dict keyed by exercise slug; only includes types with ≥1 event
@@ -3477,6 +3515,8 @@ def get_exercise_stats(access_code: str, since_days: Optional[int] = None) -> di
 
     for r in rows:
         p = json.loads(r["payload"]); et = r["event_type"]
+        if _event_lang(p) != lang:
+            continue
         if et == "vocab_session_started":
             buckets["vocab_started"] += 1
         elif et == "vocab_session_completed":
