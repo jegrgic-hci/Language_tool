@@ -24,8 +24,8 @@ After Recall: session ends, returns to hub.
 
 Batch 1 skips the standalone Review (its Recall already covers all cards). Batches 2–4 trigger Review before the next batch starts. After the 4th batch Review: session ends, returns to hub.
 
-### Note cards (open-ended, text-based) — bulk memorising
-A deliberate exception to the listening-first design: modelled on paper note cards, for learning many words fast. Its own Vocabulary area tab, **Note cards** (`notecards-hub` view), sharing the `#vocab-hub` page with Flashcards like Speaking's Phrases / Paragraphs: `#vocab-hub[data-mode]` hides anything marked `data-only="flashcards|notecards"`. Level and Subject are shared; Note cards swaps Words / How to answer / Resume / Spaced repetition for **Card front** (Mixed, the default: each card's front is a coin flip every time it comes up / See the word, pick the meaning / See the meaning, pick the word; localStorage `ft_vocab_nc_dir`).
+### Text cards (open-ended, text-based) — bulk memorising
+A deliberate exception to the listening-first design: modelled on paper note cards, for learning many words fast. Its own Vocabulary area tab, **Text cards** (`notecards-hub` view; internal names keep `notecards` / `_nc`), sharing the `#vocab-hub` page with **Audio cards** (`vocab-hub`, the listening-first mode) like Speaking's Phrases / Paragraphs: `#vocab-hub[data-mode]` hides anything marked `data-only="flashcards|notecards"`. Level and Subject are shared; Text cards swaps Words / How to answer / Resume / Spaced repetition for **Card front** (Mixed, the default: each card's front is a coin flip every time it comes up / See the word, pick the meaning / See the meaning, pick the word; localStorage `ft_vocab_nc_dir`).
 - **Card:** prompt tile (word or meaning; optional play button on the word, nothing auto-plays) + 6 options: the answer, 3 from the words learned so far (incl. the current set), 2 decoys from outside the list. Meaning is always English: the translation for French cards, a plain-English synonym or short definition (never containing the word) for English cards. Tapping an option commits it, then shows the verdict, an **In a sentence** example (own play button) and a **Translate** toggle revealing the definition and example translations (English for French cards, French for English cards), as in Exposure; Next moves on. Keys 1–6 pick, Enter = Next.
 - **Learn step:** every new set opens on its 5 cards side by side (`_ncShowLearn()`); tap a card to flip it word ↔ meaning (play button on the word side), then "I'm ready, quiz me".
 - **Loop:** set of 5 new words → a missed card goes back to the end of the deck (new coin flip for its front) until every card has been answered right; every miss is counted per word (`missCount`, `missedSince`) for the checkpoint and results. From set 2 on, a cleared set is followed by **all words so far**, same rule (misses go to the end). From 20 words, a cleared combined review offers a **checkpoint**: a focus round on the words missed since the last checkpoint (same rule) (or skip to new words); clearing it resets the missed list.
@@ -36,7 +36,7 @@ A deliberate exception to the listening-first design: modelled on paper note car
 
 ## Spaced repetition (Review your words)
 A slim banner at the top of the hub content, above the setup rows (an alternate path, not a setting), titled "Spaced repetition", in two states:
-- **No words yet:** "Practice words in Flashcards to build your review deck" + info icon (expands the explainer). No button.
+- **No words yet:** "Practice words in Audio cards or Text cards to build your review deck" + info icon (expands the explainer). No button.
 - **Words saved:** "Practice words you've already learned to reinforce them" + info icon, then on the right the status ("12 due today" / "Next review tomorrow · 5 words") and Start review (disabled when nothing is due).
 Account-tied, one deck per study language, hidden in teach mode and when signed out.
 - **Joining:** after every regular Recall (standard session or a cumulative batch), all its words are added via `POST /vocab/review/add` — new words due tomorrow. A word already in the deck keeps its schedule unless it was missed again (back to the start). The set's decoys are saved with each word.
@@ -78,7 +78,7 @@ Set distractors are drawn from the current batch (`_vocabCards`) during standard
 - **VocabCard fields**: `word`, `part_of_speech`, `usage` (courant/familier/soutenu), `french_definition`, `english_definition`, `example_sentence`, `english_translation`
 
 ## Frontend
-- Nav label: **Vocabulary → Flashcards**
+- Nav labels: **Vocabulary → Audio cards** (this listening-first mode) and **Text cards** (above). Named by how each works, since "flashcards" and "note cards" mean the same thing in English
 - **Hub** (`#vocab-hub`): CEFR level chips, subject chips, count chips (5/10/15/20/Cumulative), custom subject input, Generate button
 - **Card view** (`#vocab-view`): 2-step (or 3-step cumulative) round stepper, card area
 - TTS: word and definition audio via `/tts` → `edge-tts` (`fr-FR-DeniseNeural`)

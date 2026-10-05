@@ -2214,7 +2214,7 @@ def get_feature_usage() -> list:
         ("word_attempted",      "Practice List"),
         (None,                  "Listen & Answer"),
         (None,                  "Dictation"),
-        (None,                  "Flashcards"),
+        (None,                  "Vocabulary"),
         (None,                  "Prompted Writing"),
         (None,                  "Transformation"),
         (None,                  "My Content"),

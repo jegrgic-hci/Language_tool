@@ -1817,7 +1817,7 @@
       color: var(--vk-fg-2); margin-bottom: 4px;
     }
 
-    /* ── Note cards (prompt tile + 6 options, text-based) ──────────────────── */
+    /* ── Text cards (prompt tile + 6 options, text-based) ──────────────────── */
     #vocab-nc { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 12px; }
     .vnc-top { display: flex; align-items: center; gap: 12px; }
     .vnc-phase { font-family: var(--pa-font-sans); font-size: var(--vk-type-title-sm); font-weight: 600; color: var(--vk-fg-1); }
@@ -3085,8 +3085,8 @@
             </button>
             <button class="home-action" data-action-key="vocab-hub" onclick="switchView('vocab-hub')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" stroke="currentColor" stroke-width="1.5"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
-              <span class="home-action-name">Flashcards</span>
-              <span class="home-action-desc">Build vocabulary aloud</span>
+              <span class="home-action-name">Vocabulary</span>
+              <span class="home-action-desc">Audio and text cards</span>
             </button>
             <button class="home-action" data-action-key="comprehension-hub" onclick="switchView('comprehension-hub')">
               <span class="home-action-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 6.5c0-1.1.9-2 2-2s2 .9 2 2c0 .8-.5 1.5-1.2 1.8L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
@@ -3339,7 +3339,7 @@
       </div>
       <div id="hub-content">
 
-        <!-- Accent (English) — one shared setting with the Flashcards hub -->
+        <!-- Accent (English) — one shared setting with the Vocabulary hub -->
         <div class="hub-row en-only">
           <div class="hub-row-label">
             <span class="hub-row-name">Accent</span>
@@ -4431,7 +4431,7 @@
               <button id="vocab-review-btn" class="vk-btn vk-btn-primary vrb-start" onclick="startVocabReview()">Start review →</button>
             </span>
           </div>
-          <p id="vocab-review-explain" class="vrb-explain" hidden>Spaced repetition brings back words you've studied at the moment you're likely to start forgetting them. Each time you get a word right, it waits longer before coming back: 1 day, then 3 days, a week, 2 weeks, a month. If you miss it, it comes back tomorrow. Every word from your Flashcards sessions joins your review deck, and a review asks up to 20 words, most overdue first.</p>
+          <p id="vocab-review-explain" class="vrb-explain" hidden>Spaced repetition brings back words you've studied at the moment you're likely to start forgetting them. Each time you get a word right, it waits longer before coming back: 1 day, then 3 days, a week, 2 weeks, a month. If you miss it, it comes back tomorrow. Every word from your Audio cards and Text cards sessions joins your review deck, and a review asks up to 20 words, most overdue first.</p>
         </div>
 
         <!-- Accent (English) — one shared setting with the Speaking hub -->
@@ -4535,7 +4535,7 @@
           </div>
         </div>
 
-        <!-- Card front (Note cards tab) -->
+        <!-- Card front (Text cards tab) -->
         <div class="hub-row" data-only="notecards">
           <div class="hub-row-label">
             <span class="hub-row-name">Card front</span>
@@ -4585,7 +4585,7 @@
 
       <!-- Header -->
       <div class="sv-header">
-        <span class="header-title">Flashcards</span>
+        <span class="header-title" id="vocab-view-title">Audio cards</span>
         <span id="vocab-counter" class="vocab-counter"></span>
       </div>
 
@@ -4698,7 +4698,7 @@
           </div><!-- /#vocab-card -->
         </div><!-- /#vocab-card-wrap -->
 
-        <!-- Note cards — learn step: the set's cards, tap to flip word <-> meaning -->
+        <!-- Text cards — learn step: the set's cards, tap to flip word <-> meaning -->
         <div id="vocab-nc-learn" style="display:none;">
           <div class="vnc-top">
             <span id="vncl-phase" class="vnc-phase"></span>
@@ -4711,7 +4711,7 @@
           </div>
         </div>
 
-        <!-- Note cards: text-based bulk memorising (prompt tile + 6 options) -->
+        <!-- Text cards: text-based bulk memorising (prompt tile + 6 options) -->
         <div id="vocab-nc" style="display:none;">
           <div class="vnc-top">
             <span id="vnc-phase" class="vnc-phase"></span>
@@ -4733,7 +4733,7 @@
           <div id="vnc-options" class="vc-choices" role="radiogroup" aria-label="Options"></div>
           <div id="vnc-feedback" class="vnc-feedback" hidden>
             <div id="vnc-banner" class="vocab-result-banner"></div>
-            <!-- In context + translation, as in the Flashcards Exposure list -->
+            <!-- In context + translation, as in the Audio cards Exposure list -->
             <div id="vnc-example-box" class="vc-exp-example">
               <span class="vc-exp-def-label">In a sentence</span>
               <div class="vc-exp-example-row">
@@ -4752,7 +4752,7 @@
           </div>
         </div>
 
-        <!-- Note cards — round recap: celebration card + stat tiles (the phrase
+        <!-- Text cards — round recap: celebration card + stat tiles (the phrase
              session's pa-cheer + phv-tiles), words that took a few tries, actions -->
         <div id="vocab-nc-recap" style="display:none;"></div>
 
@@ -5823,14 +5823,14 @@
     { key: 'home',       label: 'Home',       views: [['home', 'Home']] },
     { key: 'speaking',   label: 'Speaking',   views: [['phrase-hub', 'Phrases'], ['paragraph-hub', 'Paragraphs'], ['shadow-hub', 'Shadowing'], ['speaking-hub', 'Prompted speaking']] },
     { key: 'listening',  label: 'Listening',  views: [['comprehension-hub', 'Listen & answer'], ['natural-hub', 'Dialogue'], ['dictation-hub', 'Dictation']] },
-    { key: 'vocabulary', label: 'Vocabulary', views: [['vocab-hub', 'Flashcards'], ['notecards-hub', 'Note cards']] },
+    { key: 'vocabulary', label: 'Vocabulary', views: [['vocab-hub', 'Audio cards'], ['notecards-hub', 'Text cards']] },
     { key: 'writing',    label: 'Writing',    views: [['writing-hub', 'Prompted writing'], ['transform-hub', 'Transformation']] },
     { key: 'pronouns',   label: 'Pronouns',   views: [['pronoun-hub', 'Pronouns']] },
     { key: 'practice',   label: 'Practice',   views: [['practice', 'Practice list'], ['custom', 'My content']] },
   ];
   const NAV_BAR_MAX = 5;          // M3 navigation bar: 3–5 destinations
   const _navLast = {};            // area key → last hub visited, so the rail returns you there
-  // Flashcards and Note cards are separate Vocabulary tabs sharing one hub page (#vocab-hub);
+  // Audio cards and Text cards are separate Vocabulary tabs sharing one hub page (#vocab-hub);
   // the last one entered decides which tab the running #vocab-view belongs to.
   let _vocabHubMode = 'flashcards';
 
@@ -6599,7 +6599,7 @@
   const EN_ACCENT_LOCALE = { us: 'en-US', uk: 'en-GB' };
   const STUDY_LANG_BADGE = { fr: 'FR', en: 'EN' };
   const STUDY_LANG_NAME  = { fr: 'Français', en: 'English' };
-  // Views available while studying English (v1: Speaking phrases + Flashcards).
+  // Views available while studying English (v1: Speaking phrases + Vocabulary).
   const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'paragraph-hub', 'phrase', 'paragraph', 'vocab-hub', 'notecards-hub', 'vocab', 'practice',
                               'shadow-hub', 'shadow-drill', 'speaking-hub', 'speaking']);
   let studyLocale = 'fr-FR';   // locale of the current item (en-US / en-GB while studying English)
@@ -6666,7 +6666,7 @@
     if (recognition) recognition.lang = sttLang();
     const english = studyLang() === 'en';
     document.getElementById('app').classList.toggle('study-en', english);
-    // A Flashcards subject that only exists in the other language falls back to Daily life.
+    // A Vocabulary subject that only exists in the other language falls back to Daily life.
     const vocabOnlyIn = { 'Marseille': 'fr', 'phrasal verbs': 'en', 'business English': 'en',
                           'snakes and reptiles (herpetology)': 'en', 'travelling in India': 'en' };
     if (vocabOnlyIn[_vocabSubject] && vocabOnlyIn[_vocabSubject] !== studyLang()) {
@@ -7197,7 +7197,7 @@
     const inComprehension   = view === 'comprehension';
     const inDictHub         = view === 'dictation-hub';
     const inDictation       = view === 'dictation';
-    // Flashcards and Note cards are separate Vocabulary tabs sharing one hub page (#vocab-hub)
+    // Audio cards and Text cards are separate Vocabulary tabs sharing one hub page (#vocab-hub)
     const inVocabHub        = view === 'vocab-hub' || view === 'notecards-hub';
     if (inVocabHub) selectVocabHubMode(view === 'notecards-hub' ? 'notecards' : 'flashcards');
     const inVocab           = view === 'vocab';
@@ -7266,7 +7266,7 @@
       'comprehension-hub': 'Comprehension', 'comprehension': 'Comprehension',
       'natural-hub': 'Dialogue French',
       'dictation-hub': 'Dictation', 'dictation': 'Dictation',
-      'vocab-hub': 'Flashcards', 'notecards-hub': 'Note cards', 'vocab': 'Flashcards',
+      'vocab-hub': 'Audio cards', 'notecards-hub': 'Text cards', 'vocab': 'Vocabulary',
       'writing-hub': 'Writing', 'writing': 'Writing',
       'transform-hub': 'Transformation', 'transform': 'Transformation',
       'pronoun-hub': 'Pronouns', 'pronoun-speak': 'Pronouns', 'pronoun-placement': 'Pronouns',
@@ -12103,7 +12103,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const HOME_AREAS = {
     phrase:    { label: 'phrases',    title: 'Phrases',    target: { mode: 'phrase' } },
     paragraph: { label: 'paragraphs', title: 'Paragraphs', target: { mode: 'paragraph' } },
-    vocab:     { label: 'flashcards', title: 'Flashcards', target: { view: 'vocab-hub' } },
+    vocab:     { label: 'vocabulary', title: 'Vocabulary', target: { view: 'vocab-hub' } },
     listening: { label: 'listening',  title: 'Listening',  target: { view: 'comprehension-hub' } },
     dictation: { label: 'dictation',  title: 'Dictation',  target: { view: 'dictation-hub' } },
   };
@@ -12111,7 +12111,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const HOME_AREA_WHY = {
     phrase:    'Short phrases sharpen individual sounds and the links between words.',
     paragraph: 'Paragraphs train the flow of a whole passage. That is what your Performance score measures.',
-    vocab:     'Flashcards grow the words you can recognise by ear and say with confidence.',
+    vocab:     'Audio and text cards grow the words you can recognise and remember.',
     listening: 'Listening to natural speech trains your ear for the speed of real conversation.',
     dictation: 'Dictation connects what you hear to how it is written.',
   };
@@ -16106,8 +16106,9 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   function selectVocabHubMode(mode) {
     _vocabHubMode = mode;
     document.getElementById('vocab-hub').dataset.mode = mode;
+    document.getElementById('vocab-view-title').textContent = mode === 'notecards' ? 'Text cards' : 'Audio cards';
     const btn = document.getElementById('vocab-generate-btn');
-    if (!btn.disabled) btn.textContent = mode === 'notecards' ? 'Start note cards →' : 'Generate Cards →';
+    if (!btn.disabled) btn.textContent = mode === 'notecards' ? 'Start text cards →' : 'Generate Cards →';
   }
 
   function addVocabCustomSubject() {
@@ -16424,7 +16425,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       const hasWords = s.total > 0;
       document.getElementById('vocab-review-desc').textContent = hasWords
         ? "Practice words you've already learned to reinforce them"
-        : 'Practice words in Flashcards to build your review deck';
+        : 'Practice words in Audio cards or Text cards to build your review deck';
       document.getElementById('vocab-review-btn').closest('.vrb-action').hidden = !hasWords;
       if (s.due > 0) {
         meta.textContent = `${s.due} due today` + (s.due > 20 ? ' · 20 per review' : '');
@@ -16502,7 +16503,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       right:  words.filter(w =>  _vocabReviewResults[w]).map(row),
       review: words.filter(w => !_vocabReviewResults[w]).map(row),
       actions: [
-        { label: 'Back to Flashcards', cls: 'vk-btn-primary', onclick: () => switchView('vocab-hub') },
+        { label: 'Back to Audio cards', cls: 'vk-btn-primary', onclick: () => switchView('vocab-hub') },
         { label: 'Done', cls: 'vk-btn-outline-accent', onclick: () => switchView('home') },
       ],
     });
@@ -17150,7 +17151,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('vc-path-c-result').style.display = '';
   }
 
-  // ── Note cards — text-based bulk memorising ──────────────────────────────────
+  // ── Text cards — text-based bulk memorising ──────────────────────────────────
   // Word <-> short English meaning, 6 options (3 from the learned list, 2 decoys
   // from outside it). Sets of 5 new words, opened by a flip-card learn step; in
   // every round a missed card goes back to the end until it's answered right.
@@ -17240,7 +17241,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       errEl.textContent = 'Failed to generate cards. Try again.';
       errEl.style.display = '';
     } finally {
-      btn.textContent = 'Start note cards →';
+      btn.textContent = 'Start text cards →';
       btn.disabled = false;
     }
   }
@@ -17629,7 +17630,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         _ncTile('Rounds cleared', run.rounds, ''),
         _ncTile('Best streak', run.bestStreak, 'in a row'),
       ],
-      label: 'Note cards',
+      label: 'Text cards',
       title: `${n} ${n === 1 ? 'word' : 'words'} learned, ${right.length} right first time`,
       sub: _vocabReviewAvailable() ? 'They join your review deck. First review tomorrow.' : '',
       right:  right.map(c => asRow(c, '')),
@@ -17660,7 +17661,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   // One quiz choice as an M3 list item: leading radio | divider | play (never
   // selects), label + optional status line. The row is the radio. No playCall:
-  // radio + label only (Note cards' English meanings).
+  // radio + label only (Text cards' English meanings).
   function _vcRowHtml(rowAttrs, playCall, playTitle, label, status) {
     return `<div class="vc-row" role="radio" aria-checked="false" tabindex="0" ${rowAttrs} onkeydown="_vcRowKey(event, this)">
       <span class="vcr-radio" aria-hidden="true"></span>
