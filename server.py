@@ -3215,12 +3215,15 @@ class VocabCard(BaseModel):
     english_definition: str
     example_sentence: str
     english_translation: str
+    meaning: str = ""  # Note cards only: short gloss in the learner's language (English for French cards)
 
 class VocabGenerateRequest(BaseModel):
     level: str
     subject: str
     count: int = 8
     locale: Optional[str] = None  # "en-US" / "en-GB" (beta accounts only); default French
+    notecards: bool = False       # Note cards: add a short `meaning` gloss to every card and decoy
+    exclude: list[str] = []       # Note cards: words the learner has already had this session
     session_id: Optional[str] = None
     access_code: Optional[str] = None
     visit_id: Optional[str] = None
@@ -3231,6 +3234,7 @@ class VocabDecoy(BaseModel):
     learned (English for English cards), like VocabCard."""
     word: str
     french_definition: str
+    meaning: str = ""
 
 class VocabGenerateResponse(BaseModel):
     cards: list[VocabCard]
@@ -3256,8 +3260,32 @@ def _vocab_parse(text: str, count: int, def_key: str):
         w, d_def = str(d.get("word", "")).strip(), str(d.get(def_key, "")).strip()
         if w and d_def and w.lower() not in seen:
             seen.add(w.lower())
-            decoys.append(VocabDecoy(word=w, french_definition=d_def))
+            decoys.append(VocabDecoy(word=w, french_definition=d_def,
+                                     meaning=str(d.get("meaning", "")).strip()))
     return cards_raw, decoys
+
+
+def _vocab_notecard_rules(req: VocabGenerateRequest, english_words: bool) -> str:
+    """Extra system-prompt block for Note cards: a short English gloss on every card
+    and decoy (the quiz pairs word <-> gloss), and no repeats of words already had.
+    French words get their English translation; English words a plain-English
+    meaning (a synonym or short definition)."""
+    if not req.notecards:
+        return ""
+    gloss = ("the short meaning in plain English: a simple synonym or brief definition of 1 to 6 words "
+             "that does NOT contain the word itself (e.g. \"to give up\" as \"to stop trying\", "
+             "\"crowd\" as \"a large group of people\")"
+             if english_words else
+             "the short English meaning of the word, as a dictionary gloss of 1 to 5 words "
+             "(e.g. a verb as \"to grab\", a noun as \"a crowd\")")
+    block = (f"\n\nNOTE CARDS: also add a \"meaning\" field to every card AND every decoy: {gloss}. "
+             f"Meanings must be distinct from each other, so no two items can be confused. "
+             f"Decoys need it too: every decoy object must have \"word\", its definition AND \"meaning\".")
+    seen = [w.strip() for w in req.exclude if w and w.strip()][-150:]
+    if seen:
+        block += ("\nThe learner has already studied these; do NOT use any of them as a card "
+                  "or decoy: " + ", ".join(seen))
+    return block
 
 _VOCAB_SYSTEM = """You are a French language teacher generating vocabulary flashcards.
 
@@ -3345,7 +3373,7 @@ async def _vocab_generate_en(req: VocabGenerateRequest, locale: str) -> VocabGen
     count = max(4, min(20, req.count))
     system = _VOCAB_SYSTEM_EN.format(count=count, level=level, subject=req.subject,
                                      accent=_VOCAB_ACCENTS[locale], angle=random.choice(_VOCAB_ANGLES),
-                                     decoys=_vocab_decoy_count(count))
+                                     decoys=_vocab_decoy_count(count)) + _vocab_notecard_rules(req, english_words=True)
     raw = await asyncio.to_thread(
         lambda: _mistral.chat.complete(
             model="mistral-small-latest",
@@ -3367,10 +3395,11 @@ async def _vocab_generate_en(req: VocabGenerateRequest, locale: str) -> VocabGen
             english_definition=c.get("definition_fr", ""),
             example_sentence=c.get("example_sentence", ""),
             english_translation=c.get("example_fr", ""),
+            meaning=c.get("meaning", ""),
         )
         for c in cards_raw
     ]
-    if req.session_id and req.access_code:
+    if req.session_id and req.access_code and not req.exclude:  # Note cards: first batch only
         _analytics.track(req.session_id, req.access_code, "vocab_session_started", {
             "exercise_type": "vocab",
             "locale": locale,
@@ -3396,7 +3425,7 @@ async def vocab_generate(req: VocabGenerateRequest, authorization: Optional[str]
     count = max(4, min(20, req.count))
     angle = random.choice(_VOCAB_ANGLES)
     system = _VOCAB_SYSTEM.format(count=count, level=level, subject=req.subject, angle=angle,
-                                  decoys=_vocab_decoy_count(count))
+                                  decoys=_vocab_decoy_count(count)) + _vocab_notecard_rules(req, english_words=False)
     try:
         raw = await asyncio.to_thread(
             lambda: _mistral.chat.complete(
@@ -3411,7 +3440,7 @@ async def vocab_generate(req: VocabGenerateRequest, authorization: Optional[str]
         )
         cards_raw, decoys = _vocab_parse(raw.choices[0].message.content, count, "french_definition")
         cards = [VocabCard(**c) for c in cards_raw]
-        if req.session_id and req.access_code:
+        if req.session_id and req.access_code and not req.exclude:  # Note cards: first batch only
             _analytics.track(req.session_id, req.access_code, "vocab_session_started", {
                 "exercise_type": "vocab",
                 "level": level,

@@ -1582,6 +1582,10 @@
     .vocab-example { color: var(--vk-fg-3); font-size: var(--vk-type-body-sm); font-style: italic; }
 
     /* ── Vocabulary hub ──────────────────────────────────────────────────────── */
+    /* #vocab-hub serves both Vocabulary tabs (vocab-hub / notecards-hub views);
+       anything marked data-only="flashcards|notecards" shows on that tab only. */
+    #vocab-hub[data-mode="flashcards"] [data-only="notecards"],
+    #vocab-hub[data-mode="notecards"] [data-only="flashcards"] { display: none; }
     #vocab-hub-content {
       flex: 1; overflow-y: auto; padding: 24px 48px 48px;
       display: grid; grid-template-columns: 180px 1fr;
@@ -1812,6 +1816,59 @@
       font-family: var(--pa-font-sans); font-size: var(--vk-type-body-md);
       color: var(--vk-fg-2); margin-bottom: 4px;
     }
+
+    /* ── Note cards (prompt tile + 6 options, text-based) ──────────────────── */
+    #vocab-nc { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 12px; }
+    .vnc-top { display: flex; align-items: center; gap: 12px; }
+    .vnc-phase { font-family: var(--pa-font-sans); font-size: var(--vk-type-title-sm); font-weight: 600; color: var(--vk-fg-1); }
+    .vnc-count { font-family: var(--pa-font-mono); font-size: var(--vk-type-label-md); color: var(--vk-fg-2); margin-left: auto; }
+    .vnc-prompt { display: flex; flex-direction: column; gap: 6px; }
+    .vnc-prompt-label { font-family: var(--pa-font-sans); font-size: var(--vk-type-label-md); color: var(--vk-fg-2); }
+    .vnc-prompt-row { display: flex; align-items: center; gap: 12px; }
+    .vnc-prompt-row .pa-utterance { flex: 1; min-width: 0; }
+    .vnc-feedback { display: flex; flex-direction: column; gap: 8px; }
+    .vnc-feedback[hidden] { display: none; }
+    .vnc-feedback .vocab-result-banner { margin-bottom: 0; }
+    .vnc-feedback .vc-exp-example { margin-top: 0; }
+    /* Round recap: celebration + tiles, as the phrase session */
+    #vocab-nc-recap { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 12px; }
+    .vnc-recap-label { font-family: var(--pa-font-sans); font-size: var(--vk-type-label-lg); font-weight: 600; color: var(--vk-accent-text); }
+    .vnc-tile-wide { grid-column: 1 / -1; }
+    .vnc-tile-word { font-family: var(--pa-font-sans); font-size: var(--vk-type-title-lg); font-weight: 600; color: var(--vk-fg-1); overflow-wrap: anywhere; }
+    .pa-cheer-word.is-almost { background: var(--pa-almost-bg); color: var(--pa-almost); }
+    .vnc-recap-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .vnc-recap-actions .vk-btn-text { margin-left: auto; }
+    #vocab-results .vr-tiles { margin-top: 12px; }
+    /* Learn step: flip cards (word on the front, meaning on the back) */
+    #vocab-nc-learn { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 16px; }
+    .vncl-hint { font-family: var(--pa-font-sans); font-size: var(--vk-type-body-sm); color: var(--vk-fg-2); margin-left: auto; }
+    .vncl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .vncl-card { perspective: 900px; cursor: pointer; outline: none; border-radius: var(--vk-card-radius); }
+    .vncl-card:focus-visible { box-shadow: var(--vk-focus-ring); }
+    /* Both faces share one grid cell, so the card is as tall as its longer side */
+    .vncl-inner {
+      display: grid; min-height: 120px; transform-style: preserve-3d;
+      transition: transform 350ms cubic-bezier(0.4,0,0.2,1);
+    }
+    .vncl-card.is-flipped .vncl-inner { transform: rotateY(180deg); }
+    .vncl-face {
+      grid-area: 1 / 1; display: flex; flex-direction: column; justify-content: center; gap: 6px;
+      padding: 16px 20px; border-radius: var(--vk-card-radius);
+      background: var(--vk-surface);
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      transition: background 120ms cubic-bezier(0.4,0,0.2,1);
+    }
+    .vncl-card:hover .vncl-face.is-front { background: color-mix(in srgb, var(--vk-fg-1) 8%, var(--vk-surface)); }
+    .vncl-face.is-back { transform: rotateY(180deg); background: var(--vk-tonal); }
+    .vncl-card:hover .vncl-face.is-back { background: color-mix(in srgb, var(--vk-on-tonal) 8%, var(--vk-tonal)); }
+    .vncl-side { font-family: var(--pa-font-sans); font-size: var(--vk-type-label-md); color: var(--vk-fg-2); }
+    .vncl-face.is-back .vncl-side { color: var(--vk-on-tonal); }
+    .vncl-word-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .vncl-word { font-family: var(--pa-font-sans); font-size: var(--vk-type-title-lg); font-weight: 600; color: var(--vk-fg-1); }
+    .vncl-meaning { font-family: var(--pa-font-sans); font-size: var(--vk-type-body-lg); color: var(--vk-on-tonal); }
+    .vncl-actions { display: flex; justify-content: flex-end; }
+    @media (prefers-reduced-motion: reduce) { .vncl-inner { transition: none; } }
+    .vnc-feedback-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
     /* ── Result banners ─────────────────────────────────────────────────────── */
     .vocab-result-banner {
@@ -4333,8 +4390,18 @@
     <!-- ══════════════════════════════════════
          VOCABULARY HUB — level / subject / generate
     ══════════════════════════════════════ -->
-    <div id="vocab-hub" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
-      <div class="hub-intro">
+    <div id="vocab-hub" data-mode="flashcards" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="hub-intro" data-only="notecards">
+        <span class="hub-intro-eyebrow">Vocabulary</span>
+        <h2 class="hub-intro-heading">Memorise words in bulk</h2>
+        <p class="hub-intro-text">Like paper note cards: match each word with its meaning, 5 new words at a time. A word you miss comes back at the end until you get it right, then the set joins a growing review of every word so far. Keep going as long as you like.</p>
+        <div class="hub-intro-chips">
+          <span class="hub-intro-chip">Sets of 5</span>
+          <span class="hub-intro-chip">Flip to learn</span>
+          <span class="hub-intro-chip">Difficult-words focus</span>
+        </div>
+      </div>
+      <div class="hub-intro" data-only="flashcards">
         <span class="hub-intro-eyebrow">Vocabulary</span>
         <h2 class="hub-intro-heading">Build your word bank</h2>
         <p class="hub-intro-text">Two rounds per session: Exposure (read definitions, play audio) then Recall, answered the way you choose below. Cumulative mode stacks new words on top of previous sessions.</p>
@@ -4348,7 +4415,7 @@
 
         <!-- Review your words: an alternate path (spaced repetition), not a setup row.
              Account-tied, one deck per study language; hidden in teach mode / signed out. -->
-        <div id="vocab-review-row" class="hub-feature-card vrb" style="display:none;">
+        <div id="vocab-review-row" class="hub-feature-card vrb" data-only="flashcards" style="display:none;">
           <div class="vrb-main">
             <svg class="vrb-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
             <span class="vrb-text">
@@ -4383,7 +4450,7 @@
         </div>
 
         <!-- Resume (cumulative, account-tied) -->
-        <div id="vocab-resume-row" class="hub-row" style="display:none;">
+        <div id="vocab-resume-row" class="hub-row" data-only="flashcards" style="display:none;">
           <div class="hub-row-label">
             <span class="hub-row-name">Resume</span>
             <span class="hub-row-desc">Continue your cumulative set</span>
@@ -4452,7 +4519,7 @@
         </div>
 
         <!-- Words -->
-        <div class="hub-row">
+        <div class="hub-row" data-only="flashcards">
           <div class="hub-row-label">
             <span class="hub-row-name">Words</span>
             <span class="hub-row-desc">Words / expressions to study</span>
@@ -4468,8 +4535,23 @@
           </div>
         </div>
 
+        <!-- Card front (Note cards tab) -->
+        <div class="hub-row" data-only="notecards">
+          <div class="hub-row-label">
+            <span class="hub-row-name">Card front</span>
+            <span class="hub-row-desc">What you see on each card; you pick the other side</span>
+          </div>
+          <div class="hub-row-controls">
+            <div id="vocab-nc-dirs">
+              <button class="vk-filter-chip hub-subject-chip active" data-dir="mixed" onclick="selectNcDirection(this)">Mixed</button>
+              <button class="vk-filter-chip hub-subject-chip" data-dir="word" onclick="selectNcDirection(this)">See the word, pick the meaning</button>
+              <button class="vk-filter-chip hub-subject-chip" data-dir="meaning" onclick="selectNcDirection(this)">See the meaning, pick the word</button>
+            </div>
+          </div>
+        </div>
+
         <!-- How to answer (Recall) -->
-        <div class="hub-row">
+        <div class="hub-row" data-only="flashcards">
           <div class="hub-row-label">
             <span class="hub-row-name">How to answer</span>
             <span class="hub-row-desc">One way per word, or Mixed to test each word two ways</span>
@@ -4615,6 +4697,64 @@
 
           </div><!-- /#vocab-card -->
         </div><!-- /#vocab-card-wrap -->
+
+        <!-- Note cards — learn step: the set's cards, tap to flip word <-> meaning -->
+        <div id="vocab-nc-learn" style="display:none;">
+          <div class="vnc-top">
+            <span id="vncl-phase" class="vnc-phase"></span>
+            <span class="vncl-hint">Tap a card to flip it</span>
+            <button class="vk-btn vk-btn-text sm" onclick="ncFinish()">Done</button>
+          </div>
+          <div id="vncl-cards" class="vncl-cards"></div>
+          <div class="vncl-actions">
+            <button class="vk-btn vk-btn-primary" onclick="ncStartFromLearn()">I'm ready, quiz me →</button>
+          </div>
+        </div>
+
+        <!-- Note cards: text-based bulk memorising (prompt tile + 6 options) -->
+        <div id="vocab-nc" style="display:none;">
+          <div class="vnc-top">
+            <span id="vnc-phase" class="vnc-phase"></span>
+            <span id="vnc-count" class="vnc-count"></span>
+            <button class="vk-btn vk-btn-text sm" onclick="ncFinish()">Done</button>
+          </div>
+          <div class="pa-lp"><div id="vnc-bar" class="pa-lp-fill"></div></div>
+          <div class="pv-card vnc-prompt">
+            <span id="vnc-prompt-label" class="vnc-prompt-label"></span>
+            <div class="vnc-prompt-row">
+              <span id="vnc-prompt" class="pa-utterance"></span>
+              <button id="vnc-play" class="vk-icon-btn is-tonal vcr-play" onclick="ncPlayWord(this)" title="Play word" aria-label="Play word">
+                <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+              </button>
+            </div>
+            <span id="vnc-pos" class="vocab-pos"></span>
+          </div>
+          <div id="vnc-options" class="vc-choices" role="radiogroup" aria-label="Options"></div>
+          <div id="vnc-feedback" class="vnc-feedback" hidden>
+            <div id="vnc-banner" class="vocab-result-banner"></div>
+            <!-- In context + translation, as in the Flashcards Exposure list -->
+            <div id="vnc-example-box" class="vc-exp-example">
+              <span class="vc-exp-def-label">In a sentence</span>
+              <div class="vc-exp-example-row">
+                <p id="vnc-example" class="vc-exp-example-text"></p>
+                <button class="pa-wi-play" onclick="ncPlayExample(this)" title="Play sentence">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" fill="currentColor"/></svg>
+                </button>
+              </div>
+              <div id="vnc-example-tr" class="vc-exp-eng-text"></div>
+            </div>
+            <div id="vnc-def-tr" class="vc-exp-eng-text"></div>
+            <div class="vnc-feedback-actions">
+              <button id="vnc-translate" class="vk-btn vk-btn-ghost vk-btn-sm" onclick="ncToggleTranslation(this)">Translate</button>
+              <button class="vk-btn vk-btn-primary" onclick="ncNext()">Next →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Note cards — round recap: celebration card + stat tiles (the phrase
+             session's pa-cheer + phv-tiles), words that took a few tries, actions -->
+        <div id="vocab-nc-recap" style="display:none;"></div>
 
         <!-- Round transition / final results panel -->
         <div id="vocab-summary" style="display:none;">
@@ -5683,13 +5823,16 @@
     { key: 'home',       label: 'Home',       views: [['home', 'Home']] },
     { key: 'speaking',   label: 'Speaking',   views: [['phrase-hub', 'Phrases'], ['paragraph-hub', 'Paragraphs'], ['shadow-hub', 'Shadowing'], ['speaking-hub', 'Prompted speaking']] },
     { key: 'listening',  label: 'Listening',  views: [['comprehension-hub', 'Listen & answer'], ['natural-hub', 'Dialogue'], ['dictation-hub', 'Dictation']] },
-    { key: 'vocabulary', label: 'Vocabulary', views: [['vocab-hub', 'Flashcards']] },
+    { key: 'vocabulary', label: 'Vocabulary', views: [['vocab-hub', 'Flashcards'], ['notecards-hub', 'Note cards']] },
     { key: 'writing',    label: 'Writing',    views: [['writing-hub', 'Prompted writing'], ['transform-hub', 'Transformation']] },
     { key: 'pronouns',   label: 'Pronouns',   views: [['pronoun-hub', 'Pronouns']] },
     { key: 'practice',   label: 'Practice',   views: [['practice', 'Practice list'], ['custom', 'My content']] },
   ];
   const NAV_BAR_MAX = 5;          // M3 navigation bar: 3–5 destinations
   const _navLast = {};            // area key → last hub visited, so the rail returns you there
+  // Flashcards and Note cards are separate Vocabulary tabs sharing one hub page (#vocab-hub);
+  // the last one entered decides which tab the running #vocab-view belongs to.
+  let _vocabHubMode = 'flashcards';
 
   function _navSvg(key) {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (NAV_ICONS[key] || '') + '</svg>';
@@ -5699,12 +5842,13 @@
     const map = {
       'phrase': 'phrase-hub', 'paragraph': 'paragraph-hub', 'shadow-drill': 'shadow-hub',
       'speaking': 'speaking-hub', 'warmup': 'speaking-hub', 'dialogue-speak': 'natural-hub',
-      'dictation': 'dictation-hub', 'vocab': 'vocab-hub', 'writing': 'writing-hub', 'transform': 'transform-hub',
+      'dictation': 'dictation-hub', 'writing': 'writing-hub', 'transform': 'transform-hub',
       'pronoun-speak': 'pronoun-hub', 'pronoun-placement': 'pronoun-hub',
     };
     if (view === 'comprehension') {
       try { return _comprHubView(); } catch (_) { return 'comprehension-hub'; }
     }
+    if (view === 'vocab') return _vocabHubMode === 'notecards' ? 'notecards-hub' : 'vocab-hub';
     return map[view] || view;
   }
   // The hub named in the URL hash, for restoring a view on page load. Exercise
@@ -6456,7 +6600,7 @@
   const STUDY_LANG_BADGE = { fr: 'FR', en: 'EN' };
   const STUDY_LANG_NAME  = { fr: 'Français', en: 'English' };
   // Views available while studying English (v1: Speaking phrases + Flashcards).
-  const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'paragraph-hub', 'phrase', 'paragraph', 'vocab-hub', 'vocab', 'practice',
+  const EN_VIEWS = new Set(['home', 'account', 'phrase-hub', 'paragraph-hub', 'phrase', 'paragraph', 'vocab-hub', 'notecards-hub', 'vocab', 'practice',
                               'shadow-hub', 'shadow-drill', 'speaking-hub', 'speaking']);
   let studyLocale = 'fr-FR';   // locale of the current item (en-US / en-GB while studying English)
   let enAccent = 'both';
@@ -7053,7 +7197,9 @@
     const inComprehension   = view === 'comprehension';
     const inDictHub         = view === 'dictation-hub';
     const inDictation       = view === 'dictation';
-    const inVocabHub        = view === 'vocab-hub';
+    // Flashcards and Note cards are separate Vocabulary tabs sharing one hub page (#vocab-hub)
+    const inVocabHub        = view === 'vocab-hub' || view === 'notecards-hub';
+    if (inVocabHub) selectVocabHubMode(view === 'notecards-hub' ? 'notecards' : 'flashcards');
     const inVocab           = view === 'vocab';
     const inWritingHub      = view === 'writing-hub';
     const inWriting         = view === 'writing';
@@ -7120,7 +7266,7 @@
       'comprehension-hub': 'Comprehension', 'comprehension': 'Comprehension',
       'natural-hub': 'Dialogue French',
       'dictation-hub': 'Dictation', 'dictation': 'Dictation',
-      'vocab-hub': 'Flashcards', 'vocab': 'Flashcards',
+      'vocab-hub': 'Flashcards', 'notecards-hub': 'Note cards', 'vocab': 'Flashcards',
       'writing-hub': 'Writing', 'writing': 'Writing',
       'transform-hub': 'Transformation', 'transform': 'Transformation',
       'pronoun-hub': 'Pronouns', 'pronoun-speak': 'Pronouns', 'pronoun-placement': 'Pronouns',
@@ -7169,7 +7315,7 @@
     // Sync URL hash so browser back/forward works.
     // Session sub-views (mid-exercise) replace the hub's hash rather than pushing a new entry,
     // so pressing back from inside an exercise returns to the hub, not the previous hub.
-    const hashView = SESSION_TO_HUB[view] || view;
+    const hashView = view === 'vocab' ? navHubFor(view) : (SESSION_TO_HUB[view] || view);
     const newHash = '#' + hashView;
     if (location.hash !== newHash) {
       if (SESSION_TO_HUB[view]) {
@@ -15956,6 +16102,14 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     btn.classList.add('active');
   }
 
+  // Set by switchView from the Vocabulary tab (vocab-hub / notecards-hub).
+  function selectVocabHubMode(mode) {
+    _vocabHubMode = mode;
+    document.getElementById('vocab-hub').dataset.mode = mode;
+    const btn = document.getElementById('vocab-generate-btn');
+    if (!btn.disabled) btn.textContent = mode === 'notecards' ? 'Start note cards →' : 'Generate Cards →';
+  }
+
   function addVocabCustomSubject() {
     const input = document.getElementById('vocab-custom-subject-input');
     const val = input.value.trim();
@@ -15972,6 +16126,8 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   async function startVocabSession() {
+    if (_vocabHubMode === 'notecards') return startNoteCards();
+    _nc = null;   // drop an abandoned note-card session
     const errEl = document.getElementById('vocab-hub-error');
     errEl.style.display = 'none';
     const btn = document.getElementById('vocab-generate-btn');
@@ -16018,7 +16174,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       errEl.textContent = 'Failed to generate cards. Try again.';
       errEl.style.display = '';
     } finally {
-      btn.textContent = 'Generate Cards';
+      btn.textContent = 'Generate Cards →';
       btn.disabled = false;
     }
   }
@@ -16428,6 +16584,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
           <div class="vr-actions"></div>
         </div>
       </div>
+      ${o.tiles ? `<div class="phv-tiles is-visible vr-tiles">${o.tiles.join('')}</div>` : ''}
       ${section('To review', o.review)}
       ${section('Remembered', o.right)}`;
     const actions = el.querySelector('.vr-actions');
@@ -16993,18 +17150,525 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
     document.getElementById('vc-path-c-result').style.display = '';
   }
 
+  // ── Note cards — text-based bulk memorising ──────────────────────────────────
+  // Word <-> short English meaning, 6 options (3 from the learned list, 2 decoys
+  // from outside it). Sets of 5 new words, opened by a flip-card learn step; in
+  // every round a missed card goes back to the end until it's answered right.
+  // From the 2nd set on, a cleared set is followed by all words so far. From 20
+  // words, a cleared combined review offers a focus round on the words missed
+  // since the last checkpoint. Open-ended: words are generated
+  // 10 at a time in the background (excluding words already had) until Done.
+  // Each cleared set joins the spaced repetition deck.
+
+  const _NC_SET = 5, _NC_BATCH = 10, _NC_CHECKPOINT = 20;
+  const _NC_DIRS = ['word', 'meaning', 'mixed'];
+  let _ncDirection = (() => {
+    let d = null;
+    try { d = localStorage.getItem('ft_vocab_nc_dir'); } catch (_) {}
+    return _NC_DIRS.includes(d) ? d : 'mixed';
+  })();
+  let _nc = null;   // the running note-card session
+
+  function selectNcDirection(btn) {
+    _ncDirection = btn.dataset.dir;
+    try { localStorage.setItem('ft_vocab_nc_dir', _ncDirection); } catch (_) {}
+    _syncNcDirectionChips();
+  }
+
+  function _syncNcDirectionChips() {
+    document.querySelectorAll('#vocab-nc-dirs .hub-subject-chip').forEach(b =>
+      b.classList.toggle('active', b.dataset.dir === _ncDirection));
+  }
+  _syncNcDirectionChips();
+
+  const _ncKey = x => ((x && x.word) || '').trim().toLowerCase();
+
+  // Fetches the next batch into the queue (one request at a time).
+  function _ncFetch() {
+    const run = _nc;
+    if (run.fetching) return run.fetching;
+    run.fetching = apiFetch('/vocab/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level: _vocabLevel, subject: _vocabSubject, count: _NC_BATCH, locale: studyLocale,
+                             notecards: true, exclude: [...run.seen], ...getAnalyticsFields() }),
+    }).then(async r => {
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      (data.cards || []).forEach(c => {
+        // Fallback when the model leaves out `meaning`: the English text on the card
+        // (English cards keep their English definition in french_definition).
+        c.meaning = (c.meaning || (studyLang() === 'en' ? c.french_definition : c.english_definition) || '').trim();
+        if (!c.meaning || run.seen.has(_ncKey(c))) return;
+        run.seen.add(_ncKey(c));
+        run.queue.push(c);
+      });
+      (data.decoys || []).forEach(d => {
+        d.meaning = (d.meaning || (studyLang() === 'en' ? d.french_definition : '') || '').trim();
+        if (!d.meaning || run.seen.has(_ncKey(d))) return;
+        run.seen.add(_ncKey(d));
+        run.decoys.push(d);
+      });
+    }).finally(() => { run.fetching = null; });
+    return run.fetching;
+  }
+
+  async function startNoteCards() {
+    const errEl = document.getElementById('vocab-hub-error');
+    errEl.style.display = 'none';
+    const btn = document.getElementById('vocab-generate-btn');
+    btn.textContent = 'Generating…';
+    btn.disabled = true;
+    rollStudyLocale();   // English: one accent for the whole session
+    _nc = {
+      learned: [], set: [], queue: [], decoys: [], seen: new Set(), fetching: null,
+      setNum: 0, phase: 'set', focus: [], deck: [], idx: 0, options: [],
+      passMisses: 0, answered: false, timer: null,
+      missedSince: new Map(),   // word -> misses since the last checkpoint (the focus list)
+      missCount: {},            // word -> misses over the whole session
+      roundMisses: {},          // word -> misses in the current round
+      streak: 0, bestStreak: 0, // right answers in a row
+      rounds: 0, answers: 0, items: 0,   // cleared rounds; answers / cards over them (avg attempts)
+    };
+    try {
+      await _ncFetch();
+      if (_nc.queue.length < _NC_SET) throw new Error('too few words');
+      document.getElementById('vocab-parts').style.display = 'none';
+      switchView('vocab');
+      _ncNextSet();
+    } catch (_) {
+      errEl.textContent = 'Failed to generate cards. Try again.';
+      errEl.style.display = '';
+    } finally {
+      btn.textContent = 'Start note cards →';
+      btn.disabled = false;
+    }
+  }
+
+  async function _ncNextSet() {
+    const run = _nc;
+    if (run.queue.length < _NC_SET) {
+      _vocabShowOnly('vocab-loading');
+      try { await _ncFetch(); } catch (_) {}
+      if (run !== _nc) return;
+      if (run.queue.length < _NC_SET) {
+        _ncTransition("Couldn't load more words", 'Check your connection and try again.', '',
+          [{ label: 'Try again', cls: 'vk-btn-primary', onclick: _ncNextSet }]);
+        return;
+      }
+    }
+    run.set = run.queue.splice(0, _NC_SET);
+    run.setNum++;
+    if (run.queue.length < 2 * _NC_SET) _ncFetch().catch(() => {});  // prefetch
+    _ncShowLearn('set');
+  }
+
+  // Mixed: a coin flip every time a card comes up
+  function _ncFront() {
+    return _ncDirection === 'mixed' ? (Math.random() < 0.5 ? 'word' : 'meaning') : _ncDirection;
+  }
+
+  function _ncPhaseCards(phase) {
+    return phase === 'set' ? _nc.set : phase === 'combined' ? _nc.learned : _nc.focus;
+  }
+
+  // Learn step: the phase's cards side by side, each flips word <-> meaning.
+  // Opens every new set; a failed pass can come back here before going again.
+  function _ncShowLearn(phase) {
+    const run = _nc;
+    run.phase = phase;
+    const cards = _ncPhaseCards(phase);
+    _vocabShowOnly('vocab-nc-learn');
+    document.getElementById('vocab-counter').textContent =
+      `${run.learned.length} ${run.learned.length === 1 ? 'word' : 'words'} learned`;
+    document.getElementById('vncl-phase').textContent = _ncPhaseLabel() + ' · learn';
+    document.getElementById('vncl-cards').innerHTML = cards.map((c, i) => `
+      <div class="vncl-card" role="button" tabindex="0" aria-pressed="false" aria-label="${esc(c.word).replace(/"/g, '&quot;')}: flip to see the meaning"
+           onclick="ncFlip(this)" onkeydown="if (event.target === this && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); ncFlip(this); }">
+        <div class="vncl-inner">
+          <div class="vncl-face is-front">
+            <span class="vncl-side">Word</span>
+            <div class="vncl-word-row">
+              <span class="vncl-word">${esc(c.word)}</span>
+              <button class="pa-wi-play" onclick="event.stopPropagation(); ncLearnPlay(${i}, this)" title="Play word" aria-label="Play word">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 3l9 5-9 5V3z" fill="currentColor"/></svg>
+              </button>
+            </div>
+            ${c.part_of_speech ? `<span class="vocab-pos">${esc(c.part_of_speech)}</span>` : ''}
+          </div>
+          <div class="vncl-face is-back" aria-hidden="true">
+            <span class="vncl-side">Meaning</span>
+            <span class="vncl-meaning">${esc(c.meaning)}</span>
+          </div>
+        </div>
+      </div>`).join('');
+    document.getElementById('vocab-content').scrollTop = 0;
+  }
+
+  function ncFlip(card) {
+    const flipped = card.classList.toggle('is-flipped');
+    card.setAttribute('aria-pressed', flipped ? 'true' : 'false');
+    card.querySelector('.is-front').setAttribute('aria-hidden', flipped ? 'true' : 'false');
+    card.querySelector('.is-back').setAttribute('aria-hidden', flipped ? 'false' : 'true');
+  }
+
+  async function ncLearnPlay(i, btn) {
+    if (!_nc) return;
+    btn.className = 'pa-wi-play playing';
+    await _vocabTTSPromise(_ncPhaseCards(_nc.phase)[i].word);
+    btn.className = 'pa-wi-play done';
+  }
+
+  function ncStartFromLearn() {
+    if (_nc) _ncStartPass(_nc.phase);
+  }
+
+  function _ncStartPass(phase) {
+    const run = _nc;
+    run.phase = phase;
+    const cards = _ncPhaseCards(phase);
+    run.deck = _fisherYates(cards.map(c => ({ card: c, front: _ncFront() })));
+    run.idx = 0;
+    run.passMisses = 0;
+    run.roundMisses = {};
+    _ncRenderCard();
+  }
+
+  function _ncPhaseLabel() {
+    if (_nc.phase === 'set') return `Set ${_nc.setNum}`;
+    if (_nc.phase === 'combined') return `All words · ${_nc.learned.length}`;
+    return `Missed words · ${_nc.focus.length}`;
+  }
+
+  // 5 wrong options: 3 from the learned list (and current set), 2 decoys, topped
+  // up from either when one runs short. Options never repeat the answer's label.
+  function _ncChoices(card, front) {
+    const label = x => ((front === 'word' ? x.meaning : x.word) || '').trim().toLowerCase();
+    const taken = new Set([label(card)]);
+    const pick = (list, n) => {
+      const out = [];
+      for (const x of _fisherYates(list.slice())) {
+        if (out.length >= n) break;
+        const l = label(x);
+        if (!l || taken.has(l)) continue;
+        taken.add(l);
+        out.push(x);
+      }
+      return out;
+    };
+    const pool = _nc.learned.concat(_nc.set).filter(x => _ncKey(x) !== _ncKey(card));
+    let wrong = pick(pool, 3);
+    wrong = wrong.concat(pick(_nc.decoys, 5 - wrong.length));
+    wrong = wrong.concat(pick(pool, 5 - wrong.length));
+    return _fisherYates([card, ...wrong]);
+  }
+
+  function _ncRenderCard() {
+    const run = _nc;
+    const e = run.deck[run.idx];
+    const c = e.card;
+    run.answered = false;
+    _vocabShowOnly('vocab-nc');
+    document.getElementById('vocab-counter').textContent =
+      `${run.learned.length} ${run.learned.length === 1 ? 'word' : 'words'} learned`;
+    document.getElementById('vnc-phase').textContent = _ncPhaseLabel();
+    document.getElementById('vnc-count').textContent = `${run.idx + 1} / ${run.deck.length}`;
+    document.getElementById('vnc-bar').style.width = (run.idx / run.deck.length * 100) + '%';
+
+    const isWord = e.front === 'word';
+    document.getElementById('vnc-prompt-label').textContent = isWord ? 'Word' : 'Meaning';
+    document.getElementById('vnc-prompt').textContent = isWord ? c.word : c.meaning;
+    document.getElementById('vnc-pos').textContent = c.part_of_speech || '';
+    const play = document.getElementById('vnc-play');
+    play.style.display = isWord ? '' : 'none';
+    play.classList.remove('is-playing');
+
+    run.options = _ncChoices(c, e.front);
+    document.getElementById('vnc-options').innerHTML = run.options.map((o, i) => {
+      if (isWord) return _vcRowHtml(`onclick="ncPick(${i}, this)"`, '', '', esc(o.meaning), '');
+      const wJs = o.word.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      return _vcRowHtml(`onclick="ncPick(${i}, this)"`, `vocabChipPlay('${wJs}', this)`, 'Play word', esc(o.word), '');
+    }).join('');
+    document.getElementById('vnc-feedback').hidden = true;
+  }
+
+  async function ncPlayWord(btn) {
+    if (btn.classList.contains('is-playing') || !_nc) return;
+    btn.classList.add('is-playing');
+    await _vocabTTSPromise(_nc.deck[_nc.idx].card.word);
+    btn.classList.remove('is-playing');
+  }
+
+  // Picking an option commits it, then shows the verdict, the word in a sentence
+  // and a Translate toggle; Next (or Enter) moves on.
+  function ncPick(i, rowEl) {
+    const run = _nc;
+    if (!run || run.answered) return;
+    run.answered = true;
+    const e = run.deck[run.idx];
+    const c = e.card;
+    const isRight = _ncKey(run.options[i]) === _ncKey(c);
+    run.streak = isRight ? run.streak + 1 : 0;
+    run.bestStreak = Math.max(run.bestStreak, run.streak);
+    if (!isRight) {
+      run.passMisses++;
+      run.roundMisses[c.word] = (run.roundMisses[c.word] || 0) + 1;
+      run.missedSince.set(c.word, (run.missedSince.get(c.word) || 0) + 1);
+      run.missCount[c.word] = (run.missCount[c.word] || 0) + 1;   // attempts tracked for the checkpoint focus
+      run.deck.push({ card: c, front: _ncFront() });   // back to the end until it's right
+    }
+    trackEvent('vocab_card_quizzed', { exercise_type: 'vocab', word: c.word, correct: isRight, round: null,
+                                       level: _vocabLevel, quiz_type: 'notecard-' + e.front, phase: run.phase });
+
+    document.querySelectorAll('#vnc-options .vc-row').forEach((row, j) => {
+      row.classList.add('disabled');
+      row.onclick = null;
+      // The picked row is the checked radio (its dot fills green or red)
+      row.classList.toggle('selected', j === i);
+      row.setAttribute('aria-checked', j === i ? 'true' : 'false');
+      if (_ncKey(run.options[j]) === _ncKey(c)) row.classList.add(isRight ? 'correct' : 'reveal');
+      else if (j === i) row.classList.add('wrong');
+    });
+
+    const banner = document.getElementById('vnc-banner');
+    banner.textContent = isRight ? 'Correct' : `Not quite: “${c.word}” means “${c.meaning}”`;
+    banner.className = 'vocab-result-banner ' + (isRight ? 'correct' : 'wrong');
+    // In context + a Translate toggle (definition and example), as in the Exposure list.
+    // The translations are English for French cards, French for English cards.
+    document.getElementById('vnc-example-box').style.display = c.example_sentence ? '' : 'none';
+    document.getElementById('vnc-example').textContent    = c.example_sentence || '';
+    document.getElementById('vnc-example-tr').textContent = c.english_translation || '';
+    document.getElementById('vnc-def-tr').textContent     = c.english_definition || '';
+    document.querySelectorAll('#vnc-feedback .vc-exp-eng-text').forEach(el => el.classList.remove('visible'));
+    const tr = document.getElementById('vnc-translate');
+    tr.textContent = 'Translate';
+    tr.style.display = (c.english_translation || c.english_definition) ? '' : 'none';
+    document.querySelector('#vnc-feedback .pa-wi-play').className = 'pa-wi-play';
+    document.getElementById('vnc-feedback').hidden = false;
+    document.getElementById('vnc-bar').style.width = ((run.idx + 1) / run.deck.length * 100) + '%';
+  }
+
+  function ncToggleTranslation(btn) {
+    const texts = document.querySelectorAll('#vnc-feedback .vc-exp-eng-text');
+    const shown = !texts[0].classList.contains('visible');
+    texts.forEach(el => el.classList.toggle('visible', shown));
+    btn.textContent = shown ? 'Hide translation' : 'Translate';
+  }
+
+  async function ncPlayExample(btn) {
+    if (!_nc) return;
+    btn.className = 'pa-wi-play playing';
+    await _vocabTTSPromise(_nc.deck[_nc.idx].card.example_sentence);
+    btn.className = 'pa-wi-play done';
+  }
+
+  function ncNext() {
+    const run = _nc;
+    if (!run || !run.answered) return;
+    clearTimeout(run.timer);
+    run.idx++;
+    if (run.idx < run.deck.length) _ncRenderCard();
+    else _ncEndPass();
+  }
+
+  // End of a round (every card answered right): a recap that celebrates it, as
+  // the phrase session does — cheer card, stat tiles, the words that took a few
+  // tries — then the way on. From 20 words, a combined review with words missed
+  // since the last checkpoint offers the difficult-words focus instead.
+  function _ncEndPass() {
+    const run = _nc;
+    const phase = run.phase;
+    const cards = _ncPhaseCards(phase);
+    const n = cards.length;
+    const firstTime = cards.filter(c => !run.roundMisses[c.word]).length;
+    const avg = run.deck.length / n;          // answers per card: each miss came back once more
+    run.rounds++;
+    run.answers += run.deck.length;
+    run.items += n;
+    const label = _ncPhaseLabel();
+    if (phase === 'set') { run.learned.push(...run.set); _ncAddToReview(run.set); }
+
+    const perfect = firstTime === n;
+    const line = perfect ? `All ${n} right first time.`
+      : `${firstTime} of ${n} right first time, the rest after another go.`;
+    const tries = cards.filter(c => run.roundMisses[c.word])
+      .sort((a, b) => run.roundMisses[b.word] - run.roundMisses[a.word])
+      .map(c => ({ word: c.word, n: run.roundMisses[c.word] + 1 }));
+    const tiles = [
+      _ncTile('Right first time', firstTime, `of ${n}`,
+        n <= 30 ? _ncPips(cards.map(c => !run.roundMisses[c.word])) : ''),
+      _ncTile('Avg attempts', avg.toFixed(1), 'per word'),
+      _ncTile('Words learned', run.learned.length, 'so far', '', 'vnc-tile-wide'),
+    ];
+    const nextSet = { label: 'Next 5 words →', cls: 'vk-btn-primary', onclick: _ncNextSet };
+
+    if (phase === 'set') {
+      const next = run.learned.length <= _NC_SET ? nextSet
+        : { label: `Review all ${run.learned.length} words →`, cls: 'vk-btn-primary', onclick: () => _ncStartPass('combined') };
+      _ncRecap({ label, title: 'Set cleared', line, perfect, tiles, tries, actions: [next] });
+    } else if (phase === 'combined') {
+      const difficult = run.learned.filter(c => run.missedSince.has(c.word))
+        .sort((a, b) => run.missedSince.get(b.word) - run.missedSince.get(a.word));
+      if (run.learned.length >= _NC_CHECKPOINT && difficult.length) {
+        _ncRecap({
+          label: 'Checkpoint', title: `All ${run.learned.length} words cleared`,
+          line: `${difficult.length} ${difficult.length === 1 ? 'word has' : 'words have'} given you the most trouble. Focus on them until each one sticks, then carry on with new words.`,
+          perfect, tiles,
+          tries: difficult.map(c => ({ word: c.word, n: run.missedSince.get(c.word) })), triesLabel: 'Difficult words, times missed',
+          actions: [{ label: `Focus on difficult words (${difficult.length}) →`, cls: 'vk-btn-primary', onclick: () => { run.focus = difficult; _ncStartPass('focus'); } },
+                    { label: 'Skip, new words', cls: 'vk-btn-tonal', onclick: _ncNextSet }],
+        });
+      } else {
+        _ncRecap({ label, title: `All ${run.learned.length} words cleared`, line, perfect, tiles, tries, actions: [nextSet] });
+      }
+    } else {
+      run.missedSince.clear();
+      _ncRecap({ label, title: 'Difficult words cleared',
+        line: line + ' They stay in your list for the next reviews.', perfect, tiles, tries, actions: [nextSet] });
+    }
+  }
+
+  function _ncTile(label, value, unit, extra, cls) {
+    return `<div class="phv-tile ${cls || ''}">
+      <span class="phv-tile-label">${label}</span>
+      <span class="phv-tile-value"><span class="is-landing">${value}</span>${unit ? `<small>${unit}</small>` : ''}</span>
+      ${extra || ''}
+    </div>`;
+  }
+
+  // One pip per card: pass-green if right first time, amber if it took another go
+  function _ncPips(firstTimes) {
+    return `<div class="phv-attempt-pips" aria-hidden="true">${firstTimes.map(ok =>
+      `<span class="phv-attempt-pip ${ok ? 'is-pass' : 'is-done'}"></span>`).join('')}</div>`;
+  }
+
+  function _ncRecap(o) {
+    const el = document.getElementById('vocab-nc-recap');
+    const tries = (o.tries || []).slice(0, 12);
+    el.innerHTML = `
+      <div class="pa-cheer" role="status">
+        ${o.perfect ? '<span class="pa-cheer-burst" aria-hidden="true">' + '<i></i>'.repeat(8) + '</span>' : ''}
+        <span class="vnc-recap-label">${esc(o.label)}</span>
+        <p class="pa-cheer-fr">${esc(o.title)}</p>
+        <p class="pa-cheer-en">${esc(o.line)}</p>
+        ${tries.length ? `<div class="pa-cheer-beaten">
+          <span class="pa-cheer-beaten-label">${o.triesLabel || 'Took a few tries'}</span>
+          ${tries.map(t => `<span class="pa-cheer-word is-almost" lang="${studyLang()}">${esc(t.word)}<small>×${t.n}</small></span>`).join('')}
+        </div>` : ''}
+      </div>
+      <div class="phv-tiles is-visible">${o.tiles.join('')}</div>
+      <div class="vnc-recap-actions"></div>`;
+    const box = el.querySelector('.vnc-recap-actions');
+    o.actions.concat([{ label: 'Done', cls: 'vk-btn-text', onclick: ncFinish }]).forEach(a => {
+      const b = document.createElement('button');
+      b.className = 'vk-btn ' + a.cls;
+      b.textContent = a.label;
+      b.onclick = a.onclick;
+      box.appendChild(b);
+    });
+    _vocabShowOnly('vocab-nc-recap');
+    document.getElementById('vocab-counter').textContent =
+      `${_nc.learned.length} ${_nc.learned.length === 1 ? 'word' : 'words'} learned`;
+    document.getElementById('vocab-content').scrollTop = 0;
+  }
+
+  // Between passes: reuses the block-transition card; Done is always offered.
+  function _ncTransition(label, title, sub, actions) {
+    document.querySelector('#vocab-summary .vocab-summary-card').hidden = false;
+    document.getElementById('vocab-results').hidden = true;
+    document.getElementById('vocab-summary-label').textContent = label;
+    document.getElementById('vocab-summary-title').textContent = title;
+    const subEl = document.getElementById('vocab-summary-sub');
+    subEl.textContent = sub || '';
+    subEl.style.display = sub ? '' : 'none';
+    document.getElementById('vocab-summary-score').style.display = 'none';
+    const box = document.getElementById('vocab-summary-actions');
+    box.innerHTML = '';
+    actions.concat([{ label: 'Done', cls: 'vk-btn-text', onclick: ncFinish }]).forEach(a => {
+      const b = document.createElement('button');
+      b.className = 'vk-btn ' + a.cls;
+      b.textContent = a.label;
+      b.onclick = a.onclick;
+      box.appendChild(b);
+    });
+    _vocabShowOnly('vocab-summary');
+  }
+
+  // A cleared set joins the spaced repetition deck (words missed while learning it
+  // start from the beginning of the schedule).
+  function _ncAddToReview(cards) {
+    if (!_vocabReviewAvailable() || !cards.length) return;
+    apiFetch('/vocab/review/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lang: studyLang(), cards,
+                             missed: cards.filter(c => _nc.missCount[c.word]).map(c => c.word),
+                             decoys: _nc.decoys.slice(-6) }),
+    }).catch(() => {});
+  }
+
+  function ncFinish() {
+    const run = _nc;
+    if (!run) return;
+    clearTimeout(run.timer);
+    _nc = null;
+    if (!run.learned.length) { switchView('notecards-hub'); return; }
+    const right  = run.learned.filter(c => !run.missCount[c.word]);
+    const review = run.learned.filter(c =>  run.missCount[c.word]);
+    trackEvent('vocab_session_completed', {
+      exercise_type: 'vocab', level: _vocabLevel, subject: _vocabSubject,
+      card_count: run.learned.length, quiz_correct: right.length, quiz_total: run.learned.length,
+      quiz_score: Math.round(right.length / run.learned.length * 1000) / 1000, is_notecards: true,
+    });
+    const asRow = (c, meta) => ({ card: { ...c, french_definition: c.meaning }, meta });
+    const n = run.learned.length;
+    const avg = run.items ? (run.answers / run.items).toFixed(1) : '—';
+    _renderVocabResults({
+      tiles: [
+        _ncTile('Words learned', n, n === 1 ? 'word' : 'words'),
+        _ncTile('Avg attempts', avg, 'per word'),
+        _ncTile('Rounds cleared', run.rounds, ''),
+        _ncTile('Best streak', run.bestStreak, 'in a row'),
+      ],
+      label: 'Note cards',
+      title: `${n} ${n === 1 ? 'word' : 'words'} learned, ${right.length} right first time`,
+      sub: _vocabReviewAvailable() ? 'They join your review deck. First review tomorrow.' : '',
+      right:  right.map(c => asRow(c, '')),
+      review: review.map(c => { const k = run.missCount[c.word]; return asRow(c, `Missed ${k === 1 ? 'once' : k + ' times'}`); }),
+      actions: [
+        { label: 'New list →', cls: 'vk-btn-primary', onclick: () => switchView('notecards-hub') },
+        { label: 'Done', cls: 'vk-btn-outline-accent', onclick: () => switchView('home') },
+      ],
+    });
+  }
+
+  // Keyboard: 1–6 pick an option, Enter goes to the next card. Capture phase, so
+  // Enter on a focused option row answers it (its own handler) without also skipping on.
+  document.addEventListener('keydown', e => {
+    if (!_nc || !document.getElementById('vocab-nc').offsetParent) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|BUTTON)$/.test(e.target.tagName)) return;
+    if (!_nc.answered && /^[1-6]$/.test(e.key)) {
+      const row = document.querySelectorAll('#vnc-options .vc-row')[+e.key - 1];
+      if (row) { e.preventDefault(); ncPick(+e.key - 1, row); }
+    } else if (_nc.answered && e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      ncNext();
+    }
+  }, true);
+
   // ── Shared helpers ────────────────────────────────────────────────────────────
 
   // One quiz choice as an M3 list item: leading radio | divider | play (never
-  // selects), label + optional status line. The row is the radio.
+  // selects), label + optional status line. The row is the radio. No playCall:
+  // radio + label only (Note cards' English meanings).
   function _vcRowHtml(rowAttrs, playCall, playTitle, label, status) {
     return `<div class="vc-row" role="radio" aria-checked="false" tabindex="0" ${rowAttrs} onkeydown="_vcRowKey(event, this)">
       <span class="vcr-radio" aria-hidden="true"></span>
-      <span class="vcr-divider" aria-hidden="true"></span>
+      ${playCall ? `<span class="vcr-divider" aria-hidden="true"></span>
       <button class="vk-icon-btn is-tonal vcr-play" onclick="event.stopPropagation(); ${playCall}" title="${playTitle}" aria-label="${playTitle}">
         <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
-      </button>
+      </button>` : ''}
       <span class="vcr-text">
         <span class="vcr-label">${label}</span>
         ${status ? `<span class="vcr-status">${status}</span>` : ''}
@@ -17026,7 +17690,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   function _vocabShowOnly(id) {
-    ['vocab-loading', 'vocab-card-wrap', 'vocab-summary']
+    ['vocab-loading', 'vocab-card-wrap', 'vocab-summary', 'vocab-nc', 'vocab-nc-learn', 'vocab-nc-recap']
       .forEach(i => { const el = document.getElementById(i); if (el) el.style.display = 'none'; });
     document.getElementById(id).style.display = '';
   }

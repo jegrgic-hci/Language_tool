@@ -83,7 +83,7 @@ The app is an exercise platform, not a chatbot — there is no `/chat` route or 
 - **Listen & Answer** — `/listen/generate`: passage + multiple-choice comprehension questions; audio via `/tts` with a random Chirp3-HD narrator (`voice: 'chirp-random'`)
 - **Dialogue French** — `/natural/generate`: casual 2-speaker dialogue with named speakers (French names per voice), random mixed-gender Chirp3-HD pair, per-line cached audio + questions (shares the `comprMode` comprehension runner)
 - **Dictation** — `/dictation/generate`, `/dictation/check`, `/dictation/check-inline`
-- **Vocab** — `/vocab/generate`: Exposure + Recall flashcard session (spec in `vocabulary.md`); `/vocab/check-typed` grades the English-only Write question (hear definition → type the word); `/vocab/review/*` (summary, due, add, results) runs spaced repetition — `vocab_review` table in `analytics.py`, one deck per account and study language
+- **Vocab** — `/vocab/generate`: Exposure + Recall flashcard session (spec in `vocabulary.md`), plus the text-based open-ended **Note cards** mode, its own Vocabulary tab (`notecards-hub`, shares `#vocab-hub` via `data-mode` / `data-only` like Speaking) (`notecards: true` + `exclude`; sets of 5 until a clean pass, growing combined review, missed-words checkpoint from 20 words); `/vocab/check-typed` grades the English-only Write question (hear definition → type the word); `/vocab/review/*` (summary, due, add, results) runs spaced repetition — `vocab_review` table in `analytics.py`, one deck per account and study language
 - **Custom content** — `/custom/*`: user-supplied passages, persisted in `user_content.json`
 - **Analytics / coach** — `/track`, `/analytics/*`, `/coach`: event logging + teacher dashboard (see `analytics.md`)
 
