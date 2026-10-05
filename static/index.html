@@ -17152,7 +17152,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   }
 
   // ── Text cards — text-based bulk memorising ──────────────────────────────────
-  // Word <-> short English meaning, 6 options (3 from the learned list, 2 decoys
+  // Word <-> short meaning in the same language, 6 options (3 from the learned list, 2 decoys
   // from outside it). Sets of 5 new words, opened by a flip-card learn step; in
   // every round a missed card goes back to the end until it's answered right.
   // From the 2nd set on, a cleared set is followed by all words so far. From 20
@@ -17197,15 +17197,15 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
       (data.cards || []).forEach(c => {
-        // Fallback when the model leaves out `meaning`: the English text on the card
-        // (English cards keep their English definition in french_definition).
-        c.meaning = (c.meaning || (studyLang() === 'en' ? c.french_definition : c.english_definition) || '').trim();
+        // Fallback when the model leaves out `meaning`: the card's definition, which is
+        // in the language being learned (French cards in French, English in English).
+        c.meaning = (c.meaning || c.french_definition || '').trim();
         if (!c.meaning || run.seen.has(_ncKey(c))) return;
         run.seen.add(_ncKey(c));
         run.queue.push(c);
       });
       (data.decoys || []).forEach(d => {
-        d.meaning = (d.meaning || (studyLang() === 'en' ? d.french_definition : '') || '').trim();
+        d.meaning = (d.meaning || d.french_definition || '').trim();
         if (!d.meaning || run.seen.has(_ncKey(d))) return;
         run.seen.add(_ncKey(d));
         run.decoys.push(d);
@@ -17661,7 +17661,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   // One quiz choice as an M3 list item: leading radio | divider | play (never
   // selects), label + optional status line. The row is the radio. No playCall:
-  // radio + label only (Text cards' English meanings).
+  // radio + label only (Text cards' meanings).
   function _vcRowHtml(rowAttrs, playCall, playTitle, label, status) {
     return `<div class="vc-row" role="radio" aria-checked="false" tabindex="0" ${rowAttrs} onkeydown="_vcRowKey(event, this)">
       <span class="vcr-radio" aria-hidden="true"></span>

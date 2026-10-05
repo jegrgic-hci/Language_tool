@@ -3266,18 +3266,19 @@ def _vocab_parse(text: str, count: int, def_key: str):
 
 
 def _vocab_notecard_rules(req: VocabGenerateRequest, english_words: bool) -> str:
-    """Extra system-prompt block for Note cards: a short English gloss on every card
-    and decoy (the quiz pairs word <-> gloss), and no repeats of words already had.
-    French words get their English translation; English words a plain-English
-    meaning (a synonym or short definition)."""
+    """Extra system-prompt block for Text cards: a short meaning on every card and
+    decoy (the quiz pairs word <-> meaning), and no repeats of words already had.
+    The meaning is in the language being learned, like the cards' definitions:
+    a simple synonym or short definition (English words in English, French in French)."""
     if not req.notecards:
         return ""
     gloss = ("the short meaning in plain English: a simple synonym or brief definition of 1 to 6 words "
              "that does NOT contain the word itself (e.g. \"to give up\" as \"to stop trying\", "
              "\"crowd\" as \"a large group of people\")"
              if english_words else
-             "the short English meaning of the word, as a dictionary gloss of 1 to 5 words "
-             "(e.g. a verb as \"to grab\", a noun as \"a crowd\")")
+             "the short meaning in simple French: a synonym or brief definition of 1 to 6 words "
+             "that does NOT contain the word itself (e.g. \"dégringoler\" as \"tomber rapidement\", "
+             "\"la foule\" as \"beaucoup de gens\"). Never English")
     block = (f"\n\nNOTE CARDS: also add a \"meaning\" field to every card AND every decoy: {gloss}. "
              f"Meanings must be distinct from each other, so no two items can be confused. "
              f"Decoys need it too: every decoy object must have \"word\", its definition AND \"meaning\".")
