@@ -130,6 +130,13 @@ _ENGLISH_BETA_USERS: set = {
     e.strip().lower() for e in os.environ.get("ENGLISH_BETA_USERS", "").split(",") if e.strip()
 }
 
+# Which personal English subject chips an account sees (the chips marked
+# data-en-set in index.html). Accounts not listed get "default"
+# (Snakes & reptiles, Travel in India).
+_ENGLISH_SUBJECT_SETS: dict = {
+    "lafrenchclass.louise@gmail.com": "us-cities",  # Pittsburgh phrases, New York slang
+}
+
 _analytics.init_db()
 
 _sa_email    = os.environ.get("SUPER_ADMIN_EMAIL", "")
@@ -1305,6 +1312,7 @@ async def auth_me(current_user: dict = Depends(_auth.get_current_user)):
         "next_lesson": next_lesson,
         "teacher_name": teacher_name,
         "english_beta": _has_english_beta(user),
+        "english_subjects": _ENGLISH_SUBJECT_SETS.get((user.get("email") or "").strip().lower(), "default"),
     }
 
 
