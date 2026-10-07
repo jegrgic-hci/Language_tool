@@ -217,7 +217,7 @@ def normalize_homophones(words: list) -> list:
 # The English counterpart of phonetic_lookup's French categories: which of the
 # sounds French speakers find hard a word contains, judged from its spelling. Keys
 # match the Speaking sound focuses (SOUND_FOCUS_EN) so the coach and the hub agree.
-PHONETIC_CATEGORIES = ("th", "h_sound", "vowel_length", "ed_endings", "ough")
+PHONETIC_CATEGORIES = ("th", "h_sound", "vowel_length", "ed_endings", "ough", "r_sound")
 
 _SILENT_H = {"hour", "hours", "honest", "honestly", "honor", "honour", "honors", "honours",
              "honorable", "honourable", "heir", "heirs", "herb", "herbs"}
@@ -247,6 +247,11 @@ def phonetic_categories(word: str) -> list:
         cats.append("ed_endings")
     if "ough" in w:
         cats.append("ough")
+    # An r before a vowel is pronounced in US and UK English alike ("red", "very");
+    # after a vowel ("car", "water", "more" with its silent e) the UK drops it, so
+    # those don't count.
+    if re.search(r"r(?:[aiouy]|e(?!s?$))", w):
+        cats.append("r_sound")
     return cats
 
 

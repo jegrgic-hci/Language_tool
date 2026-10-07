@@ -3420,6 +3420,7 @@
               <button class="vk-filter-chip hub-subject-chip" data-focus="th" onclick="selectHubEnSoundChip(this)">TH</button>
               <button class="vk-filter-chip hub-subject-chip" data-focus="ough" onclick="selectHubEnSoundChip(this)">OUGH words</button>
               <button class="vk-filter-chip hub-subject-chip" data-focus="h_sound" onclick="selectHubEnSoundChip(this)">H sound</button>
+              <button class="vk-filter-chip hub-subject-chip" data-focus="r_sound" onclick="selectHubEnSoundChip(this)">R sound</button>
               <button class="vk-filter-chip hub-subject-chip" data-focus="vowel_length" onclick="selectHubEnSoundChip(this)">Short / long vowels</button>
               <button class="vk-filter-chip hub-subject-chip" data-focus="ed_endings" onclick="selectHubEnSoundChip(this)">-ED endings</button>
             </div>
@@ -7347,7 +7348,7 @@
   let shadowingLevel = 'A1';
   let shadowingStyle = 'story';
   let shadowingSoundFocus = null;
-  let enSoundFocus = null;  // English sound focus (th / ough / h_sound / vowel_length / ed_endings)
+  let enSoundFocus = null;  // English sound focus (th / ough / h_sound / r_sound / vowel_length / ed_endings)
 
   function selectHubEnSoundChip(btn) {
     enSoundFocus = btn.dataset.focus || null;
@@ -12213,7 +12214,7 @@ const _SHADOW_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   const HOME_SOUND_FOCUS = {
     en: { th: ['TH sounds', 'th'], h_sound: ['H sounds', 'h_sound'], vowel_length: ['short and long vowels', 'vowel_length'],
-          ed_endings: ['-ED endings', 'ed_endings'], ough: ['OUGH words', 'ough'] },
+          ed_endings: ['-ED endings', 'ed_endings'], ough: ['OUGH words', 'ough'], r_sound: ['R sounds', 'r_sound'] },
     fr: { nasal: ['nasal vowels', 'nasal'], u_sound: ['the French /y/', 'u_vowel'], eu_sound: ['[eu] sounds', null] },
   };
 

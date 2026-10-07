@@ -224,6 +224,7 @@ SOUND_FOCUS_EN = {
     "h_sound":      "several words that begin with an aspirated h (house, hungry, hold, heat, happy, hair), ideally ones where dropping the h makes another word (hold/old, heat/eat, hair/air, hand/and)",
     "vowel_length": "a short/long vowel contrast (ship/sheep, live/leave, full/fool, sit/seat, fill/feel), built so that either member of the pair could make sense in the sentence",
     "ed_endings":   "several regular past-tense verbs covering the three -ed endings: /t/ (walked, stopped, watched), /d/ (played, called, cleaned) and /ɪd/ (wanted, needed, visited)",
+    "r_sound":      "several words with the English r /ɹ/ before a vowel, where it is pronounced in both American and British English (red, right, really, very, sorry, around, tree, problem, three), the sound a French speaker tends to replace with the throaty French r",
 }
 
 _ACCENT_CLAUSES = {
